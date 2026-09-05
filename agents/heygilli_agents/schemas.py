@@ -313,6 +313,7 @@ class ServerAsk(BaseModel):
     type: QuestionType
     input: InputMode
     text: str | None = None  # omitted for band 4_6
+    speak: str | None = None  # what on-device TTS says when tts_url is empty (needed for 4_6)
     tts_url: str = ""
     listen_ms: int
     options: list[Option] | None = None
@@ -335,6 +336,7 @@ class ServerResume(BaseModel):
 class ServerEnd(BaseModel):
     t: Literal["end"] = "end"
     summary_tts_url: str = ""
+    summary_text: str | None = None  # on-device TTS fallback when summary_tts_url is empty
     words_said: list[str] = Field(default_factory=list)
 
 

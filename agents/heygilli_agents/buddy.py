@@ -200,6 +200,7 @@ class SessionEngine:
             type=q.type,
             input=q.input,
             text=None if self.band == "4_6" else q.text,  # pre-readers get no text on screen
+            speak=q.text,  # spoken by the device if Polly has no voice for this language (Urdu)
             tts_url=synthesize(q.text, self.language, slow),
             listen_ms=rules.listen_ms(self.band),
             options=q.options if q.input == "pick" else None,
@@ -243,6 +244,7 @@ class SessionEngine:
         else:
             line = "Great watching with you. See you next time!"
         return ServerEnd(summary_tts_url=synthesize(line, self.language, self.band == "4_6"),
+                         summary_text=line,
                          words_said=list(dict.fromkeys(self.words_said)))
 
     # -- internals

@@ -1,4 +1,4 @@
-# HeyGilli client ↔ gateway protocol (v1)
+# HeyGilli client ↔ gateway protocol (v1.1)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
@@ -45,7 +45,7 @@ ParentPrompt {id, kid_id, video: Video, reason, created_at}
 
 ## WebSocket `/sessions/{id}/ws`
 
-Client connects after `POST /sessions`. Server drives the loop. All messages `{ "t": "<type>", ... }`.
+Client connects after `POST /sessions`, sending the bearer token as an `Authorization` header on the upgrade (servers may ignore it in dev). The client sends `hello` only after it is subscribed to the socket; the server must not emit `ready` before `hello`. Server drives the loop. All messages `{ "t": "<type>", ... }`.
 
 Client → server
 
@@ -65,11 +65,13 @@ Server → client
 ```
 {t: "ready", plan_questions: number, age_band, language}
 {t: "pause"}                                                   pause playback now
-{t: "ask", q: number, type, input, text?: string, tts_url: string, listen_ms: number,
-           options?: [{icon_id, label}], gesture}              text omitted for band 4_6
+{t: "ask", q: number, type, input, text?: string, text_ur?: string, speak?: string,
+           tts_url: string, listen_ms: number, options?: [{icon_id, label}], gesture}
+           text omitted for band 4_6; speak = what on-device TTS says when tts_url is empty
+           (needed for 4_6 where text is absent); text_ur = Urdu line shown beside text for 7+
 {t: "reply", text?: string, tts_url: string, result, gesture, model_word?: string}
 {t: "resume"}                                                  resume playback
-{t: "end", summary_tts_url: string, words_said[]}
+{t: "end", summary_tts_url: string, summary_text?: string, words_said[]}   summary_text = on-device TTS fallback
 {t: "error", message}
 ```
 
