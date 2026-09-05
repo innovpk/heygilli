@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/demo_badge.dart';
+import '../../core/google_auth.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 
@@ -214,6 +215,133 @@ class WordChips extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// White pill for "Continue with Google", used on sign-in and again in the
+/// import screen's empty state so the same action always looks the same.
+///
+/// [reason] is shown under a disabled button: a build with no Google client id
+/// says so plainly instead of offering a button that cannot work.
+class GoogleButton extends StatelessWidget {
+  const GoogleButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.busy = false,
+    this.reason,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool busy;
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        SizedBox(
+          height: 56,
+          child: FilledButton(
+            onPressed: busy ? null : onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: HgColors.white,
+              foregroundColor: HgColors.ink,
+              disabledBackgroundColor: HgColors.line,
+              disabledForegroundColor: HgColors.muted,
+              shape: const StadiumBorder(),
+              side: const BorderSide(color: HgColors.line, width: 2),
+            ),
+            child: busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: HgColors.brown,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: 12,
+                    children: [
+                      const _GoogleG(),
+                      Text(
+                        label,
+                        style: HgText.body(
+                          size: 17,
+                          color: onPressed == null
+                              ? HgColors.muted
+                              : HgColors.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        if (reason != null)
+          Text(
+            reason!,
+            textAlign: TextAlign.center,
+            style: HgText.body(size: 13, color: HgColors.muted),
+          ),
+      ],
+    );
+  }
+}
+
+class _GoogleG extends StatelessWidget {
+  const _GoogleG();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'G',
+      style: HgText.display(size: 24, color: const Color(0xFF4285F4)),
+    );
+  }
+}
+
+/// Runs Google sign-in and hands the server auth code to the gateway.
+///
+/// Returns a message to show the parent, or null when there is nothing to say:
+/// either it worked, or they backed out of Google's own screen.
+///
+/// Call this straight from a button handler. google_sign_in requires scope
+/// authorization to be initiated by a user interaction.
+Future<String?> runGoogleSignIn(BuildContext context) async {
+  final state = context.read<AppState>();
+
+  // Demo mode has no OAuth client and must never be blocked by one, so the
+  // fake gateway stands in for the whole exchange.
+  if (state.isDemo) {
+    await state.signInWithGoogle('demo_server_auth_code');
+    return null;
+  }
+
+  final result = await GoogleAuth.shared.signIn();
+  switch (result) {
+    case GoogleAuthSuccess(:final serverAuthCode, :final displayName):
+      try {
+        await state.signInWithGoogle(serverAuthCode, displayName: displayName);
+        return null;
+      } catch (e) {
+        return 'Signed in with Google, but HeyGilli could not be reached: $e';
+      }
+    case GoogleAuthCancelled():
+      return null;
+    case GoogleAuthNotConfigured(:final reason):
+      return reason;
+    case GoogleAuthScopeDenied():
+      return 'Without YouTube access there are no subscriptions to import. '
+          'You can still paste channel links.';
+    case GoogleAuthUnavailable(:final message):
+      return message;
+    case GoogleAuthFailed(:final message):
+      return message;
   }
 }
 

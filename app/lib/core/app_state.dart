@@ -56,6 +56,29 @@ class AppState extends ChangeNotifier {
     await refreshKids();
   }
 
+  /// Signs in with the server auth code from [GoogleAuth]. The gateway
+  /// exchanges the code and keeps the refresh token; nothing of the sort ever
+  /// reaches this object (PROTOCOL).
+  Future<Session> signInWithGoogle(
+    String serverAuthCode, {
+    String displayName = '',
+  }) async {
+    final session = await gateway.signInWithGoogle(serverAuthCode);
+    final name = displayName.trim().isNotEmpty
+        ? displayName.trim()
+        : _nameFromEmail(session.email);
+    if (name.isNotEmpty) await settings.setParentName(name);
+    await refreshKids();
+    return session;
+  }
+
+  /// "asma.khan@gmail.com" → "Asma". A greeting, not an identity.
+  static String _nameFromEmail(String email) {
+    final local = email.split('@').first.split(RegExp(r'[._-]')).first;
+    if (local.isEmpty) return '';
+    return local[0].toUpperCase() + local.substring(1);
+  }
+
   Future<void> refreshKids() async {
     _kids = await gateway.kids();
     notifyListeners();

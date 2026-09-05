@@ -75,6 +75,36 @@ class ApiClient implements Gateway {
   }
 
   @override
+  Future<Session> signInWithGoogle(String serverAuthCode) async {
+    final session = Session.fromJson(
+      await _post('/auth/google', {'server_auth_code': serverAuthCode})
+          as Map<String, dynamic>,
+    );
+    _token = session.token;
+    onToken?.call(_token!);
+    return session;
+  }
+
+  @override
+  Future<YouTubeStatus> youtubeStatus() async =>
+      YouTubeStatus.fromJson(await _get('/me/youtube') as Map<String, dynamic>);
+
+  @override
+  Future<SubscriptionList> youtubeSubscriptions() async =>
+      SubscriptionList.fromJson(
+        await _get('/me/youtube/subscriptions') as Map<String, dynamic>,
+      );
+
+  @override
+  Future<ImportResult> importChannels(
+    String kidId,
+    List<String> channelIds,
+  ) async => ImportResult.fromJson(
+    await _post('/kids/$kidId/channels/import', {'channel_ids': channelIds})
+        as Map<String, dynamic>,
+  );
+
+  @override
   Future<List<Kid>> kids() async => (await _get('/kids') as List)
       .map((k) => Kid.fromJson(k as Map<String, dynamic>))
       .toList();

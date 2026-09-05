@@ -122,6 +122,113 @@ class Channel {
   };
 }
 
+/// What `POST /auth/dev` and `POST /auth/google` hand back.
+///
+/// PROTOCOL "Google sign-in and subscription import": the gateway exchanges the
+/// server auth code and keeps the refresh token. Nothing here is a refresh
+/// token, and the device never asks for one.
+class Session {
+  const Session({
+    required this.token,
+    required this.householdId,
+    this.email = '',
+    this.youtubeLinked = false,
+  });
+
+  final String token;
+  final String householdId;
+  final String email;
+  final bool youtubeLinked;
+
+  factory Session.fromJson(Map<String, dynamic> j) => Session(
+    token: j['token'] as String? ?? '',
+    householdId: '${j['household_id'] ?? ''}',
+    email: j['email'] as String? ?? '',
+    youtubeLinked: j['youtube_linked'] as bool? ?? false,
+  );
+}
+
+/// `GET /me/youtube`. `linked: false` is a normal state, not an error.
+class YouTubeStatus {
+  const YouTubeStatus({required this.linked, this.email = ''});
+
+  final bool linked;
+  final String email;
+
+  factory YouTubeStatus.fromJson(Map<String, dynamic> j) => YouTubeStatus(
+    linked: j['linked'] as bool? ?? false,
+    email: j['email'] as String? ?? '',
+  );
+}
+
+/// One channel the signed-in parent follows on YouTube, with the kids it has
+/// already been approved for so the import list can show them as done.
+class Subscription {
+  const Subscription({
+    required this.channelId,
+    required this.title,
+    this.thumbUrl = '',
+    this.approvedFor = const [],
+  });
+
+  final String channelId;
+  final String title;
+  final String thumbUrl;
+  final List<String> approvedFor;
+
+  /// Already approved for this kid: shown as such and never sent again.
+  bool isApprovedFor(String kidId) => approvedFor.contains(kidId);
+
+  factory Subscription.fromJson(Map<String, dynamic> j) => Subscription(
+    channelId: '${j['channel_id'] ?? ''}',
+    title: j['title'] as String? ?? '',
+    thumbUrl: j['thumb_url'] as String? ?? '',
+    approvedFor: _strings(j['approved_for']),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'channel_id': channelId,
+    'title': title,
+    'thumb_url': thumbUrl,
+    'approved_for': approvedFor,
+  };
+}
+
+/// `GET /me/youtube/subscriptions`.
+class SubscriptionList {
+  const SubscriptionList({required this.linked, this.subscriptions = const []});
+
+  final bool linked;
+  final List<Subscription> subscriptions;
+
+  factory SubscriptionList.fromJson(Map<String, dynamic> j) => SubscriptionList(
+    linked: j['linked'] as bool? ?? false,
+    subscriptions: (j['subscriptions'] as List? ?? const [])
+        .map((s) => Subscription.fromJson(s as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// `POST /kids/{kid_id}/channels/import`.
+class ImportResult {
+  const ImportResult({this.added = const [], this.already = const []});
+
+  final List<Channel> added;
+
+  /// Channel ids that were already approved for this kid.
+  final List<String> already;
+
+  factory ImportResult.fromJson(Map<String, dynamic> j) => ImportResult(
+    added: (j['added'] as List? ?? const [])
+        .map((c) => Channel.fromJson(c as Map<String, dynamic>))
+        .toList(),
+    // The gateway may send bare ids or whole channel objects; accept both.
+    already: (j['already'] as List? ?? const [])
+        .map((e) => e is Map ? '${e['channel_id'] ?? e['id'] ?? ''}' : '$e')
+        .toList(),
+  );
+}
+
 class Video {
   const Video({
     required this.id,

@@ -17,8 +17,20 @@ Map<String, dynamic> _payload() => {
     'answer_rate': 0.667,
   },
   'daily': [
-    {'date': '2026-09-04', 'minutes': 0, 'videos': 0, 'asked': 0, 'answered': 0},
-    {'date': '2026-09-05', 'minutes': 42, 'videos': 5, 'asked': 9, 'answered': 6},
+    {
+      'date': '2026-09-04',
+      'minutes': 0,
+      'videos': 0,
+      'asked': 0,
+      'answered': 0,
+    },
+    {
+      'date': '2026-09-05',
+      'minutes': 42,
+      'videos': 5,
+      'asked': 9,
+      'answered': 6,
+    },
   ],
   'vocabulary': {
     'total_said': 2,
@@ -54,7 +66,10 @@ Map<String, dynamic> _payload() => {
       'videos': 3,
     },
   ],
-  'note': {'kind': 'suggestion', 'text': 'Try counting cars on the school run.'},
+  'note': {
+    'kind': 'suggestion',
+    'text': 'Try counting cars on the school run.',
+  },
 };
 
 void main() {

@@ -26,22 +26,11 @@ class FakeGateway implements Gateway {
 
   // ---------------------------------------------------------------- canned data
 
-  final _kids = <Kid>[
-    const Kid(
-      id: 'kid_zara',
-      nickname: 'Zara',
-      age: 4,
-      band: AgeBand.b4to6,
-      languages: ['en', 'ur'],
-    ),
-    const Kid(
-      id: 'kid_ayaan',
-      nickname: 'Ayaan',
-      age: 9,
-      band: AgeBand.b9to11,
-      languages: ['en', 'ur'],
-    ),
-  ];
+  /// Empty on purpose. Google has no API for a parent's children (Family Link
+  /// exposes none), so a kid profile is always something the parent creates
+  /// here. Shipping invented children would put names on screen that belong to
+  /// nobody, so demo mode grows its history around whichever kid you add.
+  final _kids = <Kid>[];
 
   static const _sss = Channel(
     id: 'ch_supersimple',
@@ -56,10 +45,48 @@ class FakeGateway implements Gateway {
     approved: true,
   );
 
-  final _channels = <String, List<Channel>>{
-    'kid_zara': [_sss, _ssk],
-    'kid_ayaan': [_ssk, _sss],
-  };
+  final _channels = <String, List<Channel>>{};
+
+  /// Canned "channels this parent already follows" for the import screen.
+  ///
+  /// Deliberately a real parent's list, not a curated kids' shelf: two are
+  /// already approved for both kids, and a few at the end are the parent's own
+  /// viewing. PROTOCOL is explicit that a parent's subscriptions are a starting
+  /// list to tick through, never an auto-approved catalogue.
+  ///
+  /// Thumbnails are left empty for the invented channels so the demo renders
+  /// identically offline; the two real ones keep their real thumbnail.
+  ///
+  /// `approved_for` is not stored here: [youtubeSubscriptions] derives it from
+  /// the kids' actual channel lists, so an import done in the demo shows up as
+  /// "already added" straight away.
+  static const _subscriptions = <Subscription>[
+    Subscription(
+      channelId: 'ch_supersimple',
+      title: 'Super Simple Songs - Kids Songs',
+      thumbUrl: 'https://i.ytimg.com/vi/pZw9veQ76fo/hqdefault.jpg',
+    ),
+    Subscription(
+      channelId: 'ch_scishowkids',
+      title: 'SciShow Kids',
+      thumbUrl: 'https://i.ytimg.com/vi/0jKoOUZ1GBM/hqdefault.jpg',
+    ),
+    Subscription(channelId: 'ch_numberblocks', title: 'Numberblocks'),
+    Subscription(channelId: 'ch_natgeokids', title: 'National Geographic Kids'),
+    Subscription(channelId: 'ch_storybots', title: 'StoryBots'),
+    Subscription(channelId: 'ch_artforkidshub', title: 'Art for Kids Hub'),
+    Subscription(channelId: 'ch_crashcoursekids', title: 'Crash Course Kids'),
+    Subscription(channelId: 'ch_teded', title: 'TED-Ed'),
+    Subscription(channelId: 'ch_markrober', title: 'Mark Rober'),
+    Subscription(channelId: 'ch_urdurhymes', title: 'Urdu Rhymes for Children'),
+    Subscription(channelId: 'ch_peppa', title: 'Peppa Pig - Official Channel'),
+    Subscription(channelId: 'ch_blippi', title: 'Blippi - Educational Videos'),
+    Subscription(channelId: 'ch_kurzgesagt', title: 'Kurzgesagt in a Nutshell'),
+    Subscription(
+      channelId: 'ch_cricketpk',
+      title: 'Pakistan Cricket Highlights',
+    ),
+  ];
 
   // Real, public, embeddable videos from well-known kids' channels.
   static const _ducks = Video(
@@ -185,7 +212,7 @@ class FakeGateway implements Gateway {
   final _inbox = <ParentPrompt>[
     const ParentPrompt(
       id: 'prompt_1',
-      kidId: 'kid_ayaan',
+      kidId: '',
       video: Video(
         id: 'WX_E1CAZjaQ',
         channelId: 'ch_scishowkids',
@@ -195,15 +222,15 @@ class FakeGateway implements Gateway {
         planReady: false,
       ),
       reason:
-          'A 26-minute compilation: longer than Ayaan\'s usual videos and it '
+          'A 26-minute compilation: longer than their usual videos and it '
           'shows a real eruption. Fine for 9 to 11 in my view, but you decide.',
       createdAt: '2026-09-05T07:30:00Z',
     ),
   ];
 
-  final _digests = <String, Digest>{
-    'kid_zara': const Digest(
-      kidId: 'kid_zara',
+  final _digests = <AgeBand, Digest>{
+    AgeBand.b4to6: const Digest(
+      kidId: '',
       date: '',
       minutes: 35,
       videos: 5,
@@ -216,8 +243,8 @@ class FakeGateway implements Gateway {
       dinnerPrompt: 'Count the cars on the way to school. Stop at five.',
       kind: 'prereader',
     ),
-    'kid_ayaan': const Digest(
-      kidId: 'kid_ayaan',
+    AgeBand.b9to11: const Digest(
+      kidId: '',
       date: '',
       minutes: 42,
       videos: 4,
@@ -236,8 +263,8 @@ class FakeGateway implements Gateway {
   /// Demo history for the Progress screen. Only the per-day pattern and the
   /// word/concept lists are canned; every total is summed from the days it
   /// generates, so 7, 14 and 30 day windows are always self-consistent.
-  static final _demoShapes = <String, _DemoAnalyticsShape>{
-    'kid_zara': _DemoAnalyticsShape(
+  static final _demoShapes = <AgeBand, _DemoAnalyticsShape>{
+    AgeBand.b4to6: _DemoAnalyticsShape(
       // Mon..Sun. Two quiet weekdays are deliberate: a real week has zero days
       // and the chart should not hide them.
       minutesByWeekday: const [22, 0, 31, 18, 0, 40, 26],
@@ -261,12 +288,12 @@ class FakeGateway implements Gateway {
       note: const AnalyticsNote(
         kind: 'suggestion',
         text:
-            'Zara says "duck" and "star" without being asked now. She has '
-            'heard "hippo" four times but not tried it. Point one out today '
-            'and let her name it.',
+            '{name} says "duck" and "star" without being asked now, and has '
+            'heard "hippo" four times without trying it. Point one out today '
+            'and let them name it.',
       ),
     ),
-    'kid_ayaan': _DemoAnalyticsShape(
+    AgeBand.b9to11: _DemoAnalyticsShape(
       minutesByWeekday: const [35, 42, 0, 28, 50, 33, 45],
       minutesPerVideo: 11,
       minutesPerQuestion: 5,
@@ -285,8 +312,9 @@ class FakeGateway implements Gateway {
       note: const AnalyticsNote(
         kind: 'praise',
         text:
-            'Ayaan explained why volcanoes erupt in his own words twice this '
-            'week, without a hint. The moon phases are still not landing.',
+            '{name} explained why volcanoes erupt in their own words twice '
+            'this week, without a hint. The moon phases are still not '
+            'landing.',
       ),
     ),
   };
@@ -297,6 +325,82 @@ class FakeGateway implements Gateway {
   Future<void> signInDev(String name) async {
     await _lag();
     _signedIn = true;
+  }
+
+  bool _youtubeLinked = false;
+  String _email = '';
+
+  @override
+  Future<Session> signInWithGoogle(String serverAuthCode) async {
+    await _lag();
+    // The demo has no OAuth: any code stands in for one the real gateway would
+    // exchange. Nothing that looks like a refresh token exists on this side.
+    _signedIn = true;
+    _youtubeLinked = true;
+    _email = 'parent.demo@gmail.com';
+    return Session(
+      token: 'demo_token',
+      householdId: 'hh_demo',
+      email: _email,
+      youtubeLinked: _youtubeLinked,
+    );
+  }
+
+  @override
+  Future<YouTubeStatus> youtubeStatus() async {
+    await _lag();
+    return YouTubeStatus(linked: _youtubeLinked, email: _email);
+  }
+
+  @override
+  Future<SubscriptionList> youtubeSubscriptions() async {
+    await _lag();
+    if (!_youtubeLinked) return const SubscriptionList(linked: false);
+    return SubscriptionList(
+      linked: true,
+      subscriptions: [
+        for (final s in _subscriptions)
+          Subscription(
+            channelId: s.channelId,
+            title: s.title,
+            thumbUrl: s.thumbUrl,
+            approvedFor: [
+              for (final e in _channels.entries)
+                if (e.value.any((c) => c.id == s.channelId)) e.key,
+            ],
+          ),
+      ],
+    );
+  }
+
+  @override
+  Future<ImportResult> importChannels(
+    String kidId,
+    List<String> channelIds,
+  ) async {
+    await _lag();
+    final existing = _channels[kidId] ??= [];
+    final added = <Channel>[];
+    final already = <String>[];
+    for (final id in channelIds) {
+      if (existing.any((c) => c.id == id)) {
+        already.add(id);
+        continue;
+      }
+      final sub = _subscriptions.where((s) => s.channelId == id).firstOrNull;
+      if (sub == null) continue;
+      // Importing approves the channel, not any video: the Curator still
+      // screens every upload (PROTOCOL).
+      final ch = Channel(
+        id: sub.channelId,
+        title: sub.title,
+        thumbUrl: sub.thumbUrl,
+        approved: true,
+      );
+      existing.add(ch);
+      added.add(ch);
+    }
+    return ImportResult(added: added, already: already);
   }
 
   @override
@@ -320,7 +424,9 @@ class FakeGateway implements Gateway {
       languages: languages,
     );
     _kids.add(kid);
-    _channels[kid.id] = [];
+    // Demo mode only: give the new kid the two sample channels so the home
+    // rows, digest and Progress screens have something to show immediately.
+    _channels[kid.id] = [_sss, _ssk];
     return kid;
   }
 
@@ -406,7 +512,8 @@ class FakeGateway implements Gateway {
   @override
   Future<Digest> digest(String kidId, String date) async {
     await _lag();
-    final d = _digests[kidId];
+    final kid = _kids.where((k) => k.id == kidId).firstOrNull;
+    final d = kid == null ? null : _digests[kid.band];
     if (d == null) {
       return Digest(
         kidId: kidId,
@@ -420,13 +527,10 @@ class FakeGateway implements Gateway {
         wordsSaid: const [],
         wordsHeard: const [],
         dinnerPrompt: '',
-        kind:
-            _kids.where((k) => k.id == kidId).firstOrNull?.band == AgeBand.b4to6
-            ? 'prereader'
-            : 'older',
+        kind: kid?.band == AgeBand.b4to6 ? 'prereader' : 'older',
       );
     }
-    return Digest.fromJson({...d.toJson(), 'date': date});
+    return Digest.fromJson({...d.toJson(), 'date': date, 'kid_id': kidId});
   }
 
   @override
@@ -439,7 +543,8 @@ class FakeGateway implements Gateway {
     final kid = _kids.where((k) => k.id == kidId).firstOrNull;
     // A kid added during the demo has no history yet: that is the empty state,
     // and the screen is built to show it honestly.
-    if (kid == null || !_demoShapes.containsKey(kid.id)) {
+    final shape = kid == null ? null : _demoShapes[kid.band];
+    if (shape == null) {
       return Analytics(
         kidId: kidId,
         band: kid?.band ?? AgeBand.b4to6,
@@ -457,13 +562,28 @@ class FakeGateway implements Gateway {
         ),
       );
     }
-    return _demoShapes[kid.id]!.build(kid, days.clamp(7, 90));
+    return shape.build(kid!, days.clamp(7, 90));
   }
 
   @override
   Future<List<ParentPrompt>> inbox() async {
     await _lag();
-    return List.unmodifiable(_inbox);
+    // Attach the sample prompt to the oldest kid the parent has actually
+    // added; with no kids there is nothing to decide.
+    final oldest = _kids.isEmpty
+        ? null
+        : _kids.reduce((a, b) => a.age >= b.age ? a : b);
+    if (oldest == null) return const [];
+    return List.unmodifiable([
+      for (final p in _inbox)
+        ParentPrompt(
+          id: p.id,
+          kidId: oldest.id,
+          video: p.video,
+          reason: p.reason,
+          createdAt: p.createdAt,
+        ),
+    ]);
   }
 
   @override
@@ -624,7 +744,10 @@ class _DemoAnalyticsShape {
           ),
       ],
       channels: channels,
-      note: note,
+      note: AnalyticsNote(
+        kind: note.kind,
+        text: note.text.replaceAll('{name}', kid.nickname),
+      ),
     );
   }
 

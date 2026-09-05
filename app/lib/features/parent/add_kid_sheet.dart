@@ -93,7 +93,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
             autofocus: true,
             textCapitalization: TextCapitalization.words,
             style: HgText.body(size: 18, color: HgColors.ink),
-            decoration: const InputDecoration(hintText: 'e.g. Zara'),
+            decoration: const InputDecoration(hintText: 'What you call them at home'),
           ),
           Text('AGE', style: HgText.label()),
           Row(

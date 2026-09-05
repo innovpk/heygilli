@@ -18,6 +18,18 @@ abstract final class BuildConfig {
     defaultValue: false,
   );
 
+  /// The **web** OAuth client id, passed to google_sign_in as `serverClientId`
+  /// so Android will issue a server auth code. Empty in builds with no Google
+  /// credentials, which is a supported state: the Google button is hidden and
+  /// the name-based dev sign-in carries the whole flow.
+  ///
+  ///   flutter build apk --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=...
+  ///
+  /// No client id or secret is ever hardcoded in this repo.
+  static const googleServerClientId = String.fromEnvironment(
+    'HEYGILLI_GOOGLE_SERVER_CLIENT_ID',
+  );
+
   /// Device label sent with POST /sessions.
   static const device = 'android';
 }

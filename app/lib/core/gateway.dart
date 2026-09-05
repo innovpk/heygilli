@@ -12,6 +12,23 @@ abstract class Gateway {
   Future<void> signInDev(String name);
   bool get signedIn;
 
+  /// `POST /auth/google`. Takes the **server auth code** from the device; the
+  /// gateway exchanges it and keeps the refresh token (PROTOCOL). The device
+  /// never stores or sends a refresh token.
+  Future<Session> signInWithGoogle(String serverAuthCode);
+
+  /// `GET /me/youtube`. `linked: false` is a normal state, not an error.
+  Future<YouTubeStatus> youtubeStatus();
+
+  /// `GET /me/youtube/subscriptions`: the parent's own subscriptions, each
+  /// marked with the kids it is already approved for.
+  Future<SubscriptionList> youtubeSubscriptions();
+
+  /// `POST /kids/{kid_id}/channels/import`. Approves several channels for one
+  /// kid at once. It approves channels, never videos: the Curator still
+  /// screens every upload.
+  Future<ImportResult> importChannels(String kidId, List<String> channelIds);
+
   Future<List<Kid>> kids();
   Future<Kid> createKid({
     required String nickname,

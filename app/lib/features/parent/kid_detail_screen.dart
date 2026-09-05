@@ -6,6 +6,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import 'digest_screen.dart';
+import 'import_subscriptions_screen.dart';
 import 'parent_widgets.dart';
 import 'progress_screen.dart';
 
@@ -57,6 +58,17 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  /// The second way to add channels: pick from what the parent already
+  /// follows on YouTube, instead of pasting one URL at a time.
+  Future<void> _importFromYouTube() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ImportSubscriptionsScreen(kid: widget.kid),
+      ),
+    );
+    if (added ?? false) _reload();
   }
 
   void _enterKidMode() {
@@ -151,8 +163,25 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
           const SizedBox(height: 8),
           Text(
             'Only videos from these channels ever reach ${kid.nickname}. '
-            'Paste a channel, @handle or video URL.',
+            'Import the ones you already follow, or paste a channel, @handle '
+            'or video URL.',
             style: HgText.body(size: 14, color: HgColors.brown),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: _importFromYouTube,
+              icon: const Icon(Icons.subscriptions_outlined, size: 22),
+              label: const Text('Import from YouTube'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: HgColors.ink,
+                backgroundColor: HgColors.white,
+                side: const BorderSide(color: HgColors.line, width: 2),
+                shape: const StadiumBorder(),
+                textStyle: HgText.body(size: 16, color: HgColors.ink),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Row(

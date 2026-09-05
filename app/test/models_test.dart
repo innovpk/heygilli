@@ -64,7 +64,7 @@ void main() {
     test('uses age_band from the server when present', () {
       final k = Kid.fromJson({
         'id': 'k1',
-        'nickname': 'Zara',
+        'nickname': 'Younger',
         'age': 4,
         'age_band': '4_6',
         'languages': ['en', 'ur'],
@@ -74,7 +74,7 @@ void main() {
     });
 
     test('derives the band from age when the server omits it', () {
-      final k = Kid.fromJson({'id': 'k2', 'nickname': 'Ayaan', 'age': 9});
+      final k = Kid.fromJson({'id': 'k2', 'nickname': 'Older', 'age': 9});
       expect(k.band, AgeBand.b9to11);
       expect(k.languages, ['en']);
     });
