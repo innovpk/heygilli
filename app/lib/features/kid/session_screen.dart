@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
@@ -88,6 +91,11 @@ class _SessionScreenState extends State<SessionScreen> {
   @override
   void initState() {
     super.initState();
+    // A video screen is a landscape screen. Restored in dispose().
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _ytSub = _yt.stream.listen(_onPlayerValue);
     _posSub = _yt.videoStateStream.listen(
       (s) => _positionS = s.position.inMilliseconds / 1000,
@@ -159,6 +167,7 @@ class _SessionScreenState extends State<SessionScreen> {
     _ears.dispose();
     _voice.stop();
     _yt.close();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
@@ -373,20 +382,19 @@ class _SessionScreenState extends State<SessionScreen> {
     final h = box.maxHeight;
     final w = box.maxWidth;
     if (wide) {
-      final gilli = (h - 28).clamp(96.0, 180.0);
-      final mic = (h - 28).clamp(72.0, 120.0);
-      // Row: 32 pad | gilli | 28 | cards | 28 | mic | 32 pad.
-      final avail = w - 64 - gilli - 28 - mic - 28 - 2 * PickCards.gap;
-      final card = (avail / 3).floorToDouble().clamp(120.0, 170.0);
+      // Side panel beside the paused video: gilli / cards / mic stacked.
+      final gilli = (h * 0.28).clamp(88.0, 160.0);
+      final mic = (h * 0.2).clamp(64.0, 108.0);
+      final card = ((w - 32 - 2 * PickCards.gap) / 3).floorToDouble();
       return _StageSizes(
         gilli: gilli,
         mic: mic,
-        card: card.clamp(120.0, (h - 28).clamp(120.0, 170.0)),
+        card: card.clamp(120.0, 170.0),
       );
     }
     final card = ((w - 16 - 2 * PickCards.gap) / 3).floorToDouble();
     return _StageSizes(
-      gilli: (h * 0.3).clamp(96.0, 132.0),
+      gilli: _isPaused ? (h * 0.3).clamp(96.0, 132.0) : 64,
       mic: 108,
       card: card.clamp(120.0, 150.0),
     );
@@ -395,6 +403,35 @@ class _SessionScreenState extends State<SessionScreen> {
   late _StageSizes _stage = const _StageSizes(gilli: 132, mic: 108, card: 124);
 
   // ---------------------------------------------------------------- ui
+
+  /// The embed keeps one identity across layout changes so the WebView is
+  /// never recreated (that would restart the video mid-session).
+  final _playerKey = GlobalKey();
+
+  /// True whenever the video is stopped for a question. Layout keys off this:
+  /// playing = video as large as possible, Gilli small; paused = video
+  /// shrinks, Gilli and the answer area grow (SPEC 6.2, 6.3).
+  bool get _isPaused => switch (_phase) {
+    _Phase.paused ||
+    _Phase.asking ||
+    _Phase.listening ||
+    _Phase.answered ||
+    _Phase.replying => true,
+    _ => false,
+  };
+
+  Widget _player(bool rounded) => ClipRRect(
+    borderRadius: BorderRadius.circular(rounded ? 20 : 0),
+    child: KeyedSubtree(
+      key: _playerKey,
+      child: YoutubePlayer(
+        controller: _yt,
+        backgroundColor: HgColors.tealDeep,
+        enableFullScreenOnVerticalDrag: false,
+        autoFullScreen: false,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -406,8 +443,79 @@ class _SessionScreenState extends State<SessionScreen> {
             final w = box.maxWidth;
             final h = box.maxHeight;
             final wide = w > h && w >= 640;
-            // Video keeps its 16:9 and never takes more than 55% of the height
-            // so Gilli and the answer area always fit under it.
+            const anim = Duration(milliseconds: 350);
+
+            if (wide) {
+              if (!_isPaused) {
+                // Playing: the video takes everything above a slim bar that
+                // holds the exit arrow and a small Gilli. Nothing is drawn
+                // over the video itself.
+                const bar = 64.0;
+                final videoH = math.min(h - bar, w * 9 / 16);
+                final videoW = videoH * 16 / 9;
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: anim,
+                          width: videoW,
+                          height: videoH,
+                          child: _player(false),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: bar,
+                      child: _WatchBar(
+                        title: _band.showsVideoTitles
+                            ? widget.video.title
+                            : null,
+                        onHome: () => Navigator.of(context).maybePop(),
+                        gilli: _smallGilli(44),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              // Paused: video shrinks left (pre-readers keep it larger because
+              // the question is about what is on the frame), stage grows right.
+              final frac = _preReader ? 0.54 : 0.44;
+              final videoW = w * frac;
+              final videoH = math.min(h - 56, videoW * 9 / 16);
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: videoW,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _TopBar(
+                          title: _band.showsVideoTitles
+                              ? widget.video.title
+                              : null,
+                          onHome: () => Navigator.of(context).maybePop(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: AnimatedContainer(
+                            duration: anim,
+                            height: videoH,
+                            child: _player(true),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(child: _buildStage(true)),
+                ],
+              );
+            }
+
+            // Portrait fallback (orientation is forced to landscape, so this is
+            // rare): 16:9 video on top, small Gilli while playing, full stage
+            // when paused.
             final videoH = (w * 9 / 16).clamp(0.0, h * 0.55);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -421,23 +529,29 @@ class _SessionScreenState extends State<SessionScreen> {
                   child: Center(
                     child: AspectRatio(
                       aspectRatio: 16 / 9,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(wide ? 20 : 0),
-                        child: YoutubePlayer(
-                          controller: _yt,
-                          backgroundColor: HgColors.tealDeep,
-                          enableFullScreenOnVerticalDrag: false,
-                          autoFullScreen: false,
-                        ),
-                      ),
+                      child: _player(false),
                     ),
                   ),
                 ),
-                Expanded(child: _buildStage(wide)),
+                Expanded(child: _buildStage(false)),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _smallGilli(double size) {
+    final voice = context.watch<GilliVoice>();
+    return ListenableBuilder(
+      listenable: _ears,
+      builder: (context, _) => GilliWidget(
+        size: size,
+        gesture: _gesture,
+        gestureTick: _gestureTick,
+        talking: voice.speaking,
+        listening: _ears.listening,
       ),
     );
   }
@@ -462,15 +576,16 @@ class _SessionScreenState extends State<SessionScreen> {
             final mic = _needsMic ? _buildMic(_stage.mic) : null;
 
             if (wide) {
-              // design/TabletPickIt: Gilli left, answers centre, mic right.
+              // Beside the paused video: Gilli on top, answers in the middle,
+              // mic at the bottom. Cards wrap 2 + 1 when the panel is narrow.
               return Padding(
-                padding: const EdgeInsets.fromLTRB(32, 12, 32, 16),
-                child: Row(
-                  spacing: 28,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Column(
+                  spacing: 8,
                   children: [
                     gilli,
                     Expanded(child: Center(child: answer)),
-                    if (mic != null) mic else SizedBox(width: _stage.mic),
+                    ?mic,
                   ],
                 ),
               );
@@ -712,4 +827,46 @@ class _StageSizes {
   final double gilli;
   final double mic;
   final double card;
+}
+
+/// Slim bar under the playing video: exit arrow, small Gilli, title for 7+.
+class _WatchBar extends StatelessWidget {
+  const _WatchBar({
+    required this.title,
+    required this.onHome,
+    required this.gilli,
+  });
+  final String? title;
+  final VoidCallback onHome;
+  final Widget gilli;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        spacing: 12,
+        children: [
+          IconButton(
+            onPressed: onHome,
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: HgColors.cream,
+              size: 28,
+            ),
+          ),
+          gilli,
+          if (title != null)
+            Expanded(
+              child: Text(
+                title!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HgText.body(size: 16, color: HgColors.sky),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
