@@ -427,12 +427,12 @@ class FakeGateway implements Gateway {
     return TakeoutPreview(
       profiles: [
         TakeoutProfile(
-          name: 'Ayaan',
+          name: 'Profile 1',
           channelCount: DemoCatalogue.older.length,
           channels: [for (final c in DemoCatalogue.older) c.toTakeoutChannel()],
         ),
         TakeoutProfile(
-          name: 'Zara',
+          name: 'Profile 2',
           channelCount: DemoCatalogue.younger.length,
           channels: [
             for (final c in DemoCatalogue.younger) c.toTakeoutChannel(),

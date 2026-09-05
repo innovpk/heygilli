@@ -372,8 +372,8 @@ class _ProfileCardState extends State<_ProfileCard> {
   @override
   Widget build(BuildContext context) {
     final kids = context.select<AppState, List<Kid>>((s) => s.kids);
-    // A profile called "Zara" almost certainly belongs to the kid called
-    // "Zara"; preselect that, and let the parent change it.
+    // A profile whose name matches an existing kid almost certainly belongs
+    // to that kid; preselect it, and let the parent change it.
     final match = kids
         .where(
           (k) => k.nickname.toLowerCase() == widget.profile.name.toLowerCase(),

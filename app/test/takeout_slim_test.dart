@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/core/takeout_slim.dart';
 
 /// Writes a zip with the given members and returns it.
-File _zip(Directory dir, Map<String, String> members, {String name = 'takeout.zip'}) {
+File _zip(
+  Directory dir,
+  Map<String, String> members, {
+  String name = 'takeout.zip',
+}) {
   final archive = Archive();
   members.forEach((path, body) {
     archive.addFile(ArchiveFile.string(path, body));
@@ -28,7 +32,8 @@ void main() {
   group('what leaves the phone', () {
     test('watch and search history are not in the uploaded zip', () async {
       final src = _zip(tmp, {
-        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv': _csv,
+        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
+            _csv,
         'Takeout/YouTube and YouTube Music/children/Abu/watch-history.html':
             '<html>every video the child watched</html>',
         'Takeout/YouTube and YouTube Music/children/Abu/search-history.html':
@@ -47,22 +52,30 @@ void main() {
 
     test('every child profile and the parent list are carried across', () async {
       final src = _zip(tmp, {
-        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv': _csv,
-        'Takeout/YouTube and YouTube Music/children/Abeeha/subscriptions.csv': _csv,
-        'Takeout/YouTube and YouTube Music/subscriptions/subscriptions.csv': _csv,
-        'Takeout/YouTube and YouTube Music/children/Abeeha/watch-history.html': 'x',
+        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
+            _csv,
+        'Takeout/YouTube and YouTube Music/children/Abeeha/subscriptions.csv':
+            _csv,
+        'Takeout/YouTube and YouTube Music/subscriptions/subscriptions.csv':
+            _csv,
+        'Takeout/YouTube and YouTube Music/children/Abeeha/watch-history.html':
+            'x',
       });
 
       final slim = await slimTakeout(src, workDir: tmp);
 
       expect(slim.kept, 3);
       expect(slim.skipped, 1);
-      expect(open(slim.file).files.map((f) => f.name), everyElement(endsWith('.csv')));
+      expect(
+        open(slim.file).files.map((f) => f.name),
+        everyElement(endsWith('.csv')),
+      );
     });
 
     test('the CSV contents survive the round trip intact', () async {
       final src = _zip(tmp, {
-        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv': _csv,
+        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
+            _csv,
       });
 
       final slim = await slimTakeout(src, workDir: tmp);
@@ -73,7 +86,8 @@ void main() {
 
     test('the slim copy is a different file from the one picked', () async {
       final src = _zip(tmp, {
-        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv': _csv,
+        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
+            _csv,
       });
 
       final slim = await slimTakeout(src, workDir: tmp);
@@ -84,22 +98,25 @@ void main() {
   });
 
   group('what is refused', () {
-    test('an export with no subscription lists is refused with advice', () async {
-      final src = _zip(tmp, {
-        'Takeout/YouTube and YouTube Music/history/watch-history.html': 'x',
-      });
+    test(
+      'an export with no subscription lists is refused with advice',
+      () async {
+        final src = _zip(tmp, {
+          'Takeout/YouTube and YouTube Music/history/watch-history.html': 'x',
+        });
 
-      expect(
-        () => slimTakeout(src, workDir: tmp),
-        throwsA(
-          isA<NotATakeoutExport>().having(
-            (e) => e.message,
-            'message',
-            contains('children'),
+        expect(
+          () => slimTakeout(src, workDir: tmp),
+          throwsA(
+            isA<NotATakeoutExport>().having(
+              (e) => e.message,
+              'message',
+              contains('children'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('a file that is not a zip is refused, not crashed on', () async {
       final notZip = File('${tmp.path}/notes.txt')..writeAsStringSync('hello');

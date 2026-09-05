@@ -13,7 +13,7 @@ void main() {
       final preview = TakeoutPreview.fromJson({
         'profiles': [
           {
-            'name': 'Zara',
+            'name': 'Profile 2',
             'channel_count': 2,
             'channels': [
               {
@@ -33,13 +33,13 @@ void main() {
         },
       });
 
-      final zara = preview.profiles.single;
-      expect(zara.name, 'Zara');
-      expect(zara.channelCount, 2);
-      expect(zara.channelIds, ['ch_a', 'ch_b']);
-      expect(zara.channels.first.url, 'https://youtube.com/channel/ch_a');
+      final profileTwo = preview.profiles.single;
+      expect(profileTwo.name, 'Profile 2');
+      expect(profileTwo.channelCount, 2);
+      expect(profileTwo.channelIds, ['ch_a', 'ch_b']);
+      expect(profileTwo.channels.first.url, 'https://youtube.com/channel/ch_a');
       // A CSV row with no URL column is still a usable channel.
-      expect(zara.channels.last.url, isEmpty);
+      expect(profileTwo.channels.last.url, isEmpty);
 
       // The parent block carries no name: it is not a child profile.
       expect(preview.parent!.name, isEmpty);
@@ -56,7 +56,7 @@ void main() {
 
     test('a missing channel_count falls back to what is listed', () {
       final profile = TakeoutProfile.fromJson({
-        'name': 'Ayaan',
+        'name': 'Profile 1',
         'channels': [
           {'channel_id': 'ch_a', 'title': 'A'},
           {'channel_id': 'ch_b', 'title': 'B'},
