@@ -103,6 +103,13 @@ class Store(ABC):
         d = self.get(household, "digest", f"{kid_id}#{date}")
         return Digest.model_validate(d) if d else None
 
+    # -- analytics notes (one model call per kid/window/rounded-inputs, see analytics.py)
+    def get_analytics_note(self, household: str, key: str) -> dict[str, Any] | None:
+        return self.get(household, "analytics_note", key)
+
+    def put_analytics_note(self, household: str, key: str, data: dict[str, Any]) -> None:
+        self.put(household, "analytics_note", key, data)
+
     def put_parent_prompt(self, p: ParentPrompt) -> None:
         self.put(p.household_id, "parent_prompt", p.id, p.model_dump())
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'analytics.dart';
 import 'gateway.dart';
 import 'models.dart';
 import 'protocol.dart';
@@ -232,6 +233,64 @@ class FakeGateway implements Gateway {
     ),
   };
 
+  /// Demo history for the Progress screen. Only the per-day pattern and the
+  /// word/concept lists are canned; every total is summed from the days it
+  /// generates, so 7, 14 and 30 day windows are always self-consistent.
+  static final _demoShapes = <String, _DemoAnalyticsShape>{
+    'kid_zara': _DemoAnalyticsShape(
+      // Mon..Sun. Two quiet weekdays are deliberate: a real week has zero days
+      // and the chart should not hide them.
+      minutesByWeekday: const [22, 0, 31, 18, 0, 40, 26],
+      minutesPerVideo: 8,
+      minutesPerQuestion: 6,
+      answeredShare: 0.86,
+      channelShares: const [
+        ('ch_supersimple', 'Super Simple Songs', 0.64),
+        ('ch_scishowkids', 'SciShow Kids', 0.36),
+      ],
+      // Newest first, matching PROTOCOL. daysAgo feeds first_said.
+      said: const [
+        ('truck', 6, 1),
+        ('star', 11, 2),
+        ('purple', 3, 4),
+        ('three', 9, 5),
+        ('duck', 14, 9),
+        ('apple', 7, 12),
+      ],
+      emerging: const [('hippo', 4), ('yellow', 3), ('under', 2)],
+      note: const AnalyticsNote(
+        kind: 'suggestion',
+        text:
+            'Zara says "duck" and "star" without being asked now. She has '
+            'heard "hippo" four times but not tried it. Point one out today '
+            'and let her name it.',
+      ),
+    ),
+    'kid_ayaan': _DemoAnalyticsShape(
+      minutesByWeekday: const [35, 42, 0, 28, 50, 33, 45],
+      minutesPerVideo: 11,
+      minutesPerQuestion: 5,
+      answeredShare: 0.72,
+      channelShares: const [
+        ('ch_scishowkids', 'SciShow Kids', 0.71),
+        ('ch_supersimple', 'Super Simple Songs', 0.29),
+      ],
+      concepts: const [
+        ('Why volcanoes erupt', 9, 7, 1, 1),
+        ('How sound reaches the ear', 7, 5, 1, 2),
+        ('Why the moon changes shape', 6, 2, 4, 3),
+        ('Where rain comes from', 4, 3, 0, 6),
+      ],
+      needsAnotherLook: const [('Why the moon changes shape', 4, 3)],
+      note: const AnalyticsNote(
+        kind: 'praise',
+        text:
+            'Ayaan explained why volcanoes erupt in his own words twice this '
+            'week, without a hint. The moon phases are still not landing.',
+      ),
+    ),
+  };
+
   // ---------------------------------------------------------------- REST
 
   @override
@@ -375,6 +434,33 @@ class FakeGateway implements Gateway {
       digest(kidId, DateTime.now().toIso8601String().substring(0, 10));
 
   @override
+  Future<Analytics> analytics(String kidId, {int days = 14}) async {
+    await _lag();
+    final kid = _kids.where((k) => k.id == kidId).firstOrNull;
+    // A kid added during the demo has no history yet: that is the empty state,
+    // and the screen is built to show it honestly.
+    if (kid == null || !_demoShapes.containsKey(kid.id)) {
+      return Analytics(
+        kidId: kidId,
+        band: kid?.band ?? AgeBand.b4to6,
+        days: days.clamp(7, 90),
+        generatedAt: DateTime.now().toIso8601String(),
+        totals: const AnalyticsTotals(),
+        daily: const [],
+        vocabulary: const Vocabulary(),
+        concepts: const [],
+        needsAnotherLook: const [],
+        channels: const [],
+        note: const AnalyticsNote(
+          kind: 'quiet',
+          text: 'Nothing yet. This fills in after the first watch.',
+        ),
+      );
+    }
+    return _demoShapes[kid.id]!.build(kid, days.clamp(7, 90));
+  }
+
+  @override
   Future<List<ParentPrompt>> inbox() async {
     await _lag();
     return List.unmodifiable(_inbox);
@@ -388,6 +474,164 @@ class FakeGateway implements Gateway {
 
   Future<void> _lag() =>
       Future<void>.delayed(const Duration(milliseconds: 250));
+}
+
+/// Builds a whole Analytics payload for a demo kid over an arbitrary window.
+///
+/// Totals, channel minutes and the answer rate are all derived from the daily
+/// series it generates, so they can never disagree with the chart above them.
+class _DemoAnalyticsShape {
+  _DemoAnalyticsShape({
+    required this.minutesByWeekday,
+    required this.minutesPerVideo,
+    required this.minutesPerQuestion,
+    required this.answeredShare,
+    required this.channelShares,
+    required this.note,
+    this.said = const [],
+    this.emerging = const [],
+    this.concepts = const [],
+    this.needsAnotherLook = const [],
+  });
+
+  /// Index 0 is Monday, matching DateTime.weekday - 1.
+  final List<int> minutesByWeekday;
+  final int minutesPerVideo;
+  final int minutesPerQuestion;
+  final double answeredShare;
+  final List<(String id, String title, double share)> channelShares;
+  final AnalyticsNote note;
+
+  /// (word, times said, days ago first said)
+  final List<(String, int, int)> said;
+
+  /// (word, times heard)
+  final List<(String, int)> emerging;
+
+  /// (concept, asked, understood, shaky, days ago last seen)
+  final List<(String, int, int, int, int)> concepts;
+
+  /// (concept, times shaky, days ago last seen)
+  final List<(String, int, int)> needsAnotherLook;
+
+  Analytics build(Kid kid, int days) {
+    final now = DateTime.now();
+    // Calendar arithmetic rather than Duration so a DST change cannot land two
+    // bars on the same date.
+    DateTime dayAgo(int n) => DateTime(now.year, now.month, now.day - n);
+
+    final daily = <AnalyticsDay>[];
+    for (var i = days - 1; i >= 0; i--) {
+      final d = dayAgo(i);
+      final base = minutesByWeekday[d.weekday - 1];
+      // A little deterministic wobble so a 30-day window is not visibly
+      // periodic. Quiet days stay quiet.
+      final minutes = base == 0 ? 0 : (base + (i * 7) % 9 - 4).clamp(3, 90);
+      final asked = minutes == 0 ? 0 : (minutes / minutesPerQuestion).round();
+      daily.add(
+        AnalyticsDay(
+          date: _isoDate(d),
+          minutes: minutes,
+          videos: minutes == 0 ? 0 : (minutes / minutesPerVideo).ceil(),
+          asked: asked,
+          answered: (asked * answeredShare).round(),
+        ),
+      );
+    }
+
+    var minutes = 0, videos = 0, asked = 0, answered = 0, sessions = 0;
+    for (final d in daily) {
+      minutes += d.minutes;
+      videos += d.videos;
+      asked += d.asked;
+      answered += d.answered;
+      if (d.minutes > 0) sessions++;
+    }
+
+    // Split minutes by share, then hand the rounding remainder to the biggest
+    // channel so the bars add up to the headline number exactly.
+    final channels = <ChannelMinutes>[];
+    var allocated = 0;
+    for (var i = 0; i < channelShares.length; i++) {
+      final (id, title, share) = channelShares[i];
+      final m = i == channelShares.length - 1
+          ? minutes - allocated
+          : (minutes * share).round();
+      allocated += m;
+      channels.add(
+        ChannelMinutes(
+          channelId: id,
+          title: title,
+          minutes: m,
+          videos: (videos * share).round(),
+        ),
+      );
+    }
+    channels.sort((a, b) => b.minutes.compareTo(a.minutes));
+
+    // Only words first said inside the window count as history for it.
+    final saidInWindow = [
+      for (final (word, times, ago) in said)
+        if (ago < days)
+          SaidWord(
+            word: word,
+            timesSaid: times,
+            firstSaid: _isoDate(dayAgo(ago)),
+          ),
+    ];
+
+    return Analytics(
+      kidId: kid.id,
+      band: kid.band,
+      days: days,
+      generatedAt: now.toIso8601String(),
+      totals: AnalyticsTotals(
+        minutes: minutes,
+        videos: videos,
+        sessions: sessions,
+        asked: asked,
+        answered: answered,
+        answerRate: asked == 0 ? 0 : answered / asked,
+      ),
+      daily: daily,
+      vocabulary: Vocabulary(
+        totalSaid: saidInWindow.length,
+        newThisWeek: saidInWindow
+            .where((w) => said.firstWhere((s) => s.$1 == w.word).$3 < 7)
+            .length,
+        said: saidInWindow,
+        emerging: [
+          for (final (word, heard) in emerging)
+            EmergingWord(word: word, timesHeard: heard),
+        ],
+      ),
+      concepts: [
+        for (final (concept, a, u, s, ago) in concepts)
+          ConceptStat(
+            concept: concept,
+            asked: a,
+            understood: u,
+            shaky: s,
+            lastSeen: _isoDate(dayAgo(ago)),
+          ),
+      ],
+      needsAnotherLook: [
+        for (final (concept, times, ago) in needsAnotherLook)
+          ShakyConcept(
+            concept: concept,
+            timesShaky: times,
+            lastSeen: _isoDate(dayAgo(ago)),
+          ),
+      ],
+      channels: channels,
+      note: note,
+    );
+  }
+
+  static String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 }
 
 class _FakeSessionInfo {

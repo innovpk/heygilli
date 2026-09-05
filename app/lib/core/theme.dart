@@ -19,6 +19,12 @@ abstract final class HgColors {
   static const white = Color(0xFFFFFFFF);
   static const muted = Color(0xFF9A8F82);
   static const line = Color(0xFFEADFCE);
+
+  /// Chart marks on a white card. Same hue as [mango] (1 degree apart) but a
+  /// darker step, because a bar has to be legible against the card on its own
+  /// - brand mango is only 2:1 there. Chips and buttons keep [mango]: they
+  /// carry ink text on the fill, so the fill is not doing the reading.
+  static const mangoDeep = Color(0xFFC4800F);
 }
 
 /// Text styles. Baloo 2 for display (round, friendly), Nunito for body,

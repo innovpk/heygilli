@@ -169,6 +169,54 @@ class GilliMini extends StatelessWidget {
   }
 }
 
+/// Word chips shared by the digest and the Progress screen so vocabulary looks
+/// the same wherever a parent meets it. Filled mango = the child said it;
+/// outlined = Gilli modelled it and the child has not said it back yet.
+class WordChips extends StatelessWidget {
+  const WordChips({
+    super.key,
+    required this.words,
+    required this.filled,
+    required this.empty,
+  });
+
+  final List<String> words;
+  final bool filled;
+  final String empty;
+
+  @override
+  Widget build(BuildContext context) {
+    if (words.isEmpty) {
+      return Text(empty, style: HgText.body(color: HgColors.muted));
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final w in words)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: filled ? HgColors.mango : null,
+              border: filled
+                  ? null
+                  : Border.all(color: const Color(0xFFC9B7A0), width: 2),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              w,
+              style: HgText.body(
+                size: 17,
+                weight: FontWeight.w800,
+                color: filled ? HgColors.ink : const Color(0xFF6B5A48),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// "English, Urdu" from ["en", "ur"].
 String languageNames(List<String> codes) => codes
     .map(

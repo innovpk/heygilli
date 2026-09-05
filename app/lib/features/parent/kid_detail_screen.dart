@@ -7,8 +7,9 @@ import '../../core/theme.dart';
 import '../../main.dart';
 import 'digest_screen.dart';
 import 'parent_widgets.dart';
+import 'progress_screen.dart';
 
-/// One kid: enter kid mode, open the digest, manage channels.
+/// One kid: enter kid mode, open the digest or progress, manage channels.
 class KidDetailScreen extends StatefulWidget {
   const KidDetailScreen({super.key, required this.kid});
   final Kid kid;
@@ -106,6 +107,36 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
                         kid.band == AgeBand.b4to6
                             ? 'Words said, words heard, one thing to try'
                             : 'Understood, shaky, one question for dinner',
+                        style: HgText.body(size: 14, color: HgColors.brown),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          PCard(
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => ProgressScreen(kid: kid))),
+            child: Row(
+              spacing: 14,
+              children: [
+                const Icon(Icons.insights_rounded, color: HgColors.brown),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Progress',
+                        style: HgText.display(size: 22, color: HgColors.ink),
+                      ),
+                      Text(
+                        kid.band == AgeBand.b4to6
+                            ? 'Minutes, words coming back, what to try'
+                            : 'Minutes, what stuck, what needs another look',
                         style: HgText.body(size: 14, color: HgColors.brown),
                       ),
                     ],

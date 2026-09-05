@@ -14,6 +14,7 @@ Built for the **Agents for Humans** hackathon (AWS × Devpost), Everyday Agents 
 | At a natural break the video pauses and Gilli asks by voice | The agent screens every new upload in the background and asks the parent only about borderline ones |
 | A 4-year-old answers with one word or a tap on one of three pictures; Gilli always models the answer word | A nightly two-line digest: words said for pre-readers, understood and shaky for older kids, one thing to ask at dinner |
 | A 9-year-old answers in a sentence, in English or Urdu | Leaving kid mode needs the parent PIN |
+| Kid mode is landscape and locks to the app | A Progress screen: minutes a day, whether questions are being answered, words coming back, what needs another look |
 
 Ads still play and creators still get paid. Nothing a child says is stored; only a score and a ten-word paraphrase.
 
@@ -23,6 +24,8 @@ Ads still play and creators still get paid. Nothing a child says is stored; only
 <img src="docs/screens/04-ayaan-question-urdu.png" width="19%" alt="Question for a 9-year-old with Urdu line">
 <img src="docs/screens/05-digest-zara.png" width="19%" alt="Pre-reader digest">
 <img src="docs/screens/06-digest-ayaan.png" width="19%" alt="Older-kid digest">
+<img src="docs/screens/13-progress-zara.png" width="19%" alt="Progress for a pre-reader">
+<img src="docs/screens/14-progress-ayaan.png" width="19%" alt="Progress for an older kid">
 </p>
 
 Live against the gateway on an Android emulator, 5 September: the Curator's approved uploads on Zara's picture-only home, then a Planner question on a real SciShow Kids video, spoken by Polly, and Gilli's reply after the listening window.

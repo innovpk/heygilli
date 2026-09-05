@@ -111,6 +111,11 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
         return out
     if model_name == "CuratorDecision":
         return {"decision": "approve", "reason": "Educational animal video, calm tone.", "topics": ["animals"]}
+    if model_name == "AnalyticsNote":
+        return {
+            "kind": "suggestion",
+            "text": "Steady watching this fortnight. Try asking about volcanoes on the way to school.",
+        }
     if model_name == "DigestNarrative":
         return {
             "understood": ["why ice melts"],

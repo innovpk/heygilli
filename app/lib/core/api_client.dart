@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'analytics.dart';
 import 'gateway.dart';
 import 'models.dart';
 import 'session_socket.dart';
@@ -149,6 +150,15 @@ class ApiClient implements Gateway {
   Future<Digest> runDigest(String kidId) async => Digest.fromJson(
     await _post('/kids/$kidId/digest/run') as Map<String, dynamic>,
   );
+
+  @override
+  Future<Analytics> analytics(String kidId, {int days = 14}) async {
+    // PROTOCOL: days is 7-90. Clamp here so a UI bug cannot 400 the gateway.
+    final n = days.clamp(7, 90);
+    return Analytics.fromJson(
+      await _get('/kids/$kidId/analytics?days=$n') as Map<String, dynamic>,
+    );
+  }
 
   @override
   Future<List<ParentPrompt>> inbox() async =>

@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
+from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
 from .digest import run_digest
@@ -248,6 +249,19 @@ def run_digest_now(kid_id: str, date: str | None = None, hid: str = Depends(hous
     kid = _kid(hid, kid_id)
     date = date or datetime.now(UTC).date().isoformat()
     return run_digest(kid, date, get_store()).model_dump()
+
+
+@app.get("/kids/{kid_id}/analytics")
+def kid_analytics(
+    kid_id: str,
+    days: int = DEFAULT_DAYS,
+    refresh: bool = False,
+    hid: str = Depends(household),
+) -> dict:
+    """PROTOCOL.md "Analytics". `days` is clamped to 7-90; a kid with no history gets
+    zeros, empty lists and a `quiet` note rather than an error."""
+    kid = _kid(hid, kid_id)
+    return run_analytics(kid, days, get_store(), refresh=refresh).model_dump()
 
 
 class CuratorIn(BaseModel):

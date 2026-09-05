@@ -1,3 +1,4 @@
+import 'analytics.dart';
 import 'models.dart';
 import 'session_socket.dart';
 
@@ -33,6 +34,9 @@ abstract class Gateway {
 
   Future<Digest> digest(String kidId, String date);
   Future<Digest> runDigest(String kidId);
+
+  /// Rolling window for the parent Progress screen. `days` is 7-90.
+  Future<Analytics> analytics(String kidId, {int days = 14});
 
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);

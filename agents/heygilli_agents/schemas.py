@@ -237,6 +237,88 @@ class DigestNarrative(BaseModel):
     notify_reason: str = ""
 
 
+# --- parent analytics (PROTOCOL.md "Analytics") -----------------------------------------------
+
+
+class AnalyticsTotals(BaseModel):
+    minutes: int = 0
+    videos: int = 0
+    sessions: int = 0
+    asked: int = 0
+    answered: int = 0
+    answer_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class AnalyticsDay(BaseModel):
+    date: str
+    minutes: int = 0
+    videos: int = 0
+    asked: int = 0
+    answered: int = 0
+
+
+class VocabWord(BaseModel):
+    word: str
+    times_said: int = 0
+    first_said: str  # YYYY-MM-DD
+
+
+class EmergingWord(BaseModel):
+    """Gilli asked for the word; the child has not said it back yet."""
+
+    word: str
+    times_heard: int = 0
+
+
+class AnalyticsVocabulary(BaseModel):
+    total_said: int = 0
+    new_this_week: int = 0
+    said: list[VocabWord] = Field(default_factory=list)
+    emerging: list[EmergingWord] = Field(default_factory=list)
+
+
+class ConceptStat(BaseModel):
+    concept: str
+    asked: int = 0
+    understood: int = 0
+    shaky: int = 0
+    last_seen: str
+
+
+class NeedsAnotherLook(BaseModel):
+    concept: str
+    times_shaky: int = 0
+    last_seen: str
+
+
+class ChannelStat(BaseModel):
+    channel_id: str
+    title: str = ""
+    minutes: int = 0
+    videos: int = 0
+
+
+class AnalyticsNote(BaseModel):
+    """One or two sentences from the Digest agent; also the model's structured output."""
+
+    kind: Literal["praise", "suggestion", "watch", "quiet"] = "quiet"
+    text: str = Field(default="", description="One or two plain sentences for the parent")
+
+
+class Analytics(BaseModel):
+    kid_id: str
+    band: AgeBand
+    days: int
+    generated_at: str = Field(default_factory=now_iso)
+    totals: AnalyticsTotals = Field(default_factory=AnalyticsTotals)
+    daily: list[AnalyticsDay] = Field(default_factory=list)
+    vocabulary: AnalyticsVocabulary = Field(default_factory=AnalyticsVocabulary)
+    concepts: list[ConceptStat] = Field(default_factory=list)
+    needs_another_look: list[NeedsAnotherLook] = Field(default_factory=list)
+    channels: list[ChannelStat] = Field(default_factory=list)
+    note: AnalyticsNote = Field(default_factory=AnalyticsNote)
+
+
 class ParentPrompt(BaseModel):
     id: str = Field(default_factory=lambda: new_id("pp"))
     household_id: str
