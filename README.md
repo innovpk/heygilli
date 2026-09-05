@@ -25,6 +25,14 @@ Ads still play and creators still get paid. Nothing a child says is stored; only
 <img src="docs/screens/06-digest-ayaan.png" width="19%" alt="Older-kid digest">
 </p>
 
+Live against the gateway on an Android emulator, 5 September: the Curator's approved uploads on Zara's picture-only home, then a Planner question on a real SciShow Kids video, spoken by Polly, and Gilli's reply after the listening window.
+
+<p>
+<img src="docs/screens/09-live-kid-home-curated.png" width="24%" alt="Live kid home with Curator-approved videos">
+<img src="docs/screens/07-live-ask-ayaan.png" width="24%" alt="Live question on a real video">
+<img src="docs/screens/08-live-reply-ayaan.png" width="24%" alt="Live reply and resume">
+</p>
+
 ## How it is built
 
 **Four Strands agents** in Python, each an `Agent` with a frozen system prompt, a model, and a few `@tool` functions:
