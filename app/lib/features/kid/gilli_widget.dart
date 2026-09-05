@@ -90,10 +90,10 @@ class _GilliWidgetState extends State<GilliWidget>
                 ),
                 child: child,
               ),
-              child: SvgPicture.asset(
-                'assets/gilli.svg',
-                width: s * 0.86,
-                height: s * 0.86,
+              child: _GilliBody(
+                size: s * 0.86,
+                talking: widget.talking,
+                gesture: widget.gesture,
               ),
             ),
           ),
@@ -224,4 +224,134 @@ class _ListenHaloState extends State<_ListenHalo>
       ),
     );
   }
+}
+
+/// Gilli, drawn as separate layers so parts of him can move on their own.
+///
+/// A single flat image reads as a sticker: the whole body slides about and
+/// nothing on the face changes. Splitting the drawing lets the tail sway, the
+/// ears twitch, the eyes blink and the mouth actually open while he speaks, so
+/// a four-year-old who cannot read still sees something alive. Each layer is a
+/// full 180x180 SVG, so they stack with no per-layer offsets and every
+/// rotation origin is just a point on that shared canvas.
+class _GilliBody extends StatefulWidget {
+  const _GilliBody({
+    required this.size,
+    required this.talking,
+    required this.gesture,
+  });
+
+  final double size;
+  final bool talking;
+  final Gesture gesture;
+
+  @override
+  State<_GilliBody> createState() => _GilliBodyState();
+}
+
+class _GilliBodyState extends State<_GilliBody> with TickerProviderStateMixin {
+  late final _sway = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2100),
+  )..repeat(reverse: true);
+
+  /// One long cycle that is open-eyed almost throughout: the blink is a short
+  /// dip near the end, so it reads as an occasional blink rather than a pulse.
+  late final _blink = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 4300),
+  )..repeat();
+
+  /// Mouth shapes while talking. Runs only when there is speech.
+  late final _talk = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.talking) _talk.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_GilliBody old) {
+    super.didUpdateWidget(old);
+    if (widget.talking && !_talk.isAnimating) {
+      _talk.repeat(reverse: true);
+    } else if (!widget.talking && _talk.isAnimating) {
+      _talk
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _sway.dispose();
+    _blink.dispose();
+    _talk.dispose();
+    super.dispose();
+  }
+
+  /// 1 = eyes open, 0 = shut. Open for most of the cycle, with one quick dip.
+  static double _eyeOpen(double t) {
+    const start = 0.90;
+    if (t < start) return 1;
+    final k = (t - start) / (1 - start); // 0 → 1 across the blink
+    return (1 - math.sin(math.pi * k)).clamp(0.06, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.size;
+    // A roar holds the mouth open; otherwise it follows the talk cycle.
+    final roaring = widget.gesture == Gesture.roar;
+
+    return SizedBox(
+      width: s,
+      height: s,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_sway, _blink, _talk]),
+        builder: (context, _) {
+          final sway = (_sway.value - 0.5) * 2; // -1 → 1
+          final open = roaring || _talk.value > 0.5;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Tail: pivots at its base, behind everything.
+              Transform.rotate(
+                angle: 0.10 * sway,
+                alignment: const Alignment(-0.51, 0.56),
+                child: _layer('tail', s),
+              ),
+              _layer('body', s),
+              // Ears twitch on opposite phases so they never look mechanical.
+              Transform.rotate(
+                angle: -0.09 * sway,
+                alignment: const Alignment(-0.22, -0.38),
+                child: _layer('ear_left', s),
+              ),
+              Transform.rotate(
+                angle: 0.09 * -sway,
+                alignment: const Alignment(0.36, -0.38),
+                child: _layer('ear_right', s),
+              ),
+              _layer('head', s),
+              // Blink: squash the eyes vertically about their own centre.
+              Transform.scale(
+                scaleY: _eyeOpen(_blink.value),
+                alignment: const Alignment(0.07, -0.27),
+                child: _layer('eyes', s),
+              ),
+              _layer(open ? 'mouth_open' : 'mouth_closed', s),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _layer(String name, double s) =>
+      SvgPicture.asset('assets/gilli/$name.svg', width: s, height: s);
 }
