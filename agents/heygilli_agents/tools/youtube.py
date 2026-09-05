@@ -93,8 +93,13 @@ def resolve_channel_url(url: str) -> dict:
     return out
 
 
-def fetch_uploads(channel_id: str, limit: int = 10) -> list[dict]:
-    """Newest uploads from the public RSS feed (no key, ~15 most recent)."""
+def fetch_channel_feed(channel_id: str, limit: int = 15) -> dict:
+    """The channel's public RSS feed: `{"channel_id", "title", "uploads"}`.
+
+    One request, no API key, no quota. The feed carries the channel's own title,
+    so the Reviewer gets a name and recent uploads together (`fetch_uploads`
+    below is the same call when only the uploads are wanted).
+    """
     xml = _get(f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}")
     ns = {
         "a": "http://www.w3.org/2005/Atom",
@@ -102,6 +107,10 @@ def fetch_uploads(channel_id: str, limit: int = 10) -> list[dict]:
         "media": "http://search.yahoo.com/mrss/",
     }
     root = ET.fromstring(xml)
+    author = root.find("a:author/a:name", ns)
+    title = (author.text if author is not None else "") or root.findtext(
+        "a:title", default="", namespaces=ns
+    )
     out: list[dict] = []
     for e in root.findall("a:entry", ns)[:limit]:
         vid = e.findtext("yt:videoId", default="", namespaces=ns)
@@ -122,7 +131,12 @@ def fetch_uploads(channel_id: str, limit: int = 10) -> list[dict]:
                 "description": desc[:1000],
             }
         )
-    return out
+    return {"channel_id": channel_id, "title": (title or "").strip(), "uploads": out}
+
+
+def fetch_uploads(channel_id: str, limit: int = 10) -> list[dict]:
+    """Newest uploads from the public RSS feed (no key, ~15 most recent)."""
+    return fetch_channel_feed(channel_id, limit)["uploads"]
 
 
 def fetch_video_meta(video_id: str) -> dict:

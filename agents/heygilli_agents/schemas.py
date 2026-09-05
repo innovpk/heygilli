@@ -140,6 +140,82 @@ class Subscription(BaseModel):
     approved_for: list[str] = Field(default_factory=list)
 
 
+# --- Takeout import (PROTOCOL.md "Takeout import: the children's own profiles") ---
+#
+# Google's Takeout export is the only route to a YouTube Kids profile's
+# subscriptions. Only the subscription CSVs are ever read; watch and search
+# history are never opened, stored or sent to a model (SPEC §12).
+
+
+class TakeoutChannel(BaseModel):
+    channel_id: str
+    title: str = ""
+    url: str = ""
+
+
+class TakeoutProfile(BaseModel):
+    """One YouTube Kids profile folder. `name` is the folder name, which is the
+    child's profile name — the only child-supplied string here, and it is
+    returned to the parent rather than stored."""
+
+    name: str
+    channel_count: int = 0
+    channels: list[TakeoutChannel] = Field(default_factory=list)
+
+
+class TakeoutParentList(BaseModel):
+    """The signed-in account's own subscriptions from `subscriptions/`."""
+
+    channel_count: int = 0
+    channels: list[TakeoutChannel] = Field(default_factory=list)
+
+
+class TakeoutPreview(BaseModel):
+    profiles: list[TakeoutProfile] = Field(default_factory=list)
+    parent: TakeoutParentList | None = None
+
+
+# --- channel reviews (PROTOCOL.md "Channel reviews") ------------------------
+#
+# A review is a property of the channel, not of a kid, so it is cached globally.
+# It is advice about what a channel publishes, never a judgement on a creator.
+
+ReviewVerdict = Literal["good", "mixed", "concern", "unknown"]
+ReviewFlagKind = Literal[
+    "ads_or_merch", "consumerism", "scary", "mature_language",
+    "low_quality", "off_topic", "not_for_kids", "unclear",
+]
+
+
+class ReviewFlag(BaseModel):
+    kind: ReviewFlagKind
+    note: str = Field(default="", description="One short factual line about what was seen")
+
+
+class ChannelReviewDraft(BaseModel):
+    """What the reviewer model returns. Everything a parent must be able to
+    audit — `sample_titles`, `reviewed_at`, `model` — is filled in by code, so
+    the model cannot claim to have read something it was not given."""
+
+    verdict: ReviewVerdict
+    summary: str = Field(description="One or two sentences on what this channel actually publishes")
+    flags: list[ReviewFlag] = Field(default_factory=list)
+    good_for: list[AgeBand] = Field(default_factory=list)
+
+
+class ChannelReview(BaseModel):
+    channel_id: str
+    title: str = ""
+    thumb_url: str = ""
+    verdict: ReviewVerdict = "unknown"
+    summary: str = ""
+    flags: list[ReviewFlag] = Field(default_factory=list)
+    good_for: list[AgeBand] = Field(default_factory=list)
+    sample_titles: list[str] = Field(default_factory=list)
+    reviewed_at: str = Field(default_factory=now_iso)
+    model: str = ""
+
+
 class Screening(BaseModel):
     age_ok: list[AgeBand] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)

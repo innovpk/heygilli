@@ -13,12 +13,14 @@ heygilli_agents/
   planner.py      transcript -> PlanDraft (model) -> rules.enforce -> QuestionPlan (cached per video/band/language)
   buddy.py        SessionEngine: ask / score / reply / switch-to-pick; nothing a child says is kept
   curator.py      new uploads -> approve | hide | ask_parent -> fan out to the Planner
+  reviewer.py     one channel's recent uploads -> ChannelReview (cached per channel, not per kid)
   digest.py       a kid's day -> parent Digest (counts in code, words from the model)
   google_auth.py  parent's Google sign-in: server auth code -> refresh token -> live access token
+  takeout.py      a Google Takeout zip -> TakeoutPreview; subscription CSVs only, never history
   gateway.py      REST + WebSocket (uvicorn)
   store.py        LocalStore (JSON under .data/) | DynamoStore (single table)
   tools/          youtube (no key + subscriptions.list), transcript (Gemini or public captions), icons, tts (Polly), notify, screening
-tests/            115 offline tests (fake model, mocked network)
+tests/            147 offline tests (fake model, mocked network)
 eval/             run_eval.py + 3 synthetic transcripts; results land in eval/results/
 scripts/          smoke_gateway.py: REST + one WebSocket turn against a running gateway
 ```
@@ -45,7 +47,7 @@ repointed on 2026-09-05.
 ## Test
 
 ```bash
-uv run pytest -q          # 115 passed; no network, no AWS, fake model for every role
+uv run pytest -q          # 147 passed; no network, no AWS, fake model for every role
 uv run ruff check .
 ```
 
@@ -57,6 +59,78 @@ pages, Curator and Digest pipelines, Google sign-in end to end (code exchange, r
 preservation, one refresh per expiry, `invalid_grant` -> re-link, subscription paging, import),
 and a scripted WebSocket session through `gateway.py`
 (hello -> ready, position -> pause -> ask, answer -> reply -> resume, bye -> end).
+Also Takeout zip parsing (nested and localised folder names, BOM, CRLF, quoted commas, a
+non-Takeout zip, zip-slip, oversize, and an assertion that the history files are never opened) and
+channel reviews (thin evidence -> `unknown` with no model call, `sample_titles` pinned to the
+evidence, cache hit avoids a second call, bulk cached/pending, delete scoped to one kid).
+
+## Takeout import
+
+Google's Takeout export is the only route to a **YouTube Kids profile's** subscriptions: the Data
+API exposes the signed-in account's own list and nothing else, and Family Link exposes nothing. The
+parent exports "YouTube and YouTube Music" and uploads the zip to `POST /import/takeout`, which
+returns a `TakeoutPreview` and persists nothing; the parent then maps each profile onto a kid
+through the existing per-kid import.
+
+```
+YouTube and YouTube Music/subscriptions/subscriptions.csv            the parent's own
+YouTube and YouTube Music/children/<Profile name>/subscriptions.csv  one per YouTube Kids profile
+```
+
+- **History is never opened.** `watch-history.html` and `search-history.html` sit in the same
+  folders and are the most sensitive files in the export. Only `.csv` members can be candidates, so
+  an `.html` cannot be read even by accident, and
+  `test_takeout.py::test_history_files_are_never_opened` spies on `ZipFile.open` to prove it.
+- **Locale and layout.** Nothing is matched by a fixed path. A member is a candidate when it is a
+  `.csv` and either is named `subscriptions.csv` or has a stem equal to its own folder's name
+  (`abonnements/abonnements.csv`), and that same test tells the parent's list from a child profile.
+  The own-list file is what names the locale's word for "subscriptions", so a French export
+  (`enfants/Ayaan/abonnements.csv`) parses like an English one. Top folder name is irrelevant.
+- **Guards.** 50 MB upload cap (streamed, refused at 413 rather than buffered), 20 000 entries,
+  4 MB per CSV, 5 000 channels per list, 50 profiles; any member with an absolute path or a `..`
+  segment refuses the whole zip; a zip with no subscriptions CSV gets a 400 that says what to
+  re-export. Rows are taken only when the first cell is a real channel id, so headers, blank lines
+  and localised column names need no special case.
+
+Checked against a real export on 2026-09-05 (the developer's own; the data is never copied into the
+repo and the profile names are not reproduced here): 304 KB, 5 zip members, 3 of them opened —
+two child profiles with 148 and 19 channels, and 1 on the parent's own list. Every test fixture is
+invented.
+
+## Channel reviews
+
+The Curator screens one video; the Reviewer answers "what does this channel actually publish?",
+which is the question a parent has after importing 148 subscriptions in one go.
+
+```
+POST /channels/reviews  {channel_ids}  -> {reviews: [...cached now...], pending: [...]}   client polls
+GET  /channels/{id}/review?refresh=true                                    -> one ChannelReview
+DELETE /kids/{kid_id}/channels/{channel_id}                                -> {removed: true}
+```
+
+- **Evidence.** One request to the channel's public RSS feed: no API key, no quota, no `search`
+  endpoint. It carries the channel's own title plus ~15 recent uploads with titles and short
+  descriptions, and that is the whole basis of the review. `sample_titles` is set in code from what
+  was actually put in the prompt, so a parent can see the basis and a model cannot claim to have
+  read something it was not given.
+- **Honesty is enforced in code, not asked for in the prompt.** Fewer than three readable uploads
+  and the verdict is `unknown` with a note saying how many there were — the model is never called,
+  so it cannot guess from a channel name. An unreachable feed and a model failure are both
+  `unknown`, never a default `good`.
+- **Caching.** A review is a property of the channel, not of a kid, so it is cached globally by
+  channel id with `reviewed_at` and the model id. `POST /channels/reviews` returns hits immediately
+  and starts the misses in the background, four at a time (`REVIEW_CONCURRENCY`) in worker threads,
+  so 148 channels neither stampede Bedrock nor block the event loop. Ids already in flight stay in
+  `pending` without starting a second run.
+- **Wording.** The prompt asks what the channel publishes and flags only what a parent would want
+  to know (`ads_or_merch`, `consumerism`, `scary`, `mature_language`, `low_quality`, `off_topic`,
+  `not_for_kids`, `unclear`), forbids inventing specifics, and forbids moralising about creators:
+  a channel that sells merch is selling merch. Removing a channel takes it from that kid only —
+  a sibling keeps theirs and the review cache is untouched.
+
+Live on Bedrock Nova Pro, 8 real channels from the export above: 22.4 s total (2.8 s each),
+29 307 in / 1 922 out tokens, **$0.0037 per channel**. `Kid-E-Cats` came back `unknown` on its own
+merits — its feed really did hold one upload.
 
 ## Eval
 
@@ -200,7 +274,9 @@ Details worth knowing:
 
 The gateway implements `docs/PROTOCOL.md` exactly (REST objects, WebSocket message shapes,
 `text` omitted for band 4_6, `listen_ms + 1500 ms` timeout -> `input: "none"`). No protocol change
-was needed for the smoke. `tests/test_gateway.py` is the executable version of that document.
+was needed for the smoke, for the Takeout import, or for channel reviews.
+`tests/test_gateway.py` is the executable version of that document; `test_takeout.py` and
+`test_reviewer.py` pin the two newer sections, field by field.
 
 ## Data safety
 
@@ -224,6 +300,12 @@ was needed for the smoke. `tests/test_gateway.py` is the executable version of t
   hackathon shortcut, stated rather than papered over. It is never returned by any endpoint, and
   no token, refresh token or auth code is ever logged — not even in an error path.
 - The parent can drop the link (`google_auth.unlink`); `POST /auth/google` re-creates it.
+- A Takeout upload is read in memory and thrown away: `POST /import/takeout` writes nothing, not
+  even a cache entry, and the child's watch and search history are never opened at all. The only
+  child-supplied string that leaves the parse is the profile folder name, which is returned to the
+  parent for mapping and is not stored unless they choose it as a kid's nickname.
+- A `ChannelReview` is about a channel, not a child. It holds no household, kid or session id, which
+  is why it can be cached globally and shared.
 
 ## Deploying to AgentCore Runtime
 
@@ -267,6 +349,17 @@ fetched from docs.aws.amazon.com during this session, so they are not reproduced
 - Curator and Digest run on demand (`POST /curator/run`, `POST /kids/{id}/digest/run`); no
   EventBridge schedule yet. No AgentCore Memory; no push notifications (parent inbox only).
 - `DynamoStore` is implemented but only `LocalStore` has been exercised.
+- A channel review never expires. `reviewed_at` is recorded and `refresh=true` re-runs one, but
+  nothing ages the cache out, so a channel that changes character keeps its old review until
+  someone asks for a refresh.
+- The Reviewer reads ~12 recent uploads. That is what the RSS feed gives for free, and it is a
+  snapshot: a channel with a bad month and a good year reads as bad, and a channel whose feed is
+  quiet reads as `unknown` (`Kid-E-Cats` in the live run). Flags come from titles and short
+  descriptions only — nothing watches the video, so in-video ad reads and sponsor segments are
+  invisible.
+- Takeout gives subscriptions but no ages, so the parent still maps each profile to a kid by hand.
+  There is no re-import diff: uploading a newer export re-lists everything rather than showing what
+  changed since last time.
 - Google sign-in has never run against real Google: there are no OAuth credentials on this machine
   and creating them needs the user's own Google account. Everything below the HTTP boundary is
   tested (request payloads, paging, refresh, revocation), but the round trip — consent screen,

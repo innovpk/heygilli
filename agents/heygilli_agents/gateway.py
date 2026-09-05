@@ -15,7 +15,7 @@ import hmac
 import logging
 import os
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 import httpx
 from dotenv import load_dotenv
@@ -23,8 +23,10 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     FastAPI,
+    File,
     Header,
     HTTPException,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
@@ -45,9 +47,11 @@ from .google_auth import (
     link_household,
 )
 from .planner import ensure_plan, fallback_plan
+from .reviewer import review_channel
 from .schemas import (
     AuthSession,
     Channel,
+    ChannelReview,
     ClientAnswer,
     ClientMessage,
     Kid,
@@ -62,6 +66,7 @@ from .schemas import (
     wire,
 )
 from .store import get_store
+from .takeout import MAX_ZIP_BYTES, TakeoutError, parse_takeout_zip
 from .tools.tts import TTS_DIR
 from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
 
@@ -342,6 +347,165 @@ def import_channels(
 def list_channels(kid_id: str, hid: str = Depends(household)) -> list[dict]:
     _kid(hid, kid_id)
     return [c.model_dump() for c in get_store().list_channels(hid, kid_id)]
+
+
+@app.delete("/kids/{kid_id}/channels/{channel_id}")
+def remove_channel(kid_id: str, channel_id: str, hid: str = Depends(household)) -> dict:
+    """Take a channel away from ONE kid.
+
+    A sibling who has the same channel keeps it, and the global review cache is
+    untouched — a review is a property of the channel, not of a child, and the
+    parent may well want to see it again. Removing something that is not there
+    is not an error: the parent asked for it gone and it is gone.
+    """
+    _kid(hid, kid_id)
+    get_store().delete_channel(hid, kid_id, channel_id)
+    return {"removed": True}
+
+
+# --- Takeout import (PROTOCOL.md "Takeout import: the children's own profiles") -------------------
+
+
+async def _read_capped(file: UploadFile, limit: int) -> bytes:
+    """Read the upload, refusing anything past `limit` instead of buffering it all."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(1024 * 1024):
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(
+                413, f"the file is larger than {limit // (1024 * 1024)} MB. In Takeout, export "
+                     "only 'YouTube and YouTube Music'."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+@app.post("/import/takeout")
+async def import_takeout(
+    file: Annotated[UploadFile, File()], hid: str = Depends(household)
+) -> dict:
+    """A Takeout zip in, a `TakeoutPreview` out. Nothing is persisted.
+
+    This is the only route to a YouTube Kids profile's subscriptions; no API
+    exposes them. Only the subscription CSVs inside the zip are read — watch and
+    search history are never opened, stored or sent to a model (SPEC §12). The
+    parent maps each profile to a kid afterwards, through the existing per-kid
+    import, and that is what writes.
+    """
+    data = await _read_capped(file, MAX_ZIP_BYTES)
+    try:
+        preview = await asyncio.to_thread(parse_takeout_zip, data)
+    except TakeoutError as e:
+        raise HTTPException(400, str(e)) from e
+    log.info(
+        "takeout preview for household %s: %d profiles, %d parent channels",
+        hid, len(preview.profiles), preview.parent.channel_count if preview.parent else 0,
+    )
+    return preview.model_dump()
+
+
+# --- channel reviews (PROTOCOL.md "Channel reviews") ----------------------------------------------
+
+REVIEW_CONCURRENCY = 4  # 153 channels must not stampede Bedrock or block the loop
+_reviewing: set[str] = set()  # channel ids with a review in flight
+
+
+def _channel_hints(hid: str) -> dict[str, dict]:
+    """Title and avatar per channel id, from what this household already has:
+    the kids' approved channels and the cached subscription list. Saves the
+    Reviewer a page fetch, and is the only source of an avatar (RSS has none)."""
+    store = get_store()
+    hints: dict[str, dict] = {}
+    for s in (store.cache_get("youtube_subs", hid) or {}).get("items", []):
+        hints[s["channel_id"]] = {"title": s.get("title", ""), "thumb_url": s.get("thumb_url", "")}
+    for kid in store.list_kids(hid):
+        for ch in store.list_channels(hid, kid.id):
+            hints.setdefault(ch.id, {"title": ch.title, "thumb_url": ch.thumb_url})
+    return hints
+
+
+def _review_one(channel_id: str, hint: dict) -> ChannelReview:
+    return review_channel(
+        channel_id, get_store(),
+        title_hint=hint.get("title", ""), thumb_url=hint.get("thumb_url", ""),
+    )
+
+
+async def _review_in_background(channel_ids: list[str], hints: dict[str, dict]) -> None:
+    """Review the pending channels a few at a time; the client polls for them.
+
+    Each review is a blocking model call, so it runs in a worker thread and the
+    semaphore bounds how many are in flight at once.
+    """
+    gate = asyncio.Semaphore(REVIEW_CONCURRENCY)
+
+    async def one(channel_id: str) -> None:
+        async with gate:
+            try:
+                await asyncio.to_thread(_review_one, channel_id, hints.get(channel_id, {}))
+            except Exception as e:  # noqa: BLE001 - one bad channel must not stop the batch
+                log.warning("background review failed for %s: %s", channel_id, e)
+            finally:
+                _reviewing.discard(channel_id)
+
+    try:
+        await asyncio.gather(*(one(c) for c in channel_ids))
+    finally:
+        # A cancelled batch must not leave ids marked in-flight forever: they would
+        # sit in `pending` on every later poll with nothing working on them.
+        for channel_id in channel_ids:
+            _reviewing.discard(channel_id)
+
+
+class ChannelReviewsIn(BaseModel):
+    channel_ids: list[str] = Field(default_factory=list)
+
+
+@app.post("/channels/reviews")
+def channel_reviews(
+    body: ChannelReviewsIn, tasks: BackgroundTasks, hid: str = Depends(household)
+) -> dict:
+    """Cached reviews now, the rest in `pending` with the work started.
+
+    The client polls this same endpoint until `pending` is empty. Ids already
+    being reviewed by an earlier poll stay in `pending` without starting a
+    second run.
+    """
+    store = get_store()
+    hints = _channel_hints(hid)
+    reviews: list[dict] = []
+    pending: list[str] = []
+    to_start: list[str] = []
+
+    for channel_id in dict.fromkeys(c.strip() for c in body.channel_ids if c.strip()):
+        cached = store.get_channel_review(channel_id)
+        if cached:
+            reviews.append(ChannelReview.model_validate(cached).model_dump())
+            continue
+        pending.append(channel_id)
+        if channel_id not in _reviewing:
+            _reviewing.add(channel_id)
+            to_start.append(channel_id)
+
+    if to_start:
+        tasks.add_task(_review_in_background, to_start, hints)
+    return {"reviews": reviews, "pending": pending}
+
+
+@app.get("/channels/{channel_id}/review")
+def channel_review(channel_id: str, refresh: bool = False, hid: str = Depends(household)) -> dict:
+    """One review, waiting for it if it is not cached. `refresh=true` re-reviews."""
+    hint = _channel_hints(hid).get(channel_id, {})
+    try:
+        review = review_channel(
+            channel_id, get_store(),
+            title_hint=hint.get("title", ""), thumb_url=hint.get("thumb_url", ""), refresh=refresh,
+        )
+    except Exception as e:  # never a 500 on a parent-facing screen
+        log.warning("review failed for %s: %s", channel_id, e)
+        raise HTTPException(502, f"could not review this channel: {type(e).__name__}") from e
+    return review.model_dump()
 
 
 @app.get("/kids/{kid_id}/home")

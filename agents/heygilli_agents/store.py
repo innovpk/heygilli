@@ -77,6 +77,18 @@ class Store(ABC):
     def list_channels(self, household: str, kid_id: str) -> list[Channel]:
         return [Channel.model_validate(d) for d in self.list(household, f"channel@{kid_id}")]
 
+    def delete_channel(self, household: str, kid_id: str, channel_id: str) -> None:
+        """Remove a channel from one kid. Other kids keep theirs, and the global
+        review cache is untouched (PROTOCOL.md "Channel reviews")."""
+        self.delete(household, f"channel@{kid_id}", channel_id)
+
+    # -- channel reviews (global: a review is a property of the channel, not of a kid)
+    def get_channel_review(self, channel_id: str) -> dict[str, Any] | None:
+        return self.cache_get("channel_review", channel_id)
+
+    def put_channel_review(self, channel_id: str, data: dict[str, Any]) -> None:
+        self.cache_put("channel_review", channel_id, data)
+
     # -- videos (global metadata) + per-kid visibility
     def put_video(self, video: Video) -> None:
         self.put(GLOBAL, "video", video.id, video.model_dump())
