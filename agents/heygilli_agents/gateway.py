@@ -18,7 +18,15 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
@@ -133,7 +141,7 @@ def add_channel(kid_id: str, body: ChannelIn, hid: str = Depends(household)) -> 
     _kid(hid, kid_id)
     try:
         info = resolve_channel_url(body.url)
-    except Exception as e:  # noqa: BLE001 - network/parse errors become a 400 the app can show
+    except Exception as e:
         raise HTTPException(400, f"could not resolve channel: {e}") from e
     ch = Channel(id=info["channel_id"], title=info["title"], thumb_url=info["thumb_url"], approved=True)
     get_store().put_channel(hid, kid_id, ch)
@@ -174,11 +182,20 @@ class SessionIn(BaseModel):
     device: str = "tv"
 
 
+_planning: set[str] = set()  # (video, band, language) keys with a Planner call in flight
+
+
 def _plan_in_background(video: Video, band: str, language: str) -> None:
+    key = f"{video.id}#{band}#{language}"
+    if key in _planning:
+        return  # a second POST /sessions for the same video must not start a second Planner call
+    _planning.add(key)
     try:
         ensure_plan(video, band, language)
     except Exception as e:  # noqa: BLE001 - background job; the session falls back to a generic plan
         log.warning("background planning failed for %s: %s", video.id, e)
+    finally:
+        _planning.discard(key)
 
 
 @app.post("/sessions")

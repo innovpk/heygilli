@@ -93,7 +93,7 @@ class Store(ABC):
 
     def list_answers(self, household: str, session_id: str) -> list[Answer]:
         out = [Answer.model_validate(d) for d in self.list(household, f"answer@{session_id}")]
-        return sorted(out, key=lambda a: a.created_at)
+        return sorted(out, key=lambda a: (a.created_at, a.question_idx))
 
     # -- digests and parent inbox
     def put_digest(self, household: str, d: Digest) -> None:
@@ -118,7 +118,10 @@ class Store(ABC):
 
     # -- generic cache for tools (youtube pages, transcripts)
     def cache_get(self, namespace: str, key: str) -> dict[str, Any] | None:
-        return self.get(GLOBAL, f"cache@{namespace}", key)
+        d = self.get(GLOBAL, f"cache@{namespace}", key)
+        if d is not None:
+            d.pop("_id", None)  # cached payloads round-trip exactly as they were put
+        return d
 
     def cache_put(self, namespace: str, key: str, data: dict[str, Any]) -> None:
         self.put(GLOBAL, f"cache@{namespace}", key, data)

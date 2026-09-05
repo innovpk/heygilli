@@ -1,0 +1,15 @@
+[     1 ms] POST /auth/dev: {"token": "hh_e4cf32fe46.5af975d6a6c0b1f40c66eedb9faf5769", "household_id": "hh_e4cf32fe46"}
+[     1 ms] POST /kids: {"id": "kid_c1a69cd92283", "household_id": "hh_e4cf32fe46", "nickname": "Smoke", "age": 8, "age_band": "7_8", "languages": ["en"], "avatar": "gilli", "question_freq": "normal", "daily_minutes": 60}
+[     1 ms] POST /kids/{id}/channels -> 200: {"id": "UCRFIPG2u1DxKLNuE3y2SjHA", "title": "SciShow Kids", "thumb_url": "https://yt3.googleusercontent.com/9RKKCG2JPialTt7Aks6PPjLuETae_Yf-_Und4NERTGdn4tHV7xCr1JzJQc0-ir63DYcvK_cYTA=s900-c-k-c0x00ffffff-no-rj", "approved": true, "last_checked": null}
+[     0 ms] GET /kids/{id}/home: {"rows": [{"title": "New for you", "videos": []}]}
+[     1 ms] POST /sessions: {"session_id": "ses_4c95dec2d0ae", "video": {"id": "0jKoOUZ1GBM", "channel_id": "UCRFIPG2u1DxKLNuE3y2SjHA", "title": "Every Kind of Volcano | SciShow Kids", "duration_s": 503, "thumb_url": "https://i.ytimg.com/vi/0jKoOUZ1GBM/hqdefault.jpg", "age_ok": false, "plan_ready": true}, "plan_ready": true}
+[     0 ms] ready: {"t": "ready", "plan_questions": 3, "age_band": "7_8", "language": "en"}
+sent position 120.5s (plan has 3 questions)
+[     0 ms] pause: {"t": "pause"}
+[   704 ms] ask: {"t": "ask", "q": 0, "type": "recall", "input": "voice", "text": "What are the different kinds of volcanoes mentioned in the video?", "tts_url": "/tts/a40f60f561987c31236117496966981511fdc8a1.mp3", "listen_ms": 8000, "gesture": "point"}
+[  2694 ms] reply: {"t": "reply", "text": "That's right! Lava is super hot when it comes out. Let's think about the different kinds of volcanoes we saw, like stratovolcanoes, shield volcanoes, and underwater ones.", "tts_url": "/tts/c7a76e86cea116f4c1e93f5974bfc258d4b3b20a.mp3", "result": "off_topic", "gesture": "think"}
+[  2694 ms] resume: {"t": "resume"}
+[  3638 ms] end: {"t": "end", "summary_tts_url": "/tts/dad08aa4173debf97d2f29586aa5401f3d4d9c34.mp3", "words_said": []}
+[     2 ms] POST /sessions/{id}/end: {"ok": true}
+[  2760 ms] GET /kids/{id}/digest: {"kid_id": "kid_c1a69cd92283", "date": "2026-09-05", "minutes": 2, "videos": 1, "asked": 1, "answered": 1, "understood": [], "shaky": ["Different kinds of volcanoes"], "words_said": [], "words_heard": [], "dinner_prompt": "What do you think causes volcanoes to erupt?", "kind": "older", "notify": false}
+WS turn OK

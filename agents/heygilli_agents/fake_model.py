@@ -43,6 +43,25 @@ def _duration(text: str) -> int:
     return int(m.group(1)) if m else 600
 
 
+def _lang(text: str) -> str:
+    m = re.search(r"language:\s*(en|ur)", text)
+    return m.group(1) if m else "en"
+
+
+# Urdu question texts keyed by the English canned text, so the eval's language check holds offline.
+_UR = {
+    "What animal is that?": "یہ کون سا جانور ہے؟",
+    "Show me the red one.": "مجھے لال والا دکھاؤ۔",
+    "Can you roar like him?": "کیا تم اس کی طرح دہاڑ سکتے ہو؟",
+    "What did the giraffe eat?": "زرافے نے کیا کھایا؟",
+    "Why did the ice melt?": "برف کیوں پگھلی؟",
+    "What do you think happens next?": "تمہارے خیال میں آگے کیا ہوگا؟",
+    "How does a volcano erupt?": "آتش فشاں کیسے پھٹتا ہے؟",
+    "How is a volcano like a fizzy drink?": "آتش فشاں فزی ڈرنک جیسا کیسے ہے؟",
+    "Do you agree with him? Why?": "کیا تم اس سے متفق ہو؟ کیوں؟",
+}
+
+
 def default_canned(model_name: str, text: str) -> dict[str, Any]:
     """Valid-looking payloads for every structured output HeyGilli asks for."""
     band = _band(text)
@@ -78,6 +97,9 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
                 {"t_sec": 700, "type": "opinion", "input": "voice",
                  "text": "Do you agree with him? Why?", "expected": "any reasoned opinion"},
             ]
+        if _lang(text) == "ur":
+            for q in qs:
+                q["text"] = _UR.get(q["text"], q["text"])
         return {"questions": qs}
     if model_name in ("ScoredReply", "Score"):
         said = re.search(r"child said:\s*\"([^\"]*)\"", text)

@@ -102,7 +102,7 @@ def default_model_line(q: Question, language: str) -> str:
         return ""
     if language == "ur":
         return f"{word}! {word}."
-    return f"A {word}! {syllabify(word)}." if q.type != "copy_it" else f"Listen to mine! {word}!"
+    return f"A {word}! {syllabify(word).capitalize()}." if q.type != "copy_it" else f"Listen to mine! {word}!"
 
 
 def enforce(
@@ -183,6 +183,8 @@ def _fill(q: Question, band: AgeBand, language: str) -> Question:
             correct = next((o for o in q.options if o.correct), None)
             if correct:
                 update["expected"] = correct.label
+        if q.type == "copy_it" and not q.expected.strip():
+            update["expected"] = "sound" if language == "en" else "آواز"  # "Great sound!" beats "Great !"
         merged = q.model_copy(update=update)
         if not merged.model_line:
             update["model_line"] = default_model_line(merged, language)

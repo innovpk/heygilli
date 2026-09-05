@@ -1,4 +1,5 @@
 # local JSON store + cached TTS mp3s (HEYGILLI_STORE=local)
 .data/
 # eval output
-eval/out/
+eval/results/*.json
+!eval/results/.gitkeep

@@ -60,6 +60,7 @@ def resolve_channel_url(url: str) -> dict:
     if cached:
         return cached
 
+    vid: str | None = None
     if m := _CHANNEL_ID.search(url):
         channel_id = m.group(1)
         page = _get(url)
