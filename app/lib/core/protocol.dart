@@ -7,6 +7,12 @@ library;
 
 import 'dart:convert';
 
+// ---------------------------------------------------------------- helpers
+
+/// True when [s] contains Arabic-script letters (Urdu is written in it).
+/// Used to pick the TTS voice and text direction for a line.
+bool isUrduScript(String s) => RegExp(r'[\u0600-\u06FF]').hasMatch(s);
+
 // ---------------------------------------------------------------- enums
 
 enum Gesture {
@@ -77,6 +83,7 @@ sealed class ServerMessage {
           type: j['type'] as String? ?? 'name_it',
           input: QuestionInput.fromWire(j['input'] as String?),
           text: j['text'] as String?,
+          textUr: j['text_ur'] as String?,
           speak: j['speak'] as String?,
           ttsUrl: j['tts_url'] as String? ?? '',
           listenMs: (j['listen_ms'] as num?)?.toInt() ?? 5000,
@@ -147,6 +154,7 @@ class AskMessage extends ServerMessage {
     required this.type,
     required this.input,
     required this.text,
+    this.textUr,
     this.speak,
     required this.ttsUrl,
     required this.listenMs,
@@ -161,6 +169,11 @@ class AskMessage extends ServerMessage {
   /// Omitted by the server for band 4_6. Even when present the client never
   /// renders it for that band; it is only a TTS fallback.
   final String? text;
+
+  /// Proposed v1.1 field: the same question in Urdu, shown as a second line
+  /// under the English text for bilingual kids aged 7+ (design/TVOlder).
+  /// Never rendered for band 4_6.
+  final String? textUr;
 
   /// Proposed v1.1 field: the spoken line for on-device TTS fallback when
   /// `tts_url` is empty and `text` is omitted (band 4_6). Never rendered.

@@ -17,10 +17,7 @@ class DemoBadge extends StatelessWidget {
         color: HgColors.coral,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        'demo',
-        style: HgText.body(size: 12, color: HgColors.cream),
-      ),
+      child: Text('demo', style: HgText.body(size: 12, color: HgColors.cream)),
     );
   }
 }

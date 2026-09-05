@@ -23,7 +23,8 @@ class WebSocketSession implements SessionSocket {
           .map((frame) => ServerMessage.decode(frame as String))
           .asBroadcastStream();
 
-  /// Opens the socket and sends `hello`. The REST bearer token is sent as a
+  /// Opens the socket. The caller sends `hello` once it is listening, so the
+  /// `ready` reply is never missed. The REST bearer token is sent as a
   /// header; PROTOCOL.md does not spell out WS auth, so the gateway should
   /// accept the same `Authorization` header here.
   static Future<WebSocketSession> connect(Uri uri, {String? token}) async {
@@ -33,9 +34,7 @@ class WebSocketSession implements SessionSocket {
       connectTimeout: const Duration(seconds: 5),
     );
     await channel.ready;
-    final session = WebSocketSession._(channel);
-    session.send(const HelloMessage());
-    return session;
+    return WebSocketSession._(channel);
   }
 
   final WebSocketChannel _channel;

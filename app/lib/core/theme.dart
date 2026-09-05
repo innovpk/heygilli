@@ -93,6 +93,27 @@ ThemeData buildTheme() {
         shape: const StadiumBorder(),
       ),
     ),
+    // Parent tab bar sits on white, so labels and icons are ink, not cream.
+    navigationBarTheme: NavigationBarThemeData(
+      labelTextStyle: WidgetStatePropertyAll(
+        HgText.body(size: 12, color: HgColors.ink, weight: FontWeight.w800),
+      ),
+      iconTheme: const WidgetStatePropertyAll(
+        IconThemeData(color: HgColors.ink),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: HgColors.white,
+      selectedColor: HgColors.mango,
+      labelStyle: HgText.body(size: 15, color: HgColors.ink),
+      side: BorderSide.none,
+      shape: const StadiumBorder(),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: HgColors.teal,
+      contentTextStyle: HgText.body(size: 14),
+      behavior: SnackBarBehavior.floating,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: HgColors.white,

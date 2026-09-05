@@ -142,8 +142,9 @@ class Video {
   final bool planReady;
 
   /// YouTube's public thumbnail endpoint; used when the server sends no thumb.
-  String get thumb =>
-      thumbUrl.isNotEmpty ? thumbUrl : 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
+  String get thumb => thumbUrl.isNotEmpty
+      ? thumbUrl
+      : 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
 
   factory Video.fromJson(Map<String, dynamic> j) => Video(
     id: '${j['id']}',

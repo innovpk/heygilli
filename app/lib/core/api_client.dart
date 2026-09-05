@@ -99,9 +99,11 @@ class ApiClient implements Gateway {
           .toList();
 
   @override
-  Future<Channel> addChannel(String kidId, String url) async => Channel.fromJson(
-    await _post('/kids/$kidId/channels', {'url': url}) as Map<String, dynamic>,
-  );
+  Future<Channel> addChannel(String kidId, String url) async =>
+      Channel.fromJson(
+        await _post('/kids/$kidId/channels', {'url': url})
+            as Map<String, dynamic>,
+      );
 
   @override
   Future<List<HomeRow>> home(String kidId) async {
@@ -135,7 +137,8 @@ class ApiClient implements Gateway {
   }
 
   @override
-  Future<void> endSession(String sessionId) => _post('/sessions/$sessionId/end');
+  Future<void> endSession(String sessionId) =>
+      _post('/sessions/$sessionId/end');
 
   @override
   Future<Digest> digest(String kidId, String date) async => Digest.fromJson(

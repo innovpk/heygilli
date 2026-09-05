@@ -38,7 +38,7 @@ class FakeGateway implements Gateway {
       nickname: 'Ayaan',
       age: 9,
       band: AgeBand.b9to11,
-      languages: ['en'],
+      languages: ['en', 'ur'],
     ),
   ];
 
@@ -92,9 +92,9 @@ class FakeGateway implements Gateway {
 
   /// Demo plans fire early (seconds, not minutes) so a judge sees the loop
   /// inside a 5-minute video. The live Planner follows SPEC 7.3 timing.
-  static final _plans = <String, List<_PlannedAsk>>{
+  static final _plans = <String, List<PlannedAsk>>{
     _ducks.id: [
-      _PlannedAsk(
+      PlannedAsk(
         atS: 12,
         type: 'pick_it',
         input: QuestionInput.pick,
@@ -108,7 +108,7 @@ class FakeGateway implements Gateway {
         correctOption: 1,
         modelWord: 'duck',
       ),
-      _PlannedAsk(
+      PlannedAsk(
         atS: 40,
         type: 'name_it',
         input: QuestionInput.voice,
@@ -119,7 +119,7 @@ class FakeGateway implements Gateway {
       ),
     ],
     _twinkle.id: [
-      _PlannedAsk(
+      PlannedAsk(
         atS: 12,
         type: 'name_it',
         input: QuestionInput.voice,
@@ -128,7 +128,7 @@ class FakeGateway implements Gateway {
         expected: const ['star', 'stars', 'twinkle'],
         modelWord: 'star',
       ),
-      _PlannedAsk(
+      PlannedAsk(
         atS: 40,
         type: 'pick_it',
         input: QuestionInput.pick,
@@ -144,7 +144,7 @@ class FakeGateway implements Gateway {
       ),
     ],
     _volcano.id: [
-      _PlannedAsk(
+      PlannedAsk(
         atS: 15,
         type: 'recall',
         input: QuestionInput.voice,
@@ -152,7 +152,7 @@ class FakeGateway implements Gateway {
         textUr: 'جب آتش فشاں پھٹتا ہے تو اس سے کیا نکلتا ہے؟',
         expected: const ['lava', 'ash', 'magma', 'rock', 'gas'],
       ),
-      _PlannedAsk(
+      PlannedAsk(
         atS: 50,
         type: 'why',
         input: QuestionInput.voice,
@@ -162,7 +162,7 @@ class FakeGateway implements Gateway {
       ),
     ],
     _ears.id: [
-      _PlannedAsk(
+      PlannedAsk(
         atS: 15,
         type: 'recall',
         input: QuestionInput.voice,
@@ -170,7 +170,7 @@ class FakeGateway implements Gateway {
         textUr: 'کان کا کون سا حصہ آواز کو سب سے پہلے پکڑتا ہے؟',
         expected: const ['outer', 'outside', 'flap', 'pinna', 'ear'],
       ),
-      _PlannedAsk(
+      PlannedAsk(
         atS: 50,
         type: 'why',
         input: QuestionInput.voice,
@@ -334,6 +334,7 @@ class FakeGateway implements Gateway {
     final info = _sessions[sessionId]!;
     return FakeSession(
       kid: info.kid,
+      video: info.video,
       plan: _plans[info.video.id] ?? const [],
     );
   }
@@ -360,8 +361,8 @@ class FakeGateway implements Gateway {
         wordsSaid: const [],
         wordsHeard: const [],
         dinnerPrompt: '',
-        kind: _kids.where((k) => k.id == kidId).firstOrNull?.band ==
-                AgeBand.b4to6
+        kind:
+            _kids.where((k) => k.id == kidId).firstOrNull?.band == AgeBand.b4to6
             ? 'prereader'
             : 'older',
       );
@@ -385,7 +386,8 @@ class FakeGateway implements Gateway {
     _inbox.removeWhere((p) => p.id == promptId);
   }
 
-  Future<void> _lag() => Future<void>.delayed(const Duration(milliseconds: 250));
+  Future<void> _lag() =>
+      Future<void>.delayed(const Duration(milliseconds: 250));
 }
 
 class _FakeSessionInfo {
@@ -394,8 +396,8 @@ class _FakeSessionInfo {
   final Video video;
 }
 
-class _PlannedAsk {
-  _PlannedAsk({
+class PlannedAsk {
+  PlannedAsk({
     required this.atS,
     required this.type,
     required this.input,
@@ -422,12 +424,13 @@ class _PlannedAsk {
 /// pause → ask → (answer) → reply → resume for each planned question, scoring
 /// answers the way SPEC 7.4 describes (forgiving for pre-readers).
 class FakeSession implements SessionSocket {
-  FakeSession({required this.kid, required this.plan}) {
+  FakeSession({required this.kid, required this.video, required this.plan}) {
     _out = StreamController<ServerMessage>.broadcast();
   }
 
   final Kid kid;
-  final List<_PlannedAsk> plan;
+  final Video video;
+  final List<PlannedAsk> plan;
 
   late final StreamController<ServerMessage> _out;
   int _nextQ = 0;
@@ -456,13 +459,17 @@ class FakeSession implements SessionSocket {
           ),
         );
       case PositionMessage(:final seconds):
-        if (!_busy && _nextQ < plan.length && seconds >= plan[_nextQ].atS) {
+        if (_busy) return;
+        if (_nextQ < plan.length && seconds >= plan[_nextQ].atS) {
           _runQuestion(_nextQ);
+        } else if (video.durationS > 0 && seconds >= video.durationS - 1) {
+          // The live gateway sends `end` when the video finishes; so do we.
+          _end();
         }
       case AnswerMessage():
         _awaitingAnswer?.complete(message);
       case ResumedMessage():
-        if (_nextQ >= plan.length) _end();
+        break;
       case ByeMessage():
         close();
     }
@@ -482,15 +489,20 @@ class FakeSession implements SessionSocket {
         type: ask.type,
         input: ask.input,
         // Text is omitted for 4_6 exactly like the live gateway. The client
-        // then relies on tts_url or, in demo, speaks nothing but shows Gilli.
-        text: band == AgeBand.b4to6 ? null : (urdu ? ask.textUr : ask.text),
+        // then relies on tts_url or, in demo, on-device TTS of `speak`.
+        text: band == AgeBand.b4to6 ? null : ask.text,
+        // Bilingual kids 7+ get the Urdu line under the English question.
+        textUr: band == AgeBand.b4to6 || !urdu ? null : ask.textUr,
         // Demo has no cloud TTS, so the client falls back to on-device TTS.
-        // `speak` carries the spoken line for 4_6 (proposed v1.1 field).
-        speak: urdu ? ask.textUr : ask.text,
+        // `speak` carries the spoken line for 4_6 (proposed v1.1 field). It
+        // is English because most demo devices only ship an English voice.
+        speak: ask.text,
         ttsUrl: '',
         listenMs: band.defaultListenMs,
         options: ask.options,
-        gesture: ask.input == QuestionInput.pick ? Gesture.point : Gesture.think,
+        gesture: ask.input == QuestionInput.pick
+            ? Gesture.point
+            : Gesture.think,
       ),
     );
 
@@ -515,8 +527,10 @@ class FakeSession implements SessionSocket {
     _busy = false;
   }
 
-  ReplyMessage _score(_PlannedAsk ask, AnswerMessage? a) {
-    final urdu = language == 'ur';
+  ReplyMessage _score(PlannedAsk ask, AnswerMessage? a) {
+    // SPEC 7.5: Gilli code-switches. The reply is in Urdu only when the kid
+    // answered in Urdu; the default demo voice is English.
+    final urdu = language == 'ur' && isUrduScript(a?.transcript ?? '');
     final word = ask.modelWord ?? '';
     final wordUr = _urduWord(word);
     final pre = kid.band == AgeBand.b4to6;
@@ -581,7 +595,8 @@ class FakeSession implements SessionSocket {
     final hit = ask.expected.any(transcript.contains);
     // Pre-readers: sharing a first sound counts as partial, and partial is
     // treated as success (SPEC 7.4).
-    final firstSound = pre &&
+    final firstSound =
+        pre &&
         word.isNotEmpty &&
         transcript.split(' ').any((w) => w.isNotEmpty && w[0] == word[0]);
 
@@ -621,7 +636,8 @@ class FakeSession implements SessionSocket {
       );
     }
     return const ReplyMessage(
-      text: 'Interesting! I thought it was the pressure building up '
+      text:
+          'Interesting! I thought it was the pressure building up '
           'underground. Let\'s watch and see.',
       ttsUrl: '',
       result: AnswerResult.offTopic,
@@ -643,8 +659,11 @@ class FakeSession implements SessionSocket {
     _ => en,
   };
 
+  bool _ended = false;
+
   void _end() {
-    if (_closed) return;
+    if (_closed || _ended) return;
+    _ended = true;
     final pre = kid.band == AgeBand.b4to6;
     final words = plan.map((p) => p.modelWord).whereType<String>().toList();
     _emit(
@@ -662,7 +681,8 @@ class FakeSession implements SessionSocket {
     if (!_closed) _out.add(m);
   }
 
-  Future<void> _wait(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
+  Future<void> _wait(int ms) =>
+      Future<void>.delayed(Duration(milliseconds: ms));
 
   @override
   Future<void> close() async {

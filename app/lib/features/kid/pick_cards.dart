@@ -33,6 +33,9 @@ class PickCards extends StatefulWidget {
   final bool enabled;
   final double cardSize;
 
+  /// Space between cards; fixed so a parent layout can size cards to fit.
+  static const double gap = 12;
+
   @override
   State<PickCards> createState() => _PickCardsState();
 }
@@ -42,9 +45,12 @@ class _PickCardsState extends State<PickCards> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      spacing: widget.cardSize * 0.14,
+    // Wrap, not Row: cards never shrink below 120 dp; on a narrow phone the
+    // third card drops to a second line instead.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: PickCards.gap,
+      runSpacing: PickCards.gap,
       children: List.generate(widget.options.length.clamp(0, 3), (i) {
         final option = widget.options[i];
         final entry = widget.icons.byId(option.iconId);
@@ -111,9 +117,7 @@ class _WobbleCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: HgColors.white,
         borderRadius: BorderRadius.circular(size * 0.18),
-        border: wobbling
-            ? Border.all(color: HgColors.mango, width: 6)
-            : null,
+        border: wobbling ? Border.all(color: HgColors.mango, width: 6) : null,
         boxShadow: const [
           BoxShadow(color: Color(0x1F0F2A33), offset: Offset(0, 8)),
         ],
