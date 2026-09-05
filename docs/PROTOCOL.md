@@ -1,4 +1,4 @@
-# HeyGilli client ↔ gateway protocol (v1.1)
+# HeyGilli client ↔ gateway protocol (v1.2)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
@@ -26,6 +26,7 @@ GET  /kids/{kid_id}/home                                      → {rows: [{title
 POST /sessions                 {kid_id, video_id, device}     → {session_id, video: Video, plan_ready: bool}
 POST /sessions/{id}/end                                       → {ok: true}
 GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest
+GET  /kids/{kid_id}/analytics?days=14                         → Analytics
 POST /kids/{kid_id}/digest/run                                → Digest   (runs the Digest agent now; dev convenience)
 POST /curator/run              {kid_id}                       → {approved: [...], hidden: [...], ask_parent: [...]}   (dev convenience)
 GET  /parent/inbox                                            → ParentPrompt[]   (things the Curator wants a yes/no on)
@@ -42,6 +43,36 @@ Digest     {kid_id, date, minutes, videos, asked, answered,
             understood[], shaky[], words_said[], words_heard[], dinner_prompt, kind: "prereader"|"older"}
 ParentPrompt {id, kid_id, video: Video, reason, created_at}
 ```
+
+### Analytics
+
+`GET /kids/{kid_id}/analytics?days=14` (days: 7-90, default 14). Everything is derived from
+Sessions, Answers and question plans. It never exposes anything a child said beyond the single
+words Gilli asked for and the paraphrase already stored.
+
+```
+Analytics {
+  kid_id, band, days, generated_at,
+  totals:   {minutes, videos, sessions, asked, answered, answer_rate},   // answer_rate 0.0-1.0
+  daily:    [{date, minutes, videos, asked, answered}],   // oldest first, missing days filled with zeros
+  vocabulary: {                                           // meaningful for band 4_6
+    total_said, new_this_week,
+    said:     [{word, times_said, first_said}],           // most recent first
+    emerging: [{word, times_heard}]                       // Gilli modelled it, the kid has not said it yet
+  },
+  concepts: [{concept, asked, understood, shaky, last_seen}],  // bands 7_8 / 9_11
+  needs_another_look: [{concept, times_shaky, last_seen}],     // shaky on 2+ separate days
+  channels: [{channel_id, title, minutes, videos}],            // most minutes first
+  note: {kind, text}                                           // kind: praise | suggestion | watch | quiet
+}
+```
+
+`note` is one or two plain sentences written by the Digest agent about what changed and what the
+parent could do. `kind: "quiet"` means there is nothing worth acting on, and the client shows it
+in a muted style rather than as an alert. The note never shames the parent or the child and never
+compares one kid to another.
+
+Empty history is a valid response: zeros, empty lists, and a `quiet` note.
 
 ## WebSocket `/sessions/{id}/ws`
 

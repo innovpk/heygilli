@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/models.dart';
+import '../../core/orientation.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
@@ -39,6 +40,7 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
   void initState() {
     super.initState();
     // Best-effort screen pinning; the PIN gate is the real exit control.
+    ScreenOrientation.kidMode();
     WidgetsBinding.instance.addPostFrameCallback((_) => LockMode.start());
   }
 
@@ -46,6 +48,7 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     final ok = await showPinGate(context);
     if (!ok || !mounted) return;
     await LockMode.stop();
+    await ScreenOrientation.parentMode();
     if (!mounted) return;
     context.read<AppState>().leaveKidMode();
     Navigator.of(context).pushNamedAndRemoveUntil(Routes.parent, (_) => false);

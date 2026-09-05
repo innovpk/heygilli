@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_state.dart';
+import 'core/orientation.dart';
 import 'core/icon_library.dart';
 import 'core/speech.dart';
 import 'core/theme.dart';
@@ -12,6 +13,7 @@ import 'features/parent/sign_in_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  ScreenOrientation.parentMode();
   runApp(const HeyGilliApp());
 }
 

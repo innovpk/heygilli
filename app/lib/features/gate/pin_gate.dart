@@ -39,41 +39,85 @@ class _PinGateScreenState extends State<PinGateScreen> {
     final title = settingUp
         ? (_firstEntry == null ? 'Set a parent PIN' : 'Type it once more')
         : 'Parent PIN';
+    final hint =
+        _hint ??
+        (settingUp
+            ? 'Kids need this to leave kid mode.'
+            : 'Four digits to leave kid mode.');
+
     return Scaffold(
       backgroundColor: HgColors.tealDeep,
       body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: IconButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  icon: const Icon(Icons.close_rounded, size: 30),
-                  color: HgColors.cream,
-                  tooltip: 'Back to kid mode',
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // This gate opens from kid mode, which is landscape, so it is
+            // usually short and wide: put the keypad beside the prompt rather
+            // than under it, and size the keys to the height we actually have.
+            final side = box.maxWidth > box.maxHeight && box.maxHeight < 560;
+            final keyH = ((box.maxHeight - 140) / 4.6).clamp(46.0, 72.0);
+
+            final prompt = Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: HgText.display(size: side ? 26 : 30),
                 ),
-              ),
-            ),
-            const Spacer(),
-            Text(title, style: HgText.display(size: 30)),
-            const SizedBox(height: 8),
-            Text(
-              _hint ??
-                  (settingUp
-                      ? 'Kids need this to leave kid mode.'
-                      : 'Four digits to leave kid mode.'),
-              style: HgText.body(
-                color: _hint == null ? HgColors.sky : HgColors.coral,
-              ),
-            ),
-            const SizedBox(height: 28),
-            _Dots(count: _entry.length, shake: _shake),
-            const SizedBox(height: 28),
-            _Keypad(onDigit: _digit, onBackspace: _backspace),
-            const Spacer(),
-          ],
+                const SizedBox(height: 8),
+                Text(
+                  hint,
+                  textAlign: TextAlign.center,
+                  style: HgText.body(
+                    color: _hint == null ? HgColors.sky : HgColors.coral,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _Dots(count: _entry.length, shake: _shake),
+              ],
+            );
+            final keypad = _Keypad(
+              onDigit: _digit,
+              onBackspace: _backspace,
+              keyHeight: keyH,
+            );
+
+            return Stack(
+              children: [
+                Center(
+                  // Scrolls rather than overflowing on any small screen.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
+                    child: side
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            spacing: 40,
+                            children: [
+                              Flexible(child: prompt),
+                              keypad,
+                            ],
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 28,
+                            children: [prompt, keypad],
+                          ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close_rounded, size: 30),
+                    color: HgColors.cream,
+                    tooltip: 'Back to kid mode',
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -165,9 +209,17 @@ class _Dots extends StatelessWidget {
 }
 
 class _Keypad extends StatelessWidget {
-  const _Keypad({required this.onDigit, required this.onBackspace});
+  const _Keypad({
+    required this.onDigit,
+    required this.onBackspace,
+    required this.keyHeight,
+  });
   final void Function(String) onDigit;
   final VoidCallback onBackspace;
+
+  /// Sized by the caller from the space available, so the keypad shrinks on a
+  /// short landscape screen instead of overflowing it.
+  final double keyHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -177,18 +229,22 @@ class _Keypad extends StatelessWidget {
       ['7', '8', '9'],
       ['', '0', '<'],
     ];
+    final gap = (keyHeight * 0.2).clamp(8.0, 14.0);
+    final keyW = keyHeight * 1.12;
     return Column(
-      spacing: 14,
+      mainAxisSize: MainAxisSize.min,
+      spacing: gap,
       children: [
         for (final row in rows)
           Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 14,
+            spacing: gap,
             children: [
               for (final k in row)
                 SizedBox(
-                  width: 80,
-                  height: 72,
+                  width: keyW,
+                  height: keyHeight,
                   child: k.isEmpty
                       ? null
                       : Material(
@@ -199,12 +255,17 @@ class _Keypad extends StatelessWidget {
                             onTap: k == '<' ? onBackspace : () => onDigit(k),
                             child: Center(
                               child: k == '<'
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.backspace_outlined,
                                       color: HgColors.cream,
-                                      size: 28,
+                                      size: keyHeight * 0.4,
                                     )
-                                  : Text(k, style: HgText.display(size: 30)),
+                                  : Text(
+                                      k,
+                                      style: HgText.display(
+                                        size: keyHeight * 0.42,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),

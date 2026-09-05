@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
@@ -91,11 +90,6 @@ class _SessionScreenState extends State<SessionScreen> {
   @override
   void initState() {
     super.initState();
-    // A video screen is a landscape screen. Restored in dispose().
-    SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     _ytSub = _yt.stream.listen(_onPlayerValue);
     _posSub = _yt.videoStateStream.listen(
       (s) => _positionS = s.position.inMilliseconds / 1000,
@@ -167,7 +161,6 @@ class _SessionScreenState extends State<SessionScreen> {
     _ears.dispose();
     _voice.stop();
     _yt.close();
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
