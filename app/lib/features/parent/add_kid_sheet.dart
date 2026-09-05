@@ -6,27 +6,38 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 
 /// Bottom sheet: nickname, age (sets the band live), languages.
-Future<void> showAddKidSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+///
+/// Returns the kid that was created, or null if the sheet was dismissed. The
+/// Takeout import needs the kid back, because a Takeout profile carries no age
+/// and the channels have to land on the kid this sheet just made.
+Future<Kid?> showAddKidSheet(
+  BuildContext context, {
+  String initialNickname = '',
+}) {
+  return showModalBottomSheet<Kid>(
     context: context,
     isScrollControlled: true,
     backgroundColor: HgColors.cream,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => const _AddKidSheet(),
+    builder: (_) => _AddKidSheet(initialNickname: initialNickname),
   );
 }
 
 class _AddKidSheet extends StatefulWidget {
-  const _AddKidSheet();
+  const _AddKidSheet({this.initialNickname = ''});
+
+  /// Prefilled from the Takeout profile name, which is the only thing the
+  /// export knows about the child.
+  final String initialNickname;
 
   @override
   State<_AddKidSheet> createState() => _AddKidSheetState();
 }
 
 class _AddKidSheetState extends State<_AddKidSheet> {
-  final _nickname = TextEditingController();
+  late final _nickname = TextEditingController(text: widget.initialNickname);
   int _age = 5;
   bool _en = true;
   bool _ur = false;
@@ -54,12 +65,12 @@ class _AddKidSheetState extends State<_AddKidSheet> {
       _error = null;
     });
     try {
-      await context.read<AppState>().addKid(
+      final kid = await context.read<AppState>().addKid(
         nickname: name,
         age: _age,
         languages: [if (_en) 'en', if (_ur) 'ur'],
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(kid);
     } catch (e) {
       setState(() {
         _busy = false;

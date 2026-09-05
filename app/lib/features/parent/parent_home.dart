@@ -8,6 +8,7 @@ import 'add_kid_sheet.dart';
 import 'inbox_screen.dart';
 import 'kid_detail_screen.dart';
 import 'parent_widgets.dart';
+import 'takeout_import_screen.dart';
 
 /// Parent phone home: Kids tab and Inbox tab (design/Phone*.dc.html tab bar).
 class ParentHome extends StatefulWidget {
@@ -82,6 +83,19 @@ class _KidsTab extends StatelessWidget {
                 'Gilli pitches every question to the band.',
                 textAlign: TextAlign.center,
                 style: HgText.body(color: HgColors.brown),
+              ),
+              const SizedBox(height: 8),
+              // The fastest way in for a household that already uses YouTube
+              // Kids: the export names the profiles and brings their channels,
+              // so the parent does not start from an empty list.
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const TakeoutImportScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.folder_zip_outlined, size: 20),
+                label: const Text('Already use YouTube Kids? Import a profile'),
               ),
             ],
           ),

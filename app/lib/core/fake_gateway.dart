@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'analytics.dart';
+import 'demo_catalogue.dart';
 import 'gateway.dart';
 import 'models.dart';
 import 'protocol.dart';
@@ -383,24 +385,123 @@ class FakeGateway implements Gateway {
     final added = <Channel>[];
     final already = <String>[];
     for (final id in channelIds) {
-      if (existing.any((c) => c.id == id)) {
+      // Compared through the catalogue's canonical id, so the same channel
+      // arriving under two ids (a pasted one and a Takeout one) is spotted as
+      // already there instead of listed twice.
+      final key = DemoCatalogue.canonical(id);
+      if (existing.any((c) => DemoCatalogue.canonical(c.id) == key)) {
         already.add(id);
         continue;
       }
-      final sub = _subscriptions.where((s) => s.channelId == id).firstOrNull;
-      if (sub == null) continue;
       // Importing approves the channel, not any video: the Curator still
       // screens every upload (PROTOCOL).
-      final ch = Channel(
-        id: sub.channelId,
-        title: sub.title,
-        thumbUrl: sub.thumbUrl,
-        approved: true,
-      );
+      final sub = _subscriptions.where((s) => s.channelId == id).firstOrNull;
+      final ch = switch ((sub, DemoCatalogue.byId(id))) {
+        (final Subscription s, _) => Channel(
+          id: s.channelId,
+          title: s.title,
+          thumbUrl: s.thumbUrl,
+          approved: true,
+        ),
+        // Takeout ids are not in the parent's own subscription list, so the
+        // demo catalogue is the second place to look.
+        (_, final DemoChannel c) => c.toChannel(),
+        // An id from neither: keep it rather than silently dropping it, the
+        // way the live gateway would resolve it against YouTube.
+        _ => Channel(id: id, title: id, thumbUrl: '', approved: true),
+      };
       existing.add(ch);
       added.add(ch);
     }
     return ImportResult(added: added, already: already);
+  }
+
+  /// A stand-in for the two YouTube Kids profiles a real export contains, at
+  /// the sizes a real export contains them: 153 channels and 24.
+  ///
+  /// The zip is never opened. Demo mode has no server to unzip it, and the
+  /// screen says plainly that it is using a sample.
+  @override
+  Future<TakeoutPreview> importTakeout(File zip) async {
+    await _lag();
+    return TakeoutPreview(
+      profiles: [
+        TakeoutProfile(
+          name: 'Ayaan',
+          channelCount: DemoCatalogue.older.length,
+          channels: [for (final c in DemoCatalogue.older) c.toTakeoutChannel()],
+        ),
+        TakeoutProfile(
+          name: 'Zara',
+          channelCount: DemoCatalogue.younger.length,
+          channels: [
+            for (final c in DemoCatalogue.younger) c.toTakeoutChannel(),
+          ],
+        ),
+      ],
+      parent: TakeoutProfile(
+        channelCount: DemoCatalogue.parentOwn.length,
+        channels: [
+          for (final c in DemoCatalogue.parentOwn) c.toTakeoutChannel(),
+        ],
+      ),
+    );
+  }
+
+  /// Channels the demo has "already reviewed". Seeded with every fourth one so
+  /// the first answer comes back part-cached, exactly like a shared cache that
+  /// another household has already filled in.
+  late final Set<String> _reviewed = {
+    for (var i = 0; i < DemoCatalogue.all.length; i += 4)
+      DemoCatalogue.all[i].id,
+  };
+
+  /// How many the demo "finishes" per poll. 153 channels then take about four
+  /// rounds, which is what the progress line and the backoff are there for.
+  static const _reviewsPerRound = 40;
+
+  @override
+  Future<ChannelReviewBatch> channelReviews(List<String> channelIds) async {
+    await _lag();
+    var budget = _reviewsPerRound;
+    final reviews = <ChannelReview>[];
+    final pending = <String>[];
+    for (final id in channelIds.toSet()) {
+      final channel = DemoCatalogue.byId(id);
+      // A channel the demo has never heard of appears in neither list, which
+      // is the case the client's poll has to survive without spinning.
+      if (channel == null) continue;
+      if (!_reviewed.contains(id)) {
+        if (budget == 0) {
+          pending.add(id);
+          continue;
+        }
+        budget--;
+        _reviewed.add(id);
+      }
+      reviews.add(channel.review);
+    }
+    return ChannelReviewBatch(reviews: reviews, pending: pending);
+  }
+
+  @override
+  Future<ChannelReview> channelReview(
+    String channelId, {
+    bool refresh = false,
+  }) async {
+    await _lag();
+    final channel = DemoCatalogue.byId(channelId);
+    if (channel == null) {
+      throw StateError('No review for $channelId');
+    }
+    _reviewed.add(channelId);
+    return channel.review;
+  }
+
+  @override
+  Future<void> removeChannel(String kidId, String channelId) async {
+    await _lag();
+    _channels[kidId]?.removeWhere((c) => c.id == channelId);
   }
 
   @override

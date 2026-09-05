@@ -5,10 +5,12 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
+import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'import_subscriptions_screen.dart';
 import 'parent_widgets.dart';
 import 'progress_screen.dart';
+import 'takeout_import_screen.dart';
 
 /// One kid: enter kid mode, open the digest or progress, manage channels.
 class KidDetailScreen extends StatefulWidget {
@@ -20,6 +22,19 @@ class KidDetailScreen extends StatefulWidget {
 }
 
 class _KidDetailScreenState extends State<KidDetailScreen> {
+  /// How many channel tiles this page shows before handing over to the review
+  /// screen.
+  static const _previewCount = 8;
+
+  /// Shared by the two import buttons so they read as one pair of options.
+  static final _importButtonStyle = OutlinedButton.styleFrom(
+    foregroundColor: HgColors.ink,
+    backgroundColor: HgColors.white,
+    side: const BorderSide(color: HgColors.line, width: 2),
+    shape: const StadiumBorder(),
+    textStyle: HgText.body(size: 16, color: HgColors.ink),
+  );
+
   late Future<List<Channel>> _channels = _load();
   final _url = TextEditingController();
   bool _adding = false;
@@ -69,6 +84,24 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
       ),
     );
     if (added ?? false) _reload();
+  }
+
+  /// The third way, and the only one that reaches a child's own YouTube Kids
+  /// profile: a Google Takeout export (PROTOCOL "Takeout import").
+  Future<void> _importFromTakeout() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const TakeoutImportScreen()),
+    );
+    if (added ?? false) _reload();
+  }
+
+  /// What each approved channel actually publishes, so a pile of 153 imported
+  /// subscriptions is something a parent can work through.
+  Future<void> _openReviews() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ChannelReviewsScreen(kid: widget.kid)),
+    );
+    if (changed ?? false) _reload();
   }
 
   void _enterKidMode() {
@@ -163,24 +196,35 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
           const SizedBox(height: 8),
           Text(
             'Only videos from these channels ever reach ${kid.nickname}. '
-            'Import the ones you already follow, or paste a channel, @handle '
+            'A Google Takeout export is the only way to read a YouTube Kids '
+            'profile, so start there. You can also paste a channel, @handle '
             'or video URL.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           const SizedBox(height: 12),
+          // Takeout first: it is the only route to a YouTube Kids profile's
+          // subscriptions. Importing the parent's own account only helps the
+          // households where the kids watch on a shared login, so it sits
+          // underneath as the secondary path.
+          SizedBox(
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: _importFromTakeout,
+              icon: const Icon(Icons.folder_zip_outlined, size: 22),
+              label: Text(
+                "Import ${kid.nickname}'s YouTube Kids channels",
+                style: HgText.body(size: 15, color: HgColors.ink),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             height: 52,
             child: OutlinedButton.icon(
               onPressed: _importFromYouTube,
               icon: const Icon(Icons.subscriptions_outlined, size: 22),
-              label: const Text('Import from YouTube'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: HgColors.ink,
-                backgroundColor: HgColors.white,
-                side: const BorderSide(color: HgColors.line, width: 2),
-                shape: const StadiumBorder(),
-                textStyle: HgText.body(size: 16, color: HgColors.ink),
-              ),
+              label: const Text('Import from my own account'),
+              style: _importButtonStyle,
             ),
           ),
           const SizedBox(height: 12),
@@ -235,7 +279,68 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
               }
               return Column(
                 spacing: 10,
-                children: [for (final c in list) _ChannelTile(channel: c)],
+                children: [
+                  // The way through a big imported pile. Shown with the count
+                  // because 153 is the number that makes it worth opening.
+                  PCard(
+                    onTap: _openReviews,
+                    child: Row(
+                      spacing: 14,
+                      children: [
+                        const Icon(
+                          Icons.fact_check_outlined,
+                          color: HgColors.brown,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'What these channels show',
+                                style: HgText.display(
+                                  size: 22,
+                                  color: HgColors.ink,
+                                ),
+                              ),
+                              Text(
+                                'Review all ${list.length} and drop the ones '
+                                'you do not want',
+                                style: HgText.body(
+                                  size: 14,
+                                  color: HgColors.brown,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: HgColors.brown,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Only a first handful here. A Takeout import can leave 153
+                  // channels on a kid, and this page is a Column inside a
+                  // ListView: every tile would be built at once. The review
+                  // screen is the lazily built list.
+                  for (final c in list.take(_previewCount))
+                    _ChannelTile(channel: c),
+                  if (list.length > _previewCount)
+                    SizedBox(
+                      height: 48,
+                      child: TextButton(
+                        onPressed: _openReviews,
+                        style: TextButton.styleFrom(
+                          foregroundColor: HgColors.brown,
+                        ),
+                        child: Text(
+                          'and ${list.length - _previewCount} more',
+                          style: HgText.body(size: 15, color: HgColors.brown),
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),

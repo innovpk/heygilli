@@ -119,9 +119,14 @@ YouTube and YouTube Music/children/<Profile name>/search-history.html
 
 Each CSV is `Channel ID,Channel URL,Channel title`. The folder name is the child's profile name.
 
-`POST /import/takeout` takes the zip and returns a preview. **Only the subscription CSVs are read.**
-Watch history and search history are ignored and never uploaded, stored or sent to a model: they are
-the most sensitive files in the export and nothing here needs them.
+`POST /import/takeout` takes a zip and returns a preview. **Only the subscription CSVs are read**,
+and the client enforces that before the network is involved: it opens the picked export on the
+device, copies out only members whose path ends in `subscriptions.csv`, and uploads that small zip
+instead of the original. Watch history and search history therefore never leave the phone, are never
+stored and are never sent to a model. They are the most sensitive files in the export and nothing
+here needs them. The server applies the same filter again, so a zip built by anything else is held
+to the rule too. It is also the difference between a few kilobytes and a few hundred megabytes over
+a phone connection.
 
 ```
 TakeoutPreview {

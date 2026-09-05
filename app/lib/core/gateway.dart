@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'analytics.dart';
 import 'models.dart';
 import 'session_socket.dart';
@@ -28,6 +30,22 @@ abstract class Gateway {
   /// kid at once. It approves channels, never videos: the Curator still
   /// screens every upload.
   Future<ImportResult> importChannels(String kidId, List<String> channelIds);
+
+  /// `POST /import/takeout`, multipart. The only route to a child's YouTube
+  /// Kids subscriptions: no API exposes them. Only the subscription CSVs in
+  /// the zip are read; watch and search history are ignored.
+  Future<TakeoutPreview> importTakeout(File zip);
+
+  /// `POST /channels/reviews`. Returns whatever is cached now and lists the
+  /// rest in `pending`; the caller polls with the ids still outstanding.
+  Future<ChannelReviewBatch> channelReviews(List<String> channelIds);
+
+  /// `GET /channels/{id}/review`. `refresh: true` forces a re-review.
+  Future<ChannelReview> channelReview(String channelId, {bool refresh});
+
+  /// `DELETE /kids/{kid_id}/channels/{channel_id}`. Takes one channel off one
+  /// kid immediately; the review itself is cached per channel and untouched.
+  Future<void> removeChannel(String kidId, String channelId);
 
   Future<List<Kid>> kids();
   Future<Kid> createKid({

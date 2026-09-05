@@ -229,6 +229,264 @@ class ImportResult {
   );
 }
 
+/// One channel row inside a Takeout `subscriptions.csv`
+/// (`Channel ID,Channel URL,Channel title`).
+class TakeoutChannel {
+  const TakeoutChannel({
+    required this.channelId,
+    required this.title,
+    this.url = '',
+  });
+
+  final String channelId;
+  final String title;
+  final String url;
+
+  factory TakeoutChannel.fromJson(Map<String, dynamic> j) => TakeoutChannel(
+    channelId: '${j['channel_id'] ?? ''}',
+    title: j['title'] as String? ?? '',
+    url: j['url'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'channel_id': channelId,
+    'title': title,
+    'url': url,
+  };
+}
+
+/// One YouTube Kids profile found in the export, or the parent's own list.
+///
+/// The profile name is the folder name under `children/`; the parent block
+/// carries no name, so [name] is empty there.
+class TakeoutProfile {
+  const TakeoutProfile({
+    this.name = '',
+    required this.channelCount,
+    this.channels = const [],
+  });
+
+  final String name;
+  final int channelCount;
+  final List<TakeoutChannel> channels;
+
+  List<String> get channelIds => [for (final c in channels) c.channelId];
+
+  factory TakeoutProfile.fromJson(Map<String, dynamic> j) {
+    final channels = (j['channels'] as List? ?? const [])
+        .map((c) => TakeoutChannel.fromJson(c as Map<String, dynamic>))
+        .toList();
+    return TakeoutProfile(
+      name: j['name'] as String? ?? '',
+      // The count is the server's; fall back to what we can actually see so a
+      // card never says "0 channels" over a list of them.
+      channelCount: (j['channel_count'] as num?)?.toInt() ?? channels.length,
+      channels: channels,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    if (name.isNotEmpty) 'name': name,
+    'channel_count': channelCount,
+    'channels': [for (final c in channels) c.toJson()],
+  };
+}
+
+/// `POST /import/takeout`.
+///
+/// PROTOCOL: only the subscription CSVs are read. Watch history and search
+/// history are ignored and never uploaded, stored or sent to a model, so
+/// nothing in this shape can carry them.
+class TakeoutPreview {
+  const TakeoutPreview({this.profiles = const [], this.parent});
+
+  /// One per YouTube Kids profile found under `children/`.
+  final List<TakeoutProfile> profiles;
+
+  /// The signed-in account's own subscriptions, or null when the export has
+  /// no `subscriptions/` folder.
+  final TakeoutProfile? parent;
+
+  bool get isEmpty => profiles.isEmpty && parent == null;
+
+  factory TakeoutPreview.fromJson(Map<String, dynamic> j) => TakeoutPreview(
+    profiles: (j['profiles'] as List? ?? const [])
+        .map((p) => TakeoutProfile.fromJson(p as Map<String, dynamic>))
+        .toList(),
+    parent: j['parent'] == null
+        ? null
+        : TakeoutProfile.fromJson(j['parent'] as Map<String, dynamic>),
+  );
+}
+
+/// What an AI review says about a channel.
+///
+/// PROTOCOL: the review is advice, not a verdict on a creator, and `unknown`
+/// means there was too little recent material to read, never a warning. Both
+/// rules are carried in the wording below, not just in the docs.
+enum ReviewVerdict {
+  good('good'),
+  mixed('mixed'),
+  concern('concern'),
+  unknown('unknown');
+
+  const ReviewVerdict(this.wire);
+
+  final String wire;
+
+  /// Anything unrecognised is `unknown`: never guess a verdict.
+  static ReviewVerdict fromWire(String? s) => switch (s) {
+    'good' => ReviewVerdict.good,
+    'mixed' => ReviewVerdict.mixed,
+    'concern' => ReviewVerdict.concern,
+    _ => ReviewVerdict.unknown,
+  };
+
+  /// Chip text. Every chip is labelled, so colour is never the only signal.
+  String get label => switch (this) {
+    ReviewVerdict.good => 'Looks fine',
+    ReviewVerdict.mixed => 'Mixed',
+    ReviewVerdict.concern => 'Worth a look',
+    ReviewVerdict.unknown => 'Not enough yet',
+  };
+
+  /// One line under the chip on the full review. Hedged on purpose: this is
+  /// what recent uploads suggest, not a ruling.
+  String get blurb => switch (this) {
+    ReviewVerdict.good =>
+      'Recent uploads look like what you would expect from this channel.',
+    ReviewVerdict.mixed =>
+      'Most of it is fine, but some recent uploads are worth your eye.',
+    ReviewVerdict.concern =>
+      'Something in the recent uploads is worth reading before you decide.',
+    ReviewVerdict.unknown =>
+      'Not enough recent uploads to judge. This is not a warning.',
+  };
+
+  /// Rows the "Needs a look" filter keeps. `unknown` is deliberately not one:
+  /// too little to read is not the same as something to worry about.
+  bool get needsALook =>
+      this == ReviewVerdict.concern || this == ReviewVerdict.mixed;
+}
+
+/// One thing the review noticed, with the reviewer's own note about it.
+class ReviewFlag {
+  const ReviewFlag({required this.kind, this.note = ''});
+
+  final String kind;
+  final String note;
+
+  /// Plain English for the wire kind. An unknown kind is shown as-is rather
+  /// than dropped, so a new server-side kind still reaches the parent.
+  String get label => switch (kind) {
+    'ads_or_merch' => 'Ads or merch',
+    'consumerism' => 'Buy-me pressure',
+    'scary' => 'Scary moments',
+    'mature_language' => 'Grown-up language',
+    'low_quality' => 'Thin content',
+    'off_topic' => 'Off topic',
+    'not_for_kids' => 'Not made for kids',
+    'unclear' => 'Hard to tell',
+    _ => kind.replaceAll('_', ' '),
+  };
+
+  factory ReviewFlag.fromJson(Map<String, dynamic> j) => ReviewFlag(
+    kind: j['kind'] as String? ?? 'unclear',
+    note: j['note'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'note': note};
+}
+
+/// `POST /channels/reviews` / `GET /channels/{id}/review`.
+class ChannelReview {
+  const ChannelReview({
+    required this.channelId,
+    required this.title,
+    this.thumbUrl = '',
+    this.verdict = ReviewVerdict.unknown,
+    this.summary = '',
+    this.flags = const [],
+    this.goodFor = const [],
+    this.sampleTitles = const [],
+    this.reviewedAt = '',
+    this.model = '',
+  });
+
+  final String channelId;
+  final String title;
+  final String thumbUrl;
+  final ReviewVerdict verdict;
+  final String summary;
+  final List<ReviewFlag> flags;
+
+  /// Age bands on the wire ("4_6"). Kept as wire strings so an unknown band
+  /// is never silently turned into 4 to 6.
+  final List<String> goodFor;
+
+  /// The uploads the review was actually based on. Shown to the parent so the
+  /// advice can be checked rather than trusted.
+  final List<String> sampleTitles;
+  final String reviewedAt;
+  final String model;
+
+  bool suits(AgeBand band) => goodFor.contains(band.wire);
+
+  /// "4 to 6, 7 to 8". Empty when the review named no band.
+  String get goodForLabel => AgeBand.values
+      .where((b) => goodFor.contains(b.wire))
+      .map((b) => b.label)
+      .join(', ');
+
+  factory ChannelReview.fromJson(Map<String, dynamic> j) => ChannelReview(
+    channelId: '${j['channel_id'] ?? ''}',
+    title: j['title'] as String? ?? '',
+    thumbUrl: j['thumb_url'] as String? ?? '',
+    verdict: ReviewVerdict.fromWire(j['verdict'] as String?),
+    summary: j['summary'] as String? ?? '',
+    flags: (j['flags'] as List? ?? const [])
+        .map((f) => ReviewFlag.fromJson(f as Map<String, dynamic>))
+        .toList(),
+    goodFor: _strings(j['good_for']),
+    sampleTitles: _strings(j['sample_titles']),
+    reviewedAt: j['reviewed_at'] as String? ?? '',
+    model: j['model'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'channel_id': channelId,
+    'title': title,
+    'thumb_url': thumbUrl,
+    'verdict': verdict.wire,
+    'summary': summary,
+    'flags': [for (final f in flags) f.toJson()],
+    'good_for': goodFor,
+    'sample_titles': sampleTitles,
+    'reviewed_at': reviewedAt,
+    'model': model,
+  };
+}
+
+/// One answer from `POST /channels/reviews`: whatever was cached, plus the
+/// ids still being reviewed. The client polls until `pending` is empty.
+class ChannelReviewBatch {
+  const ChannelReviewBatch({this.reviews = const [], this.pending = const []});
+
+  final List<ChannelReview> reviews;
+  final List<String> pending;
+
+  factory ChannelReviewBatch.fromJson(Map<String, dynamic> j) =>
+      ChannelReviewBatch(
+        reviews: (j['reviews'] as List? ?? const [])
+            .map((r) => ChannelReview.fromJson(r as Map<String, dynamic>))
+            .toList(),
+        // Bare ids per PROTOCOL, but accept objects the way ImportResult does.
+        pending: (j['pending'] as List? ?? const [])
+            .map((e) => e is Map ? '${e['channel_id'] ?? e['id'] ?? ''}' : '$e')
+            .toList(),
+      );
+}
+
 class Video {
   const Video({
     required this.id,

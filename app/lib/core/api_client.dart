@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -59,6 +60,14 @@ class ApiClient implements Gateway {
     return _decode(r);
   }
 
+  Future<dynamic> _delete(String path) async {
+    final r = await _http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(),
+    );
+    return _decode(r);
+  }
+
   dynamic _decode(http.Response r) {
     if (r.statusCode >= 400) {
       throw ApiException(r.statusCode, r.body);
@@ -103,6 +112,40 @@ class ApiClient implements Gateway {
     await _post('/kids/$kidId/channels/import', {'channel_ids': channelIds})
         as Map<String, dynamic>,
   );
+
+  @override
+  Future<TakeoutPreview> importTakeout(File zip) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/import/takeout'),
+    );
+    if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
+    // fromPath streams off disk: a Takeout export is routinely hundreds of MB
+    // and must never be read into memory here. No timeout for the same reason.
+    request.files.add(await http.MultipartFile.fromPath('file', zip.path));
+    final response = await http.Response.fromStream(await _http.send(request));
+    return TakeoutPreview.fromJson(_decode(response) as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ChannelReviewBatch> channelReviews(List<String> channelIds) async =>
+      ChannelReviewBatch.fromJson(
+        await _post('/channels/reviews', {'channel_ids': channelIds})
+            as Map<String, dynamic>,
+      );
+
+  @override
+  Future<ChannelReview> channelReview(
+    String channelId, {
+    bool refresh = false,
+  }) async => ChannelReview.fromJson(
+    await _get('/channels/$channelId/review?refresh=$refresh')
+        as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> removeChannel(String kidId, String channelId) =>
+      _delete('/kids/$kidId/channels/$channelId');
 
   @override
   Future<List<Kid>> kids() async => (await _get('/kids') as List)
