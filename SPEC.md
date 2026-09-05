@@ -108,7 +108,8 @@ Researched 2026-09-05. Nobody owns the TV.
 
 1. Sign in with Google. Set a 4-digit parent PIN.
 2. Create kid profile: name or nickname, age (sets the band: 4 to 6, 7 to 8, 9 to 11), language preference (Urdu / English / both), avatar.
-3. Import channels. Two paths: pull the parent's own YouTube subscriptions via the Data API and tick the ones for the kid, or paste channel URLs. Also offer a starter pack of 20 known-good channels by age.
+3. Import channels. **Google Takeout is the primary path**, because it is the only route to a YouTube Kids profile's subscriptions. The parent exports YouTube data with the `children` and `subscriptions` categories, uploads the zip, and gets one card per child profile with its real channel list; profiles map to kids, and only the subscription CSVs are read. Secondary paths: import the parent's own account subscriptions (useful only when the kids watch on a shared account), paste a channel URL, or take a starter pack by age.
+   Measured on the author's own export: the children's profiles held 148 and 19 channels; the parent's own Google account held 1. That ratio is why Takeout leads.
 4. Choose question frequency (gentle / normal / off) and daily time budget.
 5. Pair the TV: open HeyGilli on Google TV, enter the 6-digit code shown on the phone.
 
@@ -339,6 +340,8 @@ Four agents, each a Strands `Agent` with a system prompt, a model, and a small t
 
 ### 9.4 YouTube integration and the transcript problem
 
+- **The children's real subscriptions:** a Google Takeout export, `children/<profile>/subscriptions.csv`. No API reaches YouTube Kids profiles: Family Link exposes none (there is only an open feature request), the People API's relations field is unrelated contact data, and the Data API only ever sees the signed-in account. Watch and search history are present in the same export and are deliberately never read.
+- **Scope discipline:** sign-in asks only for identity. `youtube.readonly` is a *sensitive* scope, so it is requested incrementally, only when a parent chooses to import their own account's subscriptions. Most households never grant it, which keeps the app out of sensitive-scope verification and out of the weekly refresh-token expiry that applies while an app is in Testing.
 - **Catalog:** YouTube Data API v3. `subscriptions.list` for the parent's subscriptions, `channels` → uploads playlist → `playlistItems` for new videos. Quota is 10k units/day; cache aggressively.
 - **Playback:** official IFrame embed only. Ads play. No overlays while playing. No autoplay tricks.
 - **Transcript:** this is the one hard integration decision. `captions.download` in the Data API only works for videos the caller owns, so it is useless here. Options, in order of preference:
