@@ -1,0 +1,189 @@
+"""SPEC §7.2 and §7.3 as code. The Planner model proposes; this module decides.
+
+Every rule here is enforced after the model returns so a weak or misbehaving
+provider can never produce a plan that breaks the band contract.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .schemas import (
+    TYPES_FOR_BAND,
+    AgeBand,
+    Gesture,
+    InputMode,
+    Question,
+    QuestionFreq,
+    QuestionType,
+)
+
+
+@dataclass(frozen=True)
+class Timing:
+    first_question_s: int
+    min_gap_normal_s: int
+    min_gap_gentle_s: int
+    max_questions: int
+    listen_ms: int
+    default_freq: QuestionFreq
+
+
+# SPEC §7.3 timing table.
+TIMING: dict[str, Timing] = {
+    "4_6": Timing(120, 240, 360, 2, 5000, "gentle"),
+    "7_8": Timing(90, 180, 300, 6, 8000, "normal"),
+    "9_11": Timing(90, 180, 300, 6, 8000, "normal"),
+}
+
+SHORT_VIDEO_S = 180  # under 3 minutes: one question at the end, every band
+PREREADER_SHORT_S = 300  # 4_6: 1 question under 5 min, 2 above
+END_MARGIN_S = 3  # an end-of-video question fires this many seconds before the end
+
+INPUT_FOR_TYPE: dict[str, InputMode] = {
+    "name_it": "voice",
+    "copy_it": "copy",
+    "pick_it": "pick",
+}
+
+GESTURE_FOR_TYPE: dict[str, Gesture] = {
+    "name_it": "point",
+    "copy_it": "roar",
+    "pick_it": "point",
+    "recall": "think",
+    "why": "think",
+    "predict": "spin",
+    "explain": "think",
+    "compare": "stretch",
+    "apply": "spin",
+    "opinion": "think",
+}
+
+
+def listen_ms(band: AgeBand) -> int:
+    return TIMING[band].listen_ms
+
+
+def max_questions(band: AgeBand, duration_s: int) -> int:
+    if 0 < duration_s < SHORT_VIDEO_S:
+        return 1
+    if band == "4_6":
+        return 1 if 0 < duration_s < PREREADER_SHORT_S else 2
+    return TIMING[band].max_questions
+
+
+def min_gap_s(band: AgeBand, freq: QuestionFreq | None = None) -> int:
+    t = TIMING[band]
+    freq = freq or t.default_freq
+    if band == "4_6":
+        freq = "gentle"  # cannot be raised
+    return t.min_gap_gentle_s if freq == "gentle" else t.min_gap_normal_s
+
+
+def type_allowed(band: AgeBand, qtype: QuestionType) -> bool:
+    return qtype in TYPES_FOR_BAND[band]
+
+
+def syllabify(word: str) -> str:
+    """Cheap 'Gi-raffe' style split for the modelled answer word (4_6 only)."""
+    word = word.strip()
+    if len(word) < 4:
+        return word
+    vowels = "aeiouy"
+    for i in range(1, len(word) - 2):
+        if word[i] in vowels and word[i + 1] not in vowels and word[i + 2] in vowels:
+            return f"{word[: i + 1]}-{word[i + 1 :]}"
+    mid = len(word) // 2
+    return f"{word[:mid]}-{word[mid:]}"
+
+
+def default_model_line(q: Question, language: str) -> str:
+    word = q.expected.strip()
+    if not word:
+        return ""
+    if language == "ur":
+        return f"{word}! {word}."
+    return f"A {word}! {syllabify(word)}." if q.type != "copy_it" else f"Listen to mine! {word}!"
+
+
+def enforce(
+    questions: list[Question],
+    band: AgeBand,
+    duration_s: int,
+    language: str = "en",
+    freq: QuestionFreq | None = None,
+    icon_ids: frozenset[str] | None = None,
+) -> list[Question]:
+    """Return the subset of `questions` that obeys §7.2/§7.3, shifted and filled in.
+
+    Order of operations, each one deterministic:
+      1. drop types not allowed for the band ("why" never reaches a 4_6 plan)
+      2. force the input mode for 4_6 types; validate pick_it options
+      3. short video (< 3 min) -> exactly one question at the end
+      4. sort, then drop anything before the first-question threshold
+      5. enforce the minimum gap (gentle for 4_6) by dropping the earlier violator
+      6. cap the count for the band and duration
+      7. fill model_line and gesture defaults
+    """
+    kept: list[Question] = []
+    for q in questions:
+        if not type_allowed(band, q.type):
+            continue
+        if band == "4_6":
+            q = q.model_copy(update={"input": INPUT_FOR_TYPE[q.type]})
+        if q.type == "pick_it" or q.input == "pick":
+            if not valid_pick(q, icon_ids):
+                continue
+        else:
+            q = q.model_copy(update={"options": []})
+        if q.input == "voice" and not q.expected.strip() and q.type in ("name_it",):
+            continue  # nothing to model for a pre-reader
+        kept.append(q)
+
+    kept.sort(key=lambda q: q.t_sec)
+    t = TIMING[band]
+
+    if 0 < duration_s < SHORT_VIDEO_S:
+        if not kept:
+            return []
+        last = kept[-1].model_copy(update={"t_sec": max(duration_s - END_MARGIN_S, 0)})
+        return [_fill(last, band, language)]
+
+    kept = [q for q in kept if q.t_sec >= t.first_question_s]
+    if duration_s > 0:
+        kept = [q for q in kept if q.t_sec <= duration_s - END_MARGIN_S]
+
+    gap = min_gap_s(band, freq)
+    spaced: list[Question] = []
+    for q in kept:
+        if spaced and q.t_sec - spaced[-1].t_sec < gap:
+            continue
+        spaced.append(q)
+
+    spaced = spaced[: max_questions(band, duration_s)]
+    return [_fill(q, band, language) for q in spaced]
+
+
+def valid_pick(q: Question, icon_ids: frozenset[str] | None) -> bool:
+    if len(q.options) != 3:
+        return False
+    ids = [o.icon_id for o in q.options]
+    if len(set(ids)) != 3:
+        return False
+    if sum(1 for o in q.options if o.correct) != 1:
+        return False
+    return icon_ids is None or all(i in icon_ids for i in ids)
+
+
+def _fill(q: Question, band: AgeBand, language: str) -> Question:
+    update: dict = {}
+    if q.gesture == "idle":
+        update["gesture"] = GESTURE_FOR_TYPE.get(q.type, "idle")
+    if band == "4_6":
+        if q.type == "pick_it" and not q.expected:
+            correct = next((o for o in q.options if o.correct), None)
+            if correct:
+                update["expected"] = correct.label
+        merged = q.model_copy(update=update)
+        if not merged.model_line:
+            update["model_line"] = default_model_line(merged, language)
+    return q.model_copy(update=update)

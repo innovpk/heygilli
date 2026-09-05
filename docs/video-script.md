@@ -1,0 +1,213 @@
+# HeyGilli demo video script
+
+Target length: 4:45. Hard limit: 5:00. Upload to YouTube, public, before the Devpost form is submitted.
+
+Adapted from SPEC section 13 for a phone-and-tablet build. The TV appears once, as a mockup, and only if the stretch did not land. If the TV layout is built, it replaces beat 9.
+
+Judging reminder: the video must show a working project and cover the problem, the audience, and why it matters. The order below puts the agent doing something on its own before 1:15, so a judge who stops early has still seen it.
+
+Voice-over lines are written to be spoken. Short sentences. Read them at a normal pace; each beat's line count fits its slot with a second or two to spare.
+
+Legend for "Record": CAM = phone camera or mirrorless on a tripod. SCR = screen capture (`scrcpy` for Android, QuickTime or OBS for the Mac terminal). SLIDE = exported PNG shown in the edit.
+
+---
+
+## Beats
+
+### 1. Problem and audience. 0:00 to 0:25
+
+On screen: a child on a sofa watching YouTube on a tablet, back of head, no face. Cut to a parent's phone showing a YouTube history screen. Title card: "HeyGilli".
+
+Record: CAM (b-roll), SLIDE.
+
+Voice-over:
+
+> Kids aged four to eleven watch YouTube for hours. Nobody asks them anything.
+> Parents filter what plays. Then they police the minutes.
+> HeyGilli is the parent's agent. It watches alongside the child, asks a question by voice every few minutes, and reports back at night.
+> The buddy is Gilli, a palm squirrel. Kids just say "Hey Gilli".
+
+### 2. Parent setup. 0:25 to 0:45
+
+On screen: phone, parent app. Create kid profile "Zara, 4". Paste a channel URL. Channel appears. Tap "Kid mode". Hand the tablet to the child (CAM, hands only).
+
+Record: SCR (phone), CAM (handover).
+
+Voice-over:
+
+> Setup is a minute on the phone. A nickname, an age, and the channels you already trust.
+> No search. No recommendations. Only what the parent added.
+
+### 3. Agent in the background: the Curator. 0:45 to 1:15
+
+On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then a Graph edge into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Zara?" with Yes and Hide. Parent taps Yes.
+
+Record: SCR (terminal, large font, dark theme), CAM or SCR (phone notification; CAM reads better).
+
+Voice-over:
+
+> While nobody is watching, the Curator agent checks the approved channels for new uploads.
+> It reads each one, screens it for the child's age, and hands it to the Planner, which writes the questions.
+> Clear cases it decides alone. This one is borderline, so it asks the parent once. Yes or no.
+> That is the whole relationship. The agent works. The parent gets one question.
+
+### 4. Pre-reader, name-it. 1:15 to 1:45
+
+On screen: tablet, Zara's picture-only home. Child taps a thumbnail. Video plays. At the planned moment it pauses on a giraffe. Gilli appears small in the corner. Gilli: "What animal is that?" Big mic button pulses. Child says something close to "giraffe". Gilli: "A giraffe! Gi-raffe." with a stretch gesture. Video resumes.
+
+Record: CAM (child's hands and the tablet, face optional and only with the parent's consent), SCR (tablet via `scrcpy`, in parallel, as backup).
+
+Voice-over:
+
+> Zara is four. She cannot read, so nothing on this screen is text.
+> Gilli pauses at a natural break and asks about what is on the frame.
+> Whatever she says, Gilli says the word back once, clearly. That is the learning event.
+> A whispered "gaffe" counts. Silence counts too. Nobody is ever wrong.
+
+### 5. Pre-reader, pick-it. 1:45 to 2:05
+
+On screen: same session. Video pauses. Three big pictures appear. Gilli: "Show me the blue one." Child taps the fish. Gilli: "Yes! Blue. The fish is blue." Resume.
+
+Record: CAM, SCR backup.
+
+Voice-over:
+
+> Pick-it questions need no speech at all. Three pictures from a fixed, kid-safe icon library. One tap.
+> If the mic hears nothing twice, the Buddy agent switches the rest of the session to pick-it on its own.
+
+### 6. Older kid, English. 2:05 to 2:30
+
+On screen: tablet, Ayaan's profile (9). Volcano video. Pause. Question shown as text and spoken: "Why did the lava come out?" Child answers in a sentence into the mic. Gilli replies, building on the answer, then resumes.
+
+Record: CAM, SCR backup. If no 9 to 11 year old is available, SCR only with an adult voice and say so in the caption.
+
+Voice-over:
+
+> Ayaan is nine. Same agents, different band.
+> Now the questions are why and what next. Text appears alongside the voice.
+> Gilli talks like an older cousin who finds the topic interesting. No baby talk. An eleven-year-old who feels talked down to will not answer twice.
+
+### 7. Older kid, Urdu. 2:30 to 2:50
+
+On screen: same profile, Urdu selected. Question in Urdu. Answer in Urdu. Reply in Urdu. Subtitles in English burned into the edit.
+
+Record: CAM or SCR.
+
+Voice-over:
+
+> Bilingual households get nothing from English-first products.
+> Gilli asks in Urdu, listens in Urdu, and switches when the child does.
+
+### 8. Provider swap. 2:50 to 3:15
+
+On screen: Mac terminal. Show `.env` with `HEYGILLI_MODEL_BUDDY=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0`. Change the one line to `HEYGILLI_MODEL_BUDDY=anthropic:claude-opus-5` (or the second provider chosen). Restart the gateway. Cut to the tablet: the same question turn runs again and Gilli replies. Optional: show the trace header naming the provider.
+
+Record: SCR (terminal), SCR (tablet).
+
+Voice-over:
+
+> Every agent's model is one line of configuration.
+> Default is Claude on Amazon Bedrock. Change the line, restart, same agents, same session.
+> Strands makes the model a setting. We run the same eval on every provider before we trust it.
+
+### 9. Phone kid mode, or TV if built. 3:15 to 3:30
+
+On screen, phone version: phone in kid mode, one question turn on the small screen, then the parent-gated exit (PIN). TV version, if the stretch landed: TV home with D-pad focus, a pick-it answered with the remote's left, centre, right.
+
+Record: SCR or CAM.
+
+Voice-over, phone:
+
+> On the phone, kid mode is the same loop on a smaller screen, and leaving it needs the parent's PIN.
+
+Voice-over, TV:
+
+> On the TV, the remote is the whole interface. Left, centre, right answers a pick-it. The mic button answers everything else.
+
+### 10. Nightly digest. 3:30 to 4:00
+
+On screen: parent's phone. Notification arrives. Open it. Two cards: Zara's (words said, words heard, try today) and Ayaan's (understood, shaky, ask at dinner). Scroll slowly.
+
+Record: SCR (phone), CAM of the phone in hand for the first second.
+
+Voice-over:
+
+> At night the Digest agent reads the day's sessions and writes two lines per child.
+> For Zara: the words she said, the words she heard but did not say yet, and one thing to try tomorrow.
+> For Ayaan: what he understood, what was shaky, and one question for dinner.
+> The Digest also decides whether anything else deserves a notification. Tonight, nothing did.
+
+### 11. Architecture. 4:00 to 4:20
+
+On screen: `docs/architecture.png`. Optionally zoom on the agents panel, then the provider layer, then the deployment box.
+
+Record: SLIDE.
+
+Voice-over:
+
+> Four Strands agents behind a FastAPI gateway. Curator and Planner as a Graph, Buddy live per session, Digest nightly.
+> Plain Python tools. Bedrock by default, any provider by config. DynamoDB and AgentCore for deployment.
+> One Flutter codebase for phone, tablet, and TV.
+
+If TV is not built, add:
+
+> The TV layout is the next milestone. It is a new layout on the same codebase, not a new app.
+
+### 12. Impact and honesty. 4:20 to 4:45
+
+On screen: SLIDE with four lines: "Ads still play. Creators still get paid." / "Official YouTube embed, nothing overlaid or downloaded." / "Nothing a child says is stored." / "Every household with a screen and a child. Bilingual from day one." Then a second SLIDE: "Not built yet: TV layout, subscription import, sibling mode, AgentCore Memory." Adjust to what shipped.
+
+Record: SLIDE.
+
+Voice-over:
+
+> Ads still play. Creators still get paid. Nothing violates YouTube's terms.
+> Nothing a child says is stored. Only a score and a ten-word paraphrase.
+> This works for every household with a screen and a child, in two languages from day one.
+> Not built yet: the TV layout, subscription import, and sibling mode.
+
+### 13. Close. 4:45 to 4:55
+
+On screen: SLIDE with repo URL, live demo or APK link, two builder.aws post titles, "Built on Strands Agents SDK and Amazon Bedrock for Agents for Humans".
+
+Record: SLIDE.
+
+Voice-over:
+
+> HeyGilli. Repo, test build, and two write-ups on builder.aws in the description.
+
+---
+
+## Recording checklist
+
+Before the child sessions
+
+- [ ] Pre-ingest the three demo videos so plans are cached and no turn waits on a model call for the plan.
+- [ ] Charge tablet, phone, and camera. Airplane mode off, Do Not Disturb on for both devices except the parent phone during beats 3 and 10.
+- [ ] Tablet in screen pinning. Volume at 70 percent so Gilli is audible on the camera mic.
+- [ ] `scrcpy --record tablet-take1.mp4` running on the Mac for every child take. Backup footage for every turn.
+- [ ] Quiet room. TV and fans off. Child speech is hard enough for the recogniser.
+- [ ] Parent's written consent for the child's voice; decide whether faces are in frame. Hands and tablet only is fine.
+- [ ] Two or three takes on different days. Do not push a tired child for a fourth.
+
+Before the terminal beats
+
+- [ ] Terminal font 18 pt or larger, dark theme, window 1280 x 720.
+- [ ] Trace output trimmed to tool names and a one-line result each. No raw JSON dumps longer than the screen.
+- [ ] Scripted commands in a file so nothing is typed live: run Curator, show `.env`, edit one line, restart gateway.
+- [ ] Redact keys. `ANTHROPIC_API_KEY` and any AWS variables must not appear on screen. Show `.env` through `grep HEYGILLI_MODEL .env`.
+
+Before the edit
+
+- [ ] Check every clip against the protocol order: pause, ask, answer, reply, resume. Cut any take where the order broke.
+- [ ] English subtitles on the Urdu beat. Captions on all voice-over for accessibility.
+- [ ] Total under 5:00 including the title card. Aim for 4:45.
+- [ ] Export 1080p, 30 fps. Upload to YouTube as public, not unlisted. Title: "HeyGilli: an AI co-watching buddy for kids' YouTube (Agents for Humans hackathon)".
+- [ ] Description: repo link, test build link, builder.aws links, one line on what is not built yet.
+- [ ] Watch it once on a phone with the sound low. If Gilli cannot be heard in beat 4, re-record the voice from the `scrcpy` audio track.
+
+Fallbacks
+
+- [ ] No 9 to 11 year old available: record beat 6 with screen capture and an adult voice, and caption it honestly.
+- [ ] Provider swap fails on camera: keep the beat as a screen recording of a working swap from an earlier day, and say "recorded earlier".
+- [ ] Borderline-video push fails: show the `ask_parent` entry in the `/parent/inbox` response in the terminal and the phone inbox screen instead of a push notification.

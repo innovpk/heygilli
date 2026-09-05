@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <!-- HeyGilli architecture. Hand-authored. Palette: teal #0F2A33, cream #FBF3E6, mango #F5A524. -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0F2A33"/>
+    </marker>
+    <marker id="arrow-mango" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#C97F0A"/>
+    </marker>
+    <style>
+      .h1 { font-size: 26px; font-weight: 700; fill: #0F2A33; }
+      .sub { font-size: 15px; fill: #3F5A63; }
+      .panel { fill: #FFFFFF; stroke: #0F2A33; stroke-width: 1.5; }
+      .panel-agents { fill: #FFF6E3; stroke: #0F2A33; stroke-width: 1.5; }
+      .box { fill: #F3F7F8; stroke: #0F2A33; stroke-width: 1.2; }
+      .box-hi { fill: #F5A524; stroke: #0F2A33; stroke-width: 1.2; }
+      .box-soft { fill: #FDE7BF; stroke: #0F2A33; stroke-width: 1.2; }
+      .planned { fill: #FFFFFF; stroke: #0F2A33; stroke-width: 1.2; stroke-dasharray: 6 4; }
+      .h2 { font-size: 20px; font-weight: 700; fill: #0F2A33; }
+      .h3 { font-size: 16px; font-weight: 700; fill: #0F2A33; }
+      .t  { font-size: 15px; fill: #0F2A33; }
+      .ts { font-size: 13px; fill: #3F5A63; }
+      .code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; fill: #0F2A33; }
+      .lbl { font-size: 13px; fill: #3F5A63; }
+      .ln { stroke: #0F2A33; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .ln-mango { stroke: #C97F0A; stroke-width: 1.8; fill: none; marker-end: url(#arrow-mango); }
+      .ico { stroke: #0F2A33; stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="900" fill="#FBF3E6"/>
+
+  <!-- Title -->
+  <text x="40" y="52" class="h1">HeyGilli architecture</text>
+  <text x="40" y="76" class="sub">Four Strands agents behind a FastAPI gateway. One Flutter client for phone, tablet, and TV. Gilli the squirrel is the visible end of the parent's agent.</text>
+
+  <!-- Legend -->
+  <line x1="1085" y1="46" x2="1125" y2="46" stroke="#0F2A33" stroke-width="1.6"/>
+  <text x="1132" y="50" class="lbl">built for the hackathon</text>
+  <line x1="1085" y1="68" x2="1125" y2="68" stroke="#0F2A33" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <text x="1132" y="72" class="lbl">planned or stretch</text>
+
+  <!-- ===================== Clients ===================== -->
+  <rect x="40" y="100" width="270" height="440" rx="14" class="panel"/>
+  <text x="60" y="132" class="h2">Flutter client</text>
+  <text x="60" y="150" class="ts">one codebase, three layouts</text>
+
+  <!-- Tablet -->
+  <rect x="56" y="165" width="240" height="100" rx="10" class="box"/>
+  <g class="ico">
+    <rect x="74" y="185" width="40" height="56" rx="5"/>
+    <circle cx="94" cy="234" r="2"/>
+  </g>
+  <text x="122" y="191" class="h3">Tablet, kid mode</text>
+  <text x="122" y="212" class="t">YouTube embed, big</text>
+  <text x="122" y="231" class="t">mic button, pick-it by</text>
+  <text x="122" y="250" class="t">tap, screen pinning</text>
+
+  <!-- Phone -->
+  <rect x="56" y="280" width="240" height="115" rx="10" class="box"/>
+  <g class="ico">
+    <rect x="80" y="300" width="28" height="54" rx="5"/>
+    <line x1="88" y1="347" x2="100" y2="347"/>
+  </g>
+  <text x="122" y="306" class="h3">Phone, parent app</text>
+  <text x="122" y="326" class="t">sign in, kid profile,</text>
+  <text x="122" y="345" class="t">channels by URL, inbox,</text>
+  <text x="122" y="364" class="t">digest card; kid mode</text>
+  <text x="122" y="383" class="t">with parent-gated exit</text>
+
+  <!-- TV (stretch) -->
+  <rect x="56" y="410" width="240" height="110" rx="10" class="planned"/>
+  <g class="ico" stroke-dasharray="4 3">
+    <rect x="72" y="436" width="46" height="30" rx="3"/>
+    <line x1="95" y1="466" x2="95" y2="476"/>
+    <line x1="82" y1="476" x2="108" y2="476"/>
+  </g>
+  <text x="122" y="436" class="h3">Google TV (stretch)</text>
+  <text x="122" y="456" class="t">D-pad focus, remote</text>
+  <text x="122" y="475" class="t">mic, left/centre/right</text>
+  <text x="122" y="494" class="t">pick-it, pairing code</text>
+
+  <!-- ===================== Gateway ===================== -->
+  <rect x="380" y="100" width="200" height="440" rx="14" class="panel"/>
+  <text x="400" y="132" class="h2">FastAPI gateway</text>
+  <text x="400" y="150" class="ts">Python, port 8080</text>
+  <g class="ico">
+    <rect x="400" y="170" width="44" height="14" rx="3"/>
+    <rect x="400" y="190" width="44" height="14" rx="3"/>
+    <circle cx="437" cy="177" r="1.6"/>
+    <circle cx="437" cy="197" r="1.6"/>
+  </g>
+  <text x="400" y="236" class="h3">REST</text>
+  <text x="400" y="256" class="code">/auth  /kids  /channels</text>
+  <text x="400" y="274" class="code">/home  /sessions</text>
+  <text x="400" y="292" class="code">/digest  /parent/inbox</text>
+  <text x="400" y="326" class="h3">WebSocket</text>
+  <text x="400" y="346" class="code">/sessions/{id}/ws</text>
+  <text x="400" y="368" class="t">pause, ask, answer,</text>
+  <text x="400" y="387" class="t">reply, resume, end</text>
+  <text x="400" y="420" class="h3">TTS cache</text>
+  <text x="400" y="440" class="code">/tts/{hash}.mp3</text>
+  <text x="400" y="474" class="ts">Keeps the Buddy agent warm</text>
+  <text x="400" y="492" class="ts">for the whole session, so a</text>
+  <text x="400" y="510" class="ts">child never waits on a cold start.</text>
+
+  <!-- Clients -> gateway -->
+  <line x1="310" y1="215" x2="378" y2="215" class="ln"/>
+  <text x="312" y="207" class="lbl">HTTPS REST</text>
+  <line x1="310" y1="345" x2="378" y2="345" class="ln"/>
+  <text x="314" y="337" class="lbl">WebSocket</text>
+
+  <!-- ===================== Agents ===================== -->
+  <rect x="650" y="100" width="330" height="440" rx="14" class="panel-agents"/>
+  <text x="670" y="132" class="h2">Strands Agents SDK</text>
+  <text x="670" y="150" class="ts">Python. Each agent: prompt, model, small tool set.</text>
+
+  <!-- Graph frame -->
+  <rect x="668" y="165" width="294" height="150" rx="10" fill="none" stroke="#C97F0A" stroke-width="2"/>
+  <text x="680" y="184" class="h3" fill="#C97F0A">Graph</text>
+  <text x="732" y="184" class="ts">every 6 h, and on channel add</text>
+
+  <rect x="682" y="196" width="118" height="104" rx="8" class="box-soft"/>
+  <text x="694" y="218" class="h3">Curator</text>
+  <text x="694" y="238" class="t">screens new</text>
+  <text x="694" y="256" class="t">uploads:</text>
+  <text x="694" y="274" class="t">approve, hide,</text>
+  <text x="694" y="292" class="t">or ask parent</text>
+
+  <line x1="800" y1="248" x2="828" y2="248" class="ln-mango"/>
+
+  <rect x="830" y="196" width="118" height="104" rx="8" class="box-soft"/>
+  <text x="842" y="218" class="h3">Planner</text>
+  <text x="842" y="238" class="t">question plan,</text>
+  <text x="842" y="256" class="t">one per band:</text>
+  <text x="842" y="274" class="code">4_6  7_8  9_11</text>
+  <text x="842" y="292" class="t">cached</text>
+
+  <!-- Buddy -->
+  <rect x="668" y="330" width="142" height="100" rx="8" class="box-hi"/>
+  <text x="680" y="352" class="h3">Buddy</text>
+  <text x="680" y="372" class="t">live, one instance</text>
+  <text x="680" y="390" class="t">per session:</text>
+  <text x="680" y="408" class="t">score, reply, adapt</text>
+
+  <!-- Digest -->
+  <rect x="820" y="330" width="142" height="100" rx="8" class="box-soft"/>
+  <text x="832" y="352" class="h3">Digest</text>
+  <text x="832" y="372" class="t">nightly per kid:</text>
+  <text x="832" y="390" class="t">two card shapes,</text>
+  <text x="832" y="408" class="t">notify or stay quiet</text>
+
+  <text x="670" y="462" class="ts">Structured output (Pydantic): plans, scores, digests.</text>
+  <text x="670" y="480" class="ts">Frozen prompts per agent and band.</text>
+  <text x="670" y="498" class="ts">Strands tracing on every tool call.</text>
+  <text x="670" y="516" class="ts">Graph, not Swarm: deterministic edges.</text>
+
+  <!-- Gateway -> agents -->
+  <line x1="580" y1="380" x2="648" y2="380" class="ln"/>
+  <text x="590" y="372" class="lbl">events</text>
+  <line x1="580" y1="228" x2="648" y2="228" class="ln"/>
+  <text x="584" y="220" class="lbl">on demand</text>
+
+  <!-- ===================== Tools ===================== -->
+  <rect x="1050" y="100" width="310" height="300" rx="14" class="panel"/>
+  <text x="1070" y="132" class="h2">Tools</text>
+  <text x="1070" y="150" class="ts">plain Python functions with @tool</text>
+
+  <g class="ico">
+    <rect x="1070" y="167" width="12" height="12" rx="2"/>
+    <rect x="1070" y="203" width="12" height="12" rx="2"/>
+    <rect x="1070" y="239" width="12" height="12" rx="2"/>
+    <rect x="1070" y="275" width="12" height="12" rx="2"/>
+    <rect x="1070" y="311" width="12" height="12" rx="2"/>
+    <rect x="1070" y="347" width="12" height="12" rx="2"/>
+  </g>
+  <text x="1092" y="178" class="code">youtube_uploads</text>
+  <text x="1092" y="194" class="ts">channel RSS feed + oEmbed, no API key</text>
+  <text x="1092" y="214" class="code">get_transcript</text>
+  <text x="1092" y="230" class="ts">public captions, or Gemini on the video URL</text>
+  <text x="1092" y="250" class="code">icon_lookup</text>
+  <text x="1092" y="266" class="ts">shared/icons.json, kid-safe, en + ur labels</text>
+  <text x="1092" y="286" class="code">tts</text>
+  <text x="1092" y="302" class="ts">Amazon Polly, fixed voice per language</text>
+  <text x="1092" y="322" class="code">notify_parent</text>
+  <text x="1092" y="338" class="ts">yes/no prompt and digest to the phone</text>
+  <text x="1092" y="358" class="code">score_answer  session_log</text>
+  <text x="1092" y="374" class="ts">pick-it scored without a model call</text>
+
+  <!-- Agents -> tools -->
+  <line x1="980" y1="250" x2="1048" y2="250" class="ln"/>
+  <text x="996" y="242" class="lbl">calls</text>
+
+  <!-- ===================== Deployment ===================== -->
+  <rect x="1050" y="425" width="310" height="115" rx="14" class="panel"/>
+  <text x="1070" y="452" class="h2">Deployment</text>
+  <rect x="1070" y="464" width="270" height="24" rx="6" class="planned"/>
+  <text x="1080" y="481" class="t">Bedrock AgentCore Runtime (planned)</text>
+  <text x="1070" y="509" class="t">Fallback: agents in-process, App Runner</text>
+  <text x="1070" y="528" class="ts">EventBridge: Curator every 6 h, Digest nightly</text>
+
+  <line x1="980" y1="485" x2="1048" y2="485" class="ln"/>
+  <text x="992" y="477" class="lbl">runs on</text>
+
+  <!-- ===================== Bottom row ===================== -->
+
+  <!-- Parent's phone -->
+  <rect x="40" y="600" width="270" height="260" rx="14" class="panel"/>
+  <text x="60" y="632" class="h2">Parent's phone</text>
+  <text x="60" y="650" class="ts">the agent surfaces here, only when needed</text>
+
+  <rect x="60" y="664" width="230" height="92" rx="10" class="box"/>
+  <text x="72" y="684" class="h3">Curator asks once</text>
+  <text x="72" y="702" class="ts">New from Blippi: "Trip to the candy</text>
+  <text x="72" y="717" class="ts">factory". Sugar-heavy. Fine for Zara?</text>
+  <rect x="72" y="727" width="60" height="20" rx="5" class="box-hi"/>
+  <text x="92" y="741" class="ts" fill="#0F2A33">Yes</text>
+  <rect x="140" y="727" width="60" height="20" rx="5" class="box"/>
+  <text x="157" y="741" class="ts">Hide</text>
+
+  <rect x="60" y="766" width="230" height="82" rx="10" class="box"/>
+  <text x="72" y="786" class="h3">Nightly digest</text>
+  <text x="72" y="804" class="ts">Zara, today: 35 min, 5 videos, 6 asked.</text>
+  <text x="72" y="819" class="ts">Words Zara said: giraffe, blue, three.</text>
+  <text x="72" y="834" class="ts">Try today: count the cars to school.</text>
+
+  <!-- notify_parent route: agents panel -> parent's phone -->
+  <polyline points="650,505 615,505 615,575 175,575 175,598" class="ln-mango"/>
+  <text x="330" y="567" class="lbl">notify_parent: one yes/no prompt, one digest a day</text>
+
+  <!-- Model providers -->
+  <rect x="380" y="600" width="300" height="260" rx="14" class="panel"/>
+  <text x="400" y="632" class="h2">Model provider layer</text>
+  <text x="400" y="650" class="ts">one config line per agent, same code</text>
+  <g class="ico">
+    <path d="M 412 690 a 12 12 0 0 1 22 -6 a 10 10 0 0 1 18 8 a 8 8 0 0 1 -4 15 h -34 a 9 9 0 0 1 -2 -17 z"/>
+  </g>
+  <rect x="462" y="670" width="208" height="34" rx="8" class="box-hi"/>
+  <text x="472" y="693" class="h3">Amazon Bedrock (default)</text>
+  <rect x="462" y="712" width="208" height="30" rx="8" class="box"/>
+  <text x="478" y="732" class="t">Anthropic direct</text>
+  <rect x="462" y="748" width="208" height="30" rx="8" class="box"/>
+  <text x="478" y="768" class="t">OpenAI</text>
+  <rect x="462" y="784" width="208" height="30" rx="8" class="box"/>
+  <text x="478" y="804" class="t">Ollama (offline dev)</text>
+  <text x="400" y="840" class="code">HEYGILLI_MODEL_BUDDY=anthropic:…</text>
+
+  <!-- Storage -->
+  <rect x="720" y="600" width="300" height="260" rx="14" class="panel"/>
+  <text x="740" y="632" class="h2">Storage</text>
+  <text x="740" y="650" class="ts">kids, channels, videos, plans, sessions, digests</text>
+  <g class="ico">
+    <ellipse cx="762" cy="682" rx="14" ry="5"/>
+    <path d="M 748 682 v 22 a 14 5 0 0 0 28 0 v -22"/>
+  </g>
+  <rect x="786" y="670" width="224" height="30" rx="8" class="box"/>
+  <text x="798" y="690" class="t">Local JSON files (dev)</text>
+  <g class="ico">
+    <ellipse cx="762" cy="722" rx="14" ry="5"/>
+    <path d="M 748 722 v 22 a 14 5 0 0 0 28 0 v -22"/>
+  </g>
+  <rect x="786" y="710" width="224" height="30" rx="8" class="box"/>
+  <text x="798" y="730" class="t">DynamoDB single table (deploy)</text>
+  <g class="ico" stroke-dasharray="4 3">
+    <ellipse cx="762" cy="762" rx="14" ry="5"/>
+    <path d="M 748 762 v 22 a 14 5 0 0 0 28 0 v -22"/>
+  </g>
+  <rect x="786" y="750" width="224" height="30" rx="8" class="planned"/>
+  <text x="798" y="770" class="t">AgentCore Memory (planned)</text>
+  <text x="740" y="806" class="ts">Memory: per-kid preferences, so Gilli can say</text>
+  <text x="740" y="824" class="ts">"you liked the giraffe yesterday". No child speech</text>
+  <text x="740" y="842" class="ts">is stored: a score plus a ten-word paraphrase.</text>
+
+  <!-- Agents -> providers, storage -->
+  <line x1="670" y1="540" x2="670" y2="598" class="ln"/>
+  <text x="600" y="590" class="lbl" text-anchor="end">model calls</text>
+  <line x1="870" y1="540" x2="870" y2="598" class="ln"/>
+  <text x="878" y="590" class="lbl">read / write</text>
+
+  <!-- Rules -->
+  <rect x="1060" y="600" width="300" height="260" rx="14" class="panel"/>
+  <text x="1080" y="632" class="h2">Rules that hold everywhere</text>
+  <text x="1080" y="650" class="ts">on any provider, any device</text>
+  <g class="ico">
+    <rect x="1080" y="667" width="12" height="12" rx="2"/>
+    <rect x="1080" y="697" width="12" height="12" rx="2"/>
+    <rect x="1080" y="727" width="12" height="12" rx="2"/>
+    <rect x="1080" y="757" width="12" height="12" rx="2"/>
+    <rect x="1080" y="787" width="12" height="12" rx="2"/>
+    <rect x="1080" y="817" width="12" height="12" rx="2"/>
+  </g>
+  <text x="1102" y="678" class="t">Official YouTube embed; ads still play</text>
+  <text x="1102" y="708" class="t">Parent allowlist is a hard gate</text>
+  <text x="1102" y="738" class="t">Nothing a child says is stored</text>
+  <text x="1102" y="768" class="t">No text on screen for band 4_6</text>
+  <text x="1102" y="798" class="t">Never "wrong"; silence is not failure</text>
+  <text x="1102" y="828" class="t">Same eval on every provider</text>
+</svg>

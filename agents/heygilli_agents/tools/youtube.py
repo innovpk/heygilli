@@ -1,0 +1,192 @@
+"""YouTube metadata without an API key: page HTML, the public RSS feed, and oEmbed.
+
+Everything is cached in the store so the Curator can run every few hours
+without re-fetching. If YOUTUBE_API_KEY ever exists this is the one module to
+swap for the Data API (SPEC §9.4).
+"""
+from __future__ import annotations
+
+import html
+import logging
+import re
+import xml.etree.ElementTree as ET
+
+import httpx
+from strands import tool
+
+from ..store import get_store
+
+log = logging.getLogger(__name__)
+
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+# SOCS=CAI skips the EU cookie-consent interstitial that otherwise replaces every page.
+_HEADERS = {
+    "User-Agent": UA,
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cookie": "SOCS=CAI; CONSENT=PENDING+987",
+}
+_VIDEO_ID = re.compile(r"(?:v=|/shorts/|/embed/|youtu\.be/)([A-Za-z0-9_-]{11})")
+_CHANNEL_ID = re.compile(r"/channel/(UC[A-Za-z0-9_-]{22})")
+
+
+def _get(url: str, timeout: float = 15.0) -> str:
+    with httpx.Client(headers=_HEADERS, follow_redirects=True, timeout=timeout) as c:
+        r = c.get(url)
+        r.raise_for_status()
+        return r.text
+
+
+def _find(pattern: str, text: str) -> str:
+    m = re.search(pattern, text)
+    return html.unescape(m.group(1)) if m else ""
+
+
+def video_id_from_url(url: str) -> str | None:
+    m = _VIDEO_ID.search(url)
+    return m.group(1) if m else None
+
+
+def resolve_channel_url(url: str) -> dict:
+    """Return {"channel_id", "title", "thumb_url"} for a channel/handle/video URL."""
+    url = url.strip()
+    if url.startswith("UC") and len(url) == 24:
+        url = f"https://www.youtube.com/channel/{url}"
+    elif url.startswith("@"):
+        url = f"https://www.youtube.com/{url}"
+    elif not url.startswith("http"):
+        url = f"https://{url}"
+
+    cached = get_store().cache_get("channel_url", url)
+    if cached:
+        return cached
+
+    if m := _CHANNEL_ID.search(url):
+        channel_id = m.group(1)
+        page = _get(url)
+    elif vid := video_id_from_url(url):
+        page = _get(f"https://www.youtube.com/watch?v={vid}")
+        channel_id = _find(r'"channelId":"(UC[A-Za-z0-9_-]{22})"', page)
+    else:
+        page = _get(url)
+        channel_id = _find(r'"externalId":"(UC[A-Za-z0-9_-]{22})"', page) or _find(
+            r'"channelId":"(UC[A-Za-z0-9_-]{22})"', page
+        )
+    if not channel_id:
+        raise ValueError(f"could not find a channel id in {url}")
+
+    title = _find(r'"ownerChannelName":"([^"]+)"', page) or _find(
+        r'<meta property="og:title" content="([^"]+)"', page
+    )
+    if vid:  # a video page: og:title is the video, prefer the channel's own page
+        try:
+            cpage = _get(f"https://www.youtube.com/channel/{channel_id}")
+            title = _find(r'<meta property="og:title" content="([^"]+)"', cpage) or title
+            page = cpage
+        except httpx.HTTPError:
+            pass
+    thumb = _find(r'"avatar":\{"thumbnails":\[\{"url":"([^"]+)"', page) or _find(
+        r'<meta property="og:image" content="([^"]+)"', page
+    )
+    out = {"channel_id": channel_id, "title": title or channel_id, "thumb_url": thumb}
+    get_store().cache_put("channel_url", url, out)
+    return out
+
+
+def fetch_uploads(channel_id: str, limit: int = 10) -> list[dict]:
+    """Newest uploads from the public RSS feed (no key, ~15 most recent)."""
+    xml = _get(f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}")
+    ns = {
+        "a": "http://www.w3.org/2005/Atom",
+        "yt": "http://www.youtube.com/xml/schemas/2015",
+        "media": "http://search.yahoo.com/mrss/",
+    }
+    root = ET.fromstring(xml)
+    out: list[dict] = []
+    for e in root.findall("a:entry", ns)[:limit]:
+        vid = e.findtext("yt:videoId", default="", namespaces=ns)
+        group = e.find("media:group", ns)
+        thumb = ""
+        desc = ""
+        if group is not None:
+            t = group.find("media:thumbnail", ns)
+            thumb = t.get("url", "") if t is not None else ""
+            desc = group.findtext("media:description", default="", namespaces=ns)
+        out.append(
+            {
+                "id": vid,
+                "channel_id": channel_id,
+                "title": e.findtext("a:title", default="", namespaces=ns),
+                "published_at": e.findtext("a:published", default="", namespaces=ns),
+                "thumb_url": thumb,
+                "description": desc[:1000],
+            }
+        )
+    return out
+
+
+def fetch_video_meta(video_id: str) -> dict:
+    """oEmbed title/thumb plus duration from the watch page when it is cheap."""
+    cached = get_store().cache_get("video_meta", video_id)
+    if cached:
+        return cached
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    meta = {"id": video_id, "title": "", "thumb_url": "", "channel_id": "", "duration_s": 0}
+    try:
+        with httpx.Client(headers=_HEADERS, timeout=15.0) as c:
+            r = c.get("https://www.youtube.com/oembed", params={"url": url, "format": "json"})
+            if r.status_code == 200:
+                j = r.json()
+                meta["title"] = j.get("title", "")
+                meta["thumb_url"] = j.get("thumbnail_url", "")
+    except httpx.HTTPError as e:
+        log.warning("oembed failed for %s: %s", video_id, e)
+    try:
+        page = _get(url)
+        meta["duration_s"] = int(_find(r'"lengthSeconds":"(\d+)"', page) or 0)
+        meta["channel_id"] = _find(r'"channelId":"(UC[A-Za-z0-9_-]{22})"', page)
+        meta["title"] = meta["title"] or _find(r'<meta name="title" content="([^"]+)"', page)
+    except (httpx.HTTPError, ValueError) as e:
+        log.warning("watch page failed for %s: %s", video_id, e)
+    if meta["title"]:
+        get_store().cache_put("video_meta", video_id, meta)
+    return meta
+
+
+# --- Strands tools -----------------------------------------------------------------------
+
+
+@tool
+def resolve_channel(url: str) -> dict:
+    """Resolve any YouTube channel, @handle, or video URL to its channel id and title.
+
+    Args:
+        url: e.g. https://www.youtube.com/@SciShowKids or a watch?v= link
+
+    Returns:
+        {"channel_id": str, "title": str, "thumb_url": str}
+    """
+    return resolve_channel_url(url)
+
+
+@tool
+def channel_uploads(channel_id: str, limit: int = 10) -> list[dict]:
+    """Newest uploads of a channel from its public RSS feed.
+
+    Args:
+        channel_id: YouTube channel id starting with UC
+        limit: how many of the most recent videos to return (max 15)
+
+    Returns:
+        list of {"id", "channel_id", "title", "published_at", "thumb_url", "description"}
+    """
+    return fetch_uploads(channel_id, min(limit, 15))
+
+
+@tool
+def video_meta(video_id: str) -> dict:
+    """Title, thumbnail, channel and duration (seconds, 0 if unknown) for a video.
+
+    Args:
+        video_id: 11-character YouTube video id
+    """
+    return fetch_video_meta(video_id)
