@@ -90,11 +90,23 @@ class TestTheGateProtectsTheParentToo:
         assert rejected and "sequence" in rejected[0]
         assert all("After that" not in m.text for m in kept)
 
-    def test_a_draft_with_no_spoken_line_is_refused_for_a_pre_reader(self) -> None:
+    def test_a_draft_with_no_spoken_line_is_repaired_not_thrown_away(self) -> None:
+        """A pre-reader needs something Gilli can say, but a draft that only
+        filled in `text` is a formatting slip rather than a safety problem.
+        Rejecting these threw away every personalised line for band 4_6."""
         drafts = [{"text": "Tidy your toys.", "spoken": ""}]
-        _, rejected = coach.suggest_messages(kid(5), [], agent_returning(drafts))
+        kept, rejected = coach.suggest_messages(kid(5), [], agent_returning(drafts))
 
-        assert rejected and "spoken" in rejected[0]
+        assert rejected == []
+        assert kept[0].text == "Tidy your toys."
+        assert kept[0].spoken == "Tidy your toys.", "Gilli must have something to say"
+
+    def test_an_unsafe_draft_is_still_refused_even_after_repair(self) -> None:
+        drafts = [{"text": "Climb on the windowsill.", "spoken": ""}]
+        kept, rejected = coach.suggest_messages(kid(5), [], agent_returning(drafts))
+
+        assert rejected and "climbing" in rejected[0]
+        assert all("Climb" not in m.text for m in kept)
 
     def test_the_built_ins_all_pass_the_gate(self) -> None:
         for band in ("4_6", "7_8", "9_11"):
