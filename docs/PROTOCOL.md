@@ -1,4 +1,4 @@
-# HeyGilli client ↔ gateway protocol (v1.4)
+# HeyGilli client ↔ gateway protocol (v1.5)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
@@ -35,6 +35,11 @@ POST /sessions                 {kid_id, video_id, device}     → {session_id, v
 POST /sessions/{id}/end                                       → {ok: true}
 GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest
 GET  /kids/{kid_id}/analytics?days=14                         → Analytics
+PATCH /kids/{kid_id}/limits    {daily_minutes, break_after_minutes,
+                                break_minutes, max_video_minutes}  → Kid
+GET  /kids/{kid_id}/state                                     → WatchState
+POST /kids/{kid_id}/break/ack                                 → MovementBreak   (kid says they did it)
+POST /kids/{kid_id}/break/override  {pin_ok: true}            → {cleared: true}  (parent only)
 POST /kids/{kid_id}/digest/run                                → Digest   (runs the Digest agent now; dev convenience)
 POST /curator/run              {kid_id}                       → {approved: [...], hidden: [...], ask_parent: [...]}   (dev convenience)
 GET  /parent/inbox                                            → ParentPrompt[]   (things the Curator wants a yes/no on)
@@ -168,6 +173,67 @@ Two rules the wording must hold to:
   is too little to go on the verdict is `unknown`, never a guess.
 - The review is advice, not a verdict on a creator. The parent decides; `DELETE` removes a channel
   from that kid immediately.
+
+### Time limits and movement breaks
+
+A parent sets the limits; the agent enforces them and fills the gap with something to do.
+
+`Kid` gains four settings, all parent-editable via `PATCH /kids/{id}/limits`:
+
+```
+daily_minutes        total watching allowed per day        (default 60, 0 = no limit)
+break_after_minutes  continuous watching before a break    (default 25, 0 = never)
+break_minutes        how long the break lasts              (default 5)
+max_video_minutes    longest single video offered          (default 0 = no limit)
+```
+
+`GET /kids/{id}/state` is what the client checks before offering anything to watch:
+
+```
+WatchState {
+  minutes_today, minutes_left_today,
+  continuous_minutes,                  // since the last break or a 10-minute gap
+  watching_allowed: bool,
+  blocked_reason: "daily_limit" | "break" | null,
+  active_break: MovementBreak | null
+}
+```
+
+```
+MovementBreak {
+  id, kid_id, started_at, ends_at, seconds_left,
+  task: { title, steps: [...], seconds, spoken },   // spoken = what Gilli says, for band 4_6
+  source_titles: [...],                              // the videos it was built from
+  acked: bool
+}
+```
+
+**When a break fires.** The server counts continuous watching. Once `break_after_minutes` is
+passed it waits for the next natural moment, a question pause or the end of the video, so a child
+is never cut off mid-sentence; if none arrives within 3 more minutes it interrupts anyway. The
+session socket sends `{t: "break", break: MovementBreak}` and the client must stop playback.
+
+**No video plays during a break.** `POST /sessions` returns 409 with the active break, and
+`GET /kids/{id}/home` sets `watching_allowed: false`. The break ends when its timer runs out, not
+when the child taps: `POST /break/ack` only records that they say they did it, and Gilli responds
+warmly. A parent can end one early with `POST /break/override` behind the PIN.
+
+**The task is generated from what they actually watched**, so it lands as a continuation of the
+video rather than a punishment for it: a volcano video becomes crouching small and erupting tall, a
+dance channel becomes repeating the move from the video. `source_titles` shows the parent what it
+drew on.
+
+**Safety rules, enforced in code and not only in the prompt.** A generated task must be:
+
+- doable indoors, on the spot, in the space of a rug, with no equipment and nothing to fetch;
+- free of climbing, jumping from or onto furniture, running, fast spinning, anything near water,
+  stairs, kitchens or outdoors, and anything needing an adult present;
+- 1 to 3 minutes, and never framed as a punishment or as "you watched too much";
+- band-appropriate: for `4_6` it is spoken and mimed with no text on screen, and is a single
+  imitation ("be a volcano"), not a sequence to remember.
+
+A task that fails these checks is dropped and a safe built-in fallback is used instead. The set of
+fallbacks ships with the app so a break never depends on a model call succeeding.
 
 ### Analytics
 
