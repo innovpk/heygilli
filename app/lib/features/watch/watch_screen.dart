@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
-/// A question Peeku asks at a point in the video.
+/// A question Gilli asks at a point in the video.
 ///
 /// Day 1 uses a hard-coded plan; from day 2 this comes from the Planner agent.
 class PlannedQuestion {
@@ -14,7 +14,7 @@ class PlannedQuestion {
 }
 
 /// Plays a YouTube video via the official embed and pauses at planned
-/// timestamps so Peeku can ask a question. No overlays are drawn while the
+/// timestamps so Gilli can ask a question. No overlays are drawn while the
 /// video is playing; the question card appears only while paused.
 class WatchScreen extends StatefulWidget {
   const WatchScreen({super.key, required this.videoId, required this.kidName});
@@ -91,7 +91,7 @@ class _WatchScreenState extends State<WatchScreen> {
   Widget build(BuildContext context) {
     final player = YoutubePlayer(controller: _controller, aspectRatio: 16 / 9);
     return Scaffold(
-      appBar: AppBar(title: Text('Peeku · ${widget.kidName}')),
+      appBar: AppBar(title: Text('HeyGilli · ${widget.kidName}')),
       body: SafeArea(
         child: Column(
           children: [
@@ -132,7 +132,7 @@ class _WatchScreenState extends State<WatchScreen> {
 }
 
 /// Shown only while the video is paused. Day 1: text plus a resume button.
-/// Day 3 replaces this with TTS, the mic button, and Peeku's animation.
+/// Day 3 replaces this with TTS, the mic button, and Gilli's animation.
 class _QuestionCard extends StatelessWidget {
   const _QuestionCard({required this.question, required this.onResume});
 

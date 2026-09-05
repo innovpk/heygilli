@@ -3,8 +3,8 @@
 Every agent reads its provider from an env var so the same agent code runs on
 Bedrock, Anthropic direct, or another Strands provider without edits.
 
-    PEEKU_MODEL_PLANNER=bedrock:<model-id>
-    PEEKU_MODEL_BUDDY=anthropic:claude-opus-5
+    HEYGILLI_MODEL_PLANNER=bedrock:<model-id>
+    HEYGILLI_MODEL_BUDDY=anthropic:claude-opus-5
 
 Format: "<provider>:<model id>". Unknown provider -> ValueError so a typo fails
 fast instead of silently falling back.
@@ -20,7 +20,7 @@ DEFAULT = "bedrock:"  # empty id -> Strands' Bedrock default model for the regio
 def model_for(role: str):
     if role not in ROLES:
         raise ValueError(f"unknown role {role!r}; expected one of {ROLES}")
-    spec = os.getenv(f"PEEKU_MODEL_{role.upper()}", DEFAULT)
+    spec = os.getenv(f"HEYGILLI_MODEL_{role.upper()}", DEFAULT)
     provider, _, model_id = spec.partition(":")
     provider = provider.strip().lower()
 

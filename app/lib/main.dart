@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'features/watch/watch_screen.dart';
 
-void main() => runApp(const PeekuApp());
+void main() => runApp(const HeyGilliApp());
 
-class PeekuApp extends StatelessWidget {
-  const PeekuApp({super.key});
+class HeyGilliApp extends StatelessWidget {
+  const HeyGilliApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Peeku',
+      title: 'HeyGilli',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

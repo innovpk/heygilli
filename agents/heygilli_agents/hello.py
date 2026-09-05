@@ -1,7 +1,7 @@
 """Day-1 smoke test: one Strands agent, one tool, provider chosen by env var.
 
-    uv run python -m peeku_agents.hello                       # Bedrock default
-    PEEKU_MODEL_PLANNER=anthropic:claude-opus-5 uv run python -m peeku_agents.hello
+    uv run python -m heygilli_agents.hello                       # Bedrock default
+    HEYGILLI_MODEL_PLANNER=anthropic:claude-opus-5 uv run python -m heygilli_agents.hello
 """
 from __future__ import annotations
 

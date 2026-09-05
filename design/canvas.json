@@ -71,28 +71,28 @@
       "x": 0,
       "y": -170,
       "w": 420,
-      "text": "4–6 home: thumbnails only, no labels. Peeku reads the title aloud when a thumbnail is focused. Focused card = mango ring."
+      "text": "4–6 home: thumbnails only, no labels. Gilli reads the title aloud when a thumbnail is focused. Focused card = mango ring."
     },
     {
       "id": "note-name",
       "x": 1380,
       "y": -170,
       "w": 460,
-      "text": "Peeku (voice only): \"What animal is that?\"\nNo text on screen for this band. Mic ring pulses for 5 s. Whatever the kid says, Peeku models the word: \"A giraffe! Gi-raffe.\""
+      "text": "Gilli (voice only): \"What animal is that?\"\nNo text on screen for this band. Mic ring pulses for 5 s. Whatever the kid says, Gilli models the word: \"A giraffe! Gi-raffe.\""
     },
     {
       "id": "note-pick",
       "x": 2760,
       "y": -170,
       "w": 460,
-      "text": "Peeku (voice): \"Show me the blue one.\"\nLeft / centre / right on the remote map to the three cards. One press answers. Focused card wobbles."
+      "text": "Gilli (voice): \"Show me the blue one.\"\nLeft / centre / right on the remote map to the three cards. One press answers. Focused card wobbles."
     },
     {
       "id": "note-older",
       "x": 4140,
       "y": -170,
       "w": 460,
-      "text": "9–11: question shown as text plus Urdu line, video shrinks to a corner, live transcript of the answer. Peeku is calmer here, no baby talk."
+      "text": "9–11: question shown as text plus Urdu line, video shrinks to a corner, live transcript of the answer. Gilli is calmer here, no baby talk."
     },
     {
       "id": "note-row2",

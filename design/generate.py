@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the Peeku mockup artboards (.dc.html) and canvas.json."""
+"""Generates the HeyGilli mockup artboards (.dc.html) and canvas.json."""
 import json, os
 OUT = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,8 +32,8 @@ TAIL = """
 </html>
 """
 
-def peeku(size=160, talking=True):
-    """Peeku the palm squirrel. Simple flat shapes, big curious eyes."""
+def gilli(size=160, talking=True):
+    """Gilli the palm squirrel. Simple flat shapes, big curious eyes."""
     wave = ""
     if talking:
         wave = """
@@ -42,7 +42,7 @@ def peeku(size=160, talking=True):
     <path d="M154 50 q12 18 0 36"></path>
     <path d="M166 42 q18 26 0 52"></path>
   </g>"""
-    return f"""<svg width="{size}" height="{size}" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" aria-label="Peeku the squirrel">
+    return f"""<svg width="{size}" height="{size}" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" aria-label="Gilli the squirrel">
   <path d="M40 150 C-10 130 0 60 40 60 C70 60 62 100 48 118 C40 128 44 146 40 150 Z" fill="#a8471f"></path>
   <path d="M42 140 C10 122 18 76 42 76 C58 76 54 100 46 112 C42 120 44 132 42 140 Z" fill="#c96a2b"></path>
   <ellipse cx="96" cy="126" rx="38" ry="42" fill="#d98b4a"></ellipse>
@@ -168,7 +168,7 @@ def tv_main():
   <div style="position:absolute; right:48px; bottom:40px; display:flex; align-items:flex-end; gap:20px;">
     {listen_ring(132)}
     <div style="width:230px; height:230px; border-radius:50%; background:#fbf3e6; display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px; box-shadow:0 12px 0 rgba(15,42,51,0.35);">
-      {peeku(200)}
+      {gilli(200)}
     </div>
   </div>
 </div>
@@ -188,7 +188,7 @@ def tv_home():
     <div style="width:96px; height:96px; border-radius:50%; background:#f5a524; display:flex; align-items:center; justify-content:center;">
       <svg width="56" height="56" viewBox="0 0 24 24" fill="#0f2a33" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 l2.9 6.3 6.9 .8 -5.1 4.7 1.4 6.8 -6.1 -3.5 -6.1 3.5 1.4 -6.8 -5.1 -4.7 6.9 -.8 Z"></path></svg>
     </div>
-    <div style="width:96px; height:96px; border-radius:50%; background:#fbf3e6; display:flex; align-items:flex-end; justify-content:center;">{peeku(88)}</div>
+    <div style="width:96px; height:96px; border-radius:50%; background:#fbf3e6; display:flex; align-items:flex-end; justify-content:center;">{gilli(88)}</div>
   </div>
   <div style="position:absolute; top:172px; left:64px; display:flex; flex-direction:column; gap:52px;">
     <div style="display:flex; gap:40px;">{row1}</div>
@@ -212,7 +212,7 @@ def tv_pick():
     {card("ball", "left")}{card("fish", "ok", focused=True)}{card("leaf", "right")}
   </div>
   <div style="position:absolute; right:48px; bottom:32px; width:190px; height:190px; border-radius:50%; background:#fbf3e6; display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; box-shadow:0 12px 0 rgba(15,42,51,0.35);">
-    {peeku(166)}
+    {gilli(166)}
   </div>
 </div>
 """ + TAIL
@@ -235,7 +235,7 @@ def tv_older():
     <span style="opacity:0.6;">You said:</span> because the pressure got too big under the ground…
   </div>
   <div style="position:absolute; right:48px; bottom:40px; width:170px; height:170px; border-radius:50%; background:#fbf3e6; display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; box-shadow:0 12px 0 rgba(15,42,51,0.35);">
-    {peeku(150, talking=False)}
+    {gilli(150, talking=False)}
   </div>
 </div>
 """ + TAIL
@@ -251,7 +251,7 @@ def tablet_pick():
     <svg width="24" height="24" viewBox="0 0 24 24" fill="#fbf3e6" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4" width="4" height="16" rx="1.5"></rect><rect x="14" y="4" width="4" height="16" rx="1.5"></rect></svg>
   </div>
   <div style="position:absolute; top:400px; left:0; right:0; bottom:0; display:flex; align-items:center; padding:0 40px; gap:36px;">
-    <div style="width:200px; height:200px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; box-shadow:0 10px 0 rgba(15,42,51,0.12);">{peeku(176)}</div>
+    <div style="width:200px; height:200px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; box-shadow:0 10px 0 rgba(15,42,51,0.12);">{gilli(176)}</div>
     <div style="flex-grow:1; display:flex; justify-content:center; gap:36px;">{card("ball")}{card("fish")}{card("leaf")}</div>
     <div style="width:120px; height:120px; border-radius:50%; background:#f5a524; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 0 rgba(15,42,51,0.18);">{mic_icon(56)}</div>
   </div>
@@ -295,7 +295,7 @@ def phone_digest_pre():
         <div class="label">Today · Friday</div>
         <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Zara</div>
       </div>
-      <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{peeku(50, talking=False)}</div>
+      <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{gilli(50, talking=False)}</div>
     </div>
     <div style="display:flex; gap:10px;">
       <div class="card" style="flex-grow:1; padding:14px 16px;"><div class="display" style="font-size:26px; font-weight:800;">35</div><div class="label">minutes</div></div>
@@ -324,7 +324,7 @@ def phone_digest_older():
         <div class="label">Today · Friday</div>
         <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Ayaan</div>
       </div>
-      <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{peeku(50, talking=False)}</div>
+      <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{gilli(50, talking=False)}</div>
     </div>
     <div style="display:flex; gap:10px;">
       <div class="card" style="flex-grow:1; padding:14px 16px;"><div class="display" style="font-size:26px; font-weight:800;">42</div><div class="label">minutes</div></div>
@@ -355,7 +355,7 @@ def direction_b():
   <div class="sk" style="position:absolute; inset:16px; border-style:dashed;"></div>
   <div class="sk" style="position:absolute; left:40px; top:40px; width:300px; height:170px; display:flex; align-items:center; justify-content:center; font-weight:800;">paused frame</div>
   <div style="position:absolute; left:370px; top:50px; width:230px; font-size:22px; font-weight:800; line-height:1.2;">light paper palette, question card on the right</div>
-  <div class="sk" style="position:absolute; left:370px; top:140px; width:230px; height:70px; display:flex; align-items:center; justify-content:center; font-weight:800;">mic + Peeku</div>
+  <div class="sk" style="position:absolute; left:370px; top:140px; width:230px; height:70px; display:flex; align-items:center; justify-content:center; font-weight:800;">mic + Gilli</div>
   <div class="sk" style="position:absolute; left:40px; top:240px; width:170px; height:80px; display:flex; align-items:center; justify-content:center;">pick</div>
   <div class="sk" style="position:absolute; left:235px; top:240px; width:170px; height:80px; display:flex; align-items:center; justify-content:center;">pick</div>
   <div class="sk" style="position:absolute; left:430px; top:240px; width:170px; height:80px; display:flex; align-items:center; justify-content:center;">pick</div>
@@ -388,10 +388,10 @@ canvas = {
         {"file": "DirectionB.dc.html", "title": "Alternate direction · Daylight paper (low-fi)", "x": 2104, "y": 900, "w": 640, "h": 360},
     ],
     "annotations": [
-        {"id": "note-home", "x": 0, "y": -170, "w": 420, "text": "4–6 home: thumbnails only, no labels. Peeku reads the title aloud when a thumbnail is focused. Focused card = mango ring."},
-        {"id": "note-name", "x": 1380, "y": -170, "w": 460, "text": "Peeku (voice only): \"What animal is that?\"\nNo text on screen for this band. Mic ring pulses for 5 s. Whatever the kid says, Peeku models the word: \"A giraffe! Gi-raffe.\""},
-        {"id": "note-pick", "x": 2760, "y": -170, "w": 460, "text": "Peeku (voice): \"Show me the blue one.\"\nLeft / centre / right on the remote map to the three cards. One press answers. Focused card wobbles."},
-        {"id": "note-older", "x": 4140, "y": -170, "w": 460, "text": "9–11: question shown as text plus Urdu line, video shrinks to a corner, live transcript of the answer. Peeku is calmer here, no baby talk."},
+        {"id": "note-home", "x": 0, "y": -170, "w": 420, "text": "4–6 home: thumbnails only, no labels. Gilli reads the title aloud when a thumbnail is focused. Focused card = mango ring."},
+        {"id": "note-name", "x": 1380, "y": -170, "w": 460, "text": "Gilli (voice only): \"What animal is that?\"\nNo text on screen for this band. Mic ring pulses for 5 s. Whatever the kid says, Gilli models the word: \"A giraffe! Gi-raffe.\""},
+        {"id": "note-pick", "x": 2760, "y": -170, "w": 460, "text": "Gilli (voice): \"Show me the blue one.\"\nLeft / centre / right on the remote map to the three cards. One press answers. Focused card wobbles."},
+        {"id": "note-older", "x": 4140, "y": -170, "w": 460, "text": "9–11: question shown as text plus Urdu line, video shrinks to a corner, live transcript of the answer. Gilli is calmer here, no baby talk."},
         {"id": "note-row2", "x": 0, "y": 1740, "w": 520, "text": "Same loop on tablet (tap or big mic button). Parent digest has two shapes: words said for pre-readers, understood / shaky / dinner question for older kids."},
         {"id": "note-dirb", "x": 2104, "y": 1300, "w": 420, "text": "Alternate: a light paper palette instead of deep teal. Tradeoff: friendlier on tablets in daylight, but a bright TV in a dim living room is harsh on a 4-year-old's eyes."},
     ],
