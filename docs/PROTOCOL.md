@@ -91,8 +91,12 @@ Field-level detail the two sides agreed on while building this (shapes above are
 
 Two limits worth stating plainly, because they shape the UI:
 
-- A parent's own subscriptions are the *parent's*. They are a starting list to tick through, never
-  an auto-approved catalogue.
+- The list is whatever the **signed-in account** follows, so the parent should sign in with the
+  account the kids actually watch on, usually the one on the TV. On a shared family account those
+  subscriptions are effectively the kids' own. It is a starting list to tick through, never an
+  auto-approved catalogue.
+- A child's subscriptions cannot be read separately. There is no API for a supervised child's
+  account, and Family Link exposes none, so the account that signs in decides what the import sees.
 - YouTube Kids profile subscriptions are not exposed by any API. Only the signed-in Google
   account's own YouTube subscriptions can be read.
 

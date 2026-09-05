@@ -226,9 +226,9 @@ class _ImportSubscriptionsScreenState extends State<ImportSubscriptionsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
         Text(
-          'Channels you follow on YouTube. Tick the ones '
-          '${widget.kid.nickname} may watch. Gilli still checks every new '
-          'video before it shows up.',
+          'Subscriptions on the Google account you signed in with. Tick the '
+          'ones ${widget.kid.nickname} may watch. Gilli still checks every '
+          'new video before it shows up.',
           style: HgText.body(size: 14, color: HgColors.brown),
         ),
         const SizedBox(height: 12),

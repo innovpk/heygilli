@@ -102,9 +102,10 @@ class _SignInScreenState extends State<SignInScreen> {
                                 'is unavailable.',
                     ),
                     Text(
-                      'Signing in brings across the channels you already '
-                      'follow, so you do not have to paste them in. Only you '
-                      'sign in; your child never does.',
+                      'Use the account your kids already watch on, usually '
+                      'the one signed in on the TV. Its subscriptions become '
+                      'the channels you pick from. Only you sign in; your '
+                      'child never does.',
                       textAlign: TextAlign.center,
                       style: HgText.body(size: 14, color: HgColors.brown),
                     ),
