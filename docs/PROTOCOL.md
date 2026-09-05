@@ -1,4 +1,4 @@
-# HeyGilli client ↔ gateway protocol (v1.3)
+# HeyGilli client ↔ gateway protocol (v1.4)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
@@ -22,6 +22,10 @@ POST /auth/google              {server_auth_code}             → Session
 GET  /me/youtube                                              → {linked, email}
 GET  /me/youtube/subscriptions                                → {linked, subscriptions: Subscription[]}
 POST /kids/{kid_id}/channels/import  {channel_ids: [...]}     → {added: Channel[], already: [...]}
+DELETE /kids/{kid_id}/channels/{channel_id}                   → {removed: true}
+POST /import/takeout           multipart: file=<takeout zip>  → TakeoutPreview
+POST /channels/reviews         {channel_ids: [...]}           → {reviews: ChannelReview[], pending: [...]}
+GET  /channels/{channel_id}/review?refresh=false              → ChannelReview
 POST /kids                     {nickname, age, languages[]}   → Kid
 GET  /kids                                                    → Kid[]
 POST /kids/{kid_id}/channels   {url}                          → Channel   (url = channel URL, @handle URL, or video URL; server resolves)
@@ -99,6 +103,66 @@ Two limits worth stating plainly, because they shape the UI:
   account, and Family Link exposes none, so the account that signs in decides what the import sees.
 - YouTube Kids profile subscriptions are not exposed by any API. Only the signed-in Google
   account's own YouTube subscriptions can be read.
+
+### Takeout import: the children's own profiles
+
+Google's Takeout export is the only route to a child's YouTube Kids subscriptions; no API exposes
+them. A parent exports **YouTube and YouTube Music** with the `children` and `subscriptions`
+categories, and the zip contains:
+
+```
+YouTube and YouTube Music/subscriptions/subscriptions.csv          the parent's own
+YouTube and YouTube Music/children/<Profile name>/subscriptions.csv  one per YouTube Kids profile
+YouTube and YouTube Music/children/<Profile name>/watch-history.html
+YouTube and YouTube Music/children/<Profile name>/search-history.html
+```
+
+Each CSV is `Channel ID,Channel URL,Channel title`. The folder name is the child's profile name.
+
+`POST /import/takeout` takes the zip and returns a preview. **Only the subscription CSVs are read.**
+Watch history and search history are ignored and never uploaded, stored or sent to a model: they are
+the most sensitive files in the export and nothing here needs them.
+
+```
+TakeoutPreview {
+  profiles: [{name, channel_count, channels: [{channel_id, title, url}]}],   // from children/
+  parent:   {channel_count, channels: [...]} | null                          // from subscriptions/
+}
+```
+
+The client then lets the parent map each profile to a kid (creating one if needed, since Takeout
+carries no age) and import the channels through the existing per-kid import.
+
+### Channel reviews
+
+A child can be subscribed to a hundred channels. `POST /channels/reviews` reviews them in bulk so a
+parent can see what each one actually shows.
+
+```
+ChannelReview {
+  channel_id, title, thumb_url,
+  verdict: "good" | "mixed" | "concern" | "unknown",
+  summary,                       // one or two sentences on what this channel actually publishes
+  flags: [{kind, note}],         // kind: ads_or_merch | consumerism | scary | mature_language
+                                 //       | low_quality | off_topic | not_for_kids | unclear
+  good_for: ["4_6", "7_8", "9_11"],
+  sample_titles: [...],          // the recent uploads the review was actually based on
+  reviewed_at, model
+}
+```
+
+Reviews are a property of the channel, not the kid, so they are cached globally and shared across
+households. `POST /channels/reviews` returns whatever is cached immediately and lists the rest in
+`pending`; the client polls the same endpoint until `pending` is empty. `refresh=true` on the single
+GET forces a re-review.
+
+Two rules the wording must hold to:
+
+- The review is evidence-based. `summary` and `flags` are drawn from the channel's recent upload
+  titles and descriptions, and `sample_titles` shows the parent what was actually read. When there
+  is too little to go on the verdict is `unknown`, never a guess.
+- The review is advice, not a verdict on a creator. The parent decides; `DELETE` removes a channel
+  from that kid immediately.
 
 ### Analytics
 
