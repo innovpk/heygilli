@@ -14,10 +14,11 @@ heygilli_agents/
   buddy.py        SessionEngine: ask / score / reply / switch-to-pick; nothing a child says is kept
   curator.py      new uploads -> approve | hide | ask_parent -> fan out to the Planner
   digest.py       a kid's day -> parent Digest (counts in code, words from the model)
+  google_auth.py  parent's Google sign-in: server auth code -> refresh token -> live access token
   gateway.py      REST + WebSocket (uvicorn)
   store.py        LocalStore (JSON under .data/) | DynamoStore (single table)
-  tools/          youtube (no key), transcript (Gemini or public captions), icons, tts (Polly), notify, screening
-tests/            73 offline tests (fake model, mocked network)
+  tools/          youtube (no key + subscriptions.list), transcript (Gemini or public captions), icons, tts (Polly), notify, screening
+tests/            115 offline tests (fake model, mocked network)
 eval/             run_eval.py + 3 synthetic transcripts; results land in eval/results/
 scripts/          smoke_gateway.py: REST + one WebSocket turn against a running gateway
 ```
@@ -44,7 +45,7 @@ repointed on 2026-09-05.
 ## Test
 
 ```bash
-uv run pytest -q          # 73 passed; no network, no AWS, fake model for every role
+uv run pytest -q          # 115 passed; no network, no AWS, fake model for every role
 uv run ruff check .
 ```
 
@@ -52,7 +53,9 @@ uv run ruff check .
 any real HTTP call fail. Coverage: schema round-trips, LocalStore CRUD, every 7.2/7.3 rule, Buddy
 scoring (deterministic pick, copy-it never scored, forgiving phonetics, switch to pick after two
 empty answers), Planner post-validation, icon fuzzy lookup, YouTube/caption tools against canned
-pages, Curator and Digest pipelines, and a scripted WebSocket session through `gateway.py`
+pages, Curator and Digest pipelines, Google sign-in end to end (code exchange, refresh-token
+preservation, one refresh per expiry, `invalid_grant` -> re-link, subscription paging, import),
+and a scripted WebSocket session through `gateway.py`
 (hello -> ready, position -> pause -> ask, answer -> reply -> resume, bye -> end).
 
 ## Eval
@@ -147,6 +150,52 @@ graph anyway. `curator.py` keeps the two Strands agents and makes the edge typed
 Curator returns a `CuratorDecision` (structured output), code fans out to the Planner per
 (band, language), every plan passes `rules.enforce`. Deterministic edges, no prose in between.
 
+## Google sign-in and subscription import
+
+The parent signs in with Google once; the child never signs in to anything. One consent covers
+identity and `https://www.googleapis.com/auth/youtube.readonly` — a **sensitive** scope, not a
+restricted one, so it needs the OAuth consent screen filled in but no third-party security
+assessment. That grant is what turns "paste channel URLs" into "tick the channels you already
+follow" (SPEC §6.1).
+
+```
+GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com     # the **web** OAuth client, not the Android one
+GOOGLE_CLIENT_SECRET=<secret>
+```
+
+Both come from the *web* client of the same Google Cloud project as the Android client, with
+YouTube Data API v3 enabled. The Android client mints a **server auth code**; only the web client's
+id and secret can exchange it. Leave them unset and `/auth/google`, `/me/youtube` and
+`/me/youtube/subscriptions` answer **503** naming the two variables; `POST /auth/dev` keeps working,
+so nothing else in the demo depends on having a Google project.
+
+```
+Android consent  ->  server_auth_code  ->  POST /auth/google
+                                            oauth2.googleapis.com/token (grant_type=authorization_code,
+                                            web client id+secret, no redirect_uri)
+                                              -> refresh_token (first consent only) + access_token
+                                            store: refresh token, parent email, cached access token
+POST /auth/google -> {token, household_id, email, youtube_linked}
+GET  /me/youtube/subscriptions  -> subscriptions.list(mine=true), 50/page, 1 quota unit per page,
+                                   each channel marked with the kids it is already approved for
+POST /kids/{kid}/channels/import -> bulk approve -> Curator screens the new uploads in the background
+```
+
+Details worth knowing:
+
+- `google_access_token()` returns the cached access token until 60 s before it expires, then
+  refreshes exactly once and re-caches. A refresh token is returned by Google only on the *first*
+  consent, so a later exchange that comes back without one never overwrites the stored one.
+- `invalid_grant` (the parent revoked access, or the token expired) clears the link and surfaces
+  "needs re-linking" — a 401 on `/auth/google`, and a plain `{linked: false, subscriptions: []}` on
+  the two `/me/youtube` reads, which the protocol already defines as a normal state.
+- The channel id comes from `snippet.resourceId.channelId`. `snippet.channelId` is the
+  *subscriber's* own channel and is identical on every row; a test pins the difference.
+- An imported channel goes through the same `_approve_channel` path as a pasted URL, so it behaves
+  identically afterwards. Importing approves channels, never videos.
+- The parent's subscriptions are the *parent's*: a list to tick through, not a catalogue. And
+  YouTube Kids profile subscriptions are not exposed by any API — only the signed-in account's own.
+
 ## Protocol
 
 The gateway implements `docs/PROTOCOL.md` exactly (REST objects, WebSocket message shapes,
@@ -164,7 +213,17 @@ was needed for the smoke. `tests/test_gateway.py` is the executable version of t
 - Every system prompt carries `SAFETY_RULES` (never mock, never "wrong", no personal questions,
   nothing scary, only questions answerable from the video). Pre-readers never get a "why".
 - `tools/screening.py` can hide or escalate a video before a model sees it, never approve.
-- Dev auth is an HMAC-signed household token from `/auth/dev`; set `HEYGILLI_SECRET`.
+- Dev auth is an HMAC-signed household token from `/auth/dev` or `/auth/google`; set
+  `HEYGILLI_SECRET`.
+- The Google link stores three things per household and nothing else: the refresh token, the
+  parent's email, and the cached access token with its expiry. No child field, no profile, no
+  photo. **The refresh token is stored in the clear**, in the same JSON store as everything else:
+  it is a credential that grants read-only access to the parent's YouTube subscriptions until they
+  revoke it, and a real deployment would encrypt it at rest (KMS-backed field encryption, or
+  Secrets Manager keyed by household) with the key outside the data store. That is a known
+  hackathon shortcut, stated rather than papered over. It is never returned by any endpoint, and
+  no token, refresh token or auth code is ever logged — not even in an error path.
+- The parent can drop the link (`google_auth.unlink`); `POST /auth/google` re-creates it.
 
 ## Deploying to AgentCore Runtime
 
@@ -208,5 +267,12 @@ fetched from docs.aws.amazon.com during this session, so they are not reproduced
 - Curator and Digest run on demand (`POST /curator/run`, `POST /kids/{id}/digest/run`); no
   EventBridge schedule yet. No AgentCore Memory; no push notifications (parent inbox only).
 - `DynamoStore` is implemented but only `LocalStore` has been exercised.
+- Google sign-in has never run against real Google: there are no OAuth credentials on this machine
+  and creating them needs the user's own Google account. Everything below the HTTP boundary is
+  tested (request payloads, paging, refresh, revocation), but the round trip — consent screen,
+  server auth code, a real `subscriptions.list` — is unverified. First real run to watch: whether
+  the Android client requests offline access, since without it Google returns no refresh token.
+- No token encryption at rest and no revocation endpoint (`oauth2.googleapis.com/revoke`) yet;
+  `google_auth.unlink` only forgets the local copy.
 - Eval is 3 synthetic transcripts, not the 20 real ones plus 60 labelled child answers SPEC 9.5
   calls for.

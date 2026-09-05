@@ -6,7 +6,7 @@ every record the store persists is defined here so there is one vocabulary.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -80,6 +80,64 @@ class Channel(BaseModel):
     thumb_url: str = ""
     approved: bool = True
     last_checked: str | None = None
+
+
+class GoogleLink(BaseModel):
+    """The parent's Google sign-in for one household (PROTOCOL.md "Google sign-in
+    and subscription import"). One per household, never one per child.
+
+    `refresh_token` is a credential: until the parent revokes it, it grants
+    read-only access to their YouTube subscriptions. A real deployment encrypts
+    it at rest (KMS-backed field encryption or Secrets Manager keyed by
+    household) and rotates the store's own key; for the hackathon it lives in
+    the same local JSON store as everything else. See README "Data safety".
+    It is never returned by any endpoint and never logged.
+
+    `email` is the only personal field kept about the parent, and nothing about
+    the child is stored here at all (SPEC §12).
+    """
+
+    email: str = ""
+    google_sub: str = ""  # stable Google account id; survives an email change
+    refresh_token: str = ""
+    access_token: str = ""
+    access_expires_at: str | None = None
+    linked_at: str = Field(default_factory=now_iso)
+
+    def is_fresh(self, skew_s: int = 60) -> bool:
+        """True while the cached access token is still usable `skew_s` from now."""
+        if not self.access_token or not self.access_expires_at:
+            return False
+        try:
+            expires = datetime.fromisoformat(self.access_expires_at)
+        except ValueError:
+            return False
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        return expires > datetime.now(UTC) + timedelta(seconds=skew_s)
+
+
+class AuthSession(BaseModel):
+    """PROTOCOL.md `Session` as returned by `POST /auth/google`.
+
+    Not to be confused with `Session` below, which is one child watching one
+    video; this object only ever appears as an auth response.
+    """
+
+    token: str
+    household_id: str
+    email: str = ""
+    youtube_linked: bool = False
+
+
+class Subscription(BaseModel):
+    """PROTOCOL.md `Subscription`: one channel the parent follows on YouTube,
+    marked with the kids it is already approved for."""
+
+    channel_id: str
+    title: str = ""
+    thumb_url: str = ""
+    approved_for: list[str] = Field(default_factory=list)
 
 
 class Screening(BaseModel):

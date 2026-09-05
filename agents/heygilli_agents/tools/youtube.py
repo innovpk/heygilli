@@ -153,6 +153,86 @@ def fetch_video_meta(video_id: str) -> dict:
     return meta
 
 
+# --- Data API v3: the parent's own subscriptions (needs an OAuth access token) -------------
+#
+# The only part of this module that talks to the official API. It runs on the
+# parent's `youtube.readonly` grant (see google_auth.py), not on an API key.
+
+SUBSCRIPTIONS_URL = "https://www.googleapis.com/youtube/v3/subscriptions"
+SUBSCRIPTIONS_PAGE_SIZE = 50  # the API maximum, and 1 quota unit per page
+MAX_SUBSCRIPTION_PAGES = 10  # 500 channels is far past any real parent; 10 units worst case
+
+
+def _api_get(url: str, params: dict[str, str | int], access_token: str, timeout: float = 20.0) -> dict:
+    """One authenticated Data API call. The token travels in the header, never
+    in the query string, and is never logged."""
+    with httpx.Client(timeout=timeout) as c:
+        r = c.get(url, params=params, headers={"Authorization": f"Bearer {access_token}"})
+    r.raise_for_status()
+    body = r.json()
+    return body if isinstance(body, dict) else {}
+
+
+def _best_thumb(snippet: dict) -> str:
+    thumbs = snippet.get("thumbnails") or {}
+    for size in ("medium", "high", "default"):
+        url = (thumbs.get(size) or {}).get("url")
+        if url:
+            return str(url)
+    return ""
+
+
+def list_subscriptions(access_token: str, max_pages: int = MAX_SUBSCRIPTION_PAGES) -> list[dict]:
+    """Every channel the signed-in Google account subscribes to.
+
+    `subscriptions.list(part=snippet, mine=true)`, 50 per page, following
+    `nextPageToken` up to `max_pages`. Returns
+    `[{"channel_id", "title", "thumb_url"}]`, deduped and alphabetical.
+
+    The channel id is `snippet.resourceId.channelId` — the channel subscribed
+    *to*. `snippet.channelId` is the *subscriber's* own channel and is the same
+    value on every row; reading that one is the classic bug here, so
+    `tests/test_google_auth.py` pins it.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    page_token: str | None = None
+
+    for _ in range(max(1, max_pages)):
+        params: dict[str, str | int] = {
+            "part": "snippet",
+            "mine": "true",
+            "maxResults": SUBSCRIPTIONS_PAGE_SIZE,
+            "order": "alphabetical",
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        body = _api_get(SUBSCRIPTIONS_URL, params, access_token)
+
+        for item in body.get("items") or []:
+            snippet = item.get("snippet") or {}
+            channel_id = str((snippet.get("resourceId") or {}).get("channelId") or "").strip()
+            if not channel_id or channel_id in seen:
+                continue
+            seen.add(channel_id)
+            out.append(
+                {
+                    "channel_id": channel_id,
+                    "title": str(snippet.get("title") or "").strip(),
+                    "thumb_url": _best_thumb(snippet),
+                }
+            )
+
+        page_token = body.get("nextPageToken")
+        if not page_token:
+            break
+    else:
+        log.warning("subscription list truncated at %d pages", max_pages)
+
+    out.sort(key=lambda s: (s["title"].casefold(), s["channel_id"]))
+    return out
+
+
 # --- Strands tools -----------------------------------------------------------------------
 
 

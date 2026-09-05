@@ -17,6 +17,7 @@ import os
 from datetime import UTC, datetime
 from typing import Literal
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import (
     BackgroundTasks,
@@ -35,8 +36,17 @@ from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
 from .digest import run_digest
+from .google_auth import (
+    GoogleAuthError,
+    GoogleNeedsRelink,
+    GoogleNotConfigured,
+    GoogleNotLinked,
+    google_access_token,
+    link_household,
+)
 from .planner import ensure_plan, fallback_plan
 from .schemas import (
+    AuthSession,
     Channel,
     ClientAnswer,
     ClientMessage,
@@ -46,13 +56,14 @@ from .schemas import (
     ServerPause,
     ServerResume,
     Session,
+    Subscription,
     Video,
     new_id,
     wire,
 )
 from .store import get_store
 from .tools.tts import TTS_DIR
-from .tools.youtube import fetch_video_meta, resolve_channel_url
+from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
 
 load_dotenv()
 log = logging.getLogger("heygilli.gateway")
@@ -98,8 +109,109 @@ class DevAuthIn(BaseModel):
 
 @app.post("/auth/dev")
 def auth_dev(body: DevAuthIn) -> dict:
+    """Kept as a fallback: it needs no Google project and no network."""
     hid = "hh_" + hashlib.sha1(body.name.strip().lower().encode()).hexdigest()[:10]
     return {"token": sign(hid), "household_id": hid}
+
+
+# --- Google sign-in (PROTOCOL.md "Google sign-in and subscription import") ----------------------
+
+
+class GoogleAuthIn(BaseModel):
+    server_auth_code: str
+
+
+def _google_http(e: GoogleAuthError) -> HTTPException:
+    """Turn a Google failure into something the parent can act on. Never a 500."""
+    if isinstance(e, GoogleNotConfigured):
+        return HTTPException(503, str(e))
+    if isinstance(e, GoogleNeedsRelink):
+        return HTTPException(401, f"needs re-linking: {e}")
+    if isinstance(e, GoogleNotLinked):
+        return HTTPException(409, str(e))
+    return HTTPException(502, str(e))
+
+
+@app.post("/auth/google")
+def auth_google(body: GoogleAuthIn, authorization: str = Header(default="")) -> dict:
+    """Server auth code from the Android client -> a household token.
+
+    The client sends the *server auth code*, never an access token: the refresh
+    token is minted here and stays here. An optional bearer token attaches
+    Google to the household the parent is already using (they started on
+    `/auth/dev`); without one the household is derived from the Google account,
+    so signing in again lands in the same household.
+    """
+    started_in: str | None = None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        with contextlib.suppress(HTTPException):
+            started_in = verify(token)
+    try:
+        hid, link = link_household(body.server_auth_code, get_store(), started_in)
+    except GoogleAuthError as e:
+        raise _google_http(e) from e
+    return AuthSession(
+        token=sign(hid), household_id=hid, email=link.email, youtube_linked=True
+    ).model_dump()
+
+
+@app.get("/me/youtube")
+def me_youtube(hid: str = Depends(household)) -> dict:
+    """`{linked, email}`. `email` is null when no Google account is linked."""
+    link = get_store().get_google_link(hid)
+    return {"linked": link is not None, "email": link.email if link else None}
+
+
+def _approved_by_channel(hid: str) -> dict[str, list[str]]:
+    """channel id -> the kid ids it is already approved for (`approved_for`)."""
+    store = get_store()
+    out: dict[str, list[str]] = {}
+    for kid in store.list_kids(hid):
+        for ch in store.list_channels(hid, kid.id):
+            if ch.approved:
+                out.setdefault(ch.id, []).append(kid.id)
+    return out
+
+
+@app.get("/me/youtube/subscriptions")
+def me_youtube_subscriptions(hid: str = Depends(household)) -> dict:
+    """The parent's own YouTube subscriptions, each marked with the kids that
+    already have it.
+
+    `linked: false` with an empty list is a normal state, not an error: the
+    household has no Google link yet, or the grant was just revoked. These are
+    the *parent's* subscriptions — a list to tick through, never an approved
+    catalogue (PROTOCOL.md).
+    """
+    store = get_store()
+    try:
+        access_token = google_access_token(hid, store)
+    except (GoogleNotLinked, GoogleNeedsRelink):
+        return {"linked": False, "subscriptions": []}  # a revoked link was just cleared
+    except GoogleAuthError as e:
+        raise _google_http(e) from e
+
+    try:
+        subs = list_subscriptions(access_token)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:  # the grant died between refresh and call
+            store.clear_google_link(hid)
+            log.info("youtube rejected the access token for household %s; link cleared", hid)
+            return {"linked": False, "subscriptions": []}
+        raise HTTPException(502, f"YouTube Data API returned {e.response.status_code}") from e
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"could not reach the YouTube Data API: {type(e).__name__}") from e
+
+    # Cache titles and thumbnails so an import needs no second API call.
+    store.cache_put("youtube_subs", hid, {"items": subs})
+    approved = _approved_by_channel(hid)
+    return {
+        "linked": True,
+        "subscriptions": [
+            Subscription(**s, approved_for=approved.get(s["channel_id"], [])).model_dump() for s in subs
+        ],
+    }
 
 
 # --- kids -----------------------------------------------------------------------------------------------
@@ -137,6 +249,17 @@ class ChannelIn(BaseModel):
     url: str
 
 
+def _approve_channel(hid: str, kid_id: str, info: dict) -> Channel:
+    """The one place a channel becomes approved for a kid, so a channel imported
+    from the parent's subscriptions behaves exactly like a pasted one."""
+    ch = Channel(
+        id=info["channel_id"], title=info.get("title") or info["channel_id"],
+        thumb_url=info.get("thumb_url", ""), approved=True,
+    )
+    get_store().put_channel(hid, kid_id, ch)
+    return ch
+
+
 @app.post("/kids/{kid_id}/channels")
 def add_channel(kid_id: str, body: ChannelIn, hid: str = Depends(household)) -> dict:
     _kid(hid, kid_id)
@@ -144,9 +267,75 @@ def add_channel(kid_id: str, body: ChannelIn, hid: str = Depends(household)) -> 
         info = resolve_channel_url(body.url)
     except Exception as e:
         raise HTTPException(400, f"could not resolve channel: {e}") from e
-    ch = Channel(id=info["channel_id"], title=info["title"], thumb_url=info["thumb_url"], approved=True)
-    get_store().put_channel(hid, kid_id, ch)
-    return ch.model_dump()
+    return _approve_channel(hid, kid_id, info).model_dump()
+
+
+class ImportChannelsIn(BaseModel):
+    channel_ids: list[str] = Field(default_factory=list)
+
+
+_curating: set[str] = set()  # kid ids with a Curator run in flight
+
+
+def _curate_in_background(kid: Kid) -> None:
+    """Fill the kid's home after an import without holding up the response.
+
+    The Curator screens the new channels' recent uploads exactly as it does on a
+    scheduled run: an import approves *channels*, never videos.
+    """
+    if kid.id in _curating:
+        return
+    _curating.add(kid.id)
+    try:
+        run_curator(kid, get_store())
+    except Exception as e:  # noqa: BLE001 - background job; the import itself already succeeded
+        log.warning("background curation failed for kid %s: %s", kid.id, e)
+    finally:
+        _curating.discard(kid.id)
+
+
+def _channel_info(channel_id: str, known: dict[str, dict]) -> dict:
+    """Title and thumbnail for one channel id: from the cached subscription list
+    when possible, else resolved like a pasted URL. An unresolvable channel is
+    still imported under its id rather than failing the whole import."""
+    if channel_id in known:
+        return known[channel_id]
+    try:
+        return resolve_channel_url(channel_id)
+    except Exception as e:  # noqa: BLE001 - one odd channel must not sink the batch
+        log.warning("could not resolve imported channel %s: %s", channel_id, e)
+        return {"channel_id": channel_id, "title": channel_id, "thumb_url": ""}
+
+
+@app.post("/kids/{kid_id}/channels/import")
+def import_channels(
+    kid_id: str, body: ImportChannelsIn, tasks: BackgroundTasks, hid: str = Depends(household)
+) -> dict:
+    """Approve several subscribed channels for one kid in a single call.
+
+    Returns the channels it added and the ids that were already approved.
+    Importing does not auto-approve any video: the Curator still screens each
+    upload (PROTOCOL.md), which is kicked off in the background so the response
+    does not wait on it.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    have = {c.id for c in store.list_channels(hid, kid_id) if c.approved}
+    cached = store.cache_get("youtube_subs", hid) or {}
+    known = {s["channel_id"]: s for s in cached.get("items", [])}
+
+    added: list[dict] = []
+    already: list[str] = []
+    for channel_id in dict.fromkeys(c.strip() for c in body.channel_ids if c.strip()):
+        if channel_id in have:
+            already.append(channel_id)
+            continue
+        added.append(_approve_channel(hid, kid_id, _channel_info(channel_id, known)).model_dump())
+        have.add(channel_id)
+
+    if added:
+        tasks.add_task(_curate_in_background, kid)
+    return {"added": added, "already": already}
 
 
 @app.get("/kids/{kid_id}/channels")

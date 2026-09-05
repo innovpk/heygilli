@@ -1,8 +1,8 @@
-# HeyGilli client ↔ gateway protocol (v1.2)
+# HeyGilli client ↔ gateway protocol (v1.3)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
-Base URL: `http://<host>:8080`. All bodies JSON. Auth: `Authorization: Bearer <token>` from `/auth/dev` (hackathon) — Google sign-in later.
+Base URL: `http://<host>:8080`. All bodies JSON. Auth: `Authorization: Bearer <token>` from `/auth/google`, or from `/auth/dev` when the server has no Google credentials configured (the fallback stays).
 
 ## Enums
 
@@ -17,7 +17,11 @@ Base URL: `http://<host>:8080`. All bodies JSON. Auth: `Authorization: Bearer <t
 ## REST
 
 ```
-POST /auth/dev                 {name}                         → {token, household_id}
+POST /auth/dev                 {name}                         → {token, household_id}   (kept as a fallback)
+POST /auth/google              {server_auth_code}             → Session
+GET  /me/youtube                                              → {linked, email}
+GET  /me/youtube/subscriptions                                → {linked, subscriptions: Subscription[]}
+POST /kids/{kid_id}/channels/import  {channel_ids: [...]}     → {added: Channel[], already: [...]}
 POST /kids                     {nickname, age, languages[]}   → Kid
 GET  /kids                                                    → Kid[]
 POST /kids/{kid_id}/channels   {url}                          → Channel   (url = channel URL, @handle URL, or video URL; server resolves)
@@ -43,6 +47,54 @@ Digest     {kid_id, date, minutes, videos, asked, answered,
             understood[], shaky[], words_said[], words_heard[], dinner_prompt, kind: "prereader"|"older"}
 ParentPrompt {id, kid_id, video: Video, reason, created_at}
 ```
+
+### Google sign-in and subscription import
+
+The parent signs in with Google; a child never signs in to anything. One consent covers both
+identity and `https://www.googleapis.com/auth/youtube.readonly`, which is what lets the parent
+import the channels they already follow instead of pasting URLs.
+
+`POST /auth/google` takes the **server auth code** from the Android client (not an access token),
+exchanges it server-side for a refresh token using the *web* OAuth client credentials, and stores
+that refresh token against the household. The refresh token never touches the device.
+
+```
+Session      {token, household_id, email, youtube_linked: bool}
+Subscription {channel_id, title, thumb_url, approved_for: [kid_id, ...]}
+```
+
+`GET /me/youtube/subscriptions` returns the signed-in account's own YouTube subscriptions
+(`subscriptions.list`, `mine=true`, paged 50 at a time, 1 quota unit per page), each marked with
+the kids it is already approved for. `linked: false` with an empty list means the household has no
+Google link yet, which is a normal state, not an error.
+
+`POST /kids/{kid_id}/channels/import` approves several channels for one kid in a single call and
+returns the ones it added versus the ones already approved. Importing does not auto-approve any
+video: the Curator still screens each upload, which the server starts in the background so the
+response does not wait on it.
+
+Field-level detail the two sides agreed on while building this (shapes above are unchanged):
+
+- `GET /me/youtube` → `{linked: bool, email: string | null}`; `email` is `null` when `linked` is
+  false. An imported channel is a plain `Channel`, identical to a pasted one.
+- `POST /kids/{kid_id}/channels/import` → `{added: Channel[], already: [channel_id, ...]}`;
+  `already` is a list of channel id strings, not objects. Ids repeated in one request count once.
+- `POST /auth/google` may carry a bearer token. With one, the Google account is linked to the
+  household the parent is already in; without one, the household is derived from the Google
+  account, so signing in again returns the same `household_id`.
+- Errors the client should expect on these four endpoints: **503** when the server has no Google
+  OAuth credentials configured (the message says which env vars are missing; fall back to
+  `/auth/dev`), **401 "needs re-linking: …"** when a stored grant was revoked or expired (the
+  server drops the link; sign in with Google again), **502** when Google itself is unreachable.
+  `GET /me/youtube/subscriptions` never errors for an unlinked or revoked household: it answers
+  `{linked: false, subscriptions: []}`.
+
+Two limits worth stating plainly, because they shape the UI:
+
+- A parent's own subscriptions are the *parent's*. They are a starting list to tick through, never
+  an auto-approved catalogue.
+- YouTube Kids profile subscriptions are not exposed by any API. Only the signed-in Google
+  account's own YouTube subscriptions can be read.
 
 ### Analytics
 

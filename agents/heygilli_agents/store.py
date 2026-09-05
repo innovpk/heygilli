@@ -14,7 +14,17 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from .schemas import Answer, Channel, Digest, Kid, ParentPrompt, QuestionPlan, Session, Video
+from .schemas import (
+    Answer,
+    Channel,
+    Digest,
+    GoogleLink,
+    Kid,
+    ParentPrompt,
+    QuestionPlan,
+    Session,
+    Video,
+)
 
 GLOBAL = "_global"
 DATA_DIR = Path(os.getenv("HEYGILLI_DATA_DIR", Path(__file__).resolve().parent.parent / ".data"))
@@ -45,6 +55,20 @@ class Store(ABC):
 
     def list_kids(self, household: str) -> list[Kid]:
         return [Kid.model_validate(d) for d in self.list(household, "kid")]
+
+    # -- the parent's Google link (one per household, see schemas.GoogleLink).
+    # The refresh token inside it is a credential; it is stored here in the
+    # clear for the hackathon and would be encrypted at rest in a real
+    # deployment (README "Data safety").
+    def put_google_link(self, household: str, link: GoogleLink) -> None:
+        self.put(household, "google_link", "youtube", link.model_dump())
+
+    def get_google_link(self, household: str) -> GoogleLink | None:
+        d = self.get(household, "google_link", "youtube")
+        return GoogleLink.model_validate(d) if d else None
+
+    def clear_google_link(self, household: str) -> None:
+        self.delete(household, "google_link", "youtube")
 
     # -- channels (per kid)
     def put_channel(self, household: str, kid_id: str, ch: Channel) -> None:

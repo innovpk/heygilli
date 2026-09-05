@@ -18,6 +18,11 @@ os.environ["HEYGILLI_STORE"] = "local"
 for role in ("CURATOR", "PLANNER", "BUDDY", "DIGEST"):
     os.environ[f"HEYGILLI_MODEL_{role}"] = "fake:"
 os.environ.pop("GOOGLE_API_KEY", None)
+# Blank, not absent: gateway.py calls load_dotenv() at import, and python-dotenv
+# leaves a key that already exists alone. Tests that need Google sign-in set
+# their own values (tests/test_google_auth.py).
+os.environ["GOOGLE_CLIENT_ID"] = ""
+os.environ["GOOGLE_CLIENT_SECRET"] = ""
 
 from heygilli_agents.store import LocalStore, set_store  # env must be set first
 
