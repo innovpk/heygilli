@@ -16,6 +16,7 @@ from typing import Any
 
 from .schemas import (
     Answer,
+    BreakPeriod,
     Channel,
     Digest,
     GoogleLink,
@@ -123,6 +124,18 @@ class Store(ABC):
     def list_sessions(self, household: str, kid_id: str, date: str | None = None) -> list[Session]:
         out = [Session.model_validate(d) for d in self.list(household, "session")]
         return [s for s in out if s.kid_id == kid_id and (date is None or s.date == date)]
+
+    # -- movement breaks (one entity per kid; a break is never deleted, it expires)
+    def put_break(self, household: str, b: BreakPeriod) -> None:
+        self.put(household, f"break@{b.kid_id}", b.id, b.model_dump())
+
+    def list_breaks(self, household: str, kid_id: str) -> list[BreakPeriod]:
+        out = [BreakPeriod.model_validate(d) for d in self.list(household, f"break@{kid_id}")]
+        return sorted(out, key=lambda b: b.started_at)
+
+    def get_break(self, household: str, kid_id: str, break_id: str) -> BreakPeriod | None:
+        d = self.get(household, f"break@{kid_id}", break_id)
+        return BreakPeriod.model_validate(d) if d else None
 
     def put_answer(self, household: str, a: Answer) -> None:
         self.put(household, f"answer@{a.session_id}", a.id, a.model_dump())

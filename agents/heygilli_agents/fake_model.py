@@ -109,6 +109,24 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
         if model_name == "ScoredReply":
             out["reply_text"] = "Yes! That is exactly it. Here is one more thing: giraffes have purple tongues."
         return out
+    if model_name == "BreakTask":
+        if band == "4_6":
+            return {
+                "title": "Be a volcano",
+                "steps": ["Crouch down teeny tiny and erupt up tall with your arms."],
+                "seconds": 90,
+                "spoken": "Let's be a volcano! Crouch down teeny tiny... and ERUPT up taaall!",
+            }
+        return {
+            "title": "Volcano countdown",
+            "steps": [
+                "Crouch as low as you can and count down from five.",
+                "Erupt up tall on zero with your arms wide.",
+                "Five eruptions, each one slower than the last.",
+            ],
+            "seconds": 120,
+            "spoken": "Crouch low, count down from five, and erupt up tall. Five times!",
+        }
     if model_name == "CuratorDecision":
         return {"decision": "approve", "reason": "Educational animal video, calm tone.", "topics": ["animals"]}
     if model_name == "ChannelReviewDraft":

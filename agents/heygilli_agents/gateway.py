@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import logging
 import os
+import time
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -34,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
+from . import breaks, coach
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -50,18 +52,22 @@ from .planner import ensure_plan, fallback_plan
 from .reviewer import review_channel
 from .schemas import (
     AuthSession,
+    BreakMessage,
+    BreakPeriod,
     Channel,
     ChannelReview,
     ClientAnswer,
     ClientMessage,
     Kid,
     Language,
+    ServerBreak,
     ServerError,
     ServerPause,
     ServerResume,
     Session,
     Subscription,
     Video,
+    WatchState,
     new_id,
     wire,
 )
@@ -245,6 +251,122 @@ def create_kid(body: KidIn, hid: str = Depends(household)) -> dict:
 @app.get("/kids")
 def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
+
+
+# --- time limits and movement breaks (PROTOCOL.md) -----------------------------------------------
+
+
+class LimitsIn(BaseModel):
+    """Every field optional: a parent changing one limit does not reset the rest."""
+
+    daily_minutes: int | None = Field(default=None, ge=0)
+    break_after_minutes: int | None = Field(default=None, ge=0)
+    break_minutes: int | None = Field(default=None, ge=1)
+    max_video_minutes: int | None = Field(default=None, ge=0)
+    break_is_firm: bool | None = None
+
+
+def _watch_state(hid: str, kid: Kid, extra_seconds: int = 0) -> WatchState:
+    store = get_store()
+    return breaks.build_state(
+        kid, store.list_sessions(hid, kid.id), store.list_breaks(hid, kid.id), extra_seconds=extra_seconds
+    )
+
+
+def _blocked(state: WatchState) -> HTTPException:
+    """409 with the whole `WatchState`, so one shape answers both "a break is
+    running" and "the day is spent" (PROTOCOL.md)."""
+    return HTTPException(409, detail={"error": state.blocked_reason, "state": state.model_dump()})
+
+
+def _active_break(hid: str, kid: Kid) -> BreakPeriod | None:
+    return breaks.active_break(get_store().list_breaks(hid, kid.id))
+
+
+@app.patch("/kids/{kid_id}/limits")
+def set_limits(kid_id: str, body: LimitsIn, hid: str = Depends(household)) -> dict:
+    kid = _kid(hid, kid_id)
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    kid = kid.model_copy(update=updates)
+    get_store().put_kid(kid)
+    log.info("limits for kid %s: %s", kid_id, updates or "unchanged")
+    return kid.model_dump()
+
+
+@app.get("/kids/{kid_id}/state")
+def watch_state(kid_id: str, hid: str = Depends(household)) -> dict:
+    """What the client checks before offering anything to watch."""
+    return _watch_state(hid, _kid(hid, kid_id)).model_dump()
+
+
+@app.post("/kids/{kid_id}/break/ack")
+def break_ack(kid_id: str, hid: str = Depends(household)) -> dict:
+    """The child says they are done.
+
+    Whether that ends the break is the parent's call, not ours: with
+    `break_is_firm` the timer still decides and this only records the tap, so
+    the button must not pretend otherwise in the UI.
+    """
+    kid = _kid(hid, kid_id)
+    running = _active_break(hid, kid)
+    if running is None:
+        raise HTTPException(404, "no break is running")
+    running.acked = True
+    if not kid.break_is_firm:
+        running = breaks.end_break_now(running)
+        log.info("kid %s ended a soft break early", kid_id)
+    get_store().put_break(hid, running)
+    return running.at().model_dump()
+
+
+class MessagesIn(BaseModel):
+    messages: list[BreakMessage] = Field(default_factory=list)
+
+
+@app.put("/kids/{kid_id}/break-messages")
+def set_break_messages(kid_id: str, body: MessagesIn, hid: str = Depends(household)) -> dict:
+    """Replace what Gilli says during a break. Parent-authored, and the only
+    source of those words: nothing a model wrote reaches a child unsaved."""
+    kid = _kid(hid, kid_id).model_copy(update={"break_messages": body.messages})
+    get_store().put_kid(kid)
+    log.info("kid %s now has %d break message(s)", kid_id, len(body.messages))
+    return kid.model_dump()
+
+
+@app.post("/kids/{kid_id}/break-messages/suggest")
+def suggest_break_messages(kid_id: str, hid: str = Depends(household)) -> dict:
+    """Lines for the PARENT to edit, keep or discard. Never shown to a child."""
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    today = datetime.now(UTC).date().isoformat()
+    titles = _video_titles(store, [s.video_id for s in store.list_sessions(hid, kid.id, today)])
+    if not titles:
+        titles = [v.title for v in (store.get_video(s.video_id) for s in store.list_sessions(hid, kid.id))
+                  if v and v.title][:6]
+    suggestions, rejected = coach.suggest_messages(kid, titles)
+    return {
+        "suggestions": [m.model_dump() for m in suggestions],
+        "rejected": rejected,
+        "based_on": titles[:6],
+    }
+
+
+class OverrideIn(BaseModel):
+    pin_ok: bool = False
+
+
+@app.post("/kids/{kid_id}/break/override")
+def break_override(kid_id: str, body: OverrideIn, hid: str = Depends(household)) -> dict:
+    """A parent ends a break early, behind the PIN the client already gates on."""
+    kid = _kid(hid, kid_id)
+    if not body.pin_ok:
+        raise HTTPException(403, "parent PIN required")
+    running = _active_break(hid, kid)
+    if running is None:
+        return {"cleared": False}  # nothing was running; the parent got what they wanted
+    get_store().put_break(hid, breaks.end_break_now(running))
+    log.info("parent ended break %s for kid %s early", running.id, kid_id)
+    return {"cleared": True}
 
 
 # --- channels and home ----------------------------------------------------------------------------------
@@ -510,21 +632,36 @@ def channel_review(channel_id: str, refresh: bool = False, hid: str = Depends(ho
 
 @app.get("/kids/{kid_id}/home")
 def home(kid_id: str, hid: str = Depends(household)) -> dict:
+    """The rows, plus whether watching is allowed at all right now.
+
+    A video longer than `max_video_minutes` is not offered: the limit is about
+    what a child is handed, so it is applied where the choosing happens rather
+    than as a refusal after they have picked something.
+    """
     kid = _kid(hid, kid_id)
     store = get_store()
+    cap_s = kid.max_video_minutes * 60
     approved: list[Video] = []
     for vid, entry in store.list_kid_videos(hid, kid_id).items():
         if entry.get("status") != "approve":
             continue
         v = store.get_video(vid)
-        if v:
-            v.plan_ready = store.get_plan(v.id, kid.age_band or "7_8", kid.languages[0]) is not None
-            approved.append(v)
+        if v is None or (cap_s and v.duration_s > cap_s):
+            continue
+        v.plan_ready = store.get_plan(v.id, kid.age_band or "7_8", kid.languages[0]) is not None
+        approved.append(v)
     approved.sort(key=lambda v: v.published_at or "", reverse=True)
     rows = [{"title": "New for you", "videos": [v.public() for v in approved[:12]]}]
     if len(approved) > 12:
         rows.append({"title": "More to watch", "videos": [v.public() for v in approved[12:]]})
-    return {"rows": rows}
+
+    state = _watch_state(hid, kid)
+    return {
+        "rows": rows,
+        "watching_allowed": state.watching_allowed,
+        "blocked_reason": state.blocked_reason,
+        "active_break": state.active_break.model_dump() if state.active_break else None,
+    }
 
 
 # --- sessions ---------------------------------------------------------------------------------------------------
@@ -555,6 +692,9 @@ def _plan_in_background(video: Video, band: str, language: str) -> None:
 @app.post("/sessions")
 def create_session(body: SessionIn, tasks: BackgroundTasks, hid: str = Depends(household)) -> dict:
     kid = _kid(hid, body.kid_id)
+    state = _watch_state(hid, kid)
+    if not state.watching_allowed:  # a break is running, or the day is spent
+        raise _blocked(state)
     store = get_store()
     video = store.get_video(body.video_id)
     if not video:
@@ -661,6 +801,68 @@ def parent_decide(prompt_id: str, body: DecisionIn, hid: str = Depends(household
 _client_msg = TypeAdapter(ClientMessage)
 
 
+
+class BreakGuard:
+    """Decides, during one session, when a break fires.
+
+    Counting is wall-clock from the moment the socket opens, because that is
+    what the child actually sat through; the video's own position can be
+    scrubbed. The stored sessions and breaks are read once here and never again,
+    so the check on every position tick is pure arithmetic.
+
+    There is no model in this path. What Gilli says during a break is one of the
+    parent's own lines, so firing a break is instant and cannot fail: no
+    generation, no timeout, no fallback, and no child left watching a frozen
+    frame while something thinks.
+    """
+
+    def __init__(self, hid: str, kid: Kid, store, session_titles: list[str], today_titles: list[str]) -> None:
+        self.hid = hid
+        self.kid = kid
+        self.store = store
+        self.session_titles = session_titles
+        self.today_titles = today_titles
+        self._sessions = store.list_sessions(hid, kid.id)
+        self._breaks = store.list_breaks(hid, kid.id)
+        self._started = time.monotonic()
+
+    def state(self) -> WatchState:
+        elapsed = int(time.monotonic() - self._started)
+        return breaks.build_state(self.kid, self._sessions, self._breaks, extra_seconds=elapsed)
+
+    def verdict(self, natural_moment: bool) -> breaks.Verdict:
+        """`"now"` means send the break."""
+        return breaks.due(self.kid, self.state(), natural_moment)
+
+    async def fire(self) -> BreakPeriod:
+        brk = breaks.start_break(self.kid, breaks.pick_message(self.kid, self._breaks))
+        self.store.put_break(self.hid, brk)
+        log.info(
+            "break for kid %s: %s",
+            self.kid.id,
+            "quiet" if brk.message is None else repr(brk.message.text),
+        )
+        return brk.at()
+
+
+def _video_titles(store, video_ids) -> list[str]:
+    titles = []
+    for vid in dict.fromkeys(video_ids):
+        v = store.get_video(vid)
+        if v and v.title:
+            titles.append(v.title)
+    return titles
+
+
+def _make_guard(hid: str, kid: Kid | None, session: Session, store) -> BreakGuard | None:
+    if kid is None:
+        return None
+    today = datetime.now(UTC).date().isoformat()
+    session_titles = _video_titles(store, [session.video_id])
+    earlier = [s.video_id for s in store.list_sessions(hid, kid.id, today) if s.id != session.id]
+    return BreakGuard(hid, kid, store, session_titles, _video_titles(store, earlier))
+
+
 @app.websocket("/sessions/{session_id}/ws")
 async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -> None:
     await ws.accept()
@@ -689,13 +891,14 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         video, session.age_band, session.language
     )
     engine = SessionEngine(session, plan, kid, store)  # type: ignore[arg-type]
+    guard = _make_guard(session.household_id, kid, session, store)
 
     try:
         first = _client_msg.validate_python(await ws.receive_json())
         if first.t != "hello":
             await ws.send_json(wire(ServerError(message="expected hello")))
         await ws.send_json(wire(engine.ready()))
-        await _loop(ws, engine)
+        await _loop(ws, engine, guard)
     except (WebSocketDisconnect, ValidationError) as e:
         log.info("session %s closed: %s", session_id, type(e).__name__)
     finally:
@@ -719,16 +922,30 @@ def _find_session(session_id: str) -> Session | None:
     return None
 
 
-async def _loop(ws: WebSocket, engine: SessionEngine) -> None:
-    """pause -> ask -> (answer | timeout) -> reply -> resume, until the client says bye."""
+async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None = None) -> None:
+    """pause -> ask -> (answer | timeout) -> reply -> resume, until the client says bye.
+
+    A due break interrupts this loop at the next natural moment — a question
+    pause or the end of the video — or three minutes later whether or not one
+    arrived. The session then ends: nothing plays again until the break's clock
+    runs out (PROTOCOL.md).
+    """
     while True:
         msg = _client_msg.validate_python(await ws.receive_json())
         if msg.t == "bye":
+            if guard is not None and guard.verdict(natural_moment=True) == "now":
+                await _send_break(ws, guard)
             await ws.send_json(wire(engine.end()))
             return
         if msg.t != "position":
             continue
         idx = engine.due_question(msg.seconds)
+        # A question pause is a natural moment; a plain tick is not, so on a tick
+        # only the three-minute hard interrupt fires.
+        if guard is not None and guard.verdict(natural_moment=idx is not None) == "now":
+            await _send_break(ws, guard)
+            await ws.send_json(wire(engine.end()))
+            return
         if idx is None:
             continue
 
@@ -744,6 +961,13 @@ async def _loop(ws: WebSocket, engine: SessionEngine) -> None:
         if engine.band == "4_6" and reply.result in ("silence", "unclear"):
             await asyncio.sleep(PREREADER_ECHO_WAIT_S)
         await ws.send_json(wire(ServerResume()))
+
+
+async def _send_break(ws: WebSocket, guard: BreakGuard) -> None:
+    """`{t: "break", break: BreakPeriod}`. The client stops playback here."""
+    brk = await guard.fire()
+    await ws.send_json(wire(ServerBreak(brk=brk)))
+    log.info("break %s sent to kid %s", brk.id, guard.kid.id)
 
 
 async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswer | None:

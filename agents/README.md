@@ -1,7 +1,8 @@
 # HeyGilli agent service
 
-Four [Strands](https://strandsagents.com) agents (Curator, Planner, Buddy, Digest) behind a FastAPI
-gateway that speaks [`docs/PROTOCOL.md`](../docs/PROTOCOL.md) to the Flutter client. Python 3.12.
+Five [Strands](https://strandsagents.com) agents (Curator, Planner, Buddy, Digest, Coach) plus the
+Reviewer, behind a FastAPI gateway that speaks [`docs/PROTOCOL.md`](../docs/PROTOCOL.md) to the
+Flutter client. Python 3.12.
 
 ```
 heygilli_agents/
@@ -15,12 +16,14 @@ heygilli_agents/
   curator.py      new uploads -> approve | hide | ask_parent -> fan out to the Planner
   reviewer.py     one channel's recent uploads -> ChannelReview (cached per channel, not per kid)
   digest.py       a kid's day -> parent Digest (counts in code, words from the model)
+  breaks.py       time-limit accounting + the movement-break safety gate (pure functions, no store)
+  coach.py        what they watched -> a BreakTask; every task passes breaks.validate() or is dropped
   google_auth.py  parent's Google sign-in: server auth code -> refresh token -> live access token
   takeout.py      a Google Takeout zip -> TakeoutPreview; subscription CSVs only, never history
   gateway.py      REST + WebSocket (uvicorn)
   store.py        LocalStore (JSON under .data/) | DynamoStore (single table)
   tools/          youtube (no key + subscriptions.list), transcript (Gemini or public captions), icons, tts (Polly), notify, screening
-tests/            147 offline tests (fake model, mocked network)
+tests/            221 offline tests (fake model, mocked network)
 eval/             run_eval.py + 3 synthetic transcripts; results land in eval/results/
 scripts/          smoke_gateway.py: REST + one WebSocket turn against a running gateway
 ```
@@ -131,6 +134,65 @@ DELETE /kids/{kid_id}/channels/{channel_id}                                -> {r
 Live on Bedrock Nova Pro, 8 real channels from the export above: 22.4 s total (2.8 s each),
 29 307 in / 1 922 out tokens, **$0.0037 per channel**. `Kid-E-Cats` came back `unknown` on its own
 merits — its feed really did hold one upload.
+
+## Time limits and movement breaks
+
+A child watches for 25 minutes; Gilli stops the video and gives them something physical to do,
+built from what they just watched; nothing plays until the break is over. The difference between
+limiting screen time and filling the gap.
+
+```
+PATCH /kids/{id}/limits  {daily_minutes, break_after_minutes, break_minutes, max_video_minutes} -> Kid
+GET   /kids/{id}/state                                    -> WatchState
+POST  /kids/{id}/break/ack                                -> MovementBreak   (records; does not shorten)
+POST  /kids/{id}/break/override  {pin_ok: true}           -> {cleared: bool} (parent, behind the PIN)
+POST  /sessions                                           -> 409 {detail: {error, state}} when blocked
+GET   /kids/{id}/home                                     -> ... + watching_allowed, blocked_reason, active_break
+ws    {t: "break", break: MovementBreak}                  -> stop playback; the session then ends
+```
+
+- **Accounting is pure functions over sessions** (`breaks.py`, no store, no clock of its own).
+  Continuous watching resets on a break or a 10-minute gap with no session, and deliberately
+  ignores dates — 23:55 to 00:10 is one sitting. The daily total is per session `date`, so
+  yesterday rolls off at midnight without anything having to run at midnight. Live seconds count
+  before they are persisted, or a child could pass their limit mid-video.
+- **A break ends on the clock, never on a tap.** `ack` sets `acked` and changes nothing else;
+  `override` moves `ends_at` to now, which is also what resets the sitting. Expiry needs no job:
+  `is_active()` is a comparison.
+- **When it fires.** Past the limit, `due()` answers `wait_for_moment` until a question pause or
+  the end of the video, and `now` after three more minutes whether or not one arrived. The task is
+  written in the background from a minute *before* the limit, so even an unannounced interrupt
+  usually has a real task; if it is still not ready 2 s after the break fires, the child gets a
+  built-in one and the model call is dropped. Nobody watches a frozen frame while a model thinks.
+- **The safety gate is code, not prompt** (`breaks.validate`). A generated task is dropped if it
+  mentions climbing, furniture, jumping off things, running, stairs, outdoors, water, kitchens,
+  sharp objects, fast spinning, needing an adult, fetching equipment, or punishment framing; if it
+  is under 1 or over 3 minutes; or, for band `4_6`, if it is a sequence rather than one imitation,
+  needs reading, or has no spoken line. The reason comes back as a string and is logged.
+  `SAFE_FALLBACKS` ships four tasks per band and every one of them is run through the same gate by
+  the test suite — which is how two of them got rewritten.
+- **A break never depends on a model call succeeding.** Rejection, provider error, throttle,
+  timeout, no model at all: same code path, a built-in task.
+
+Live on Bedrock Nova Pro against the two real kids in `.data/` (Abu 8, Abeeha 6):
+
+| titles fed in | generated | rejected |
+|---|---|---|
+| Abu's football + Danny Go dance uploads | "Football Warm-Up", "Football Dribble Dance", "Football Star Warm-Up" | 0/5 |
+| Abeeha's Mario Party + Larva Kids uploads | "Mario Party Mini-Game", "Luigi Jumps", "Mermaid Wave" | 0/5 |
+| Abu's *"More Free Furniture!? \| Toca Boca World"* | — | **5/5**, all furniture (`'chair'`, `'sofa'`, `'furniture'`) |
+| Abeeha's *"Barbie Meerjungfrauen"* (mermaids) | "Mermaid Tail Wiggle", "Mermaid Waves" | 0/5 — never reached for water |
+
+25% of live generations were rejected, all of them by the furniture rule on a video that is *about*
+furniture. That is the gate working as intended and the trade it makes: a false positive costs a
+built-in task, a false negative is an adult telling a six-year-old to climb something.
+
+Two things the live runs changed in the code rather than the prompt. Nova Pro copied the system
+prompt's "a volcano video becomes crouching small and erupting tall" verbatim for a child whose
+videos were Mario Party and Barbie, so the examples are now explicitly labelled as the method and
+not tasks to reuse. And the first `4_6` rule rejected *every* generation on the word "then" —
+"crouch small and then erupt tall" is one imitation, so the rule now counts sequence markers
+instead of banning the word.
 
 ## Eval
 
@@ -275,8 +337,20 @@ Details worth knowing:
 The gateway implements `docs/PROTOCOL.md` exactly (REST objects, WebSocket message shapes,
 `text` omitted for band 4_6, `listen_ms + 1500 ms` timeout -> `input: "none"`). No protocol change
 was needed for the smoke, for the Takeout import, or for channel reviews.
-`tests/test_gateway.py` is the executable version of that document; `test_takeout.py` and
-`test_reviewer.py` pin the two newer sections, field by field.
+`tests/test_gateway.py` is the executable version of that document; `test_takeout.py`,
+`test_reviewer.py` and `test_gateway_breaks.py` pin the newer sections, field by field.
+
+Time limits needed three additions, all made in `PROTOCOL.md` first: `GET /kids/{id}/home` now
+carries `watching_allowed`, `blocked_reason` and `active_break` beside its rows; the 409 body is
+`{detail: {error, state}}` for both refusal reasons; and `WatchState.minutes_left_today` is `null`,
+not 0, when a kid has no daily limit.
+
+⚠️ **The break payload itself is contested.** `PROTOCOL.md`'s time-limits section was rewritten to
+a parent-authored `BreakMessage` / `BreakPeriod` design ("he never invents an instruction for a
+child") while this code was being written to the `MovementBreak` / `BreakTask` design it was briefed
+against. The server implements the latter. A conflict note sits at the top of that section; the
+accounting, the 409s, the four endpoints and the socket message are identical either way, so only
+the object inside the break is at stake — and it is a product call, not a merge.
 
 ## Data safety
 
@@ -369,3 +443,10 @@ fetched from docs.aws.amazon.com during this session, so they are not reproduced
   `google_auth.unlink` only forgets the local copy.
 - Eval is 3 synthetic transcripts, not the 20 real ones plus 60 labelled child answers SPEC 9.5
   calls for.
+- Movement breaks: `max_video_minutes` filters the home rows but `POST /sessions` does not refuse a
+  too-long video, so a stale home screen can still start one. The safety gate is English-only —
+  an Urdu task would sail through every word rule — and it reads the words, not the meaning, so
+  "pretend to place a sofa" is rejected while a genuinely unsafe sentence built from safe words
+  would not be. Continuous watching inside a live session is wall-clock from when the socket opens,
+  which counts a paused video as watching. There is no TTS for the break line: the client speaks
+  `task.spoken` on-device. Break records are never pruned.

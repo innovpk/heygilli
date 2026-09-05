@@ -52,7 +52,10 @@ def test_kids_channels_home(client: TestClient, auth: dict, store: LocalStore, m
     assert client.post(f"/kids/{kid['id']}/channels", json={"url": "junk"}, headers=hdr(auth)).status_code == 400
 
     home = client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()
-    assert home == {"rows": [{"title": "New for you", "videos": []}]}
+    assert home == {
+        "rows": [{"title": "New for you", "videos": []}],
+        "watching_allowed": True, "blocked_reason": None, "active_break": None,
+    }
     store.put_video(VIDEO)
     store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "approve", "ok")
     store.set_kid_video(auth["_hid"], kid["id"], "hiddenvid01", "hide", "no")
