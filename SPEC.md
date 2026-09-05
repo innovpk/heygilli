@@ -352,10 +352,12 @@ Four agents, each a Strands `Agent` with a system prompt, a model, and a small t
 Strands is model-agnostic: the provider is one constructor argument on the agent, and switching between Bedrock, Anthropic, OpenAI, Google, Ollama, or LiteLLM is a package install and one line. HeyGilli leans on that deliberately. Each agent reads its provider and model id from configuration, so the same code runs against different vendors without edits.
 
 ```
-HEYGILLI_MODEL_CURATOR=bedrock:<claude model id in region>
-HEYGILLI_MODEL_PLANNER=bedrock:<claude model id in region>
-HEYGILLI_MODEL_BUDDY=bedrock:<fast claude model id in region>
-HEYGILLI_MODEL_DIGEST=bedrock:<claude model id in region>
+# Verified on this AWS account in us-east-1 on 2026-09-05 (cross-region inference profiles)
+HEYGILLI_MODEL_CURATOR=bedrock:us.anthropic.claude-sonnet-4-6
+HEYGILLI_MODEL_PLANNER=bedrock:us.anthropic.claude-opus-4-8
+HEYGILLI_MODEL_BUDDY=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0
+HEYGILLI_MODEL_DIGEST=bedrock:us.anthropic.claude-sonnet-4-6
+AWS_REGION=us-east-1
 HEYGILLI_INGEST=google:gemini            # tool-level, see 9.4; or captions for Bedrock-only
 ```
 
@@ -374,7 +376,7 @@ Rules that hold on any provider:
 - **Every provider must pass the same eval**: 20 transcripts × 3 bands × 2 languages → plans checked for band rules (no "why" under 7, pick-it options clearly distinct, timing table respected) and 60 recorded child answers → scores checked against a human label. Run it once per provider before the video. This is what makes "flexible" a fact rather than a claim.
 - **The demo shows the swap**: one config change, redeploy, same session runs. Ten seconds of video, large credibility gain on Technical Implementation.
 
-Do not fabricate Bedrock model ids in code; read them from `aws bedrock list-foundation-models` in the chosen region on day 1 and pin them in config.
+Model ids above were read from `aws bedrock list-inference-profiles --region us-east-1` on day 1 and a live `converse` call on Sonnet 4.6 returned successfully, so Bedrock access is confirmed on the existing account. Also available there: `us.anthropic.claude-fable-5` and `us.anthropic.claude-opus-4-7`. The account's default region is ap-southeast-1, so every Bedrock call passes us-east-1 explicitly. Ollama with llama3.2:3b is installed locally as the key-free provider for tests.
 
 Rough cost per 10-minute video, first viewing (plan) plus one kid's session (6 answers):
 
