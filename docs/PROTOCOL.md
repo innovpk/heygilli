@@ -1,4 +1,4 @@
-# HeyGilli client ↔ gateway protocol (v1.5)
+# HeyGilli client ↔ gateway protocol (v1.6)
 
 Shared contract between the Flutter client (`app/`) and the Python gateway (`agents/`). Both sides build to this file. Change it here first.
 
@@ -30,7 +30,9 @@ POST /kids                     {nickname, age, languages[]}   → Kid
 GET  /kids                                                    → Kid[]
 POST /kids/{kid_id}/channels   {url}                          → Channel   (url = channel URL, @handle URL, or video URL; server resolves)
 GET  /kids/{kid_id}/channels                                  → Channel[]
-GET  /kids/{kid_id}/home                                      → {rows: [{title, videos: Video[]}]}
+GET  /kids/{kid_id}/home                                      → {rows: [{title, videos: Video[]}],
+                                                                 watching_allowed, blocked_reason,
+                                                                 active_break: MovementBreak | null}
 POST /sessions                 {kid_id, video_id, device}     → {session_id, video: Video, plan_ready: bool}
 POST /sessions/{id}/end                                       → {ok: true}
 GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest
@@ -38,7 +40,9 @@ GET  /kids/{kid_id}/analytics?days=14                         → Analytics
 PATCH /kids/{kid_id}/limits    {daily_minutes, break_after_minutes,
                                 break_minutes, max_video_minutes}  → Kid
 GET  /kids/{kid_id}/state                                     → WatchState
-POST /kids/{kid_id}/break/ack                                 → MovementBreak   (kid says they did it)
+PUT  /kids/{kid_id}/break-messages  {messages: [...]}         → Kid
+POST /kids/{kid_id}/break-messages/suggest                    → {suggestions: [...]}  (parent UI only)
+POST /kids/{kid_id}/break/ack                                 → BreakPeriod
 POST /kids/{kid_id}/break/override  {pin_ok: true}            → {cleared: true}  (parent only)
 POST /kids/{kid_id}/digest/run                                → Digest   (runs the Digest agent now; dev convenience)
 POST /curator/run              {kid_id}                       → {approved: [...], hidden: [...], ask_parent: [...]}   (dev convenience)
@@ -174,18 +178,30 @@ Two rules the wording must hold to:
 - The review is advice, not a verdict on a creator. The parent decides; `DELETE` removes a channel
   from that kid immediately.
 
-### Time limits and movement breaks
+### Time limits and break periods
 
-A parent sets the limits; the agent enforces them and fills the gap with something to do.
+A parent sets the limits, and a parent decides what happens during the gap. Gilli enforces the
+clock and speaks the parent's words. **He never invents an instruction for a child.**
 
-`Kid` gains four settings, all parent-editable via `PATCH /kids/{id}/limits`:
+`Kid` gains five settings, parent-editable via `PATCH /kids/{id}/limits`:
 
 ```
 daily_minutes        total watching allowed per day        (default 60, 0 = no limit)
 break_after_minutes  continuous watching before a break    (default 25, 0 = never)
 break_minutes        how long the break lasts              (default 5)
 max_video_minutes    longest single video offered          (default 0 = no limit)
+break_is_firm        true  = the timer must run out        (default true)
+                     false = the child may return early
 ```
+
+Break messages are parent-authored and live on the kid:
+
+```
+BreakMessage { id, text, spoken }   // text for 7+, spoken is what Gilli says aloud
+```
+
+`PUT /kids/{id}/break-messages` replaces the list. An empty list is a valid, safe state: Gilli then
+says only that it is break time and when watching resumes, with no instruction at all.
 
 `GET /kids/{id}/state` is what the client checks before offering anything to watch:
 
@@ -195,15 +211,13 @@ WatchState {
   continuous_minutes,                  // since the last break or a 10-minute gap
   watching_allowed: bool,
   blocked_reason: "daily_limit" | "break" | null,
-  active_break: MovementBreak | null
+  active_break: BreakPeriod | null
 }
-```
 
-```
-MovementBreak {
+BreakPeriod {
   id, kid_id, started_at, ends_at, seconds_left,
-  task: { title, steps: [...], seconds, spoken },   // spoken = what Gilli says, for band 4_6
-  source_titles: [...],                              // the videos it was built from
+  message: BreakMessage | null,        // whichever of the parent's lines was chosen
+  is_firm: bool,
   acked: bool
 }
 ```
@@ -211,29 +225,19 @@ MovementBreak {
 **When a break fires.** The server counts continuous watching. Once `break_after_minutes` is
 passed it waits for the next natural moment, a question pause or the end of the video, so a child
 is never cut off mid-sentence; if none arrives within 3 more minutes it interrupts anyway. The
-session socket sends `{t: "break", break: MovementBreak}` and the client must stop playback.
+session socket sends `{t: "break", break: BreakPeriod}` and the client must stop playback.
 
 **No video plays during a break.** `POST /sessions` returns 409 with the active break, and
-`GET /kids/{id}/home` sets `watching_allowed: false`. The break ends when its timer runs out, not
-when the child taps: `POST /break/ack` only records that they say they did it, and Gilli responds
-warmly. A parent can end one early with `POST /break/override` behind the PIN.
+`GET /kids/{id}/home` sets `watching_allowed: false`. With `break_is_firm` the break ends only when
+its timer runs out; `POST /break/ack` records that the child says they are done and earns warm words
+from Gilli, nothing more. With `break_is_firm` false the same call ends the break. A parent can
+always end one early with `POST /break/override` behind the PIN.
 
-**The task is generated from what they actually watched**, so it lands as a continuation of the
-video rather than a punishment for it: a volcano video becomes crouching small and erupting tall, a
-dance channel becomes repeating the move from the video. `source_titles` shows the parent what it
-drew on.
-
-**Safety rules, enforced in code and not only in the prompt.** A generated task must be:
-
-- doable indoors, on the spot, in the space of a rug, with no equipment and nothing to fetch;
-- free of climbing, jumping from or onto furniture, running, fast spinning, anything near water,
-  stairs, kitchens or outdoors, and anything needing an adult present;
-- 1 to 3 minutes, and never framed as a punishment or as "you watched too much";
-- band-appropriate: for `4_6` it is spoken and mimed with no text on screen, and is a single
-  imitation ("be a volcano"), not a sequence to remember.
-
-A task that fails these checks is dropped and a safe built-in fallback is used instead. The set of
-fallbacks ships with the app so a break never depends on a model call succeeding.
+**Suggestions go to the parent, never to the child.** `POST /kids/{id}/break-messages/suggest`
+returns candidate lines drawn from what this child actually watches, for the parent to edit, keep or
+discard in the parent UI. Nothing suggested reaches a child until the parent saves it. There is no
+model call anywhere in the child-facing break path: by the time a break starts, every word Gilli can
+say was written or approved by the parent.
 
 ### Analytics
 
@@ -294,8 +298,13 @@ Server → client
 {t: "reply", text?: string, tts_url: string, result, gesture, model_word?: string}
 {t: "resume"}                                                  resume playback
 {t: "end", summary_tts_url: string, summary_text?: string, words_said[]}   summary_text = on-device TTS fallback
+{t: "break", break: MovementBreak}                             stop playback; the session then ends
 {t: "error", message}
 ```
+
+A `break` is followed immediately by `end` and the socket closes: the session is over and the next
+`POST /sessions` is a 409 until the break's clock runs out. It can arrive instead of an `ask` at a
+question pause, at the end of the video, or on its own three minutes after the limit passed.
 
 Ordering per question: `pause` → `ask` → (client `answer`) → `reply` → `resume`. If no `answer` arrives within `listen_ms` + 1500 ms, the server treats it as `input: "none"`.
 
