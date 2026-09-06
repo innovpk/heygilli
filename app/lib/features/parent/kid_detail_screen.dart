@@ -25,7 +25,10 @@ class KidDetailScreen extends StatefulWidget {
   State<KidDetailScreen> createState() => _KidDetailScreenState();
 }
 
-class _KidDetailScreenState extends State<KidDetailScreen> {
+class _KidDetailScreenState extends State<KidDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 3, vsync: this);
+
   /// How many channel tiles this page shows before handing over to the review
   /// screen.
   static const _previewCount = 8;
@@ -53,6 +56,7 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
 
   @override
   void dispose() {
+    _tabs.dispose();
     _url.dispose();
     super.dispose();
   }
@@ -121,299 +125,410 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
       title: kid.nickname,
       subtitle: 'Age ${kid.age}  |  band ${kid.band.label}',
       actions: [KidAvatar(kid: kid, size: 48)],
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 64,
-            child: FilledButton.icon(
-              onPressed: _enterKidMode,
-              icon: const Icon(Icons.play_arrow_rounded, size: 30),
-              label: Text(
-                'Enter kid mode',
-                style: HgText.display(size: 22, color: HgColors.ink),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          PCard(
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => DigestScreen(kid: kid))),
-            child: Row(
-              spacing: 14,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.auto_stories_rounded, color: HgColors.brown),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Today's digest",
-                        style: HgText.display(size: 22, color: HgColors.ink),
-                      ),
-                      Text(
-                        kid.band == AgeBand.b4to6
-                            ? 'Words said, words heard, one thing to try'
-                            : 'Understood, shaky, one question for dinner',
-                        style: HgText.body(size: 14, color: HgColors.brown),
-                      ),
-                    ],
+                SizedBox(
+                  height: 64,
+                  child: FilledButton.icon(
+                    onPressed: _enterKidMode,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 30),
+                    label: Text(
+                      'Enter kid mode',
+                      style: HgText.display(size: 22, color: HgColors.ink),
+                    ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+                const SizedBox(height: 12),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          PCard(
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => ProgressScreen(kid: kid))),
-            child: Row(
-              spacing: 14,
-              children: [
-                const Icon(Icons.insights_rounded, color: HgColors.brown),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Progress',
-                        style: HgText.display(size: 22, color: HgColors.ink),
-                      ),
-                      Text(
-                        kid.band == AgeBand.b4to6
-                            ? 'Minutes, words coming back, what to try'
-                            : 'Minutes, what stuck, what needs another look',
-                        style: HgText.body(size: 14, color: HgColors.brown),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Only says anything once a parent has ticked history on an import.
-          // Shown anyway, because the empty state is where they find out the
-          // option exists and that it is off.
-          PCard(
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => HistoryScreen(kid: kid))),
-            child: Row(
-              spacing: 14,
-              children: [
-                const Icon(Icons.history_rounded, color: HgColors.brown),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'What they actually watched',
-                        style: HgText.display(size: 22, color: HgColors.ink),
-                      ),
-                      Text(
-                        'How much came from channels nobody chose. Only if '
-                        'you asked for it during an import',
-                        style: HgText.body(size: 14, color: HgColors.brown),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Sits above the time settings because it is the one that decides
-          // what reaches this child at all, rather than for how long.
-          PCard(
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => PolicyScreen(kid: kid))),
-            child: Row(
-              spacing: 14,
-              children: [
-                const Icon(Icons.rule_rounded, color: HgColors.brown),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'What your household wants',
-                        style: HgText.display(size: 22, color: HgColors.ink),
-                      ),
-                      Text(
-                        'A few questions about what is fine here, drawn from '
-                        "${kid.nickname}'s own channels",
-                        style: HgText.body(size: 14, color: HgColors.brown),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          TimeLimitsCard(kid: kid),
-          const SizedBox(height: 16),
-          BreakMessagesCard(kid: kid),
-          const SizedBox(height: 24),
-          Text('CHANNELS', style: HgText.label()),
-          const SizedBox(height: 8),
-          Text(
-            'Only videos from these channels ever reach ${kid.nickname}. '
-            'A Google Takeout export is the only way to read a YouTube Kids '
-            'profile, so start there. You can also paste a channel, @handle '
-            'or video URL.',
-            style: HgText.body(size: 14, color: HgColors.brown),
-          ),
-          const SizedBox(height: 12),
-          // Takeout first: it is the only route to a YouTube Kids profile's
-          // subscriptions. Importing the parent's own account only helps the
-          // households where the kids watch on a shared login, so it sits
-          // underneath as the secondary path.
-          SizedBox(
-            height: 52,
-            child: FilledButton.icon(
-              onPressed: _importFromTakeout,
-              icon: const Icon(Icons.folder_zip_outlined, size: 22),
-              label: Text(
-                "Import ${kid.nickname}'s YouTube Kids channels",
-                style: HgText.body(size: 15, color: HgColors.ink),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: _importFromYouTube,
-              icon: const Icon(Icons.subscriptions_outlined, size: 22),
-              label: const Text('Import from my own account'),
-              style: _importButtonStyle,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            spacing: 10,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _url,
-                  keyboardType: TextInputType.url,
-                  style: HgText.body(size: 15, color: HgColors.ink),
-                  decoration: const InputDecoration(
-                    hintText: 'https://youtube.com/@SciShowKids',
-                  ),
-                  onSubmitted: (_) => _addChannel(),
-                ),
-              ),
-              SizedBox(
-                height: 52,
-                child: FilledButton(
-                  onPressed: _adding ? null : _addChannel,
-                  child: const Text('Add'),
-                ),
-              ),
+          // Three tabs rather than one column holding everything a parent
+          // might ever want about a child. The answer to "where do I change
+          // this" had become "keep scrolling": the device setting sat below
+          // the break messages and nobody found it.
+          //
+          // Split by question rather than by feature — what happened, what
+          // is allowed, and what they can watch.
+          TabBar(
+            controller: _tabs,
+            labelColor: HgColors.ink,
+            unselectedLabelColor: HgColors.brown,
+            indicatorColor: HgColors.mango,
+            indicatorWeight: 3,
+            tabs: const [
+              Tab(text: 'How it is going'),
+              Tab(text: 'Rules'),
+              Tab(text: 'Channels'),
             ],
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: HgText.body(color: HgColors.coral)),
-          ],
-          const SizedBox(height: 14),
-          FutureBuilder<List<Channel>>(
-            future: _channels,
-            builder: (context, snap) {
-              if (snap.hasError) {
-                return LoadError(snap.error!, onRetry: _reload);
-              }
-              final list = snap.data;
-              if (list == null) {
-                return const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(
-                    child: CircularProgressIndicator(color: HgColors.mango),
-                  ),
-                );
-              }
-              if (list.isEmpty) {
-                return Text(
-                  'No channels yet.',
-                  style: HgText.body(color: HgColors.muted),
-                );
-              }
-              return Column(
-                spacing: 10,
-                children: [
-                  // The way through a big imported pile. Shown with the count
-                  // because 153 is the number that makes it worth opening.
-                  PCard(
-                    onTap: _openReviews,
-                    child: Row(
-                      spacing: 14,
-                      children: [
-                        const Icon(
-                          Icons.fact_check_outlined,
-                          color: HgColors.brown,
+          Expanded(
+            child: TabBarView(
+              controller: _tabs,
+              children: [
+                ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  children: [
+                    PCard(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DigestScreen(kid: kid),
                         ),
+                      ),
+                      child: Row(
+                        spacing: 14,
+                        children: [
+                          const Icon(
+                            Icons.auto_stories_rounded,
+                            color: HgColors.brown,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Today's digest",
+                                  style: HgText.display(
+                                    size: 22,
+                                    color: HgColors.ink,
+                                  ),
+                                ),
+                                Text(
+                                  kid.band == AgeBand.b4to6
+                                      ? 'Words said, words heard, one thing to try'
+                                      : 'Understood, shaky, one question for dinner',
+                                  style: HgText.body(
+                                    size: 14,
+                                    color: HgColors.brown,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: HgColors.brown,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    PCard(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProgressScreen(kid: kid),
+                        ),
+                      ),
+                      child: Row(
+                        spacing: 14,
+                        children: [
+                          const Icon(
+                            Icons.insights_rounded,
+                            color: HgColors.brown,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Progress',
+                                  style: HgText.display(
+                                    size: 22,
+                                    color: HgColors.ink,
+                                  ),
+                                ),
+                                Text(
+                                  kid.band == AgeBand.b4to6
+                                      ? 'Minutes, words coming back, what to try'
+                                      : 'Minutes, what stuck, what needs another look',
+                                  style: HgText.body(
+                                    size: 14,
+                                    color: HgColors.brown,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: HgColors.brown,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Only says anything once a parent has ticked history on an import.
+                    // Shown anyway, because the empty state is where they find out the
+                    // option exists and that it is off.
+                    PCard(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => HistoryScreen(kid: kid),
+                        ),
+                      ),
+                      child: Row(
+                        spacing: 14,
+                        children: [
+                          const Icon(
+                            Icons.history_rounded,
+                            color: HgColors.brown,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'What they actually watched',
+                                  style: HgText.display(
+                                    size: 22,
+                                    color: HgColors.ink,
+                                  ),
+                                ),
+                                Text(
+                                  'How much came from channels nobody chose. Only if '
+                                  'you asked for it during an import',
+                                  style: HgText.body(
+                                    size: 14,
+                                    color: HgColors.brown,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: HgColors.brown,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Sits above the time settings because it is the one that decides
+                    // what reaches this child at all, rather than for how long.
+                  ],
+                ),
+                ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  children: [
+                    PCard(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PolicyScreen(kid: kid),
+                        ),
+                      ),
+                      child: Row(
+                        spacing: 14,
+                        children: [
+                          const Icon(Icons.rule_rounded, color: HgColors.brown),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'What your household wants',
+                                  style: HgText.display(
+                                    size: 22,
+                                    color: HgColors.ink,
+                                  ),
+                                ),
+                                Text(
+                                  'A few questions about what is fine here, drawn from '
+                                  "${kid.nickname}'s own channels",
+                                  style: HgText.body(
+                                    size: 14,
+                                    color: HgColors.brown,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: HgColors.brown,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TimeLimitsCard(kid: kid),
+                    const SizedBox(height: 16),
+                    BreakMessagesCard(kid: kid),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+                ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  children: [
+                    Text('CHANNELS', style: HgText.label()),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Only videos from these channels ever reach ${kid.nickname}. '
+                      'A Google Takeout export is the only way to read a YouTube Kids '
+                      'profile, so start there. You can also paste a channel, @handle '
+                      'or video URL.',
+                      style: HgText.body(size: 14, color: HgColors.brown),
+                    ),
+                    const SizedBox(height: 12),
+                    // Takeout first: it is the only route to a YouTube Kids profile's
+                    // subscriptions. Importing the parent's own account only helps the
+                    // households where the kids watch on a shared login, so it sits
+                    // underneath as the secondary path.
+                    SizedBox(
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: _importFromTakeout,
+                        icon: const Icon(Icons.folder_zip_outlined, size: 22),
+                        label: Text(
+                          "Import ${kid.nickname}'s YouTube Kids channels",
+                          style: HgText.body(size: 15, color: HgColors.ink),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _importFromYouTube,
+                        icon: const Icon(
+                          Icons.subscriptions_outlined,
+                          size: 22,
+                        ),
+                        label: const Text('Import from my own account'),
+                        style: _importButtonStyle,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      spacing: 10,
+                      children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'What these channels show',
-                                style: HgText.display(
-                                  size: 22,
-                                  color: HgColors.ink,
-                                ),
-                              ),
-                              Text(
-                                'Review all ${list.length} and drop the ones '
-                                'you do not want',
-                                style: HgText.body(
-                                  size: 14,
-                                  color: HgColors.brown,
-                                ),
-                              ),
-                            ],
+                          child: TextField(
+                            controller: _url,
+                            keyboardType: TextInputType.url,
+                            style: HgText.body(size: 15, color: HgColors.ink),
+                            decoration: const InputDecoration(
+                              hintText: 'https://youtube.com/@SciShowKids',
+                            ),
+                            onSubmitted: (_) => _addChannel(),
                           ),
                         ),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          color: HgColors.brown,
+                        SizedBox(
+                          height: 52,
+                          child: FilledButton(
+                            onPressed: _adding ? null : _addChannel,
+                            child: const Text('Add'),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  // Only a first handful here. A Takeout import can leave 153
-                  // channels on a kid, and this page is a Column inside a
-                  // ListView: every tile would be built at once. The review
-                  // screen is the lazily built list.
-                  for (final c in list.take(_previewCount))
-                    _ChannelTile(channel: c),
-                  if (list.length > _previewCount)
-                    SizedBox(
-                      height: 48,
-                      child: TextButton(
-                        onPressed: _openReviews,
-                        style: TextButton.styleFrom(
-                          foregroundColor: HgColors.brown,
-                        ),
-                        child: Text(
-                          'and ${list.length - _previewCount} more',
-                          style: HgText.body(size: 15, color: HgColors.brown),
-                        ),
-                      ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(_error!, style: HgText.body(color: HgColors.coral)),
+                    ],
+                    const SizedBox(height: 14),
+                    FutureBuilder<List<Channel>>(
+                      future: _channels,
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return LoadError(snap.error!, onRetry: _reload);
+                        }
+                        final list = snap.data;
+                        if (list == null) {
+                          return const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: HgColors.mango,
+                              ),
+                            ),
+                          );
+                        }
+                        if (list.isEmpty) {
+                          return Text(
+                            'No channels yet.',
+                            style: HgText.body(color: HgColors.muted),
+                          );
+                        }
+                        return Column(
+                          spacing: 10,
+                          children: [
+                            // The way through a big imported pile. Shown with the count
+                            // because 153 is the number that makes it worth opening.
+                            PCard(
+                              onTap: _openReviews,
+                              child: Row(
+                                spacing: 14,
+                                children: [
+                                  const Icon(
+                                    Icons.fact_check_outlined,
+                                    color: HgColors.brown,
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'What these channels show',
+                                          style: HgText.display(
+                                            size: 22,
+                                            color: HgColors.ink,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Review all ${list.length} and drop the ones '
+                                          'you do not want',
+                                          style: HgText.body(
+                                            size: 14,
+                                            color: HgColors.brown,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: HgColors.brown,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Only a first handful here. A Takeout import can leave 153
+                            // channels on a kid, and this page is a Column inside a
+                            // ListView: every tile would be built at once. The review
+                            // screen is the lazily built list.
+                            for (final c in list.take(_previewCount))
+                              _ChannelTile(channel: c),
+                            if (list.length > _previewCount)
+                              SizedBox(
+                                height: 48,
+                                child: TextButton(
+                                  onPressed: _openReviews,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: HgColors.brown,
+                                  ),
+                                  child: Text(
+                                    'and ${list.length - _previewCount} more',
+                                    style: HgText.body(
+                                      size: 15,
+                                      color: HgColors.brown,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
-                ],
-              );
-            },
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
