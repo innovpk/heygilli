@@ -69,6 +69,15 @@ class ApiClient implements Gateway {
     return _decode(r);
   }
 
+  Future<dynamic> _put(String path, [Object? body]) async {
+    final r = await _http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(),
+      body: body == null ? null : jsonEncode(body),
+    );
+    return _decode(r);
+  }
+
   Future<dynamic> _delete(String path) async {
     final r = await _http.delete(
       Uri.parse('$baseUrl$path'),
@@ -208,6 +217,7 @@ class ApiClient implements Gateway {
     int? breakAfterMinutes,
     int? breakMinutes,
     int? maxVideoMinutes,
+    bool? breakIsFirm,
   }) async => Kid.fromJson(
     await _patch('/kids/$kidId/limits', {
           // Omitted fields are left alone by the gateway, so a screen that
@@ -216,12 +226,35 @@ class ApiClient implements Gateway {
           'break_after_minutes': ?breakAfterMinutes,
           'break_minutes': ?breakMinutes,
           'max_video_minutes': ?maxVideoMinutes,
+          'break_is_firm': ?breakIsFirm,
         })
         as Map<String, dynamic>,
   );
 
   @override
-  Future<MovementBreak> ackBreak(String kidId) async => MovementBreak.fromJson(
+  Future<Kid> saveBreakMessages(
+    String kidId,
+    List<BreakMessage> messages,
+  ) async => Kid.fromJson(
+    await _put('/kids/$kidId/break-messages', {
+          'messages': [for (final m in messages) m.toJson()],
+        })
+        as Map<String, dynamic>,
+  );
+
+  @override
+  Future<List<BreakMessage>> suggestBreakMessages(String kidId) async {
+    final body =
+        await _post('/kids/$kidId/break-messages/suggest')
+            as Map<String, dynamic>;
+    return [
+      for (final m in (body['messages'] as List? ?? const []))
+        BreakMessage.fromJson(m as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<BreakPeriod> ackBreak(String kidId) async => BreakPeriod.fromJson(
     await _post('/kids/$kidId/break/ack') as Map<String, dynamic>,
   );
 
@@ -306,7 +339,7 @@ class ApiClient implements Gateway {
 /// under `break`, under `active_break`, or under `detail` holding any of
 /// those. Anything else returns null and the caller rethrows rather than
 /// inventing a break out of an error body.
-MovementBreak? breakFromErrorBody(String body) {
+BreakPeriod? breakFromErrorBody(String body) {
   Object? decoded;
   try {
     decoded = jsonDecode(body);
@@ -316,11 +349,15 @@ MovementBreak? breakFromErrorBody(String body) {
   return _breakIn(decoded, depth: 0);
 }
 
-MovementBreak? _breakIn(Object? node, {required int depth}) {
+BreakPeriod? _breakIn(Object? node, {required int depth}) {
   if (node is! Map || depth > 2) return null;
   final j = node.cast<String, dynamic>();
-  // A break is recognised by its task, which is the part the screen needs.
-  if (j['task'] is Map) return MovementBreak.fromJson(j);
+  // A break is recognised by its clock, not by its message: a parent who
+  // saved no lines has a real break with nothing in it to speak, and keying
+  // off the message would drop that one on the floor.
+  if (j['id'] != null && (j['seconds_left'] is num || j['ends_at'] is String)) {
+    return BreakPeriod.fromJson(j);
+  }
   for (final key in const ['break', 'active_break', 'detail']) {
     final found = _breakIn(j[key], depth: depth + 1);
     if (found != null) return found;

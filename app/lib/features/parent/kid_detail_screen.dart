@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
+import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'import_subscriptions_screen.dart';
@@ -194,6 +195,8 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
           ),
           const SizedBox(height: 12),
           TimeLimitsCard(kid: kid),
+          const SizedBox(height: 16),
+          BreakMessagesCard(kid: kid),
           const SizedBox(height: 24),
           Text('CHANNELS', style: HgText.label()),
           const SizedBox(height: 8),

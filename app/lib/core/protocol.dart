@@ -110,7 +110,7 @@ sealed class ServerMessage {
         // break screen a child could not leave.
         final b = (j['break'] as Map?)?.cast<String, dynamic>();
         if (b == null) return UnknownMessage('break', j);
-        return BreakMessage(MovementBreak.fromJson(b));
+        return BreakStartedMessage(BreakPeriod.fromJson(b));
       case 'end':
         return EndMessage(
           summaryTtsUrl: j['summary_tts_url'] as String? ?? '',
@@ -230,11 +230,11 @@ class EndMessage extends ServerMessage {
   final String? summaryText;
 }
 
-/// `{t: "break", break: MovementBreak}`. The video stops here and does not
+/// `{t: "break", break: BreakPeriod}`. The video stops here and does not
 /// come back until the break's own timer runs out.
-class BreakMessage extends ServerMessage {
-  const BreakMessage(this.movementBreak);
-  final MovementBreak movementBreak;
+class BreakStartedMessage extends ServerMessage {
+  const BreakStartedMessage(this.movementBreak);
+  final BreakPeriod movementBreak;
 }
 
 class ErrorMessage extends ServerMessage {

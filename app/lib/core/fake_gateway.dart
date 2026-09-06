@@ -621,7 +621,7 @@ class FakeGateway implements Gateway {
   /// Demo only: how long into a video Gilli calls a break.
   static const _demoBreakAtS = 60;
 
-  final _breaks = <String, MovementBreak>{};
+  final _breaks = <String, BreakPeriod>{};
 
   /// Minutes "already watched today", moved by the demo controls so the
   /// numbers on the parent card agree with whatever screen is being shown.
@@ -629,7 +629,7 @@ class FakeGateway implements Gateway {
 
   /// The break for [kidId] if it is still running, expiring it when its own
   /// timer has passed. The break ends on the clock, never on a tap.
-  MovementBreak? _liveBreak(String kidId) {
+  BreakPeriod? _liveBreak(String kidId) {
     final b = _breaks[kidId];
     if (b == null) return null;
     final left = _secondsLeft(b);
@@ -640,7 +640,7 @@ class FakeGateway implements Gateway {
     return b.copyWith(secondsLeft: left);
   }
 
-  int _secondsLeft(MovementBreak b) {
+  int _secondsLeft(BreakPeriod b) {
     final ends = DateTime.tryParse(b.endsAt);
     if (ends == null) return b.secondsLeft;
     return ends.difference(DateTime.now()).inSeconds;
@@ -683,6 +683,7 @@ class FakeGateway implements Gateway {
     int? breakAfterMinutes,
     int? breakMinutes,
     int? maxVideoMinutes,
+    bool? breakIsFirm,
   }) async {
     await _lag();
     final i = _kids.indexWhere((k) => k.id == kidId);
@@ -692,13 +693,68 @@ class FakeGateway implements Gateway {
       breakAfterMinutes: breakAfterMinutes,
       breakMinutes: breakMinutes,
       maxVideoMinutes: maxVideoMinutes,
+      breakIsFirm: breakIsFirm,
     );
     _kids[i] = updated;
     return updated;
   }
 
   @override
-  Future<MovementBreak> ackBreak(String kidId) async {
+  Future<Kid> saveBreakMessages(
+    String kidId,
+    List<BreakMessage> messages,
+  ) async {
+    await _lag();
+    final i = _kids.indexWhere((k) => k.id == kidId);
+    if (i < 0) throw StateError('No kid $kidId');
+    // Saved exactly as given, empty list included: a parent clearing their
+    // lines means a quiet break, and is not a reason to keep the old ones.
+    var n = 0;
+    final saved = [
+      for (final m in messages)
+        BreakMessage(
+          id: m.id.isNotEmpty ? m.id : 'msg_${kidId}_${n++}',
+          text: m.text,
+          spoken: m.spoken,
+        ),
+    ];
+    final updated = _kids[i].copyWith(breakMessages: saved);
+    _kids[i] = updated;
+    // The rotation restarts on the new list rather than pointing into the old.
+    _messageCursor.remove(kidId);
+    return updated;
+  }
+
+  @override
+  Future<List<BreakMessage>> suggestBreakMessages(String kidId) async {
+    await _lag();
+    final kid = _kid(kidId);
+    // Drafts only. These reach a child solely by way of saveBreakMessages,
+    // which is a parent's tap; the real gateway's Coach agent answers here.
+    final preReader = kid?.band == AgeBand.b4to6;
+    return [
+      BreakMessage(
+        id: 'draft_1',
+        text: 'Break time. Go and find me three blue things in this room.',
+        spoken: preReader
+            ? 'Break time! Can you find three blue things? Go and look!'
+            : 'Break time. Go and find three blue things in this room.',
+      ),
+      const BreakMessage(
+        id: 'draft_2',
+        text: 'Break time. Have a drink of water and a good stretch.',
+        spoken: 'Break time! Have a drink of water and a big stretch.',
+      ),
+      const BreakMessage(
+        id: 'draft_3',
+        text: 'Break time. Go and tell someone one thing you just learned.',
+        spoken: 'Break time! Go and tell someone what you just learned.',
+      ),
+    ];
+  }
+
+  @override
+  Future<BreakPeriod> ackBreak(String kidId) async {
     await _lag();
     final b = _liveBreak(kidId);
     if (b == null) throw StateError('No break running for $kidId');
@@ -714,29 +770,24 @@ class FakeGateway implements Gateway {
     _breaks.remove(kidId);
   }
 
-  /// Demo control: start a break right now, built from [source].
+  /// Demo control: start a break right now for [kidId].
   ///
-  /// The real one is written by the Break agent from the session's transcript;
-  /// this picks from the same safe shapes so the screen can be shown and
-  /// screenshotted without waiting 25 minutes for one.
-  MovementBreak startDemoBreak(String kidId, {String source = ''}) {
+  /// The real one starts the same way: the gateway picks the next line the
+  /// parent saved, rotating so the same sentence is not read every time. A
+  /// parent who saved nothing gets a quiet break, and neither this nor the
+  /// real gateway writes a line to fill it.
+  BreakPeriod startDemoBreak(String kidId, {String source = ''}) {
     final kid = _kid(kidId);
     final minutes = kid?.breakMinutes ?? Kid.defaultBreakMinutes;
     final now = DateTime.now();
-    final task = _demoTask(source);
-    final active = MovementBreak(
+    final active = BreakPeriod(
       id: 'brk_${now.millisecondsSinceEpoch}',
       kidId: kidId,
       startedAt: now.toIso8601String(),
       endsAt: now.add(Duration(minutes: minutes)).toIso8601String(),
       secondsLeft: minutes * 60,
-      task: BreakTask(
-        title: task.title,
-        steps: task.steps,
-        seconds: minutes * 60,
-        spoken: task.spoken,
-      ),
-      sourceTitles: [if (source.isNotEmpty) source else _volcano.title],
+      isFirm: kid?.breakIsFirm ?? true,
+      message: _nextMessage(kid),
     );
     _breaks[kidId] = active;
     // Keep the counters honest: a break fires because they have been watching.
@@ -745,6 +796,23 @@ class FakeGateway implements Gateway {
         (_minutesToday[kidId] ?? 0) + (after > 0 ? after : 25);
     return active;
   }
+
+  /// Which saved line each kid heard last, so the next break moves on.
+  final Map<String, int> _messageCursor = {};
+
+  BreakMessage? _nextMessage(Kid? kid) {
+    final lines = kid?.breakMessages ?? const <BreakMessage>[];
+    if (lines.isEmpty) return null;
+    final next = (_messageCursor[kid!.id] ?? -1) + 1;
+    _messageCursor[kid.id] = next;
+    return lines[next % lines.length];
+  }
+
+  /// The lines saved for [kidId] right now, without the simulated network
+  /// lag. Widget tests run on a frozen clock, where awaiting that lag never
+  /// comes back; this is the same list [kids] would hand them.
+  List<BreakMessage> savedBreakMessages(String kidId) =>
+      _kid(kidId)?.breakMessages ?? const [];
 
   /// Demo control: put the kid at their daily limit so the end-of-day screen
   /// can be seen.
@@ -758,69 +826,6 @@ class FakeGateway implements Gateway {
   void clearDemoLimits(String kidId) {
     _breaks.remove(kidId);
     _minutesToday.remove(kidId);
-  }
-
-  /// The built-in fallback set PROTOCOL requires: indoors, on the spot, no
-  /// equipment, nothing to fetch, one move a four-year-old can copy. A break
-  /// never depends on a model call having succeeded.
-  static ({String title, List<String> steps, String spoken}) _demoTask(
-    String source,
-  ) {
-    final s = source.toLowerCase();
-    if (s.contains('volcano')) {
-      return (
-        title: 'Be a volcano',
-        steps: [
-          'Crouch down small, like a sleeping mountain',
-          'Count to three',
-          'Push your arms up and go whoosh',
-          'Do it three more times',
-        ],
-        spoken:
-            'Let us be a volcano! Crouch down small, small, small. '
-            'One, two, three, and whoooosh, up you go! Again!',
-      );
-    }
-    if (s.contains('duck')) {
-      return (
-        title: 'Waddle like the five little ducks',
-        steps: [
-          'Stand up and put your hands on your hips',
-          'Waddle five steps one way',
-          'Waddle five steps back',
-          'Say quack on every step',
-        ],
-        spoken:
-            'Stand up like a little duck! Waddle, waddle, waddle. '
-            'Quack on every step. Now waddle back to me!',
-      );
-    }
-    if (s.contains('ear') || s.contains('hear')) {
-      return (
-        title: 'Listen like a squirrel',
-        steps: [
-          'Stand still and cup your hands behind your ears',
-          'Turn slowly to one side and listen',
-          'Turn slowly to the other side',
-          'Tell me one sound you found',
-        ],
-        spoken:
-            'Cup your hands behind your ears like me. Turn slowly this way '
-            'and listen. Now the other way. What can you hear?',
-      );
-    }
-    return (
-      title: 'Stretch tall like a tree',
-      steps: [
-        'Stand up tall and reach your arms up high',
-        'Sway slowly like branches in the wind',
-        'Bend down and touch your toes',
-        'Stretch back up tall',
-      ],
-      spoken:
-          'Stand up tall like a big tree! Reach your branches up high. '
-          'Sway in the wind. Now bend all the way down to your toes.',
-    );
   }
 
   @override
@@ -1129,7 +1134,7 @@ class FakeSession implements SessionSocket {
 
   /// Registers the break with the gateway and hands it back, so the same
   /// break is what `GET /state` and `POST /sessions` see afterwards.
-  final MovementBreak Function()? onBreakDue;
+  final BreakPeriod Function()? onBreakDue;
 
   late final StreamController<ServerMessage> _out;
   int _nextQ = 0;
@@ -1165,7 +1170,7 @@ class FakeSession implements SessionSocket {
         if (!_breakSent && breakAtS != null && seconds >= breakAtS!) {
           _breakSent = true;
           final active = onBreakDue?.call();
-          if (active != null) _emit(BreakMessage(active));
+          if (active != null) _emit(BreakStartedMessage(active));
           return;
         }
         if (_nextQ < plan.length && seconds >= plan[_nextQ].atS) {

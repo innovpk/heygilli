@@ -7,13 +7,16 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
 
-/// The parent's four time settings for one kid (PROTOCOL "Time limits and
-/// movement breaks"), saved with `PATCH /kids/{id}/limits`.
+/// The parent's time settings for one kid (PROTOCOL "Time limits and break
+/// periods"), saved with `PATCH /kids/{id}/limits`.
 ///
 /// Every row says what it means in the words a parent would use, because
 /// "break_after_minutes: 25" tells them nothing about what their child will
 /// actually experience. Where the protocol allows 0 the stepper steps down
 /// into it and the line changes to "no limit" rather than showing a zero.
+///
+/// What Gilli *says* during a break is not here: those are the parent's own
+/// words, and they live in [BreakMessagesCard].
 class TimeLimitsCard extends StatefulWidget {
   const TimeLimitsCard({super.key, required this.kid});
 
@@ -33,7 +36,8 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
       _kid.dailyMinutes != _saved.dailyMinutes ||
       _kid.breakAfterMinutes != _saved.breakAfterMinutes ||
       _kid.breakMinutes != _saved.breakMinutes ||
-      _kid.maxVideoMinutes != _saved.maxVideoMinutes;
+      _kid.maxVideoMinutes != _saved.maxVideoMinutes ||
+      _kid.breakIsFirm != _saved.breakIsFirm;
 
   Future<void> _save() async {
     setState(() {
@@ -48,6 +52,7 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
         breakAfterMinutes: _kid.breakAfterMinutes,
         breakMinutes: _kid.breakMinutes,
         maxVideoMinutes: _kid.maxVideoMinutes,
+        breakIsFirm: _kid.breakIsFirm,
       );
       await state.refreshKids();
       if (!mounted) return;
@@ -76,8 +81,8 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
           const SizedBox(height: 4),
           Text(
             'Gilli keeps to these on its own. When a break is due it waits '
-            'for a natural pause, then stops the video and gives $name '
-            'something to do with their body.',
+            'for a natural pause and stops the video, then reads out whatever '
+            'you have written for break time.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           const SizedBox(height: 16),
@@ -96,16 +101,16 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
                 setState(() => _kid = _kid.copyWith(dailyMinutes: v)),
           ),
           _LimitRow(
-            title: 'Move-around break every',
+            title: 'Break every',
             value: _kid.breakAfterMinutes,
             step: 5,
             min: 10,
             max: 60,
             zeroLabel: 'Never',
             explain: _kid.takesBreaks
-                ? 'Gilli stops for a move-around every '
+                ? 'Gilli stops for a break every '
                       '${_kid.breakAfterMinutes} minutes.'
-                : 'No move-around breaks. $name watches straight through.',
+                : 'No breaks. $name watches straight through.',
             onChanged: (v) =>
                 setState(() => _kid = _kid.copyWith(breakAfterMinutes: v)),
           ),
@@ -116,12 +121,21 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
             // A break of no minutes is not a break, so this one has no "off".
             min: 1,
             max: 15,
-            explain:
-                'The video comes back after ${_kid.breakMinutes} '
-                '${_kid.breakMinutes == 1 ? 'minute' : 'minutes'}, whether or '
-                'not $name says they did it.',
+            explain: _kid.breakIsFirm
+                ? 'The video comes back after ${_kid.breakMinutes} '
+                      '${_kid.breakMinutes == 1 ? 'minute' : 'minutes'}, '
+                      'whether or not $name says they are done.'
+                : 'Up to ${_kid.breakMinutes} '
+                      '${_kid.breakMinutes == 1 ? 'minute' : 'minutes'}, or '
+                      'sooner if $name taps to say they are done.',
             onChanged: (v) =>
                 setState(() => _kid = _kid.copyWith(breakMinutes: v)),
+          ),
+          _FirmRow(
+            isFirm: _kid.breakIsFirm,
+            name: name,
+            onChanged: (v) =>
+                setState(() => _kid = _kid.copyWith(breakIsFirm: v)),
           ),
           _LimitRow(
             title: 'Longest video',
@@ -186,6 +200,57 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
     final m = minutes % 60;
     final hs = '$h ${h == 1 ? 'hour' : 'hours'}';
     return m == 0 ? hs : '$hs $m minutes';
+  }
+}
+
+/// Whether the break runs its full length or the child can end it.
+///
+/// A real choice, presented as one: HeyGilli does not know which households
+/// want a screen holding the line and which want it only to ask, and it is
+/// not the app's place to decide. Neither option is marked as the right one.
+class _FirmRow extends StatelessWidget {
+  const _FirmRow({
+    required this.isFirm,
+    required this.name,
+    required this.onChanged,
+  });
+
+  final bool isFirm;
+  final String name;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'When $name taps "I did it"',
+            style: HgText.body(size: 16, color: HgColors.ink),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: true, label: Text('Break carries on')),
+              ButtonSegment(value: false, label: Text('Video comes back')),
+            ],
+            selected: {isFirm},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => onChanged(s.first),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isFirm
+                ? 'Gilli thanks $name and keeps the timer running. The screen '
+                      'says so, so the tap is never a broken promise.'
+                : 'Gilli takes $name at their word and starts the video again.',
+            style: HgText.body(size: 14, color: HgColors.brown),
+          ),
+        ],
+      ),
+    );
   }
 }
 

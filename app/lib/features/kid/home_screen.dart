@@ -51,7 +51,17 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     // PROTOCOL: `GET /kids/{id}/state` is what the client checks before
     // offering anything to watch. Checking it here is also what makes a break
     // survive the app being killed and reopened mid-break.
-    final watch = await state.gateway.watchState(kid.id);
+    //
+    // A gateway that does not answer this yet must not leave a child staring
+    // at "Try again": watching is allowed unless the server says otherwise,
+    // and the socket still stops playback if a break fires mid-session.
+    WatchState watch;
+    try {
+      watch = await state.gateway.watchState(kid.id);
+    } catch (e) {
+      debugPrint('[home] watch state unavailable: $e');
+      watch = const WatchState();
+    }
     if (!watch.watchingAllowed) return _Home(const [], watch);
     return _Home(await state.gateway.home(kid.id), watch);
   }
@@ -129,7 +139,7 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                   if (home != null && home.state.isOnBreak) {
                     return BreakScreen(
                       kid: kid,
-                      movementBreak: home.state.activeBreak!,
+                      breakPeriod: home.state.activeBreak!,
                       onFinished: _reload,
                     );
                   }

@@ -219,7 +219,7 @@ class _SessionScreenState extends State<SessionScreen> {
         _handleReply(m);
       case ResumeMessage():
         _handleResume();
-      case BreakMessage(:final movementBreak):
+      case BreakStartedMessage(:final movementBreak):
         _handleBreak(movementBreak);
       case EndMessage():
         _handleEnd(m);
@@ -351,7 +351,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// `{t: "break"}`: stop the video now and hand the screen to Gilli. The
   /// session is over as far as this screen is concerned; the break decides
   /// when anything plays again.
-  Future<void> _handleBreak(MovementBreak movementBreak) async {
+  Future<void> _handleBreak(BreakPeriod movementBreak) async {
     if (_onBreak || _ended) return;
     _onBreak = true;
     _serverPaused = true;
@@ -376,13 +376,13 @@ class _SessionScreenState extends State<SessionScreen> {
   /// The break sits on top of this screen and, when it is over, everything
   /// above the kid's home is popped at once. The home screen re-checks the
   /// watch state as it comes back, so it never shows rows a break still bars.
-  void _openBreak(MovementBreak movementBreak) {
+  void _openBreak(BreakPeriod period) {
     _onBreak = true;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (routeContext) => BreakScreen(
           kid: _kid,
-          movementBreak: movementBreak,
+          breakPeriod: period,
           onFinished: () =>
               Navigator.of(routeContext).popUntil((r) => r.isFirst),
         ),

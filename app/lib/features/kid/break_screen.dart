@@ -11,32 +11,34 @@ import '../../core/theme.dart';
 import '../gate/pin_gate.dart';
 import 'gilli_widget.dart';
 
-/// The movement break: Gilli stops the video and gives the child something
-/// physical to do, built from what they just watched.
+/// The break: Gilli stops the video and reads out the line this child's
+/// parent wrote for break time.
 ///
-/// PROTOCOL "Time limits and movement breaks". Three rules shape everything
-/// here:
+/// PROTOCOL "Time limits and break periods". Four rules shape everything here:
 ///
-///  - Nothing plays until the break is over, so this screen replaces the
-///    video entirely and a child cannot dismiss it. Back does nothing.
-///  - The timer ends the break, not the child. "I did it" records that they
-///    did it and gets praise; it never takes a second off the clock, and the
-///    wording says so instead of pretending otherwise.
-///  - Band 4_6 sees no text at all (SPEC 5.1). The task is spoken, Gilli acts
+///  - Every word comes from a parent. A model may suggest lines in the parent
+///    app, but only saved ones reach a child, and a parent who saved none gets
+///    a quiet break rather than something invented to fill it.
+///  - Nothing plays until the break is over, so this screen replaces the video
+///    entirely and a child cannot dismiss it. Back does nothing.
+///  - Whether "I did it" ends the break is the parent's setting. On a firm
+///    break it records and praises without touching the clock, and says so
+///    instead of pretending otherwise; on a soft one it lets them back.
+///  - Band 4_6 sees no text at all (SPEC 5.1). The line is spoken, Gilli acts
 ///    it out, and the time left is a ring that empties rather than digits.
 ///
-/// It is an invitation to move, never a punishment: no red, no warning icon,
-/// nothing about having watched too much.
+/// It is an invitation to stop for a moment, never a punishment: no red, no
+/// warning icon, nothing about having watched too much.
 class BreakScreen extends StatefulWidget {
   const BreakScreen({
     super.key,
     required this.kid,
-    required this.movementBreak,
+    required this.breakPeriod,
     required this.onFinished,
   });
 
   final Kid kid;
-  final MovementBreak movementBreak;
+  final BreakPeriod breakPeriod;
 
   /// Called once, when the child is free to watch again: the timer ran out or
   /// a parent ended it early. The caller decides where they land.
@@ -49,11 +51,13 @@ class BreakScreen extends StatefulWidget {
 class _BreakScreenState extends State<BreakScreen> {
   AgeBand get _band => widget.kid.band;
   bool get _preReader => _band == AgeBand.b4to6;
-  BreakTask get _task => widget.movementBreak.task;
+
+  /// The line a parent wrote for this break, or null when they wrote none.
+  BreakMessage? get _message => widget.breakPeriod.message;
 
   Timer? _tick;
-  late int _secondsLeft = widget.movementBreak.secondsLeft;
-  late final int _total = widget.movementBreak.secondsLeft.clamp(1, 3600);
+  late int _secondsLeft = widget.breakPeriod.secondsLeft;
+  late final int _total = widget.breakPeriod.secondsLeft.clamp(1, 3600);
 
   Gesture _gesture = Gesture.cheer;
   int _gestureTick = 0;
@@ -80,9 +84,25 @@ class _BreakScreenState extends State<BreakScreen> {
 
   GilliVoice get _voice => context.read<GilliVoice>();
 
+  /// What Gilli says when the parent has written no lines: that it is break
+  /// time and nothing more. Never an invented instruction.
+  String _quietLine() {
+    final mins = (_total / 60).ceil();
+    return _preReader
+        ? 'Break time! Gilli will call you in a little while.'
+        : 'Break time. Back in about $mins '
+              '${mins == 1 ? 'minute' : 'minutes'}.';
+  }
+
   Future<void> _openWith() async {
     if (!mounted) return;
-    await _voice.say(url: '', fallbackText: _task.speech, slow: _preReader);
+    // A parent's line is spoken as they wrote it; with none, Gilli says only
+    // that it is break time. Nothing is invented to fill the silence.
+    await _voice.say(
+      url: '',
+      fallbackText: _message?.speech ?? _quietLine(),
+      slow: _preReader,
+    );
   }
 
   void _onSecond() {
@@ -118,16 +138,24 @@ class _BreakScreenState extends State<BreakScreen> {
   /// Records that they did it. Deliberately does not touch [_secondsLeft].
   Future<void> _iDidIt() async {
     if (_acked || _finishing) return;
+    final firm = widget.breakPeriod.isFirm;
     setState(() {
       _acked = true;
       _gesture = Gesture.cheer;
       _gestureTick++;
-      _praise = 'Nice moving. Gilli will call you when the time is up.';
+      _praise = firm
+          ? 'Nice one. Gilli will call you when the time is up.'
+          : 'Nice one.';
     });
     try {
       await context.read<AppState>().gateway.ackBreak(widget.kid.id);
     } catch (_) {
       // The ack is a nicety; a break must never depend on the network.
+    }
+    // Whether this ends the break is the parent's setting, not the child's tap.
+    if (!firm) {
+      await _release();
+      return;
     }
     if (!mounted) return;
     await _voice.say(
@@ -265,44 +293,23 @@ class _BreakScreenState extends State<BreakScreen> {
       );
     }
 
-    final steps = _task.steps;
-    // The steps take whatever room is left and scroll if a long task needs
-    // it; the button and the line under it never move off screen.
+    final message = _message;
+    // The parent's own sentence, or none at all. There is no generated task
+    // here: a parent who wrote nothing gets a quiet break, which is a
+    // deliberate state rather than a gap for a model to fill.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('Time to move', style: HgText.body(size: 15, color: HgColors.sky)),
-        const SizedBox(height: 6),
-        Text(
-          _task.title,
-          style: HgText.display(size: _band == AgeBand.b7to8 ? 32 : 27),
-        ),
-        const SizedBox(height: 10),
+        Text('Break time', style: HgText.body(size: 15, color: HgColors.sky)),
+        const SizedBox(height: 8),
         Flexible(
           child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              spacing: 10,
-              children: [
-                for (var i = 0; i < steps.length; i++)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 12,
-                    children: [
-                      _StepNumber(i + 1),
-                      Expanded(
-                        child: Text(
-                          steps[i],
-                          style: HgText.body(
-                            size: _band == AgeBand.b7to8 ? 18 : 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
+            child: Text(
+              (message != null && message.text.isNotEmpty)
+                  ? message.text
+                  : _quietLine(),
+              style: HgText.display(size: _band == AgeBand.b7to8 ? 30 : 26),
             ),
           ),
         ),
@@ -319,7 +326,10 @@ class _BreakScreenState extends State<BreakScreen> {
               child: Text(
                 // Honest about what the button does: it tells Gilli, it does
                 // not buy the video back sooner.
-                _praise ?? 'The video comes back when the timer runs out.',
+                _praise ??
+                    (widget.breakPeriod.isFirm
+                        ? 'The video comes back when the timer runs out.'
+                        : 'Tap when you are done and the video comes back.'),
                 style: HgText.body(size: 14, color: HgColors.sky),
               ),
             ),
@@ -330,28 +340,8 @@ class _BreakScreenState extends State<BreakScreen> {
   }
 }
 
-/// Small round number beside a step.
-class _StepNumber extends StatelessWidget {
-  const _StepNumber(this.n);
-  final int n;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: HgColors.mango.withValues(alpha: 0.22),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text('$n', style: HgText.body(size: 15, color: HgColors.mango)),
-    );
-  }
-}
-
-/// The time left, as a ring that empties. Digits are added for readers only;
-/// for band 4_6 the ring is the whole clock (SPEC 5.1).
+/// The time left, as a ring that empties. Digits are optional because a
+/// pre-reader cannot read them.
 class _BreakTimer extends StatelessWidget {
   const _BreakTimer({
     required this.secondsLeft,
@@ -505,31 +495,36 @@ class _DayDoneScreenState extends State<DayDoneScreen> {
   Widget build(BuildContext context) {
     final voice = context.watch<GilliVoice>();
     final showText = widget.kid.band.showsQuestionText;
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 20,
-          children: [
-            GilliWidget(
-              size: 180,
-              gesture: Gesture.idle,
-              talking: voice.speaking,
-            ),
-            if (showText) ...[
-              Text(
-                'That is all for today',
-                textAlign: TextAlign.center,
-                style: HgText.display(size: 30),
+    // This sits under the kid home's header in landscape, where there is not
+    // much height left: Gilli is sized off what there is so the line saying
+    // when watching comes back is never the part that falls off the screen.
+    return LayoutBuilder(
+      builder: (context, box) => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 12,
+            children: [
+              GilliWidget(
+                size: (box.maxHeight * 0.44).clamp(90.0, 180.0),
+                gesture: Gesture.idle,
+                talking: voice.speaking,
               ),
-              Text(
-                'Gilli will be here again tomorrow morning.',
-                textAlign: TextAlign.center,
-                style: HgText.body(size: 17, color: HgColors.sky),
-              ),
+              if (showText) ...[
+                Text(
+                  'That is all for today',
+                  textAlign: TextAlign.center,
+                  style: HgText.display(size: 28),
+                ),
+                Text(
+                  'Gilli will be here again tomorrow morning.',
+                  textAlign: TextAlign.center,
+                  style: HgText.body(size: 17, color: HgColors.sky),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

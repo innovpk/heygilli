@@ -66,6 +66,8 @@ class Kid {
     this.breakAfterMinutes = defaultBreakAfterMinutes,
     this.breakMinutes = defaultBreakMinutes,
     this.maxVideoMinutes = defaultMaxVideoMinutes,
+    this.breakIsFirm = true,
+    this.breakMessages = const [],
   });
 
   /// PROTOCOL "Time limits and movement breaks" defaults. A gateway that has
@@ -95,6 +97,15 @@ class Kid {
   /// Longest single video offered. 0 = no limit.
   final int maxVideoMinutes;
 
+  /// Whether the break runs its full length. A soft break lets the child come
+  /// back as soon as they say they are done: the household decides whether
+  /// HeyGilli holds the line or only asks, and it is never the model's call.
+  final bool breakIsFirm;
+
+  /// The lines this parent wrote for break time, in the order they were saved.
+  /// Empty is a real answer, not a gap to fill: it means a quiet break.
+  final List<BreakMessage> breakMessages;
+
   bool get speaksUrdu => languages.contains('ur');
 
   bool get hasDailyLimit => dailyMinutes > 0;
@@ -105,6 +116,8 @@ class Kid {
     int? breakAfterMinutes,
     int? breakMinutes,
     int? maxVideoMinutes,
+    bool? breakIsFirm,
+    List<BreakMessage>? breakMessages,
   }) => Kid(
     id: id,
     nickname: nickname,
@@ -116,6 +129,8 @@ class Kid {
     breakAfterMinutes: breakAfterMinutes ?? this.breakAfterMinutes,
     breakMinutes: breakMinutes ?? this.breakMinutes,
     maxVideoMinutes: maxVideoMinutes ?? this.maxVideoMinutes,
+    breakIsFirm: breakIsFirm ?? this.breakIsFirm,
+    breakMessages: breakMessages ?? this.breakMessages,
   );
 
   factory Kid.fromJson(Map<String, dynamic> j) => Kid(
@@ -135,6 +150,12 @@ class Kid {
     breakMinutes: (j['break_minutes'] as num?)?.toInt() ?? defaultBreakMinutes,
     maxVideoMinutes:
         (j['max_video_minutes'] as num?)?.toInt() ?? defaultMaxVideoMinutes,
+    breakIsFirm: j['break_is_firm'] as bool? ?? true,
+    breakMessages:
+        (j['break_messages'] as List?)
+            ?.map((m) => BreakMessage.fromJson(m as Map<String, dynamic>))
+            .toList(growable: false) ??
+        const [],
   );
 
   Map<String, dynamic> toJson() => {
@@ -148,56 +169,46 @@ class Kid {
     'break_after_minutes': breakAfterMinutes,
     'break_minutes': breakMinutes,
     'max_video_minutes': maxVideoMinutes,
+    'break_is_firm': breakIsFirm,
+    'break_messages': [for (final m in breakMessages) m.toJson()],
   };
 }
 
-/// One thing to do during a movement break.
+/// One line a parent wants Gilli to say when watching pauses.
 ///
-/// PROTOCOL: built from what the child just watched, doable indoors on the
-/// spot, 1 to 3 minutes. [spoken] is what Gilli says, and is the whole task
-/// for band 4_6, which sees no text at all.
-class BreakTask {
-  const BreakTask({
-    this.title = '',
-    this.steps = const [],
-    this.seconds = 0,
-    this.spoken = '',
-  });
+/// Parent-authored. A model may propose these in the parent app, but nothing
+/// reaches a child until the parent saves it, so every word Gilli says during
+/// a break was written or approved by a parent.
+class BreakMessage {
+  const BreakMessage({this.id = '', this.text = '', this.spoken = ''});
 
-  final String title;
-  final List<String> steps;
-  final int seconds;
+  final String id;
+  final String text;
   final String spoken;
 
-  /// What Gilli says out loud. Falls back to the title so a task with no
-  /// `spoken` is still never silent for a pre-reader.
-  String get speech => spoken.isNotEmpty ? spoken : title;
+  /// What Gilli says out loud. Falls back to the text so a saved line is never
+  /// silent for a pre-reader, who sees nothing on screen.
+  String get speech => spoken.isNotEmpty ? spoken : text;
 
-  factory BreakTask.fromJson(Map<String, dynamic> j) => BreakTask(
-    title: j['title'] as String? ?? '',
-    steps: _strings(j['steps']),
-    seconds: (j['seconds'] as num?)?.toInt() ?? 0,
+  factory BreakMessage.fromJson(Map<String, dynamic> j) => BreakMessage(
+    id: '${j['id'] ?? ''}',
+    text: j['text'] as String? ?? '',
     spoken: j['spoken'] as String? ?? '',
   );
 
-  Map<String, dynamic> toJson() => {
-    'title': title,
-    'steps': steps,
-    'seconds': seconds,
-    'spoken': spoken,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'spoken': spoken};
 }
 
-/// An active movement break. Nothing plays while one of these exists.
-class MovementBreak {
-  const MovementBreak({
+/// An active break. Nothing plays while one of these exists.
+class BreakPeriod {
+  const BreakPeriod({
     required this.id,
     required this.kidId,
-    required this.task,
+    this.message,
     this.startedAt = '',
     this.endsAt = '',
     this.secondsLeft = 0,
-    this.sourceTitles = const [],
+    this.isFirm = true,
     this.acked = false,
   });
 
@@ -210,38 +221,43 @@ class MovementBreak {
   /// from here rather than from [endsAt], so a device clock that is minutes
   /// off does not end a break early or hold a child in one.
   final int secondsLeft;
-  final BreakTask task;
 
-  /// The videos the task was built from. Shown to the parent, never the kid.
-  final List<String> sourceTitles;
+  /// Whichever of the parent's lines Gilli says this time. Null is normal and
+  /// safe: a parent who wrote nothing gets a quiet break.
+  final BreakMessage? message;
 
-  /// The child has said they did it. Recorded only: it never shortens the
-  /// break (PROTOCOL).
+  /// The parent's choice. When firm, the timer decides and [acked] only
+  /// records the tap; when not, saying "I did it" ends the break.
+  final bool isFirm;
+
+  /// The child has said they are done.
   final bool acked;
 
-  MovementBreak copyWith({int? secondsLeft, bool? acked}) => MovementBreak(
+  BreakPeriod copyWith({int? secondsLeft, bool? acked}) => BreakPeriod(
     id: id,
     kidId: kidId,
     startedAt: startedAt,
     endsAt: endsAt,
     secondsLeft: secondsLeft ?? this.secondsLeft,
-    task: task,
-    sourceTitles: sourceTitles,
+    message: message,
+    isFirm: isFirm,
     acked: acked ?? this.acked,
   );
 
-  factory MovementBreak.fromJson(Map<String, dynamic> j) => MovementBreak(
-    id: '${j['id'] ?? ''}',
-    kidId: '${j['kid_id'] ?? ''}',
-    startedAt: j['started_at'] as String? ?? '',
-    endsAt: j['ends_at'] as String? ?? '',
-    secondsLeft: (j['seconds_left'] as num?)?.toInt() ?? 0,
-    task: BreakTask.fromJson(
-      (j['task'] as Map?)?.cast<String, dynamic>() ?? const {},
-    ),
-    sourceTitles: _strings(j['source_titles']),
-    acked: j['acked'] as bool? ?? false,
-  );
+  factory BreakPeriod.fromJson(Map<String, dynamic> j) {
+    final raw = (j['message'] as Map?)?.cast<String, dynamic>();
+    return BreakPeriod(
+      id: '${j['id'] ?? ''}',
+      kidId: '${j['kid_id'] ?? ''}',
+      startedAt: j['started_at'] as String? ?? '',
+      endsAt: j['ends_at'] as String? ?? '',
+      secondsLeft: (j['seconds_left'] as num?)?.toInt() ?? 0,
+      // Absent and null both mean a quiet break: the server drops null fields.
+      message: raw == null ? null : BreakMessage.fromJson(raw),
+      isFirm: j['is_firm'] as bool? ?? true,
+      acked: j['acked'] as bool? ?? false,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -249,8 +265,8 @@ class MovementBreak {
     'started_at': startedAt,
     'ends_at': endsAt,
     'seconds_left': secondsLeft,
-    'task': task.toJson(),
-    'source_titles': sourceTitles,
+    if (message != null) 'message': message!.toJson(),
+    'is_firm': isFirm,
     'acked': acked,
   };
 }
@@ -288,7 +304,7 @@ class WatchState {
   final int continuousMinutes;
   final bool watchingAllowed;
   final BlockedReason? blockedReason;
-  final MovementBreak? activeBreak;
+  final BreakPeriod? activeBreak;
 
   /// A break is only "on" when the server sent one to run. A blocked_reason
   /// of "break" with no break attached is treated as no break rather than as
@@ -308,7 +324,7 @@ class WatchState {
     blockedReason: BlockedReason.fromWire(j['blocked_reason'] as String?),
     activeBreak: j['active_break'] == null
         ? null
-        : MovementBreak.fromJson(
+        : BreakPeriod.fromJson(
             (j['active_break'] as Map).cast<String, dynamic>(),
           ),
   );
@@ -810,7 +826,7 @@ class SessionStarted extends SessionStartResult {
 
 class SessionBlockedByBreak extends SessionStartResult {
   const SessionBlockedByBreak(this.activeBreak);
-  final MovementBreak activeBreak;
+  final BreakPeriod activeBreak;
 }
 
 /// Two shapes (SPEC 6.5): "prereader" is a vocabulary log, "older" is a

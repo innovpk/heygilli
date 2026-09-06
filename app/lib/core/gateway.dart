@@ -73,11 +73,22 @@ abstract class Gateway {
     int? breakAfterMinutes,
     int? breakMinutes,
     int? maxVideoMinutes,
+    bool? breakIsFirm,
   });
+
+  /// `PUT /kids/{id}/break-messages`: replaces the lines Gilli reads out at
+  /// break time with exactly what the parent saved. An empty list is a real
+  /// setting — a quiet break — not a missing one.
+  Future<Kid> saveBreakMessages(String kidId, List<BreakMessage> messages);
+
+  /// `POST /kids/{id}/break-messages/suggest`: drafts for the parent to read,
+  /// edit and save, or throw away. Nothing here has reached a child, and the
+  /// only route to one is [saveBreakMessages].
+  Future<List<BreakMessage>> suggestBreakMessages(String kidId);
 
   /// `POST /kids/{id}/break/ack`: the child says they did the task. Records
   /// it and nothing more; the break still ends on its own timer.
-  Future<MovementBreak> ackBreak(String kidId);
+  Future<BreakPeriod> ackBreak(String kidId);
 
   /// `POST /kids/{id}/break/override`: a parent ends a break early, behind
   /// the PIN.

@@ -15,8 +15,12 @@ import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Time limits and movement breaks, against the shapes in
-/// docs/PROTOCOL.md "Time limits and movement breaks".
+/// Time limits and break periods, against the shapes in
+/// docs/PROTOCOL.md "Time limits and break periods".
+///
+/// The line running through all of it: every word a child hears during a
+/// break was written by their parent. Nothing here should pass if a model,
+/// or this app, can put a sentence in front of a child on its own.
 void main() {
   group('Kid limits', () {
     test('the four settings parse off the wire', () {
@@ -77,39 +81,53 @@ void main() {
     });
   });
 
-  group('WatchState and MovementBreak', () {
+  group('WatchState and BreakPeriod', () {
     final breakJson = {
       'id': 'brk_1',
       'kid_id': 'k1',
       'started_at': '2026-09-06T10:00:00Z',
       'ends_at': '2026-09-06T10:05:00Z',
       'seconds_left': 214,
-      'task': {
-        'title': 'Be a volcano',
-        'steps': ['Crouch down small', 'Push your arms up and go whoosh'],
-        'seconds': 120,
-        'spoken': 'Let us be a volcano! Crouch down small.',
+      'message': {
+        'id': 'msg_1',
+        'text': 'Time to stretch. Ammi is in the kitchen if you want a snack.',
+        'spoken':
+            'Time to stretch! Ammi is in the kitchen if you want a snack.',
       },
-      'source_titles': ['Every Kind of Volcano'],
+      'is_firm': true,
       'acked': false,
     };
 
     test('a break parses whole', () {
-      final b = MovementBreak.fromJson(breakJson);
+      final b = BreakPeriod.fromJson(breakJson);
       expect(b.id, 'brk_1');
       expect(b.kidId, 'k1');
       expect(b.secondsLeft, 214);
       expect(b.acked, isFalse);
-      expect(b.sourceTitles, ['Every Kind of Volcano']);
-      expect(b.task.title, 'Be a volcano');
-      expect(b.task.steps.length, 2);
-      expect(b.task.seconds, 120);
-      expect(b.task.spoken, startsWith('Let us be a volcano'));
+      expect(b.isFirm, isTrue);
+      expect(b.message!.id, 'msg_1');
+      expect(b.message!.text, startsWith('Time to stretch'));
+      expect(b.message!.spoken, startsWith('Time to stretch'));
     });
 
-    test('a task with no spoken line still has something to say', () {
-      const t = BreakTask(title: 'Stretch tall like a tree');
-      expect(t.speech, 'Stretch tall like a tree');
+    test('a break with no message is a quiet break, not a broken one', () {
+      // A parent who saved no lines gets silence. If this threw, or invented
+      // a line, the app would be speaking for them.
+      for (final j in [
+        {'id': 'brk_2', 'kid_id': 'k1', 'seconds_left': 60},
+        {'id': 'brk_2', 'kid_id': 'k1', 'seconds_left': 60, 'message': null},
+      ]) {
+        final b = BreakPeriod.fromJson(j);
+        expect(b.message, isNull, reason: '$j');
+        expect(b.secondsLeft, 60);
+      }
+    });
+
+    test('a message with no spoken line is still said out loud', () {
+      // Band 4_6 sees nothing, so a line that is text-only would be a break
+      // where a pre-reader is told nothing at all.
+      const m = BreakMessage(text: 'Go and stretch your legs.');
+      expect(m.speech, 'Go and stretch your legs.');
     });
 
     test('a blocked state carries the break', () {
@@ -125,7 +143,7 @@ void main() {
       expect(s.blockedReason, BlockedReason.movementBreak);
       expect(s.isOnBreak, isTrue);
       expect(s.isDayDone, isFalse);
-      expect(s.activeBreak!.task.title, 'Be a volcano');
+      expect(s.activeBreak!.message!.text, startsWith('Time to stretch'));
     });
 
     test('the daily limit is a state of its own, with no break', () {
@@ -178,7 +196,7 @@ void main() {
       });
       final back = WatchState.fromJson(s.toJson());
       expect(back.blockedReason, BlockedReason.movementBreak);
-      expect(back.activeBreak!.task.steps, s.activeBreak!.task.steps);
+      expect(back.activeBreak!.message!.text, s.activeBreak!.message!.text);
     });
   });
 
@@ -191,19 +209,17 @@ void main() {
             'id': 'brk_1',
             'kid_id': 'k1',
             'seconds_left': 300,
-            'task': {
-              'title': 'Waddle like the five little ducks',
-              'steps': ['Waddle five steps one way'],
-              'seconds': 90,
-              'spoken': 'Stand up like a little duck!',
+            'message': {
+              'id': 'msg_2',
+              'text': 'Break time. Go say salaam to Nano.',
             },
           },
         }),
       );
-      expect(m, isA<BreakMessage>());
-      final b = (m as BreakMessage).movementBreak;
+      expect(m, isA<BreakStartedMessage>());
+      final b = (m as BreakStartedMessage).movementBreak;
       expect(b.secondsLeft, 300);
-      expect(b.task.title, 'Waddle like the five little ducks');
+      expect(b.message!.text, 'Break time. Go say salaam to Nano.');
     });
 
     test('a break frame with no break in it is not a break', () {
@@ -230,7 +246,7 @@ void main() {
       'id': 'brk_9',
       'kid_id': 'k1',
       'seconds_left': 180,
-      'task': {'title': 'Be a volcano', 'steps': [], 'spoken': 'Whoosh!'},
+      'message': {'id': 'msg_3', 'text': 'Break time. Drink some water.'},
     };
 
     test('200 starts a session', () async {
@@ -270,11 +286,26 @@ void main() {
         }),
       ]) {
         expect(
-          breakFromErrorBody(body)?.task.title,
-          'Be a volcano',
+          breakFromErrorBody(body)?.message?.text,
+          'Break time. Drink some water.',
           reason: body,
         );
       }
+    });
+
+    test('a quiet break in a 409 is still found', () async {
+      // No message on it, because the parent saved no lines. The child is
+      // still on a break, and the app must not shrug and start the video.
+      final api = clientAnswering(409, {
+        'break': {'id': 'brk_9', 'kid_id': 'k1', 'seconds_left': 180},
+      });
+      final r = await api.startSession(
+        kidId: 'k1',
+        videoId: 'v1',
+        device: 'android',
+      );
+      expect(r, isA<SessionBlockedByBreak>());
+      expect((r as SessionBlockedByBreak).activeBreak.message, isNull);
     });
 
     test('an ordinary error body yields no break', () {
@@ -332,22 +363,30 @@ void main() {
       expect(kids.single.breakAfterMinutes, 15);
     });
 
-    test('a triggered break blocks watching and blocks POST /sessions', () async {
-      gateway.startDemoBreak(kid.id, source: 'Every Kind of Volcano');
+    test(
+      'a triggered break blocks watching and blocks POST /sessions',
+      () async {
+        await gateway.saveBreakMessages(kid.id, const [
+          BreakMessage(text: 'Break time. Go and stretch your legs.'),
+        ]);
+        gateway.startDemoBreak(kid.id);
 
-      final state = await gateway.watchState(kid.id);
-      expect(state.watchingAllowed, isFalse);
-      expect(state.blockedReason, BlockedReason.movementBreak);
-      expect(state.activeBreak!.task.title, 'Be a volcano');
-      expect(state.activeBreak!.sourceTitles, ['Every Kind of Volcano']);
+        final state = await gateway.watchState(kid.id);
+        expect(state.watchingAllowed, isFalse);
+        expect(state.blockedReason, BlockedReason.movementBreak);
+        expect(
+          state.activeBreak!.message!.text,
+          'Break time. Go and stretch your legs.',
+        );
 
-      final start = await gateway.startSession(
-        kidId: kid.id,
-        videoId: 'pZw9veQ76fo',
-        device: 'test',
-      );
-      expect(start, isA<SessionBlockedByBreak>());
-    });
+        final start = await gateway.startSession(
+          kidId: kid.id,
+          videoId: 'pZw9veQ76fo',
+          device: 'test',
+        );
+        expect(start, isA<SessionBlockedByBreak>());
+      },
+    );
 
     test('the ack records but does not shorten', () async {
       final started = gateway.startDemoBreak(kid.id);
@@ -389,51 +428,75 @@ void main() {
       expect((await gateway.watchState(kid.id)).watchingAllowed, isTrue);
     });
 
-    test('the break task is built from what they just watched', () {
-      expect(
-        gateway.startDemoBreak(kid.id, source: 'Five Little Ducks').task.title,
-        contains('ducks'),
-      );
-      gateway.clearDemoLimits(kid.id);
-      expect(
-        gateway
-            .startDemoBreak(kid.id, source: 'How Ears Let Us Hear the World')
-            .task
-            .title,
-        'Listen like a squirrel',
-      );
+    test('a break reads the line the parent saved, and no other', () async {
+      await gateway.saveBreakMessages(kid.id, const [
+        BreakMessage(text: 'Break time. Go and say salaam to Nano.'),
+      ]);
+      final b = gateway.startDemoBreak(kid.id);
+      expect(b.message!.text, 'Break time. Go and say salaam to Nano.');
     });
 
-    test('every built-in task is one a child can do on a rug', () {
-      // PROTOCOL safety rules, enforced in code and not only in a prompt.
-      const banned = [
-        'jump',
-        'climb',
-        'run',
-        'stairs',
-        'outside',
-        'kitchen',
-        'water',
-        'spin fast',
-        'fetch',
-        'get a',
-      ];
-      for (final source in const [
-        'Every Kind of Volcano',
-        'Five Little Ducks',
-        'How Ears Let Us Hear the World',
-        'Something else entirely',
-      ]) {
-        gateway.clearDemoLimits(kid.id);
-        final task = gateway.startDemoBreak(kid.id, source: source).task;
-        final words = '${task.title} ${task.steps.join(' ')} ${task.spoken}'
-            .toLowerCase();
-        for (final b in banned) {
-          expect(words, isNot(contains(b)), reason: '$source contains "$b"');
+    test(
+      'saved lines are rotated, so the same one is not read every time',
+      () async {
+        await gateway.saveBreakMessages(kid.id, const [
+          BreakMessage(text: 'First line.'),
+          BreakMessage(text: 'Second line.'),
+        ]);
+        final heard = <String>[];
+        for (var i = 0; i < 3; i++) {
+          heard.add(gateway.startDemoBreak(kid.id).message!.text);
+          gateway.clearDemoLimits(kid.id);
         }
-        expect(task.steps, isNotEmpty);
-        expect(task.spoken, isNotEmpty, reason: 'band 4_6 hears it or nothing');
+        expect(heard, ['First line.', 'Second line.', 'First line.']);
+      },
+    );
+
+    test('a parent who saved nothing gets a quiet break', () {
+      // Not a fallback line, not a generated one: silence is the answer when
+      // a parent has not written anything for Gilli to say.
+      expect(gateway.startDemoBreak(kid.id).message, isNull);
+    });
+
+    test('clearing the lines goes back to a quiet break', () async {
+      await gateway.saveBreakMessages(kid.id, const [
+        BreakMessage(text: 'Break time.'),
+      ]);
+      await gateway.saveBreakMessages(kid.id, const []);
+      expect((await gateway.kids()).single.breakMessages, isEmpty);
+      expect(gateway.startDemoBreak(kid.id).message, isNull);
+    });
+
+    test(
+      'suggestions are drafts and reach no child until they are saved',
+      () async {
+        final drafts = await gateway.suggestBreakMessages(kid.id);
+        expect(drafts, isNotEmpty);
+        // Suggesting changed nothing about what this child will hear.
+        expect((await gateway.kids()).single.breakMessages, isEmpty);
+        expect(gateway.startDemoBreak(kid.id).message, isNull);
+        gateway.clearDemoLimits(kid.id);
+
+        // Only the parent's save puts one in front of a child.
+        await gateway.saveBreakMessages(kid.id, [drafts.first]);
+        expect(gateway.startDemoBreak(kid.id).message!.text, drafts.first.text);
+      },
+    );
+
+    test('every saved line is something Gilli can say out loud', () async {
+      // Band 4_6 sees no text, so a line with nothing to speak would be a
+      // break where a pre-reader is told nothing at all.
+      final drafts = await gateway.suggestBreakMessages(kid.id);
+      for (final d in drafts) {
+        expect(d.speech, isNotEmpty, reason: d.text);
       }
+    });
+
+    test('a firm break is the default and a parent can soften it', () async {
+      expect(gateway.startDemoBreak(kid.id).isFirm, isTrue);
+      gateway.clearDemoLimits(kid.id);
+      await gateway.updateLimits(kid.id, breakIsFirm: false);
+      expect(gateway.startDemoBreak(kid.id).isFirm, isFalse);
     });
   });
 
@@ -463,21 +526,25 @@ void main() {
       );
     });
 
-    MovementBreak aBreak(String kidId, {int seconds = 4}) => MovementBreak(
+    /// A break carrying [message], which is the parent's own line. Passing
+    /// null is a parent who saved nothing: a quiet break.
+    BreakPeriod aBreak(
+      String kidId, {
+      int seconds = 4,
+      bool isFirm = true,
+      BreakMessage? message = const BreakMessage(
+        id: 'msg_1',
+        text: 'Break time. Go and stretch your legs.',
+        spoken: 'Break time! Go and stretch your legs.',
+      ),
+    }) => BreakPeriod(
       id: 'brk_test',
       kidId: kidId,
       startedAt: DateTime.now().toIso8601String(),
-      endsAt: DateTime.now()
-          .add(Duration(seconds: seconds))
-          .toIso8601String(),
+      endsAt: DateTime.now().add(Duration(seconds: seconds)).toIso8601String(),
       secondsLeft: seconds,
-      task: const BreakTask(
-        title: 'Be a volcano',
-        steps: ['Crouch down small', 'Push your arms up and go whoosh'],
-        seconds: 120,
-        spoken: 'Let us be a volcano!',
-      ),
-      sourceTitles: const ['Every Kind of Volcano'],
+      isFirm: isFirm,
+      message: message,
     );
 
     Widget host(Widget child) => MultiProvider(
@@ -492,13 +559,22 @@ void main() {
       WidgetTester tester,
       Kid kid, {
       int seconds = 4,
+      bool isFirm = true,
+      bool quiet = false,
       VoidCallback? onFinished,
     }) async {
       await tester.pumpWidget(
         host(
           BreakScreen(
             kid: kid,
-            movementBreak: aBreak(kid.id, seconds: seconds),
+            breakPeriod: quiet
+                ? aBreak(
+                    kid.id,
+                    seconds: seconds,
+                    isFirm: isFirm,
+                    message: null,
+                  )
+                : aBreak(kid.id, seconds: seconds, isFirm: isFirm),
             onFinished: onFinished ?? () {},
           ),
         ),
@@ -528,19 +604,22 @@ void main() {
         isEmpty,
         reason: 'a pre-reader was shown text: $texts (SPEC 5.1)',
       );
-      // The task still reaches them: there is a way to say "I did it", and
-      // the spoken line is what carries the task itself.
+      // The parent's line still reaches them: it is spoken, and there is a
+      // way to say "I did it".
       expect(find.bySemanticsLabel('I did it'), findsOneWidget);
       await runOut(tester, 31);
     });
 
-    testWidgets('bands 7+ get the task title and its steps', (tester) async {
+    testWidgets("bands 7+ read the parent's line, word for word", (
+      tester,
+    ) async {
       await pumpBreak(tester, reader, seconds: 30);
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Be a volcano'), findsOneWidget);
-      expect(find.text('Crouch down small'), findsOneWidget);
-      expect(find.text('Push your arms up and go whoosh'), findsOneWidget);
+      expect(
+        find.text('Break time. Go and stretch your legs.'),
+        findsOneWidget,
+      );
       // The countdown, and an honest line about what the button does.
       expect(find.textContaining(RegExp(r'^\d+:\d\d$')), findsOneWidget);
       expect(
@@ -550,16 +629,9 @@ void main() {
       await runOut(tester, 31);
     });
 
-    testWidgets('the countdown running out releases the child', (
-      tester,
-    ) async {
+    testWidgets('the countdown running out releases the child', (tester) async {
       var finished = 0;
-      await pumpBreak(
-        tester,
-        reader,
-        seconds: 3,
-        onFinished: () => finished++,
-      );
+      await pumpBreak(tester, reader, seconds: 3, onFinished: () => finished++);
       expect(finished, 0, reason: 'released before the timer ran');
 
       await runOut(tester, 4);
@@ -570,12 +642,7 @@ void main() {
       tester,
     ) async {
       var finished = 0;
-      await pumpBreak(
-        tester,
-        reader,
-        seconds: 8,
-        onFinished: () => finished++,
-      );
+      await pumpBreak(tester, reader, seconds: 8, onFinished: () => finished++);
       final before = _clockOnScreen(tester);
       expect(before, isNotEmpty);
 
@@ -589,16 +656,59 @@ void main() {
         reason: 'the ack took time off the clock',
       );
       expect(finished, 0, reason: 'the ack ended the break');
-      // Warm, and honest about what just happened.
+      // Warm, and honest about what just happened: the tap was heard, and
+      // it bought nothing back sooner.
       expect(find.text('Nice one'), findsOneWidget);
       expect(
-        find.text('Nice moving. Gilli will call you when the time is up.'),
+        find.text('Nice one. Gilli will call you when the time is up.'),
         findsOneWidget,
       );
 
       // It still ends on its own clock, a little later.
       await runOut(tester, 9);
       expect(finished, 1);
+    });
+
+    testWidgets('a quiet break says only that it is break time', (
+      tester,
+    ) async {
+      // The parent saved nothing. Gilli must not fill the gap with an
+      // instruction of its own, so all that is left is the fact of the break.
+      await pumpBreak(tester, reader, seconds: 30, quiet: true);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.textContaining('Break time'), findsWidgets);
+      expect(
+        find.text('Break time. Go and stretch your legs.'),
+        findsNothing,
+        reason: 'a line no parent wrote was shown',
+      );
+      await runOut(tester, 31);
+    });
+
+    testWidgets('on a soft break "I did it" lets them back', (tester) async {
+      // The household chose to ask rather than hold the line, and the wording
+      // says what will happen before the child taps.
+      var finished = 0;
+      await pumpBreak(
+        tester,
+        reader,
+        seconds: 30,
+        isFirm: false,
+        onFinished: () => finished++,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        find.text('Tap when you are done and the video comes back.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('I did it'));
+      // Long enough for the ack round-trip: the release waits on it, and
+      // FakeGateway's simulated lag runs on the tester's clock.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(finished, 1, reason: 'a soft break held the child anyway');
     });
 
     testWidgets('a child cannot back out of a break', (tester) async {
@@ -614,9 +724,7 @@ void main() {
     testWidgets('the end of the day is calm, and says when it comes back', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        host(Scaffold(body: DayDoneScreen(kid: reader))),
-      );
+      await tester.pumpWidget(host(Scaffold(body: DayDoneScreen(kid: reader))));
       await tester.pump();
       expect(find.text('That is all for today'), findsOneWidget);
       expect(
