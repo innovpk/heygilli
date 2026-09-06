@@ -34,7 +34,7 @@ Per SPEC section 14. Items that affect the submission only:
 - [ ] Provider eval run on Bedrock and the second provider. Record pass and fail counts; fill `[TBD from testing]` in `docs/blog-1-strands-design.md`.
 - [ ] Second child test if possible.
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
-- [ ] Architecture diagram updated to match what shipped (dashed boxes for anything still planned).
+- [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
 - [ ] Publish builder.aws post 1: `docs/blog-1-strands-design.md`. Title must contain "Agents for Humans". Remove every `[TBD]`. Save the URL.
 - [ ] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality.
 
@@ -95,7 +95,7 @@ Do these in order.
 | Public repo URL | github.com/mujahidmasood/heygilli | [ ] |
 | MIT license visible | `LICENSE` | [x] |
 | README with setup instructions | `README.md` | [ ] |
-| Architecture diagram | `docs/architecture.svg`, `docs/architecture.png` | [x] drawn, [ ] matches what shipped |
+| Architecture diagram | `docs/architecture.svg`, `docs/architecture.png` | [x] drawn, [x] matches what shipped (6 Sep) |
 | Text description | `docs/devpost-submission.md` | [x] drafted, [ ] finalised |
 | Demo video, 5:00 max, public on YouTube | [ ] URL | [ ] |
 | Testing access: test build or live link | GitHub Release APK, gateway URL | [ ] |
