@@ -1,0 +1,11 @@
+agents
+design
+docs
+shared
+.git
+.github
+.agents
+README.md
+SPEC.md
+LICENSE
+*.md

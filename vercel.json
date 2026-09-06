@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd app && flutter build web --release",
+  "outputDirectory": "app/build/web",
+  "env": {
+    "HEYGILLI_API_URL": "@heygilli-api-url"
+  }
+}
