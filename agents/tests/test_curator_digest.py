@@ -1,11 +1,14 @@
 """Curator and Digest pipelines end to end on the fake model, network mocked."""
 from __future__ import annotations
 
+import pytest
+
 from heygilli_agents import curator, digest
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
 from heygilli_agents.schemas import Answer, Channel, Kid, Session
 from heygilli_agents.store import LocalStore
+from heygilli_agents.tools.transcript import TranscriptsBlocked
 
 UPLOADS = [
     {"id": "goodvideo01", "channel_id": "UCx", "title": "Why Do Giraffes Have Long Necks?", "published_at": "2026-09-01",
@@ -72,3 +75,106 @@ def test_run_digest_counts_in_code_and_words_from_model(store: LocalStore) -> No
 
     empty = digest.run_digest(kid, "2026-09-06", store)
     assert empty.asked == 0 and empty.dinner_prompt == ""
+
+
+def _blocking_after(n: int):
+    """A transcript fetcher that works n times, then YouTube cuts us off."""
+    seen: list[str] = []
+
+    def fetch(video_id: str) -> dict:
+        seen.append(video_id)
+        if len(seen) > n:
+            raise TranscriptsBlocked("the request was blocked")
+        return {"video_id": video_id, "source": "captions:en:auto", "segments": SEGMENTS}
+
+    return fetch
+
+
+def test_a_blocked_ip_stops_the_run_instead_of_screening_on_titles(
+    store: LocalStore, monkeypatch
+) -> None:
+    """YouTube rate-limits a machine that fetches many captions in a row, and it
+    happened on the first real run over a household's own channels.
+
+    Two things must not happen. The endpoint must not 500 — it did, after three
+    and a half minutes of real work that was already saved. And the run must not
+    carry on: `excerpt` falls back to "(no transcript)", so every remaining
+    video would be screened on its title alone and the decisions would be
+    indistinguishable from ones made with the transcript.
+    """
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="SciShow Kids"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: UPLOADS)
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(curator, "fetch_transcript", _blocking_after(1))
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:en:auto", "segments": SEGMENTS},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+
+    # It came back rather than raising, and the first video's real decision kept.
+    assert report.stopped_early, "a partial run that reports itself as whole is the worst outcome"
+    assert "captions" in report.stopped_early
+    decided = len(report.approved) + len(report.hidden) + len(report.ask_parent)
+    assert decided == 1, "only the video that had a transcript was judged"
+    # And nothing was invented for the two it never got to.
+    assert len(store.list_kid_videos("hh", kid.id)) == 1
+
+
+def test_a_complete_run_does_not_claim_it_stopped(store: LocalStore, monkeypatch) -> None:
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="SciShow Kids"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: UPLOADS)
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(curator, "fetch_transcript", _blocking_after(99))
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:en:auto", "segments": SEGMENTS},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+    assert report.stopped_early == ""
+    assert len(report.approved) + len(report.hidden) + len(report.ask_parent) == 3
+
+
+def test_one_video_without_captions_does_not_stop_anything(
+    store: LocalStore, monkeypatch
+) -> None:
+    """The ordinary case, and the one the fix must not break: plenty of kids'
+    videos have captions disabled, and they are screened on what is known."""
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="SciShow Kids"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: UPLOADS)
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(
+        curator, "fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "none", "segments": []},
+    )
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "none", "segments": []},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+    assert report.stopped_early == ""
+    assert len(report.approved) + len(report.hidden) + len(report.ask_parent) == 3

@@ -54,7 +54,7 @@ POST /kids/{kid_id}/break-messages/suggest                    → {suggestions: 
 POST /kids/{kid_id}/break/ack                                 → BreakPeriod
 POST /kids/{kid_id}/break/override  {pin_ok: true}            → {cleared: true}  (parent only)
 POST /kids/{kid_id}/digest/run                                → Digest   (runs the Digest agent now; dev convenience)
-POST /curator/run              {kid_id}                       → {approved: [...], hidden: [...], ask_parent: [...]}   (dev convenience)
+POST /curator/run              {kid_id}                       → {approved, hidden, ask_parent, stopped_early}   (dev convenience)
 GET  /parent/inbox                                            → ParentPrompt[]   (things the Curator wants a yes/no on)
 POST /parent/inbox/{id}        {decision: "approve"|"hide"}   → {ok: true}
 ```

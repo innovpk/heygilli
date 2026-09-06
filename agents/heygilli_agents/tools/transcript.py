@@ -19,6 +19,15 @@ from strands import tool
 
 from ..store import get_store
 
+
+class TranscriptsBlocked(Exception):
+    """YouTube has stopped serving captions to this machine.
+
+    Not about one video: every fetch after it fails the same way. Callers that
+    are working through a list must stop, because carrying on would screen the
+    rest on titles alone and call the result a screening.
+    """
+
 log = logging.getLogger(__name__)
 
 LANG_PREFERENCE = ["en", "en-US", "en-GB", "ur", "hi"]
@@ -58,12 +67,20 @@ def _from_gemini(video_id: str) -> list[dict] | None:
 def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
     import requests
     from youtube_transcript_api import YouTubeTranscriptApi
-    from youtube_transcript_api._errors import CouldNotRetrieveTranscript, NoTranscriptFound
+    from youtube_transcript_api._errors import (
+        CouldNotRetrieveTranscript,
+        IpBlocked,
+        NoTranscriptFound,
+    )
 
     api = YouTubeTranscriptApi()
     try:
         tl = api.list(video_id)
-    except CouldNotRetrieveTranscript as e:  # disabled, unavailable, blocked IP, ...
+    except IpBlocked as e:
+        # IpBlocked is a CouldNotRetrieveTranscript, so it would otherwise be
+        # filed as "this video has no captions" — and every video after it too.
+        raise TranscriptsBlocked(str(e)) from e
+    except CouldNotRetrieveTranscript as e:  # disabled, unavailable, age-gated, ...
         log.info("no captions for %s: %s", video_id, type(e).__name__)
         return None
     except (requests.RequestException, ValueError) as e:  # network or parsing changes
@@ -82,7 +99,16 @@ def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
         if not available:
             return None
         chosen = available[0]
-    fetched = chosen.fetch()
+    try:
+        fetched = chosen.fetch()
+    except IpBlocked as e:
+        # Not this video's problem: YouTube has stopped answering this machine,
+        # and every fetch after it will fail the same way. Raised on so the
+        # caller can stop rather than screen the rest of the run blind.
+        raise TranscriptsBlocked(str(e)) from e
+    except Exception as e:  # noqa: BLE001 - third-party errors; no captions is a normal outcome
+        log.warning("caption fetch failed for %s: %s", video_id, e)
+        return None
     kind = "auto" if chosen.is_generated else "manual"
     rows = [{"start_s": int(s.start), "text": s.text.replace("\n", " ").strip()} for s in fetched]
     return rows, f"captions:{chosen.language_code}:{kind}"

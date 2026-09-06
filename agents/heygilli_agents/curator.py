@@ -22,7 +22,7 @@ from .schemas import CuratorDecision, Kid, Policy, Video
 from .store import Store
 from .tools.notify import notify_parent
 from .tools.screening import prescreen, screen_video
-from .tools.transcript import fetch_transcript, transcript_text
+from .tools.transcript import TranscriptsBlocked, fetch_transcript, transcript_text
 from .tools.youtube import fetch_uploads, fetch_video_meta
 
 log = logging.getLogger(__name__)
@@ -54,6 +54,10 @@ class CuratorReport(BaseModel):
     approved: list[dict] = Field(default_factory=list)
     hidden: list[dict] = Field(default_factory=list)
     ask_parent: list[dict] = Field(default_factory=list)
+    #: Why the run ended before it ran out of channels, empty when it did not.
+    #: A partial screening that reports itself as a whole one is the worst
+    #: outcome here: a parent would believe every upload had been looked at.
+    stopped_early: str = ""
 
 
 def curator_agent(model=None) -> Agent:
@@ -148,7 +152,19 @@ def run_curator(
                 meta = fetch_video_meta(video.id)
                 video.duration_s = meta.get("duration_s", 0)
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")
-            tr = fetch_transcript(video.id)
+            try:
+                tr = fetch_transcript(video.id)
+            except TranscriptsBlocked as e:
+                # Every remaining video would be screened on its title alone,
+                # and the decisions would look exactly like the real ones. Stop
+                # and say so; what has been decided so far is already stored.
+                log.warning("stopping curation for kid %s: %s", kid.id, e)
+                report.stopped_early = (
+                    "YouTube stopped serving captions to this machine part way "
+                    "through, so the rest was left unscreened rather than "
+                    "judged on titles alone. Try again later."
+                )
+                return report
             excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
             decision = decide(video, kid.age_band or "7_8", curator, excerpt, policy)
             video.screening.topics = decision.topics
