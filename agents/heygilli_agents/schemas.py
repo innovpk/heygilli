@@ -464,6 +464,7 @@ class Question(BaseModel):
     gesture: Gesture = "idle"
     options: list[Option] = Field(default_factory=list)
     revisit: RevisitTag | None = None  # null on all but at most one question per plan
+    word: WordTag | None = None  # null on all but at most one question per plan
 
 
 class RevisitDraft(BaseModel):
@@ -479,6 +480,35 @@ class RevisitDraft(BaseModel):
     expected: str = Field(default="", description="The gist of a good answer")
     variants: list[str] = Field(default_factory=list)
     followup: str = Field(default="", description="One extra fact to share after a correct answer")
+
+
+class WordTag(BaseModel):
+    """A word Gilli is offering, or asking back for (PROTOCOL.md "Bilingual word
+    seeding").
+
+    `term` is always a word from the curated icon library, never something a
+    model translated: this is the one place the product teaches rather than
+    checks, and a wrong word taught confidently is worse than no word at all.
+    """
+
+    term: str  # the word in the second language
+    language: Language = "ur"
+    gloss: str = ""  # what it means, in the language the child is watching in
+    first_heard: bool = False  # true when Gilli is modelling it for the first time
+
+
+class WordSeed(BaseModel):
+    """One second-language word this child has met. `times_said == 0` is exactly
+    what the parent's analytics screen calls an `emerging` word."""
+
+    kid_id: str
+    term: str
+    language: Language = "ur"
+    gloss: str = ""
+    times_heard: int = 0
+    times_said: int = 0
+    first_heard: str = ""  # YYYY-MM-DD
+    last_heard: str = ""
 
 
 class RevisitConcept(BaseModel):
@@ -890,6 +920,11 @@ class ServerReply(BaseModel):
     result: Result
     gesture: Gesture = "idle"
     model_word: str | None = None
+    # The second-language word Gilli is offering, sent apart from `text` because
+    # Polly has no Urdu voice: the client speaks it with the device's own voice,
+    # or leaves it out entirely when the device has no such voice installed
+    # (PROTOCOL.md "Bilingual word seeding" and "TTS").
+    word: WordTag | None = None
 
 
 class ServerResume(BaseModel):

@@ -36,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach, drift, history, revisit
+from . import breaks, coach, drift, history, revisit, words
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -1017,6 +1017,17 @@ def kid_revisits(kid_id: str, hid: str = Depends(household)) -> dict:
     return {"concepts": [c.model_dump() for c in revisit.candidates(kid, get_store())]}
 
 
+@app.get("/kids/{kid_id}/words")
+def kid_words(kid_id: str, hid: str = Depends(household)) -> dict:
+    """Every second-language word this child has met, most recent first.
+
+    The same data the analytics screen shows as vocabulary: a word with
+    `times_said == 0` is exactly what that screen calls `emerging`.
+    """
+    kid = _kid(hid, kid_id)
+    return {"words": [w.model_dump() for w in get_store().list_word_seeds(hid, kid.id)]}
+
+
 class CuratorIn(BaseModel):
     kid_id: str
 
@@ -1160,6 +1171,9 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         # For this session only: the cached plan is shared by every household and
         # a revisit belongs to one child (PROTOCOL.md "Revisiting a shaky concept").
         plan = await asyncio.to_thread(revisit.seed, plan, kid, store, video, session.id)
+        # A second-language word for something this child already has, for a
+        # household that asked for one (PROTOCOL.md "Bilingual word seeding").
+        plan = await asyncio.to_thread(words.seed, plan, kid, store, session.language)
     engine = SessionEngine(session, plan, kid, store)  # type: ignore[arg-type]
     guard = _make_guard(session.household_id, kid, session, store)
 
@@ -1232,6 +1246,8 @@ async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None =
         if answer is None:  # client went away
             return
         reply = await asyncio.to_thread(engine.answer, answer)
+        if engine.kid is not None:
+            reply = words.after_answer(reply, engine.questions[idx], engine.kid, engine.store)
         await ws.send_json(wire(reply))
         if engine.band == "4_6" and reply.result in ("silence", "unclear"):
             await asyncio.sleep(PREREADER_ECHO_WAIT_S)

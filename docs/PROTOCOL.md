@@ -427,6 +427,25 @@ Rules:
 - Polly has no Urdu voice, so an Urdu term falls back to on-device TTS (see **TTS**); a device with
   no Urdu voice installed gets the English question with no seed rather than a silent one.
 
+How the server delivers it. The term is never a translation a model made: it comes from
+`shared/icons.json`, which already carries an `en` and a `ur` for every concept, matched **exactly**
+(the fuzzy `find_icon` lookup is right for picking a picture and wrong for teaching a word). The
+ask-back question is written in code from that same entry, so nothing unreviewed reaches a child.
+
+The offer arrives on the reply, not inside its text, because Polly cannot say it:
+
+```
+{t: "reply", ..., word?: {term, language, gloss, first_heard}}
+```
+
+`word` is present only after a **correct** answer to a seeded question — the word is for something
+the child has just shown they understand. A client with no voice for `language` simply leaves it
+out; the child still gets the English reply, never a silence. The ask-back needs no wire change: it
+is an ordinary question in the language the child is watching in, whose expected answer is the term.
+
+Also, since one special question per session is the limit: a word ask-back gives way to a revisit
+that is already in the plan.
+
 
 ### Analytics
 

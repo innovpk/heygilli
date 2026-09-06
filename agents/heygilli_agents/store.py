@@ -29,6 +29,7 @@ from .schemas import (
     RevisitRecord,
     Session,
     Video,
+    WordSeed,
 )
 
 GLOBAL = "_global"
@@ -159,6 +160,14 @@ class Store(ABC):
 
     def list_revisits(self, household: str, kid_id: str) -> list[RevisitRecord]:
         return [RevisitRecord.model_validate(d) for d in self.list(household, f"revisit@{kid_id}")]
+
+    # -- word seeds (PROTOCOL.md "Bilingual word seeding"), one record per term
+    def put_word_seed(self, household: str, seed: WordSeed) -> None:
+        self.put(household, f"word@{seed.kid_id}", f"{seed.language}#{seed.term}", seed.model_dump())
+
+    def list_word_seeds(self, household: str, kid_id: str) -> list[WordSeed]:
+        out = [WordSeed.model_validate(d) for d in self.list(household, f"word@{kid_id}")]
+        return sorted(out, key=lambda s: (s.last_heard, s.term), reverse=True)
 
     # -- sessions and answers
     def put_session(self, s: Session) -> None:
