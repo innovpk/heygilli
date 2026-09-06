@@ -36,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach, history
+from . import breaks, coach, drift, history
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -56,11 +56,13 @@ from .schemas import (
     BreakMessage,
     BreakPeriod,
     Channel,
+    ChannelDrift,
     ChannelReview,
     ClientAnswer,
     ClientMessage,
     Kid,
     Language,
+    ParentPrompt,
     Policy,
     PolicyAnswer,
     ServerBreak,
@@ -780,6 +782,102 @@ def channel_review(channel_id: str, refresh: bool = False, hid: str = Depends(ho
     return review.model_dump()
 
 
+# --- channel drift (PROTOCOL.md "Channel drift: a channel is not what it was") --------------------
+
+MAX_RECHECKS_PER_CALL = 10  # a re-review is a feed fetch and a model call each
+
+
+def _kids_with_channel(hid: str, channel_id: str) -> list[str]:
+    store = get_store()
+    return [
+        kid.id for kid in store.list_kids(hid)
+        if any(c.id == channel_id and c.approved for c in store.list_channels(hid, kid.id))
+    ]
+
+
+def _raise_drift_prompts(hid: str, d: ChannelDrift) -> int:
+    """One inbox entry per kid who actually has this channel.
+
+    Nothing is removed here and nothing can be: the entry says what changed and
+    the parent decides (PROTOCOL.md). A channel with an entry still open does
+    not get a second one, because a weekly re-check must not stack up cards
+    about the same change.
+    """
+    store = get_store()
+    raised = 0
+    for kid_id in _kids_with_channel(hid, d.channel_id):
+        open_already = any(
+            p.kind == "channel_drift" and p.drift and p.drift.channel_id == d.channel_id
+            and p.kid_id == kid_id
+            for p in store.list_parent_prompts(hid)
+        )
+        if open_already:
+            continue
+        store.put_parent_prompt(ParentPrompt(
+            household_id=hid, kid_id=kid_id, kind="channel_drift", drift=d,
+            reason=f"{d.title or d.channel_id} has changed. {d.what_changed}",
+        ))
+        raised += 1
+    return raised
+
+
+def _recheck(hid: str, channel_id: str, was: ChannelReview) -> ChannelDrift | None:
+    """Re-read one channel and compare. Blocking: a feed fetch and a model call."""
+    store = get_store()
+    drift.mark_checked(channel_id, store)  # the limit holds whatever comes of this
+    hint = _channel_hints(hid).get(channel_id, {})
+    now = review_channel(
+        channel_id, store, title_hint=hint.get("title", "") or was.title,
+        thumb_url=hint.get("thumb_url", "") or was.thumb_url, refresh=True,
+    )
+    if now.verdict == "unknown" and was.verdict != "unknown":
+        # The channel could not be read today. That is a gap in what we know,
+        # not a change in what it publishes, so the parent keeps the review they
+        # had rather than watching a good channel decay into "unknown".
+        store.put_channel_review(channel_id, was.model_dump())
+        log.info("drift check for %s came back unknown; the earlier review stands", channel_id)
+        return None
+    d = drift.compare(was, now)
+    if not d.worse:
+        return d
+    d.what_changed = drift.write_note(d)
+    return d
+
+
+@app.post("/channels/drift/check")
+def channels_drift_check(body: ChannelReviewsIn, hid: str = Depends(household)) -> dict:
+    """Re-review channels that are due, and report the ones that got worse.
+
+    `checked` is how many were actually re-read rather than answered from cache:
+    a channel reviewed in the last week is not re-read at all. Only `worse`
+    drifts come back — a channel that improved is not something anyone needs to
+    be interrupted about — and each one raises an entry in the parent's inbox.
+    """
+    store = get_store()
+    drifted: list[dict] = []
+    checked = 0
+
+    for channel_id in dict.fromkeys(c.strip() for c in body.channel_ids if c.strip()):
+        cached = store.get_channel_review(channel_id)
+        was = ChannelReview.model_validate(cached) if cached else None
+        if was is None or not drift.due_for_recheck(was, store):
+            continue  # never reviewed, or read recently enough already
+        if checked >= MAX_RECHECKS_PER_CALL:
+            break  # the rest stay due; the client can ask again
+        checked += 1
+        try:
+            d = _recheck(hid, channel_id, was)
+        except Exception as e:  # noqa: BLE001 - one bad channel must not sink the batch
+            log.warning("drift check failed for %s: %s", channel_id, e)
+            continue
+        if d is None or not d.worse:
+            continue
+        drifted.append(d.model_dump())
+        _raise_drift_prompts(hid, d)
+
+    return {"drifted": drifted, "checked": checked}
+
+
 @app.get("/kids/{kid_id}/home")
 def home(kid_id: str, hid: str = Depends(household)) -> dict:
     """The rows, plus whether watching is allowed at all right now.
@@ -934,6 +1032,12 @@ def parent_decide(prompt_id: str, body: DecisionIn, hid: str = Depends(household
         raise HTTPException(404, "prompt not found")
     p.decision = body.decision
     store.put_parent_prompt(p)
+    if p.kind == "channel_drift" or p.video is None:
+        # A drift is information. Whichever way the parent answers, the channel
+        # stays exactly as it is: HeyGilli never removes one, and removal is a
+        # DELETE the parent makes themselves (PROTOCOL.md "Channel drift").
+        log.info("parent read the drift card %s for kid %s", p.id, p.kid_id)
+        return {"ok": True}
     store.set_kid_video(hid, p.kid_id, p.video.id, body.decision, "parent decided")
     if body.decision == "approve":
         video = store.get_video(p.video.id) or p.video

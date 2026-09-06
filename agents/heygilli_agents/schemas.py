@@ -371,6 +371,38 @@ class Policy(BaseModel):
         return not self.answers and not self.notes.strip()
 
 
+# --- channel drift (PROTOCOL.md "Channel drift: a channel is not what it was") ---
+#
+# A review is a snapshot. Channels change hands, chase trends, and start running
+# gambling ads two years after a parent approved them. A drift is information:
+# it raises an entry in the parent's inbox and stops there. HeyGilli never
+# removes a channel by itself.
+
+
+class ChannelSnapshot(BaseModel):
+    """One review as it stood, reduced to what a comparison turns on."""
+
+    verdict: ReviewVerdict = "unknown"
+    flags: list[ReviewFlag] = Field(default_factory=list)
+    reviewed_at: str = ""
+
+
+class ChannelDrift(BaseModel):
+    channel_id: str
+    title: str = ""
+    was: ChannelSnapshot = Field(default_factory=ChannelSnapshot)
+    now: ChannelSnapshot = Field(default_factory=ChannelSnapshot)
+    worse: bool = False
+    what_changed: str = ""
+    sample_titles: list[str] = Field(default_factory=list)
+
+
+class DriftNote(BaseModel):
+    """Model output: the one sentence naming the difference."""
+
+    what_changed: str = Field(description="One sentence naming what changed, not restating the review")
+
+
 class Screening(BaseModel):
     age_ok: list[AgeBand] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
@@ -701,10 +733,22 @@ class Analytics(BaseModel):
 
 
 class ParentPrompt(BaseModel):
+    """Something the parent is being asked to decide.
+
+    Two kinds now. `video` is the original: the Curator could not settle an
+    upload alone. `channel_drift` is a channel that is no longer what it was
+    when the parent approved it; it carries a `ChannelDrift` instead of a video,
+    and deciding on it never removes anything (PROTOCOL.md "Channel drift").
+    Both keys are always present on the wire, one of them null, so a client can
+    switch on `kind` without guessing.
+    """
+
     id: str = Field(default_factory=lambda: new_id("pp"))
     household_id: str
     kid_id: str
-    video: Video
+    kind: Literal["video", "channel_drift"] = "video"
+    video: Video | None = None
+    drift: ChannelDrift | None = None
     reason: str
     created_at: str = Field(default_factory=now_iso)
     decision: Literal["approve", "hide"] | None = None
@@ -713,7 +757,9 @@ class ParentPrompt(BaseModel):
         return {
             "id": self.id,
             "kid_id": self.kid_id,
-            "video": self.video.public(),
+            "kind": self.kind,
+            "video": self.video.public() if self.video else None,
+            "drift": self.drift.model_dump() if self.drift else None,
             "reason": self.reason,
             "created_at": self.created_at,
         }

@@ -357,7 +357,23 @@ what changed, and the parent decides. **HeyGilli never removes a channel on its 
 information, and removal stays a `DELETE` the parent makes.
 
 Re-review is rate-limited server-side to at most once a week per channel; `checked` says how many
-were actually re-read rather than answered from cache.
+were actually re-read rather than answered from cache. One call re-reads at most ten channels, since
+each is a feed fetch and a model call; the rest stay due and the next call takes them.
+
+A drift is never inferred from an `unknown`: a channel whose feed could not be read today says
+nothing about whether it changed, so the parent keeps the review they had and no card is raised.
+
+Because the inbox now carries two kinds of thing, `ParentPrompt` gains a discriminator. Both
+payload keys are always present, one of them null:
+
+```
+ParentPrompt {id, kid_id, kind: "video" | "channel_drift",
+              video: Video | null, drift: ChannelDrift | null, reason, created_at}
+```
+
+`POST /parent/inbox/{id}` on a `channel_drift` entry records the parent's answer and closes the
+card. It never removes the channel — neither decision does, because removal is a `DELETE` the
+parent makes.
 
 ### Revisiting a shaky concept
 
