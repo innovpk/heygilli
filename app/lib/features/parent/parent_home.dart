@@ -215,7 +215,12 @@ class _AccountMenu extends StatelessWidget {
       tooltip: 'This device',
       color: HgColors.white,
       onSelected: (run) => run(),
-      itemBuilder: (context) => [
+      // Not named `context`: shadowing the build context here means every
+      // closure below captures the *popup route's* context, and that route
+      // is gone by the time onSelected runs it. Reading a provider or
+      // pushing a dialog from a defunct context fails quietly, which is
+      // exactly how this looked — a menu item that did nothing.
+      itemBuilder: (_) => [
         PopupMenuItem<VoidCallback>(
           enabled: false,
           child: Text(
