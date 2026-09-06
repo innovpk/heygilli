@@ -17,8 +17,13 @@ class AppState extends ChangeNotifier {
   final Gateway gateway;
   final LocalSettings settings;
 
-  /// Picks live or demo. Live wins when the gateway answers within 2 s; the
-  /// demo is used otherwise, or always when HEYGILLI_DEMO=true.
+  /// Live, unless this build was explicitly made as a demo.
+  ///
+  /// This used to fall back to the canned demo whenever the gateway did not
+  /// answer, which meant a parent on bad wifi was silently shown invented
+  /// children and reviews that were not theirs, marked only by a small chip.
+  /// An unreachable gateway is now an error the parent can see and retry;
+  /// canned data ships only when someone asked for it at build time.
   static Future<AppState> bootstrap() async {
     final settings = await LocalSettings.load();
     Gateway gateway;
@@ -27,7 +32,10 @@ class AppState extends ChangeNotifier {
     } else {
       final api = ApiClient(baseUrl: BuildConfig.apiUrl, token: settings.token);
       api.onToken = settings.setToken;
-      gateway = await api.reachable() ? api : FakeGateway();
+      if (!await api.reachable()) {
+        throw GatewayUnreachable(BuildConfig.apiUrl);
+      }
+      gateway = api;
     }
     final state = AppState(gateway: gateway, settings: settings);
     if (gateway.signedIn) {
@@ -112,4 +120,16 @@ class AppState extends ChangeNotifier {
   bool get hasPin => settings.pin != null;
   bool checkPin(String pin) => settings.pin == pin;
   Future<void> setPin(String pin) => settings.setPin(pin);
+}
+
+/// HeyGilli could not be reached at startup.
+///
+/// Deliberately not silent: showing canned data instead would mean a parent
+/// looking at children and channels that are not theirs.
+class GatewayUnreachable implements Exception {
+  const GatewayUnreachable(this.url);
+  final String url;
+
+  @override
+  String toString() => 'Could not reach HeyGilli at $url';
 }

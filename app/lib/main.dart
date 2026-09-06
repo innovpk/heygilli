@@ -32,21 +32,33 @@ class HeyGilliApp extends StatefulWidget {
 }
 
 class _HeyGilliAppState extends State<HeyGilliApp> {
-  /// Probes the gateway (2 s), falls back to the in-app demo, and loads the
-  /// bundled pick-it icon library, all before the first screen.
-  late final Future<(AppState, IconLibrary)> _boot = () async {
+  /// Probes the gateway (2 s) and loads the bundled pick-it icon library
+  /// before the first screen. An unreachable gateway surfaces as an error the
+  /// parent can retry, never as canned data wearing a small badge.
+  late Future<(AppState, IconLibrary)> _boot = _start();
+
+  Future<(AppState, IconLibrary)> _start() async {
     final results = await Future.wait([
       AppState.bootstrap(),
       IconLibrary.load(),
     ]);
     return (results[0] as AppState, results[1] as IconLibrary);
-  }();
+  }
+
+  void _retry() => setState(() => _boot = _start());
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
       future: _boot,
       builder: (context, snap) {
+        if (snap.hasError) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(),
+            home: _CannotConnect(error: snap.error!, onRetry: _retry),
+          );
+        }
         final data = snap.data;
         if (data == null) {
           return MaterialApp(
@@ -115,6 +127,66 @@ class _Splash extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when HeyGilli cannot be reached at startup.
+///
+/// The alternative was falling back to canned data, which meant a parent on
+/// bad wifi quietly browsing children and channels that were not theirs. An
+/// honest dead end is better than a convincing wrong answer.
+class _CannotConnect extends StatelessWidget {
+  const _CannotConnect({required this.error, required this.onRetry});
+
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: HgColors.cream,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 14,
+              children: [
+                SvgPicture.asset('assets/gilli.svg', width: 120, height: 120),
+                Text(
+                  "Gilli can't connect",
+                  textAlign: TextAlign.center,
+                  style: HgText.display(size: 26, color: HgColors.ink),
+                ),
+                Text(
+                  'Check the connection and try again. Nothing is shown until '
+                  'your own kids and channels can be loaded.',
+                  textAlign: TextAlign.center,
+                  style: HgText.body(size: 16, color: HgColors.brown),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: onRetry,
+                    child: Text(
+                      'Try again',
+                      style: HgText.body(size: 17, color: HgColors.ink),
+                    ),
+                  ),
+                ),
+                Text(
+                  '$error',
+                  textAlign: TextAlign.center,
+                  style: HgText.body(size: 12, color: HgColors.muted),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

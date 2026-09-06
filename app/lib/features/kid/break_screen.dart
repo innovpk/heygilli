@@ -172,7 +172,7 @@ class _BreakScreenState extends State<BreakScreen> {
                   // or the button.
                   final wide = box.maxWidth > box.maxHeight;
                   final gilliSize = wide
-                      ? (box.maxHeight * 0.48).clamp(120.0, 260.0)
+                      ? (box.maxHeight * 0.44).clamp(120.0, 240.0)
                       : (box.maxWidth * 0.40).clamp(140.0, 240.0);
                   final ringSize = wide
                       ? (box.maxHeight * 0.24).clamp(72.0, 120.0)
@@ -200,7 +200,9 @@ class _BreakScreenState extends State<BreakScreen> {
                               Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
-                                spacing: 6,
+                                // Clear of Gilli's drop shadow, which sits
+                                // below his circle.
+                                spacing: 16,
                                 // The pre-reader panel is only the ring and
                                 // one button, so its ring stays over there,
                                 // large, next to Gilli.
