@@ -1,7 +1,7 @@
 # HeyGilli agent service
 
-Five [Strands](https://strandsagents.com) agents (Curator, Planner, Buddy, Digest, Coach) plus the
-Reviewer, behind a FastAPI gateway that speaks [`docs/PROTOCOL.md`](../docs/PROTOCOL.md) to the
+Six [Strands](https://strandsagents.com) agents (Curator, Planner, Buddy, Digest, Coach, Reviewer)
+behind a FastAPI gateway that speaks [`docs/PROTOCOL.md`](../docs/PROTOCOL.md) to the
 Flutter client. Python 3.12.
 
 ```
@@ -16,14 +16,19 @@ heygilli_agents/
   curator.py      new uploads -> approve | hide | ask_parent -> fan out to the Planner
   reviewer.py     one channel's recent uploads -> ChannelReview (cached per channel, not per kid)
   digest.py       a kid's day -> parent Digest (counts in code, words from the model)
-  breaks.py       time-limit accounting + the movement-break safety gate (pure functions, no store)
-  coach.py        what they watched -> a BreakTask; every task passes breaks.validate() or is dropped
+  breaks.py       time-limit accounting: when a break is due, when a sitting resets (pure, no store)
+  coach.py        drafts FOR THE PARENT only: break-time lines, and household policy questions
+  drift.py        two reviews of one channel -> did it get worse; a model only describes, never decides
+  history.py      watch-history.html -> counts, then the file and every video title are discarded
+  revisit.py      one shaky concept re-asked later, never first, never twice running, never as a retest
+  words.py        one Urdu word a session, looked up in shared/icons.json; no model translates anything
+  analytics.py    a window of sessions -> the parent Analytics payload (pure counts + one model note)
   google_auth.py  parent's Google sign-in: server auth code -> refresh token -> live access token
   takeout.py      a Google Takeout zip -> TakeoutPreview; subscription CSVs only, never history
   gateway.py      REST + WebSocket (uvicorn)
   store.py        LocalStore (JSON under .data/) | DynamoStore (single table)
   tools/          youtube (no key + subscriptions.list), transcript (Gemini or public captions), icons, tts (Polly), notify, screening
-tests/            221 offline tests (fake model, mocked network)
+tests/            367 offline tests (fake model, mocked network)
 eval/             run_eval.py + 3 synthetic transcripts; results land in eval/results/
 scripts/          smoke_gateway.py: REST + one WebSocket turn against a running gateway
 ```
@@ -50,7 +55,7 @@ repointed on 2026-09-05.
 ## Test
 
 ```bash
-uv run pytest -q          # 147 passed; no network, no AWS, fake model for every role
+uv run pytest -q          # 367 passed; no network, no AWS, fake model for every role
 uv run ruff check .
 ```
 
@@ -148,7 +153,7 @@ POST  /kids/{id}/break/ack                                -> MovementBreak   (re
 POST  /kids/{id}/break/override  {pin_ok: true}           -> {cleared: bool} (parent, behind the PIN)
 POST  /sessions                                           -> 409 {detail: {error, state}} when blocked
 GET   /kids/{id}/home                                     -> ... + watching_allowed, blocked_reason, active_break
-ws    {t: "break", break: MovementBreak}                  -> stop playback; the session then ends
+ws    {t: "break", break: BreakPeriod}                    -> stop playback; the session then ends
 ```
 
 - **Accounting is pure functions over sessions** (`breaks.py`, no store, no clock of its own).
@@ -345,12 +350,13 @@ carries `watching_allowed`, `blocked_reason` and `active_break` beside its rows;
 `{detail: {error, state}}` for both refusal reasons; and `WatchState.minutes_left_today` is `null`,
 not 0, when a kid has no daily limit.
 
-⚠️ **The break payload itself is contested.** `PROTOCOL.md`'s time-limits section was rewritten to
-a parent-authored `BreakMessage` / `BreakPeriod` design ("he never invents an instruction for a
-child") while this code was being written to the `MovementBreak` / `BreakTask` design it was briefed
-against. The server implements the latter. A conflict note sits at the top of that section; the
-accounting, the 409s, the four endpoints and the socket message are identical either way, so only
-the object inside the break is at stake — and it is a product call, not a merge.
+**The break payload was contested and is now settled**, both halves on the parent-authored
+`BreakMessage` / `BreakPeriod` design. The earlier `MovementBreak` / `BreakTask` design had the app
+inventing an instruction for a child and implying it could tell whether the child obeyed; it could
+not, and it is not the app's place. What a break says is now a list of sentences a parent typed,
+read out verbatim, and empty is a supported answer: the video stops and Gilli says only that it is
+break time. `coach.py` can draft lines, but a draft reaches a child only after the parent saves it.
+Whether a break holds is `break_is_firm`, also the parent's.
 
 ## Data safety
 

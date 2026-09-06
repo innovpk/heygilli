@@ -136,6 +136,12 @@ HeyGilli is built for an ordinary household with a television and no time.
 4. **The parent owns everything.** Parent account, kid profiles with no PII, parent gate on all settings.
 5. **Play by YouTube's rules.** Official embed, ads shown, no overlays during playback, no downloads.
 6. **Bilingual by default.** Buddy speaks the kid's language and code-switches naturally.
+7. **Suggest, never enforce; and never claim more than the data supports.** The app cannot see a
+   room, so it never tells a child what to do with their body and never pretends to check. What a
+   break says is sentences a parent typed, read out verbatim; empty is a supported answer. A
+   channel that drifts raises a card, it is never removed. A model can draft for a parent and can
+   ask; only a parent decides, and whether a break even holds is a setting they own. The matching
+   rule on screen: if a claim cannot be backed by the data on that screen, it does not get made.
 
 ## 6. User journeys
 
@@ -275,6 +281,48 @@ Ages 4 to 6, where the "extra" is a word, a sound, or a motion, never a fact:
 - Register shifts by band. 4 to 6: short sentences, stretched key words ("looong"), animal sounds, lots of "let's". 7 to 8: playful, curious, asks "what do you think?". 9 to 11: drops the baby talk entirely, talks like an older cousin who finds the topic genuinely interesting, and is allowed mild humour. An 11-year-old who feels talked down to will not answer a second question.
 - The buddy is animated with a small set of gestures (stretch, shrink, spin, point, roar, think) that the reply can call by name. Gestures do the work that text cannot for pre-readers.
 
+### 7.6 Five things the agents do that a filter cannot
+
+Shipped after the core loop, and specified field by field in `docs/PROTOCOL.md` v1.7. Each one
+exists because a household knows something the model does not, and each is built so the model
+can only ever hand a parent a draft or a fact — never an action taken on their behalf.
+
+**Household policy.** The Coach reads this child's own approved channels and drafts a handful of
+questions about what is actually fine in this house: adverts inside videos, unboxing, mild peril,
+challenge stunts, "just for laughs" cruelty. A parent answers or ignores them. A "rather not"
+does not hide anything: it routes a matching video to the parent's inbox, so a screening decision
+they cannot see never becomes a decision made without them. The payload carries `based_on` — the
+channel titles the questions came from — so the screen can say whether these are this child's
+questions or the generic set, rather than inferring it and getting it wrong.
+
+**Watch history, opt in and counted on the way in.** A Takeout export contains every video a child
+has watched. It is off by default, per import, with a tick that never remembers itself. Ticked,
+`watch-history.html` is reduced to counts *while it is being read* — how many videos, which
+channels, what times of day — and the file and every video title in it are then discarded. No
+video title is stored or reaches a model; only channel names are. Search history has no opt-in
+anywhere in the product. The headline it produces is the share that came from channels nobody
+chose, which is the number a parent cannot get from YouTube itself.
+
+**Channel drift.** A review is a snapshot, and channels change hands, chase trends, and start
+running gambling ads two years after a parent approved them. Every approved channel is re-reviewed
+weekly, and the comparison is made **in code**: `worse` means the verdict moved toward concern or
+a flag appeared that was not there before. Only then is a model asked to describe the difference,
+so a drift can never be talked into existence. A drift raises a card in the inbox and removes
+nothing — that card has no Approve or Hide, because there is no video to decide about.
+
+**Revisiting a shaky concept.** Analytics already knows what a child was shaky on. Acting on it is
+one question in a later session, asked as a fresh question about the video they are watching now.
+The failure mode is a child noticing they are being retested, so the protections are structural,
+not prompt-level: at most one per session, never the first question, never two sessions running,
+and nothing in what the device receives marks a question as a second attempt.
+
+**Bilingual word seeding.** For a child whose languages include Urdu, Gilli may offer the Urdu
+word for something they have *just shown they understood in English*, and ask for it back a
+session later. This is the one place the product teaches rather than checks. **No model translates
+anything**: the term is an exact lookup in `shared/icons.json`, the curated concept list that
+already carries `en` and `ur` for every entry, because a confidently wrong word is worse than no
+word. One per session, and never in place of a comprehension question.
+
 ## 8. Scope
 
 ### 8.1 Hackathon MVP (must work in the video, nine days)
@@ -291,6 +339,10 @@ Phone and tablet are the demo devices. The phone carries both the parent app and
 - Provider swap shown once in the video: same agents, Bedrock to a second provider, one config line.
 - Submission set: public MIT repo, README, architecture diagram, 5-minute video, text description, AWS Builder ID, live demo link if AgentCore deployment holds.
 
+- **Android, iOS and web all build and run** from the one Flutter codebase, against the same
+  gateway. The Takeout import is slimmed on whichever device the parent used — streamed off disk
+  on a phone, from bytes in a browser — so the privacy promise does not depend on the platform.
+
 **Stretch, only if the above is done by day 6:** Google TV layout with D-pad focus, remote-mic STT, left/centre/right pick-it, pairing code from the phone. Same Flutter codebase, same agents, no backend changes.
 
 ### 8.2 Video and slides only
@@ -304,7 +356,6 @@ Phone and tablet are the demo devices. The phone carries both the parent app and
 
 ### 8.3 Post-hackathon
 
-- iOS and iPad via the same Flutter codebase.
 - AI pre-screening of every new upload with a parent review queue.
 - Curated starter packs by age and language.
 - Subscription billing (Play Billing, RevenueCat if going cross-platform).
@@ -447,6 +498,16 @@ Session          id, kid_id, device_id, video_id, started_at, ended_at, watched_
 Answer           id, session_id, question_idx, input_used (voice|pick|copy|none), result (correct|partial|off_topic|unclear|silence), paraphrase (<=10 words), word_said (pre-reader only), latency_ms
 Digest           kid_id, date, minutes, videos, asked, answered, understood[], shaky[], words_said[], words_heard[], dinner_prompt
 Icon             id, concept, labels{en, ur}, asset_path
+
+Policy           kid_id, answers[] {question_id, answer (fine|rather_not|no_view), weight}
+PolicyQuestion   id, text, why, options[], based_on[]        drafted by the Coach, answered by a parent
+BreakPeriod      id, ends_at, seconds_left, is_firm, messages[]
+BreakMessage     id, text, spoken                            written by a parent; empty list = a quiet break
+HistoryInsight   kid_id, videos, channels[] {title, count}, by_hour[], unchosen_share, read_at
+                                                             counts only: no video title is ever stored
+ChannelDrift     channel_id, title, was, now, worse, what_changed, checked_at
+Revisit          kid_id, concept, from_session, placed_at_index   never index 0, never twice running
+WordSeed         kid_id, concept_id, en, ur, seeded_at, asked_back_at
 ```
 
 `understood` and `shaky` are populated for 7 to 11. `words_said` and `words_heard` are populated for 4 to 6. `dinner_prompt` is a conversation starter for older kids and a simple real-world activity for pre-readers.
@@ -472,7 +533,21 @@ WS   /sessions/:id                     client → {t: "answer", q: idx, input: "
                                        text fields are omitted for the 4 to 6 band; the client renders nothing textual
 POST /sessions/:id/end
 GET  /kids/:id/digest?date=            → Digest
+
+GET  /kids/:id/policy                  → Policy
+PUT  /kids/:id/policy                  → Policy
+POST /kids/:id/policy/questions        → {questions[], based_on[]}   based_on = channel titles, or empty
+GET  /kids/:id/history                 → HistoryInsight   404 when this household never opted in
+DELETE /kids/:id/history               → {deleted}
+GET  /kids/:id/revisits                → {concepts[]}
+GET  /kids/:id/words                   → {words: WordSeed[]}
+POST /channels/drift/check             → {drifted: ChannelDrift[], checked}
+POST /import/takeout                   multipart file=<zip> [, include_history]
+PUT  /kids/:id/break-messages          → Kid           what Gilli reads out at break time
+PATCH /kids/:id/limits                 { ..., break_is_firm }
 ```
+
+`docs/PROTOCOL.md` is the authority for every one of these, field by field; this is a sketch.
 
 ## 12. Compliance and safety
 
