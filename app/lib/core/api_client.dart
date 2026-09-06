@@ -33,7 +33,12 @@ class ApiClient implements Gateway {
     try {
       final r = await _http
           .get(Uri.parse('$baseUrl/kids'), headers: _headers())
-          .timeout(const Duration(seconds: 2));
+          // Generous on purpose. This probe decides between the app and a
+          // dead end, and a first connection on a cold radio or a slow house
+          // wifi can take several seconds. Two seconds turned a working
+          // gateway into "Gilli can't connect" on an emulator; on a phone in
+          // a back bedroom it would do the same.
+          .timeout(const Duration(seconds: 8));
       // 401 still means "a gateway is there".
       return r.statusCode < 500;
     } catch (_) {
@@ -247,8 +252,10 @@ class ApiClient implements Gateway {
     final body =
         await _post('/kids/$kidId/break-messages/suggest')
             as Map<String, dynamic>;
+    // PROTOCOL names this list "suggestions", not "messages": drafts and
+    // saved lines are different things and the gateway keeps them apart.
     return [
-      for (final m in (body['messages'] as List? ?? const []))
+      for (final m in (body['suggestions'] as List? ?? const []))
         BreakMessage.fromJson(m as Map<String, dynamic>),
     ];
   }

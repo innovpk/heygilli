@@ -37,9 +37,10 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
     widget.kid.breakMessages,
   );
 
-  /// The ids of the saved lines, kept alongside so an edit updates a line
-  /// rather than replacing it with a new one.
-  late List<String> _ids = [for (final m in widget.kid.breakMessages) m.id];
+  /// The saved lines behind the boxes, so an edit updates a line rather than
+  /// replacing it, and so a line the parent left alone keeps the spoken form
+  /// it already had. A box with no line behind it is one they just added.
+  late List<BreakMessage?> _behind = [...widget.kid.breakMessages];
 
   late List<String> _saved = _texts;
 
@@ -69,14 +70,14 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
     super.dispose();
   }
 
-  void _add([String text = '']) => setState(() {
-    _lines.add(TextEditingController(text: text));
-    _ids.add('');
+  void _add([BreakMessage? behind]) => setState(() {
+    _lines.add(TextEditingController(text: behind?.text ?? ''));
+    _behind.add(behind);
   });
 
   void _removeAt(int i) => setState(() {
     _lines.removeAt(i).dispose();
-    if (i < _ids.length) _ids.removeAt(i);
+    if (i < _behind.length) _behind.removeAt(i);
   });
 
   /// Drafts, into the boxes, for the parent to read. This does not save, and
@@ -94,8 +95,11 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
       if (!mounted) return;
       setState(() {
         for (final d in drafts) {
+          // The draft is kept behind its box: a parent who likes it as it
+          // stands gets the spoken wording too, which for a pre-reader is
+          // the whole message. Editing the text drops it, as it should.
           _lines.add(TextEditingController(text: d.text));
-          _ids.add('');
+          _behind.add(BreakMessage(text: d.text, spoken: d.spoken));
         }
       });
     } catch (e) {
@@ -117,8 +121,17 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
       for (var i = 0; i < _lines.length; i++) {
         final text = _lines[i].text.trim();
         if (text.isEmpty) continue;
+        final was = i < _behind.length ? _behind[i] : null;
+        final unchanged = was != null && was.text.trim() == text;
         messages.add(
-          BreakMessage(id: i < _ids.length ? _ids[i] : '', text: text),
+          BreakMessage(
+            id: unchanged ? was.id : '',
+            text: text,
+            // Reworded lines lose the old spoken form rather than keeping a
+            // stale one: Gilli must never read out something the parent has
+            // since changed their mind about.
+            spoken: unchanged ? was.spoken : '',
+          ),
         );
       }
       final state = context.read<AppState>();
@@ -133,7 +146,7 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
           c.dispose();
         }
         _lines = _controllersFor(updated.breakMessages);
-        _ids = [for (final m in updated.breakMessages) m.id];
+        _behind = [...updated.breakMessages];
         _saved = _texts;
       });
     } catch (e) {

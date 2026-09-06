@@ -23,6 +23,11 @@ void main() {
   /// testWidgets the clock is frozen.
   late Kid kidWithLines;
 
+  /// The drafts the gateway will offer, fetched here for the same reason:
+  /// asking for them inside testWidgets would await a delay the frozen clock
+  /// never reaches.
+  late List<BreakMessage> drafts;
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     gateway = FakeGateway();
@@ -41,6 +46,7 @@ void main() {
     kidWithLines = await gateway.saveBreakMessages(other.id, const [
       BreakMessage(text: 'Break time. Have a stretch.'),
     ]);
+    drafts = await gateway.suggestBreakMessages(kid.id);
   });
 
   Widget host(Kid k) => ChangeNotifierProvider<AppState>.value(
@@ -185,6 +191,51 @@ void main() {
     final saved = savedLines();
     expect(saved.length, 1);
     expect(saved.single.text, 'Break time.');
+  });
+
+  testWidgets('a suggestion kept as-is keeps the words Gilli would speak', (
+    tester,
+  ) async {
+    // For a pre-reader the spoken wording is the whole message. Dropping it
+    // on save would leave a four-year-old hearing the written form, or a
+    // line that reads well and sounds wrong.
+    await tester.pumpWidget(host(kid));
+    await tester.pump();
+    await tester.tap(find.text('Ideas'));
+    await settle(tester);
+
+    await tester.tap(find.text('Save what Gilli says'));
+    await settle(tester);
+
+    final spokenByText = {
+      for (final d in drafts)
+        if (d.spoken.isNotEmpty) d.text: d.spoken,
+    };
+    expect(spokenByText, isNotEmpty, reason: 'no draft had a spoken form');
+    for (final m in savedLines()) {
+      expect(m.spoken, spokenByText[m.text] ?? m.spoken, reason: m.text);
+    }
+  });
+
+  testWidgets('a suggestion the parent rewords loses the old spoken line', (
+    tester,
+  ) async {
+    await tester.pumpWidget(host(kid));
+    await tester.pump();
+    await tester.tap(find.text('Ideas'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField).first, 'Go and see Nano.');
+    await tester.pump();
+    await tester.tap(find.text('Save what Gilli says'));
+    await settle(tester);
+
+    // Gilli must not read out the sentence the parent just replaced.
+    final reworded = savedLines().firstWhere(
+      (m) => m.text == 'Go and see Nano.',
+    );
+    expect(reworded.spoken, isEmpty);
+    expect(reworded.speech, 'Go and see Nano.');
   });
 
   testWidgets('the save button stays quiet until something changed', (

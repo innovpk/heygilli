@@ -322,3 +322,96 @@ def test_a_break_expires_on_its_own_clock(client: TestClient, auth: dict, store:
     assert state["watching_allowed"] is True and state["active_break"] is None
     assert client.post("/sessions", json={"kid_id": kid["id"], "video_id": VIDEO.id},
                        headers=hdr(auth)).status_code == 200
+
+
+# --- break messages: the parent's own words ---------------------------------
+#
+# These endpoints are the only route from a keyboard to a child's ear, so what
+# they must not do matters more than what they do: no line the parent did not
+# save, and no identity the client got to choose.
+
+
+def test_saving_lines_gives_each_one_an_id(client: TestClient, auth: dict) -> None:
+    kid = make_kid(client, auth)
+    r = client.put(
+        f"/kids/{kid['id']}/break-messages",
+        json={"messages": [{"id": "", "text": "Break time. Have a stretch."}]},
+        headers=hdr(auth),
+    )
+    assert r.status_code == 200
+    saved = r.json()["break_messages"]
+    # The client sent a blank id, as a freshly typed line has none. Identity is
+    # the server's to hand out: without it every save looks like a new line and
+    # the rotation starts over.
+    assert saved[0]["id"]
+    assert saved[0]["text"] == "Break time. Have a stretch."
+
+
+def test_an_id_the_parent_already_has_survives_an_edit(client: TestClient, auth: dict) -> None:
+    kid = make_kid(client, auth)
+    first = client.put(f"/kids/{kid['id']}/break-messages",
+                       json={"messages": [{"text": "Break time."}]},
+                       headers=hdr(auth)).json()["break_messages"][0]
+
+    edited = client.put(
+        f"/kids/{kid['id']}/break-messages",
+        json={"messages": [{"id": first["id"], "text": "Break time. Drink some water."}]},
+        headers=hdr(auth),
+    ).json()["break_messages"][0]
+    assert edited["id"] == first["id"]
+    assert edited["text"] == "Break time. Drink some water."
+
+
+def test_an_empty_list_is_a_quiet_break_not_a_no_op(client: TestClient, auth: dict) -> None:
+    kid = make_kid(client, auth)
+    client.put(f"/kids/{kid['id']}/break-messages",
+               json={"messages": [{"text": "Break time."}]}, headers=hdr(auth))
+
+    cleared = client.put(f"/kids/{kid['id']}/break-messages", json={"messages": []},
+                         headers=hdr(auth)).json()
+    # A parent who deletes every line means silence. Keeping the old ones
+    # "because the list was empty" would put back words they just removed.
+    assert cleared["break_messages"] == []
+
+
+def test_a_break_reads_a_saved_line_and_no_other(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    kid = make_kid(client, auth)
+    client.put(f"/kids/{kid['id']}/break-messages",
+               json={"messages": [{"text": "Break time. Go and say salaam to Nano."}]},
+               headers=hdr(auth))
+
+    brk = running_break(client, auth, store, kid)
+    assert brk["message"]["text"] == "Break time. Go and say salaam to Nano."
+
+
+def test_a_parent_who_saved_nothing_gets_a_quiet_break(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    # No fallback line, no generated one. Gilli stops the video and says only
+    # that it is break time, which the client words for itself.
+    kid = make_kid(client, auth)
+    brk = running_break(client, auth, store, kid)
+    # The socket drops nulls, so a quiet break arrives with no message key at
+    # all. Absent and null mean the same thing here, and the client reads both
+    # as "say only that it is break time".
+    assert brk.get("message") is None
+
+
+def test_suggestions_are_drafts_and_reach_no_child(client: TestClient, auth: dict) -> None:
+    kid = make_kid(client, auth)
+    body = client.post(f"/kids/{kid['id']}/break-messages/suggest", headers=hdr(auth)).json()
+    assert body["suggestions"], "the parent was offered nothing at all"
+    # Asking changed nothing about what this child will hear.
+    after = client.get("/kids", headers=hdr(auth)).json()[0]
+    assert after["break_messages"] == []
+
+
+def test_every_suggestion_is_something_gilli_can_say(client: TestClient, auth: dict) -> None:
+    # Band 4_6 sees no text, so a draft with nothing to speak would become a
+    # break where a pre-reader is told nothing at all.
+    kid = make_kid(client, auth, age=5)
+    body = client.post(f"/kids/{kid['id']}/break-messages/suggest", headers=hdr(auth)).json()
+    for s in body["suggestions"]:
+        assert (s["spoken"] or s["text"]).strip()

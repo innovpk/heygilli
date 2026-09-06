@@ -327,7 +327,11 @@ class MessagesIn(BaseModel):
 def set_break_messages(kid_id: str, body: MessagesIn, hid: str = Depends(household)) -> dict:
     """Replace what Gilli says during a break. Parent-authored, and the only
     source of those words: nothing a model wrote reaches a child unsaved."""
-    kid = _kid(hid, kid_id).model_copy(update={"break_messages": body.messages})
+    # A blank id is a new line the parent just typed, so it gets one here.
+    # Identity is the server's to hand out: without it an edit would look
+    # like a delete plus an insert, and the rotation would restart every save.
+    saved = [m if m.id.strip() else m.model_copy(update={"id": new_id("msg")}) for m in body.messages]
+    kid = _kid(hid, kid_id).model_copy(update={"break_messages": saved})
     get_store().put_kid(kid)
     log.info("kid %s now has %d break message(s)", kid_id, len(body.messages))
     return kid.model_dump()

@@ -330,6 +330,78 @@ void main() {
     });
   });
 
+  group('the break-message endpoints, against the wire', () {
+    // The gateway names the two lists differently on purpose — drafts are
+    // "suggestions", saved lines are "messages" — and reading the wrong key
+    // fails silently: the parent taps Ideas and nothing appears. That is
+    // exactly what happened, so both envelopes are pinned here.
+    late http.Request seen;
+
+    ApiClient clientAnswering(Object body) => ApiClient(
+      baseUrl: 'http://gateway',
+      token: 't',
+      client: MockClient((r) async {
+        seen = r;
+        return http.Response(
+          jsonEncode(body),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    test('suggestions are read from "suggestions"', () async {
+      final api = clientAnswering({
+        'suggestions': [
+          {'id': 'draft_1', 'text': 'Break time.', 'spoken': 'Break time!'},
+        ],
+        'rejected': [],
+        'based_on': ['Every Kind of Volcano'],
+      });
+      final drafts = await api.suggestBreakMessages('k1');
+      expect(seen.url.path, '/kids/k1/break-messages/suggest');
+      expect(drafts.single.text, 'Break time.');
+      expect(drafts.single.spoken, 'Break time!');
+    });
+
+    test('a gateway with no ideas to offer is empty, not an error', () async {
+      final api = clientAnswering({'suggestions': [], 'rejected': []});
+      expect(await api.suggestBreakMessages('k1'), isEmpty);
+    });
+
+    test('saved lines are PUT under "messages"', () async {
+      final api = clientAnswering({
+        'id': 'k1',
+        'nickname': 'Zoya',
+        'age': 8,
+        'break_messages': [
+          {'id': 'msg_1', 'text': 'Break time.', 'spoken': ''},
+        ],
+      });
+      final kid = await api.saveBreakMessages('k1', const [
+        BreakMessage(text: 'Break time.'),
+      ]);
+      expect(seen.method, 'PUT');
+      expect(seen.url.path, '/kids/k1/break-messages');
+      final sent = jsonDecode(seen.body) as Map<String, dynamic>;
+      expect((sent['messages'] as List).single, {
+        'id': '',
+        'text': 'Break time.',
+        'spoken': '',
+      });
+      expect(kid.breakMessages.single.id, 'msg_1');
+    });
+
+    test('clearing the lines sends an empty list, not nothing', () async {
+      // A PUT with no messages is how "quiet break" is saved. If this sent
+      // null the gateway would keep the old lines and the parent's change
+      // would silently not take.
+      final api = clientAnswering({'id': 'k1', 'nickname': 'Zoya', 'age': 8});
+      await api.saveBreakMessages('k1', const []);
+      expect(jsonDecode(seen.body), {'messages': <Object>[]});
+    });
+  });
+
   group('FakeGateway limits', () {
     late FakeGateway gateway;
     late Kid kid;
