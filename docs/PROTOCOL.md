@@ -393,6 +393,17 @@ Rules, because a child noticing they are being retested is the failure mode:
   The `revisit` field is bookkeeping for the parent's screen; nothing in `text` refers to the past.
 - A concept the child gets right twice leaves the list. Nothing is ever asked a third time.
 
+Two clarifications the server side needed. Plans are cached per (video, band, language) and shared
+by every household, so a revisit is **never written into the cached plan**: it is seeded into a copy
+when the session's socket opens, which is also why `revisit` does not appear on the `ask` message —
+it is bookkeeping for the parent, and nothing the device receives says a question is a second
+attempt. And `asked_again` counts a revisit that actually went out to the child, so a session they
+left before reaching it does not use up one of the two chances that concept gets.
+
+There is no fallback question. A revisit has to be answerable from the video just watched, so when
+the model is unavailable, or says this video gives no honest way to ask, the session simply runs
+without one. Bands 7_8 and 9_11 only: a pre-reader's plan has no concepts.
+
 ### Bilingual word seeding
 
 For a kid whose `languages` include `ur`, Gilli may offer the Urdu word for something the child has

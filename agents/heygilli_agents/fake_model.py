@@ -127,6 +127,13 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
             "seconds": 120,
             "spoken": "Crouch low, count down from five, and erupt up tall. Five times!",
         }
+    if model_name == "RevisitDraft":
+        return {
+            "text": "What is making the water rise here?",
+            "expected": "heat turns it to steam",
+            "variants": ["it gets hot"],
+            "followup": "Steam takes up much more room than water.",
+        }
     if model_name == "HistorySummary":
         return {
             "summary": "Most of this watching came from channels this child does not follow, "

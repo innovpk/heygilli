@@ -439,6 +439,19 @@ class Option(BaseModel):
     correct: bool = False
 
 
+class RevisitTag(BaseModel):
+    """Bookkeeping for the parent's screen, never for the child's.
+
+    A child noticing they are being retested is the failure mode this whole
+    feature has to avoid, so this tag says a question is a revisit while nothing
+    in the question's own `text` refers to the past — and it is not on
+    `ServerAsk`, so it never reaches the device at all.
+    """
+
+    concept: str
+    last_seen: str = ""  # YYYY-MM-DD, when this concept was last asked about
+
+
 class Question(BaseModel):
     t_sec: int = Field(ge=0)
     type: QuestionType
@@ -450,6 +463,42 @@ class Question(BaseModel):
     followup: str = ""
     gesture: Gesture = "idle"
     options: list[Option] = Field(default_factory=list)
+    revisit: RevisitTag | None = None  # null on all but at most one question per plan
+
+
+class RevisitDraft(BaseModel):
+    """What the model returns for a revisit: one question about the earlier
+    concept, asked of the video the child is watching now.
+
+    An empty `text` is a valid answer and means "this video gives me no way to
+    ask about that". Leaving the escape hatch open is what stops the model
+    forcing a question about volcanoes into a video about giraffes.
+    """
+
+    text: str = Field(description="The question, or empty if this video cannot carry it")
+    expected: str = Field(default="", description="The gist of a good answer")
+    variants: list[str] = Field(default_factory=list)
+    followup: str = Field(default="", description="One extra fact to share after a correct answer")
+
+
+class RevisitConcept(BaseModel):
+    """`GET /kids/{kid_id}/revisits`: what the parent sees."""
+
+    concept: str
+    times_shaky: int = 0
+    last_seen: str = ""
+    asked_again: int = 0
+
+
+class RevisitRecord(BaseModel):
+    """What was actually asked again, and when. The counter is what enforces
+    "nothing is ever asked a third time"."""
+
+    kid_id: str
+    concept: str
+    asked_again: int = 0
+    last_asked_at: str = ""
+    last_session_id: str = ""
 
 
 class QuestionPlan(BaseModel):

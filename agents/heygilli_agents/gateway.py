@@ -36,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach, drift, history
+from . import breaks, coach, drift, history, revisit
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -1005,6 +1005,18 @@ def kid_analytics(
     return run_analytics(kid, days, get_store(), refresh=refresh).model_dump()
 
 
+@app.get("/kids/{kid_id}/revisits")
+def kid_revisits(kid_id: str, hid: str = Depends(household)) -> dict:
+    """The concepts still worth another look, and how often one already was.
+
+    Parent-facing. A concept the child has since got right twice, or that has
+    already been asked again twice, is not here: nothing is ever asked a third
+    time (PROTOCOL.md).
+    """
+    kid = _kid(hid, kid_id)
+    return {"concepts": [c.model_dump() for c in revisit.candidates(kid, get_store())]}
+
+
 class CuratorIn(BaseModel):
     kid_id: str
 
@@ -1144,6 +1156,10 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
     plan = store.get_plan(video.id, session.age_band, session.language) or fallback_plan(
         video, session.age_band, session.language
     )
+    if kid is not None:
+        # For this session only: the cached plan is shared by every household and
+        # a revisit belongs to one child (PROTOCOL.md "Revisiting a shaky concept").
+        plan = await asyncio.to_thread(revisit.seed, plan, kid, store, video, session.id)
     engine = SessionEngine(session, plan, kid, store)  # type: ignore[arg-type]
     guard = _make_guard(session.household_id, kid, session, store)
 
@@ -1205,6 +1221,11 @@ async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None =
 
         await ws.send_json(wire(ServerPause()))
         ask = await asyncio.to_thread(engine.ask, idx)
+        # The tag is bookkeeping for the parent's screen and is deliberately not
+        # on `ask`: nothing the child receives says this is a second attempt.
+        tag = engine.questions[idx].revisit
+        if tag is not None and engine.kid is not None:
+            revisit.record_asked(engine.kid, engine.store, tag, engine.session.id)
         await ws.send_json(wire(ask))
 
         answer = await _await_answer(ws, idx, ask.listen_ms + ANSWER_GRACE_MS)

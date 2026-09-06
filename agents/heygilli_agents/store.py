@@ -26,6 +26,7 @@ from .schemas import (
     ParentPrompt,
     Policy,
     QuestionPlan,
+    RevisitRecord,
     Session,
     Video,
 )
@@ -151,6 +152,13 @@ class Store(ABC):
     def get_plan(self, video_id: str, age_band: str, language: str) -> QuestionPlan | None:
         d = self.get(GLOBAL, "plan", QuestionPlan.key(video_id, age_band, language))
         return QuestionPlan.model_validate(d) if d else None
+
+    # -- revisits (PROTOCOL.md "Revisiting a shaky concept"), one record per concept
+    def put_revisit(self, household: str, rec: RevisitRecord) -> None:
+        self.put(household, f"revisit@{rec.kid_id}", rec.concept.lower(), rec.model_dump())
+
+    def list_revisits(self, household: str, kid_id: str) -> list[RevisitRecord]:
+        return [RevisitRecord.model_validate(d) for d in self.list(household, f"revisit@{kid_id}")]
 
     # -- sessions and answers
     def put_session(self, s: Session) -> None:
