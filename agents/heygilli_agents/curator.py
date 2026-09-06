@@ -12,6 +12,7 @@ edges, no prose in between. See README "Why not a Graph".
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from pydantic import BaseModel, Field
 from strands import Agent
@@ -101,18 +102,59 @@ def apply_policy(decision: CuratorDecision, policy: Policy | None) -> CuratorDec
     })
 
 
+def caption_language(transcript_source: str) -> str:
+    """The language of the captions we read, or "" when we do not know.
+
+    `fetch_transcript` reports its source as `captions:<lang>:<auto|manual>`;
+    anything else (Gemini, or no transcript at all) tells us nothing about the
+    language, and guessing from a title is how a Spanish video ends up in front
+    of a child who speaks English.
+    """
+    parts = transcript_source.split(":")
+    return parts[1].split("-")[0].lower() if len(parts) >= 2 and parts[0] == "captions" else ""
+
+
+def understandable(transcript_source: str, languages: Sequence[str]) -> bool:
+    """Whether a child who speaks [languages] could follow this.
+
+    Unknown language is not a reason to hide: plenty of good videos have no
+    captions, and refusing everything we cannot identify would empty the shelf.
+    """
+    lang = caption_language(transcript_source)
+    if not lang or not languages:
+        return True
+    return lang in {str(x).split("-")[0].lower() for x in languages}
+
+
 def decide(
-    video: Video, band: str, agent: Agent, excerpt: str, policy: Policy | None = None
+    video: Video,
+    band: str,
+    agent: Agent,
+    excerpt: str,
+    policy: Policy | None = None,
+    languages: Sequence[str] = (),
+    transcript_source: str = "",
 ) -> CuratorDecision:
     prescreened = prescreen(video)
     if prescreened.verdict != "pass":
         return CuratorDecision(decision=prescreened.verdict if prescreened.verdict != "pass" else "approve",
                                reason=prescreened.reason)
+    # A child cannot answer a question about a video they cannot understand.
+    # Checked in code rather than asked of the model: the caption language is a
+    # fact, and a model reading a Cyrillic title has been happy to approve it.
+    if not understandable(transcript_source, languages):
+        return CuratorDecision(
+            decision="hide",
+            reason=f"spoken in {caption_language(transcript_source)}, "
+                   f"which is not a language they are set up for",
+        )
+    spoken = ", ".join(languages) if languages else "unknown"
     prompt = (
-        f"age_band: {band}\ntitle: {video.title}\nduration_s: {video.duration_s}\n"
+        f"age_band: {band}\nlanguages the child speaks: {spoken}\n"
+        f"title: {video.title}\nduration_s: {video.duration_s}\n"
         f"description: {video.description[:600]}\n\n{policy_prompt(policy)}"
         f"Transcript excerpt:\n{excerpt}\n\n"
-        f"Return the CuratorDecision."
+        f"Return the CuratorDecision. Hide anything not in a language above."
     )
     try:
         return apply_policy(structured(agent, prompt, CuratorDecision), policy)
@@ -166,7 +208,15 @@ def run_curator(
                 )
                 return report
             excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
-            decision = decide(video, kid.age_band or "7_8", curator, excerpt, policy)
+            decision = decide(
+                video,
+                kid.age_band or "7_8",
+                curator,
+                excerpt,
+                policy,
+                languages=kid.languages,
+                transcript_source=tr["source"],
+            )
             video.screening.topics = decision.topics
             video.screening.reason = decision.reason
             video.transcript_source = tr["source"]

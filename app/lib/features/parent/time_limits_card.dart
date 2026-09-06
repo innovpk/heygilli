@@ -37,7 +37,8 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
       _kid.breakAfterMinutes != _saved.breakAfterMinutes ||
       _kid.breakMinutes != _saved.breakMinutes ||
       _kid.maxVideoMinutes != _saved.maxVideoMinutes ||
-      _kid.breakIsFirm != _saved.breakIsFirm;
+      _kid.breakIsFirm != _saved.breakIsFirm ||
+      _kid.searchEnabled != _saved.searchEnabled;
 
   Future<void> _save() async {
     setState(() {
@@ -53,6 +54,7 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
         breakMinutes: _kid.breakMinutes,
         maxVideoMinutes: _kid.maxVideoMinutes,
         breakIsFirm: _kid.breakIsFirm,
+        searchEnabled: _kid.searchEnabled,
       );
       await state.refreshKids();
       if (!mounted) return;
@@ -136,6 +138,12 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
             name: name,
             onChanged: (v) =>
                 setState(() => _kid = _kid.copyWith(breakIsFirm: v)),
+          ),
+          _SearchRow(
+            enabled: _kid.searchEnabled,
+            name: name,
+            onChanged: (v) =>
+                setState(() => _kid = _kid.copyWith(searchEnabled: v)),
           ),
           _LimitRow(
             title: 'Longest video',
@@ -453,6 +461,61 @@ class _DemoChip extends StatelessWidget {
           shape: const StadiumBorder(),
         ),
         child: Text(label, style: HgText.body(size: 14, color: HgColors.brown)),
+      ),
+    );
+  }
+}
+
+/// Whether the child gets a search box, and what it can reach.
+///
+/// A parent's call, and off until they make it. The sentence under it is the
+/// important part: "search" in most apps means the whole of YouTube, and a
+/// parent turning this on has every reason to assume that is what they are
+/// agreeing to. It is not — it looks through the videos already approved for
+/// this child and can return nothing else — and the switch has to say so at
+/// the moment of deciding, not in a help page.
+class _SearchRow extends StatelessWidget {
+  const _SearchRow({
+    required this.enabled,
+    required this.name,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final String name;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Let $name search',
+            style: HgText.body(size: 16, color: HgColors.ink),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('No search')),
+              ButtonSegment(value: true, label: Text('Search')),
+            ],
+            selected: {enabled},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => onChanged(s.first),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            enabled
+                ? 'A search box on $name\'s home. It looks through the videos '
+                      'already approved for them and can find nothing else — '
+                      'it never searches YouTube.'
+                : 'No search box. $name picks from the rows on their home.',
+            style: HgText.body(size: 14, color: HgColors.brown),
+          ),
+        ],
       ),
     );
   }

@@ -85,6 +85,14 @@ class Kid(BaseModel):
         default_factory=list,
         description="What Gilli says during a break. Parent-authored; empty is a valid, quiet break.",
     )
+    search_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether the child may search. Off by default, and it never reaches "
+            "YouTube: it filters the videos already approved for this kid. A "
+            "search box that could return anything would undo the allowlist."
+        ),
+    )
 
     @model_validator(mode="after")
     def _derive_band(self) -> Kid:

@@ -548,3 +548,35 @@ Ordering per question: `pause` → `ask` → (client `answer`) → `reply` → `
 ## Icon library
 
 `shared/icons.json`: `[{id, concept, en, ur, file}]`. The Flutter app bundles `app/assets/icons/<file>.svg`; the Planner picks `icon_id` only from this list.
+
+
+### Search, and the line it does not cross
+
+`search_enabled` is a per-kid setting, off until a parent turns it on
+(`PATCH /kids/{id}/limits`). With it on, `GET /kids/{id}/home?q=` filters the
+videos **already approved for that child** and can return nothing else. There is
+no code path from a child's query to YouTube's search, and there must not be:
+the allowlist is the product, and a search box that could return anything would
+undo it. `home` answers `searchable` so the client knows whether to draw the box
+at all; a query from a kid whose parent left it off is ignored, not refused.
+
+A pre-reader (band `4_6`) never sees the box even when the setting is on. They
+cannot read it or type into it, and no other screen in the product shows them
+text.
+
+### The language a child actually speaks
+
+The Curator hides a video whose captions are in a language outside the kid's
+`languages`. It is decided in code from the caption language code, not asked of
+a model, because it is a fact and because a model reading a Cyrillic title has
+been happy to approve it for an English-speaking five-year-old. An unknown
+language is not a reason to hide: plenty of children's videos have captions
+disabled, and refusing everything unidentifiable would empty the shelf.
+
+### Session socket
+
+`ws /sessions/{id}/ws` takes the household token as the **`token` query
+parameter**. Not a header: a browser cannot set headers on a WebSocket at all,
+so a header-only client works on a phone and silently never connects on the
+web — the session is created over REST and then nothing ever drives it, which
+looks exactly like a video that simply never asks a question.

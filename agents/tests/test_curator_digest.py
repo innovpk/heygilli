@@ -1,8 +1,6 @@
 """Curator and Digest pipelines end to end on the fake model, network mocked."""
 from __future__ import annotations
 
-import pytest
-
 from heygilli_agents import curator, digest
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
@@ -178,3 +176,102 @@ def test_one_video_without_captions_does_not_stop_anything(
     )
     assert report.stopped_early == ""
     assert len(report.approved) + len(report.hidden) + len(report.ask_parent) == 3
+
+
+# --- a child cannot answer a question about a video they cannot understand ----------------------
+#
+# The first real run over a household's own subscriptions put Russian and
+# Spanish toy videos on an English-only five-year-old's home. The kid's
+# `languages` was already set; nothing screened against it.
+
+
+def _uploads_langs() -> list[dict]:
+    return [{"id": "englishvid1", "channel_id": "UCx", "title": "Why Do Giraffes Have Long Necks?",
+             "published_at": "2026-09-01", "thumb_url": "", "description": "Learn about giraffes."}]
+
+
+def test_a_video_in_another_language_is_not_offered(store: LocalStore, monkeypatch) -> None:
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="Toys"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: _uploads_langs())
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(
+        curator, "fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:ru:auto", "segments": SEGMENTS},
+    )
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:ru:auto", "segments": SEGMENTS},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+    assert [v["id"] for v in report.hidden] == ["englishvid1"]
+    assert "ru" in report.hidden[0]["reason"]
+    # Decided in code, so it never cost a model call and a model could not
+    # overrule it by liking the thumbnail.
+    assert model.calls == []
+
+
+def test_a_language_the_child_does_speak_is_left_alone(store: LocalStore, monkeypatch) -> None:
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en", "ur"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="Toys"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: _uploads_langs())
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(
+        curator, "fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:ur:manual", "segments": SEGMENTS},
+    )
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "captions:ur:manual", "segments": SEGMENTS},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+    assert report.hidden == [], "an Urdu video was hidden from an Urdu speaker"
+
+
+def test_no_captions_is_not_treated_as_a_foreign_language(store: LocalStore, monkeypatch) -> None:
+    """Plenty of good children's videos have captions disabled. Hiding
+    everything we cannot identify would empty the shelf, which is the failure
+    the language check must not trade itself for."""
+    kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="Toys"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: _uploads_langs())
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    monkeypatch.setattr(
+        curator, "fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "none", "segments": []},
+    )
+    monkeypatch.setattr(
+        "heygilli_agents.planner.fetch_transcript",
+        lambda vid: {"video_id": vid, "source": "none", "segments": []},
+    )
+
+    model = FakeModel()
+    report = curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+    assert report.hidden == []
+
+
+def test_region_tagged_captions_still_match(store: LocalStore) -> None:
+    # "en-GB" and "es-419" are ordinary caption codes; a naive equality check
+    # would hide an English video from an English speaker.
+    assert curator.understandable("captions:en-GB:auto", ["en"])
+    assert curator.understandable("captions:es-419:manual", ["es"])
+    assert not curator.understandable("captions:ru:auto", ["en", "ur"])

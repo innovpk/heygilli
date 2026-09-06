@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'protocol.dart';
@@ -24,16 +23,22 @@ class WebSocketSession implements SessionSocket {
           .asBroadcastStream();
 
   /// Opens the socket. The caller sends `hello` once it is listening, so the
-  /// `ready` reply is never missed. The REST bearer token is sent as a
-  /// header; PROTOCOL.md does not spell out WS auth, so the gateway should
-  /// accept the same `Authorization` header here.
+  /// `ready` reply is never missed.
+  ///
+  /// The token goes in the query string, not a header, because **a browser
+  /// cannot set headers on a WebSocket at all**. The header version compiled
+  /// and ran on Android and silently never connected on the web, which is why
+  /// a nine-minute video went by without a single question: the session was
+  /// created over REST and then nothing drove it. `?token=` is what the
+  /// gateway reads (PROTOCOL "Session socket"), so one path now serves every
+  /// platform rather than one that works and one that quietly does not.
   static Future<WebSocketSession> connect(Uri uri, {String? token}) async {
-    final channel = IOWebSocketChannel.connect(
-      uri,
-      headers: token == null ? null : {'Authorization': 'Bearer $token'},
-      connectTimeout: const Duration(seconds: 5),
+    final channel = WebSocketChannel.connect(
+      token == null || token.isEmpty
+          ? uri
+          : uri.replace(queryParameters: {'token': token}),
     );
-    await channel.ready;
+    await channel.ready.timeout(const Duration(seconds: 8));
     return WebSocketSession._(channel);
   }
 

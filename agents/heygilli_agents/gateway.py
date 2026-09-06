@@ -340,6 +340,8 @@ class LimitsIn(BaseModel):
     break_minutes: int | None = Field(default=None, ge=1)
     max_video_minutes: int | None = Field(default=None, ge=0)
     break_is_firm: bool | None = None
+    #: Whether this child may search their own approved videos. Never YouTube.
+    search_enabled: bool | None = None
 
 
 def _watch_state(hid: str, kid: Kid, extra_seconds: int = 0) -> WatchState:
@@ -892,12 +894,18 @@ def channels_drift_check(body: ChannelReviewsIn, hid: str = Depends(household)) 
 
 
 @app.get("/kids/{kid_id}/home")
-def home(kid_id: str, hid: str = Depends(household)) -> dict:
+def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
     """The rows, plus whether watching is allowed at all right now.
 
     A video longer than `max_video_minutes` is not offered: the limit is about
     what a child is handed, so it is applied where the choosing happens rather
     than as a refusal after they have picked something.
+
+    `q` is the child's search, and it never leaves this list: it filters the
+    videos already approved for them. Searching YouTube would hand back the
+    open internet and undo the allowlist the whole product is built on, so
+    there is no code path here that could. It is only honoured when the parent
+    turned `search_enabled` on for this child.
     """
     kid = _kid(hid, kid_id)
     store = get_store()
@@ -912,13 +920,20 @@ def home(kid_id: str, hid: str = Depends(household)) -> dict:
         v.plan_ready = store.get_plan(v.id, kid.age_band or "7_8", kid.languages[0]) is not None
         approved.append(v)
     approved.sort(key=lambda v: v.published_at or "", reverse=True)
-    rows = [{"title": "New for you", "videos": [v.public() for v in approved[:12]]}]
-    if len(approved) > 12:
-        rows.append({"title": "More to watch", "videos": [v.public() for v in approved[12:]]})
+
+    query = q.strip().lower() if (q and kid.search_enabled) else ""
+    if query:
+        hits = [v for v in approved if query in f"{v.title} {v.description}".lower()]
+        rows = [{"title": f"Found {len(hits)}", "videos": [v.public() for v in hits[:24]]}]
+    else:
+        rows = [{"title": "New for you", "videos": [v.public() for v in approved[:12]]}]
+        if len(approved) > 12:
+            rows.append({"title": "More to watch", "videos": [v.public() for v in approved[12:]]})
 
     state = _watch_state(hid, kid)
     return {
         "rows": rows,
+        "searchable": kid.search_enabled,
         "watching_allowed": state.watching_allowed,
         "blocked_reason": state.blocked_reason,
         "active_break": state.active_break.model_dump() if state.active_break else None,

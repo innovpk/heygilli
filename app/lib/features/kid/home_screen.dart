@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/orientation.dart';
+import '../../core/protocol.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
@@ -45,6 +48,24 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     _home = _load();
   });
 
+  /// What the child has typed. Empty is the ordinary home; the gateway is what
+  /// decides whether a query counts at all.
+  String _query = '';
+  Timer? _debounce;
+
+  /// A child types slowly and one letter at a time, so the rows are not
+  /// refetched on every keystroke.
+  void _search(String q) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() {
+        _query = q;
+        _home = _load();
+      });
+    });
+  }
+
   Future<_Home> _load() async {
     final state = context.read<AppState>();
     final kid = state.activeKid;
@@ -64,7 +85,13 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
       watch = const WatchState();
     }
     if (!watch.watchingAllowed) return _Home(const [], watch);
-    return _Home(await state.gateway.home(kid.id), watch);
+    return _Home(await state.gateway.home(kid.id, query: _query), watch);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -148,6 +175,11 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _Header(kid: kid, onExit: _tryExit),
+                      // Only when the parent turned it on, and never for a
+                      // pre-reader: a child who cannot read cannot type, and a
+                      // box they cannot use is one more thing to poke at.
+                      if (kid.searchEnabled && kid.band.showsVideoTitles)
+                        _SearchBox(onChanged: _search),
                       Expanded(
                         child: Builder(
                           builder: (context) {
@@ -176,7 +208,12 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                             // empty ListView renders literally nothing, which
                             // a child cannot tell apart from a broken app.
                             if (home.rows.every((r) => r.videos.isEmpty)) {
-                              return NothingYetScreen(kid: kid);
+                              // A search that found nothing is not an empty
+                              // shelf: there is something to change, and the
+                              // box has to stay on screen to change it.
+                              return _query.isEmpty
+                                  ? NothingYetScreen(kid: kid)
+                                  : _NoMatches(kid: kid);
                             }
                             return ListView(
                               padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
@@ -373,4 +410,79 @@ class _Thumb extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The child's search box. Only ever shown when a parent turned search on for
+/// this kid, and never to a pre-reader.
+///
+/// What it searches is the point: the gateway filters the videos already
+/// approved for this child and can return nothing else. There is no code path
+/// from here to YouTube's search, which is what keeps the allowlist a real
+/// boundary rather than a default.
+class _SearchBox extends StatelessWidget {
+  const _SearchBox({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: TextField(
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: HgText.body(size: 17, color: HgColors.cream),
+        cursorColor: HgColors.mango,
+        decoration: InputDecoration(
+          // Says where it looks, so a child is not hunting for something that
+          // was never here.
+          hintText: 'Find one of your videos',
+          hintStyle: HgText.body(size: 17, color: HgColors.sky),
+          prefixIcon: const Icon(Icons.search_rounded, color: HgColors.sky),
+          filled: true,
+          fillColor: HgColors.ink.withValues(alpha: 0.35),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(999),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
+    );
+  }
+}
+
+/// Searched, and none of this child's videos matched.
+///
+/// Deliberately not [NothingYetScreen]: that one says there is nothing at all,
+/// which would be false and would send a child away from a shelf that is
+/// actually full. This says the word did not match, which is fixable.
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.kid});
+
+  final Kid kid;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 10,
+        children: [
+          const GilliWidget(size: 110, gesture: Gesture.think),
+          Text(
+            'Nothing with that word',
+            textAlign: TextAlign.center,
+            style: HgText.display(size: 24),
+          ),
+          Text(
+            'Try another word, or clear it to see everything again.',
+            textAlign: TextAlign.center,
+            style: HgText.body(size: 16, color: HgColors.sky),
+          ),
+        ],
+      ),
+    ),
+  );
 }

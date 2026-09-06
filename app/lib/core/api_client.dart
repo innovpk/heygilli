@@ -233,8 +233,13 @@ class ApiClient implements Gateway {
       );
 
   @override
-  Future<List<HomeRow>> home(String kidId) async {
-    final j = await _get('/kids/$kidId/home') as Map<String, dynamic>;
+  Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
+    final q = query.trim();
+    final j =
+        await _get(
+              '/kids/$kidId/home${q.isEmpty ? '' : '?q=${Uri.encodeQueryComponent(q)}'}',
+            )
+            as Map<String, dynamic>;
     return (j['rows'] as List? ?? const [])
         .map((r) => HomeRow.fromJson(r as Map<String, dynamic>))
         .toList();
@@ -253,6 +258,7 @@ class ApiClient implements Gateway {
     int? breakMinutes,
     int? maxVideoMinutes,
     bool? breakIsFirm,
+    bool? searchEnabled,
   }) async => Kid.fromJson(
     await _patch('/kids/$kidId/limits', {
           // Omitted fields are left alone by the gateway, so a screen that
@@ -262,6 +268,7 @@ class ApiClient implements Gateway {
           'break_minutes': ?breakMinutes,
           'max_video_minutes': ?maxVideoMinutes,
           'break_is_firm': ?breakIsFirm,
+          'search_enabled': ?searchEnabled,
         })
         as Map<String, dynamic>,
   );

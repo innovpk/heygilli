@@ -54,6 +54,8 @@ def test_kids_channels_home(client: TestClient, auth: dict, store: LocalStore, m
     home = client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()
     assert home == {
         "rows": [{"title": "New for you", "videos": []}],
+        # Off unless a parent turned it on for this child.
+        "searchable": False,
         "watching_allowed": True, "blocked_reason": None, "active_break": None,
     }
     store.put_video(VIDEO)
@@ -181,3 +183,52 @@ def test_digest_and_inbox_endpoints(client: TestClient, auth: dict, store: Local
     assert d["kid_id"] == kid["id"] and d["asked"] == 0 and d["kind"] == "older"
     assert client.get("/parent/inbox", headers=hdr(auth)).json() == []
     assert client.post("/parent/inbox/nope", json={"decision": "hide"}, headers=hdr(auth)).status_code == 404
+
+
+# --- search, and the line it must never cross ---------------------------------------------------
+
+
+def test_search_is_off_until_a_parent_turns_it_on(client: TestClient, auth: dict, store) -> None:
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
+    store.put_video(VIDEO)
+    store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "approve", "ok")
+
+    # A query from a child whose parent has not enabled it changes nothing.
+    home = client.get(f"/kids/{kid['id']}/home?q=zzzznotmatching", headers=hdr(auth)).json()
+    assert home["searchable"] is False
+    assert home["rows"][0]["title"] == "New for you"
+    assert [v["id"] for v in home["rows"][0]["videos"]] == [VIDEO.id]
+
+
+def test_a_parent_can_turn_it_on_and_it_filters_their_own_shelf(
+    client: TestClient, auth: dict, store
+) -> None:
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
+    store.put_video(VIDEO)
+    store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "approve", "ok")
+
+    r = client.patch(f"/kids/{kid['id']}/limits", json={"search_enabled": True}, headers=hdr(auth))
+    assert r.status_code == 200 and r.json()["search_enabled"] is True
+
+    hit = client.get(f"/kids/{kid['id']}/home?q={VIDEO.title[:6]}", headers=hdr(auth)).json()
+    assert hit["searchable"] is True
+    assert [v["id"] for v in hit["rows"][0]["videos"]] == [VIDEO.id]
+
+    miss = client.get(f"/kids/{kid['id']}/home?q=dinosaurs-in-space", headers=hdr(auth)).json()
+    assert miss["rows"][0]["videos"] == [], "search reached past the approved list"
+
+
+def test_search_can_only_ever_return_approved_videos(
+    client: TestClient, auth: dict, store
+) -> None:
+    """The whole safety premise. A search box that could return anything would
+    undo the allowlist, so the one that exists filters what is already there:
+    a video the Curator hid stays hidden however hard a child searches for it.
+    """
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
+    client.patch(f"/kids/{kid['id']}/limits", json={"search_enabled": True}, headers=hdr(auth))
+    store.put_video(VIDEO)
+    store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "hide", "not for this age")
+
+    home = client.get(f"/kids/{kid['id']}/home?q={VIDEO.title}", headers=hdr(auth)).json()
+    assert home["rows"][0]["videos"] == []

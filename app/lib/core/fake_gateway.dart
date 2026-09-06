@@ -748,20 +748,29 @@ class FakeGateway implements Gateway {
   }
 
   @override
-  Future<List<HomeRow>> home(String kidId) async {
+  Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     await _lag();
     final kid = _kids.where((k) => k.id == kidId).firstOrNull;
     if (kid == null) return const [];
-    if (kid.band == AgeBand.b4to6) {
-      return const [
-        HomeRow(title: 'New from your channels', videos: [_ducks, _twinkle]),
-        HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
-      ];
-    }
-    return const [
-      HomeRow(title: 'New from your channels', videos: [_volcano, _ears]),
-      HomeRow(title: 'Keep watching', videos: [_twinkle, _ducks]),
+    final rows = kid.band == AgeBand.b4to6
+        ? const [
+            HomeRow(title: 'New from your channels', videos: [_ducks, _twinkle]),
+            HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
+          ]
+        : const [
+            HomeRow(title: 'New from your channels', videos: [_volcano, _ears]),
+            HomeRow(title: 'Keep watching', videos: [_twinkle, _ducks]),
+          ];
+    final q = query.trim().toLowerCase();
+    // Same rule as the gateway: a query only ever narrows what is already
+    // approved, and it does nothing at all unless the parent enabled it.
+    if (q.isEmpty || !kid.searchEnabled) return rows;
+    final hits = [
+      for (final row in rows)
+        for (final v in row.videos)
+          if (v.title.toLowerCase().contains(q)) v,
     ];
+    return [HomeRow(title: 'Found ${hits.length}', videos: hits)];
   }
 
   final _sessions = <String, _FakeSessionInfo>{};
@@ -878,6 +887,7 @@ class FakeGateway implements Gateway {
     int? breakMinutes,
     int? maxVideoMinutes,
     bool? breakIsFirm,
+    bool? searchEnabled,
   }) async {
     await _lag();
     final i = _kids.indexWhere((k) => k.id == kidId);
@@ -888,6 +898,7 @@ class FakeGateway implements Gateway {
       breakMinutes: breakMinutes,
       maxVideoMinutes: maxVideoMinutes,
       breakIsFirm: breakIsFirm,
+      searchEnabled: searchEnabled,
     );
     _kids[i] = updated;
     return updated;

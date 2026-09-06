@@ -175,5 +175,6 @@ class _SilentVoice extends GilliVoice {
 /// one of them starts.
 class _EmptyHomeGateway extends FakeGateway {
   @override
-  Future<List<HomeRow>> home(String kidId) async => const [];
+  Future<List<HomeRow>> home(String kidId, {String query = ''}) async =>
+      const [];
 }

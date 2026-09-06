@@ -98,7 +98,10 @@ abstract class Gateway {
   Future<List<Channel>> channels(String kidId);
   Future<Channel> addChannel(String kidId, String url);
 
-  Future<List<HomeRow>> home(String kidId);
+  /// `GET /kids/{id}/home`. [query] filters the child's *approved* videos
+  /// and nothing else; the gateway ignores it unless the parent enabled
+  /// search for this kid.
+  Future<List<HomeRow>> home(String kidId, {String query});
 
   /// `GET /kids/{id}/state`. Checked before anything is offered to watch, and
   /// again when the kid screen is reopened, so a break survives the app being
@@ -115,6 +118,7 @@ abstract class Gateway {
     int? breakMinutes,
     int? maxVideoMinutes,
     bool? breakIsFirm,
+    bool? searchEnabled,
   });
 
   /// `PUT /kids/{id}/break-messages`: replaces the lines Gilli reads out at
