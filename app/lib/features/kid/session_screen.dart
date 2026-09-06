@@ -85,6 +85,11 @@ class _SessionScreenState extends State<SessionScreen> {
   String? _errorText;
 
   AskMessage? _ask;
+
+  /// The word Gilli actually said out loud for this question, when it could.
+  /// Null when the question carried none, and null when the device had no
+  /// voice for it: in both cases the screen shows nothing extra.
+  SeededWord? _seed;
   ReplyMessage? _reply;
   bool _answered = false;
   Gesture _gesture = Gesture.idle;
@@ -235,6 +240,7 @@ class _SessionScreenState extends State<SessionScreen> {
     _listenWindow?.cancel();
     setState(() {
       _ask = ask;
+      _seed = null;
       _reply = null;
       _answered = false;
       _errorText = null;
@@ -250,6 +256,8 @@ class _SessionScreenState extends State<SessionScreen> {
     );
     await _speaking;
     if (!mounted || _ask != ask) return;
+    await _offerWord(ask);
+    if (!mounted || _ask != ask) return;
     setState(() => _phase = _Phase.listening);
 
     // The listening window opens after the question is spoken. If nothing
@@ -263,6 +271,21 @@ class _SessionScreenState extends State<SessionScreen> {
       // SPEC 9.2: pre-readers do not have to press anything.
       _startListening();
     }
+  }
+
+  /// The one word this session teaches, said after the question and before
+  /// the listening window opens (PROTOCOL "Bilingual word seeding").
+  ///
+  /// Polly has no Urdu voice, so the term is spoken by the device. A device
+  /// with no Urdu voice gets the English question and no seed: [_seed] stays
+  /// null, nothing extra is said, and nothing extra is shown. A silent gap
+  /// where a word should have been would be worse than not offering one.
+  Future<void> _offerWord(AskMessage ask) async {
+    final word = ask.word;
+    if (word == null) return;
+    final spoken = await _voice.saySeed(word);
+    if (!mounted || _ask != ask) return;
+    setState(() => _seed = spoken ? word : null);
   }
 
   Future<void> _startListening() async {
@@ -772,6 +795,35 @@ class _SessionScreenState extends State<SessionScreen> {
           ),
         );
       }
+    }
+    // The word Gilli just said, for a child who can read it. A pre-reader is
+    // covered by showText being false: they heard it, and that is the whole
+    // interaction for them (SPEC 5.1).
+    final seed = _seed;
+    if (showText && reply == null && seed != null) {
+      children.add(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              seed.term,
+              textAlign: TextAlign.center,
+              textDirection: seed.isUrdu
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
+              style: seed.isUrdu
+                  ? HgText.urdu(size: _band.questionTextSize * 0.9)
+                  : HgText.display(size: _band.questionTextSize * 0.9),
+            ),
+            if (seed.gloss.isNotEmpty)
+              Text(
+                seed.gloss,
+                textAlign: TextAlign.center,
+                style: HgText.body(size: 18, color: HgColors.sky),
+              ),
+          ],
+        ),
+      );
     }
     if (showText && reply != null && reply.text != null) {
       children.add(

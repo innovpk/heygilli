@@ -139,6 +139,11 @@ abstract class Gateway {
   /// shaky concept").
   Future<List<RevisitConcept>> revisits(String kidId);
 
+  /// `GET /kids/{id}/words`: the words Gilli has offered this child in their
+  /// other language, and which have come back (PROTOCOL "Bilingual word
+  /// seeding"). Empty for a household with one language, which is normal.
+  Future<List<WordSeed>> words(String kidId);
+
   /// `GET /kids/{id}/policy`. An empty policy is a real answer: the Curator
   /// then screens on age-band defaults alone.
   Future<Policy> policy(String kidId);

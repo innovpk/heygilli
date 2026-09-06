@@ -94,6 +94,7 @@ sealed class ServerMessage {
               .toList(),
           gesture: Gesture.fromWire(j['gesture'] as String?),
           revisit: QuestionRevisit.fromJson(j['revisit']),
+          word: SeededWord.fromJson(j['word']),
         );
       case 'reply':
         return ReplyMessage(
@@ -184,6 +185,53 @@ class QuestionRevisit {
   }
 }
 
+/// A word Gilli offers alongside a question (PROTOCOL "Bilingual word
+/// seeding").
+///
+/// The one place in the product that teaches rather than checks: the child
+/// has already shown they understand the thing in their stronger language,
+/// and Gilli gives them the other language's word for it.
+///
+/// Polly has no Urdu voice, so an Urdu term is always spoken by on-device
+/// TTS. A device with no Urdu voice installed gets the English question with
+/// no seed rather than a silent one, which is decided on the device — the
+/// server cannot know what voices a phone has.
+class SeededWord {
+  const SeededWord({
+    required this.term,
+    this.language = 'ur',
+    this.gloss = '',
+    this.firstHeard = false,
+  });
+
+  /// The word itself, in [language].
+  final String term;
+  final String language;
+
+  /// What it means, in the language the question was asked in.
+  final String gloss;
+
+  /// The first time this child has been offered this word.
+  final bool firstHeard;
+
+  bool get isUrdu => language == 'ur';
+
+  /// Null unless there is a real word to offer. An empty term is not a seed,
+  /// and treating one as a seed would have Gilli pause for nothing.
+  static SeededWord? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final j = raw.cast<String, dynamic>();
+    final term = (j['term'] as String? ?? '').trim();
+    if (term.isEmpty) return null;
+    return SeededWord(
+      term: term,
+      language: j['language'] as String? ?? 'ur',
+      gloss: j['gloss'] as String? ?? '',
+      firstHeard: j['first_heard'] as bool? ?? false,
+    );
+  }
+}
+
 class AskMessage extends ServerMessage {
   const AskMessage({
     required this.q,
@@ -197,6 +245,7 @@ class AskMessage extends ServerMessage {
     required this.options,
     required this.gesture,
     this.revisit,
+    this.word,
   });
 
   final int q;
@@ -229,6 +278,10 @@ class AskMessage extends ServerMessage {
   /// concept"). Anything that made a revisit look or sound different would
   /// tell the child they are being retested.
   final QuestionRevisit? revisit;
+
+  /// At most one new word per session, and null on every other question: a
+  /// child who hears six new words remembers none.
+  final SeededWord? word;
 }
 
 class ReplyMessage extends ServerMessage {

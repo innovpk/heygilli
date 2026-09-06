@@ -6,6 +6,8 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'protocol.dart';
+
 /// Gilli's voice. Plays the gateway's cached `tts_url` (consistent character
 /// voice, Urdu support) and falls back to on-device TTS when the URL is empty
 /// or fails, per PROTOCOL.md "TTS".
@@ -78,9 +80,56 @@ class GilliVoice extends ChangeNotifier {
     );
   }
 
+  /// Offers a seeded word out loud, if this device can say it.
+  ///
+  /// Returns false when it cannot, and says nothing at all in that case: the
+  /// caller then behaves exactly as if the question had carried no seed
+  /// (PROTOCOL "Bilingual word seeding"). A pause where a word should have
+  /// been is worse than no word.
+  Future<bool> saySeed(SeededWord word) async {
+    if (!await canSpeak(word.language)) return false;
+    // Always on-device: Polly has no Urdu voice, so there is no url to play.
+    await say(
+      url: '',
+      fallbackText: word.term,
+      language: word.language,
+      // A new word is worth slowing down for whoever is listening.
+      slow: true,
+    );
+    return true;
+  }
+
+  /// Cached answers from the engine, one per language tag we ask about.
+  final _voices = <String, bool>{};
+
+  /// Whether this device can actually say [language] out loud.
+  ///
+  /// PROTOCOL "Bilingual word seeding": Polly has no Urdu voice, so a seeded
+  /// Urdu term is always on-device, and a phone with no Urdu voice installed
+  /// must get the English question with no seed rather than a silent pause
+  /// where a word should have been. Only the device can answer that, so it is
+  /// asked here before anything is spoken.
+  ///
+  /// False on any error. An engine that cannot answer is not one to gamble a
+  /// silent question on.
+  Future<bool> canSpeak(String language) async {
+    final tag = _tag(language);
+    final known = _voices[tag];
+    if (known != null) return known;
+    bool available;
+    try {
+      available = await _tts.isLanguageAvailable(tag) == true;
+    } catch (_) {
+      available = false;
+    }
+    return _voices[tag] = available;
+  }
+
+  static String _tag(String language) => language == 'ur' ? 'ur-PK' : 'en-US';
+
   Future<void> _speakLocal(String text, String language, bool slow) async {
     try {
-      await _tts.setLanguage(language == 'ur' ? 'ur-PK' : 'en-US');
+      await _tts.setLanguage(_tag(language));
       // SPEC 9.2: slower rate for pre-readers so key words land.
       await _tts.setSpeechRate(slow ? 0.42 : 0.5);
       await _tts.setPitch(1.1);
@@ -109,7 +158,17 @@ class GilliVoice extends ChangeNotifier {
   @override
   void dispose() {
     _playerOrNull?.dispose();
-    _ttsOrNull?.stop();
+    // A TTS engine that throws on the way out must not take the screen with
+    // it: this runs while a kid is leaving a session, and the error would
+    // surface as a crash on the way back to the home screen.
+    final tts = _ttsOrNull;
+    if (tts != null) {
+      unawaited(() async {
+        try {
+          await tts.stop();
+        } catch (_) {}
+      }());
+    }
     super.dispose();
   }
 }

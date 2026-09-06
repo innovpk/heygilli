@@ -350,6 +350,15 @@ class ApiClient implements Gateway {
   }
 
   @override
+  Future<List<WordSeed>> words(String kidId) async {
+    final body = await _get('/kids/$kidId/words') as Map<String, dynamic>;
+    return [
+      for (final w in (body['words'] as List? ?? const []))
+        WordSeed.fromJson((w as Map).cast<String, dynamic>()),
+    ];
+  }
+
+  @override
   Future<HistoryInsight?> history(String kidId) async {
     try {
       return HistoryInsight.fromJson(

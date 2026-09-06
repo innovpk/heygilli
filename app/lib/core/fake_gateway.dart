@@ -189,6 +189,14 @@ class FakeGateway implements Gateway {
         text: 'Why did the lava come out?',
         textUr: 'لاوا باہر کیوں نکلا؟',
         expected: const ['pressure', 'push', 'hot', 'gas', 'build'],
+        // One word, on the second question, for a concept this child has
+        // already answered in English on the first (PROTOCOL). Polly has no
+        // Urdu voice, so the client says this one itself or not at all.
+        seed: const SeededWord(
+          term: 'آتش فشاں',
+          gloss: 'volcano',
+          firstHeard: true,
+        ),
       ),
     ],
     _ears.id: [
@@ -1225,6 +1233,54 @@ class FakeGateway implements Gateway {
     ];
   }
 
+  /// Urdu words the demo has offered, at the rate the rule allows: one a
+  /// session, and never one for a concept the child has not already got right
+  /// in English (PROTOCOL). A couple have come back; most have not, which is
+  /// what a real week looks like.
+  static const _demoWords = <WordSeed>[
+    WordSeed(
+      term: 'بادل',
+      gloss: 'cloud',
+      timesHeard: 4,
+      timesSaid: 2,
+      firstHeard: '2026-08-24',
+      lastHeard: '2026-09-03',
+    ),
+    WordSeed(
+      term: 'آتش فشاں',
+      gloss: 'volcano',
+      timesHeard: 3,
+      timesSaid: 1,
+      firstHeard: '2026-08-28',
+      lastHeard: '2026-09-04',
+    ),
+    WordSeed(
+      term: 'چاند',
+      gloss: 'moon',
+      timesHeard: 2,
+      firstHeard: '2026-09-01',
+      lastHeard: '2026-09-02',
+    ),
+    WordSeed(
+      term: 'زلزلہ',
+      gloss: 'earthquake',
+      timesHeard: 1,
+      firstHeard: '2026-09-05',
+      lastHeard: '2026-09-05',
+    ),
+  ];
+
+  @override
+  Future<List<WordSeed>> words(String kidId) async {
+    await _lag();
+    // A household with one language is offered nothing, and that is not an
+    // empty state to apologise for: seeding is opt-in by virtue of the
+    // language list (PROTOCOL).
+    final kid = _kid(kidId);
+    if (kid == null || !kid.speaksUrdu) return const [];
+    return _demoWords;
+  }
+
   @override
   Future<List<ParentPrompt>> inbox() async {
     await _lag();
@@ -1434,6 +1490,7 @@ class PlannedAsk {
     this.correctOption,
     this.expected = const [],
     this.modelWord,
+    this.seed,
   });
 
   final int atS;
@@ -1445,6 +1502,10 @@ class PlannedAsk {
   final int? correctOption;
   final List<String> expected;
   final String? modelWord;
+
+  /// The Urdu word this question offers, if any. At most one per plan, and
+  /// only for a kid whose languages include it (PROTOCOL).
+  final SeededWord? seed;
 }
 
 /// Scripted server side of one session. Watches `position` messages and runs
@@ -1552,6 +1613,9 @@ class FakeSession implements SessionSocket {
         gesture: ask.input == QuestionInput.pick
             ? Gesture.point
             : Gesture.think,
+        // Only for a bilingual session. Seeding is opt-in by virtue of the
+        // language list, so an English-only kid is never offered one.
+        word: urdu ? ask.seed : null,
       ),
     );
 

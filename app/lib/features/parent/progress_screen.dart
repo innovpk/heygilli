@@ -33,15 +33,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
   /// about a concept, not about a window.
   late Future<List<RevisitConcept>> _revisits = _loadRevisits();
 
+  /// The words Gilli has offered in this child's other language. Empty for a
+  /// household with one language, which is most of them.
+  late Future<List<WordSeed>> _words = _loadWords();
+
   Future<Analytics> _load() =>
       context.read<AppState>().gateway.analytics(widget.kid.id, days: _days);
 
   Future<List<RevisitConcept>> _loadRevisits() =>
       context.read<AppState>().gateway.revisits(widget.kid.id);
 
+  Future<List<WordSeed>> _loadWords() =>
+      context.read<AppState>().gateway.words(widget.kid.id);
+
   void _reload() => setState(() {
     _future = _load();
     _revisits = _loadRevisits();
+    _words = _loadWords();
   });
 
   void _setDays(int days) {
@@ -77,13 +85,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 }
                 return FutureBuilder<List<RevisitConcept>>(
                   future: _revisits,
-                  builder: (context, revisits) => _Body(
-                    analytics: a,
-                    kid: widget.kid,
-                    // An empty list until it arrives, and an empty list if it
-                    // never does: the rest of the screen is worth more than a
-                    // spinner over it.
-                    revisits: revisits.data ?? const [],
+                  builder: (context, revisits) => FutureBuilder<List<WordSeed>>(
+                    future: _words,
+                    builder: (context, words) => _Body(
+                      analytics: a,
+                      kid: widget.kid,
+                      // An empty list until it arrives, and an empty list if
+                      // it never does: the rest of the screen is worth more
+                      // than a spinner over it.
+                      revisits: revisits.data ?? const [],
+                      words: words.data ?? const [],
+                    ),
                   ),
                 );
               },
@@ -144,11 +156,13 @@ class _Body extends StatelessWidget {
     required this.analytics,
     required this.kid,
     this.revisits = const [],
+    this.words = const [],
   });
 
   final Analytics analytics;
   final Kid kid;
   final List<RevisitConcept> revisits;
+  final List<WordSeed> words;
 
   bool get _preReader => kid.band == AgeBand.b4to6;
 
@@ -233,6 +247,30 @@ class _Body extends StatelessWidget {
                           'Shaky on ${s.timesShaky} days, '
                           'last ${_shortDate(s.lastSeen)}',
                     ),
+                ],
+              ),
+            ),
+          ],
+          if (words.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _Section(
+              label: 'Urdu words Gilli has offered',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 12,
+                children: [
+                  for (final w in words) _SeededWordLine(seed: w),
+                  const SizedBox(height: 2),
+                  Text(
+                    // Both halves of the rule, because both are unusual
+                    // enough that a parent would otherwise wonder.
+                    'One new word a session at most, and only for something '
+                    '${kid.nickname} has already got right in English. Gilli '
+                    'says these itself: there is no Urdu voice in the cloud '
+                    'service, so on a phone with no Urdu voice installed the '
+                    'question is asked in English with no word offered.',
+                    style: HgText.body(size: 13, color: HgColors.brown),
+                  ),
                 ],
               ),
             ),
@@ -519,6 +557,54 @@ class _Section extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+/// One seeded word: the term itself, what it means, and whether it has come
+/// back yet. "Said it back" is the only thing here that counts as learning,
+/// so it is the part in plain words rather than a number.
+class _SeededWordLine extends StatelessWidget {
+  const _SeededWordLine({required this.seed});
+
+  final WordSeed seed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 12,
+      children: [
+        Text(
+          seed.term,
+          textDirection: seed.language == 'ur'
+              ? TextDirection.rtl
+              : TextDirection.ltr,
+          style: seed.language == 'ur'
+              ? HgText.urdu(size: 22, color: HgColors.ink)
+              : HgText.display(size: 20, color: HgColors.ink),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                seed.gloss,
+                style: HgText.body(size: 16, color: HgColors.ink),
+              ),
+              Text(
+                seed.emerging
+                    ? 'Heard ${seed.timesHeard} '
+                          '${seed.timesHeard == 1 ? 'time' : 'times'}, not '
+                          'said back yet'
+                    : 'Said it back ${seed.timesSaid} '
+                          '${seed.timesSaid == 1 ? 'time' : 'times'}',
+                style: HgText.body(size: 14, color: HgColors.brown),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

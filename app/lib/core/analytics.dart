@@ -262,6 +262,60 @@ class ConceptStat {
 }
 
 /// Shaky on two or more separate days: the short list worth a parent's time.
+/// `GET /kids/{id}/words`: one word Gilli has offered this child.
+///
+/// PROTOCOL "Bilingual word seeding". The same data as the analytics
+/// vocabulary seen from the other side: `emerging` is exactly a [WordSeed]
+/// with `times_said == 0`.
+class WordSeed {
+  const WordSeed({
+    required this.term,
+    this.language = 'ur',
+    this.gloss = '',
+    this.timesHeard = 0,
+    this.timesSaid = 0,
+    this.firstHeard = '',
+    this.lastHeard = '',
+  });
+
+  final String term;
+  final String language;
+
+  /// What it means, in the child's stronger language.
+  final String gloss;
+
+  /// How often Gilli has offered it.
+  final int timesHeard;
+
+  /// How often the child has said it back.
+  final int timesSaid;
+  final String firstHeard;
+  final String lastHeard;
+
+  /// Offered, not yet said back. The same thing analytics calls `emerging`.
+  bool get emerging => timesSaid == 0;
+
+  factory WordSeed.fromJson(Map<String, dynamic> j) => WordSeed(
+    term: j['term'] as String? ?? '',
+    language: j['language'] as String? ?? 'ur',
+    gloss: j['gloss'] as String? ?? '',
+    timesHeard: _int(j['times_heard'], 0),
+    timesSaid: _int(j['times_said'], 0),
+    firstHeard: j['first_heard'] as String? ?? '',
+    lastHeard: j['last_heard'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'term': term,
+    'language': language,
+    'gloss': gloss,
+    'times_heard': timesHeard,
+    'times_said': timesSaid,
+    'first_heard': firstHeard,
+    'last_heard': lastHeard,
+  };
+}
+
 /// `GET /kids/{id}/revisits`: a shaky concept and whether it has been asked
 /// about again.
 ///
