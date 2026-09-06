@@ -79,6 +79,19 @@ void main() {
     test('the value is Google\'s reserved word, not one we invented', () {
       expect(GoogleAuth.popupRedirect, 'postmessage');
     });
+
+    test('a browser asks for identity alongside the YouTube scope', () {
+      // Not scope creep: a phone gets these from its separate sign-in step.
+      // A browser has no separate step, and without an id_token the gateway
+      // cannot tell which Google account this is — it mints a fresh household
+      // every time, so a parent never returns to their own children.
+      expect(GoogleAuth.webScopes, contains(GoogleAuth.youtubeReadonlyScope));
+      expect(GoogleAuth.webScopes, containsAll(['openid', 'email', 'profile']));
+    });
+
+    test('and asks for nothing beyond those four', () {
+      expect(GoogleAuth.webScopes, hasLength(4));
+    });
   });
 
   group('YouTubeStatus (GET /me/youtube)', () {

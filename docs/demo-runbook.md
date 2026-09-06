@@ -136,8 +136,8 @@ flutter run -d "iPhone 17 Pro"              --dart-define=HEYGILLI_GOOGLE_SERVER
 flutter run -d web-server --web-port 5601   --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
 ```
 
-In a browser the sign-in button is the one Google's SDK renders, not HeyGilli's — the GIS SDK
-refuses a click from an app's own widget. It works, but only if the page's exact address is listed
+In a browser sign-in is one button and one popup, same as a phone: the web path uses the
+authorization-code flow, which asks for the account and the YouTube scope together. It works, but only if the page's exact address is listed
 under **Authorized JavaScript origins** on the web OAuth client; `http://localhost:5601` was
 registered on 6 September. Without it Google answers `401 invalid_client / no registered origin`
 and the app shows nothing, because that refusal never comes back through the SDK. If a web beat is

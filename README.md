@@ -119,11 +119,13 @@ flutter run \
   --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id from agents/.env>
 ```
 
-In a browser the button is **Google's own**, not HeyGilli's: the GIS SDK will
-not accept a click from a widget an app drew, so the web path renders the SDK's
-button and waits for the account it pushes back. Everything after that is the
-same on every platform — one `authorizeServer`, one server auth code, one
-`POST /auth/google`.
+A browser takes a different route to the same place. GIS will not let an app
+authenticate from its own button, and its identity button returns only an
+id_token — the YouTube scope would then need a second popup, and a second tap,
+for something the parent has already agreed to. So the web goes straight to the
+authorization-code flow, which asks for the account and the scope in one
+window. The code it returns is exchanged exactly as a phone's is. One button,
+one popup, everywhere.
 
 For that button to work, the page's exact address must be listed under
 **Authorized JavaScript origins** on the web OAuth client (Google Cloud console

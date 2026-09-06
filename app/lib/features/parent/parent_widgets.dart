@@ -365,10 +365,6 @@ Future<String?> handleGoogleResult(
       } catch (e) {
         return 'Signed in with Google, but HeyGilli could not be reached: $e';
       }
-    case GoogleAuthNeedsAuthorization():
-      // Half-done, and only in a browser. The screen holds the account and
-      // puts up the button that finishes it; there is nothing to say here.
-      return null;
     case GoogleAuthCancelled():
       return null;
     case GoogleAuthNotConfigured(:final reason):

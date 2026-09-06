@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart'
+    show
+        AuthorizationRequestDetails,
+        GoogleSignInPlatform,
+        ServerAuthorizationTokensForScopesParameters;
 
 import 'settings.dart';
 
@@ -16,14 +21,15 @@ import 'settings.dart';
 /// `GoogleSignIn.instance`, `initialize(...)`, `authenticate(...)`, and a
 /// separate `authorizationClient` for scopes and server access.
 ///
-/// **The web is a different shape and cannot be made to look like the others.**
-/// The GIS SDK refuses to sign anyone in from an app's own button:
-/// `supportsAuthenticate()` is false there and `authenticate()` throws. The
-/// browser flow is therefore push, not pull — render the SDK's button, wait on
-/// [signIns] for the account it produces — while a phone stays a single
-/// awaited [signIn] call. Everything after authentication is identical on both:
-/// the same `authorizeServer`, the same server auth code, the same
-/// `POST /auth/google`.
+/// **The web takes a different route to the same place.** GIS will not let an
+/// app authenticate from its own button, and its identity button hands back
+/// only an id_token — the YouTube scope then needs a second popup, and so a
+/// second tap, for something a parent has already agreed to. So a browser skips
+/// identity as a separate step and goes straight to the authorization-code
+/// flow, which asks for the account and the scope in one window. The code that
+/// comes back is exchanged for a refresh token exactly as a phone's is, and the
+/// gateway reads who the parent is out of that exchange. One button, one popup,
+/// on every platform.
 class GoogleAuth {
   GoogleAuth({String? serverClientId})
     : serverClientId = serverClientId ?? BuildConfig.googleServerClientId;
@@ -45,14 +51,18 @@ class GoogleAuth {
   /// only flow a browser has. A phone sends nothing instead.
   static const popupRedirect = 'postmessage';
 
+  /// What a browser's one popup asks for.
+  ///
+  /// The YouTube scope is the same one a phone asks for. The three identity
+  /// scopes come with it because the browser has no separate sign-in step to
+  /// get them from, and without an `id_token` the gateway cannot tell which
+  /// Google account this is — it would mint a fresh household on every sign-in
+  /// rather than returning the parent to their own.
+  static const webScopes = ['openid', 'email', 'profile', youtubeReadonlyScope];
+
   /// False when the build carries no `HEYGILLI_GOOGLE_SERVER_CLIENT_ID`. The
   /// UI then hides the button instead of showing one that cannot work.
   bool get isConfigured => serverClientId.isNotEmpty;
-
-  /// True where the SDK insists on drawing the button itself, so the screen
-  /// must render [googleRenderedButton] and listen to [signIns] instead of
-  /// calling [signIn] on a tap of its own.
-  bool get usesRenderedButton => kIsWeb;
 
   /// `initialize` must be called exactly once per process, so the future is
   /// cached and awaited rather than the call repeated.
@@ -67,53 +77,37 @@ class GoogleAuth {
     );
   }
 
-  /// Brings up the SDK so the rendered button has something to attach to.
-  /// Safe to call more than once. Only meaningful where
-  /// [usesRenderedButton] is true; a phone initializes inside [signIn].
-  Future<void> ensureInitialized() async {
-    if (!isConfigured) return;
-    await _initialize();
-  }
-
-  /// Sign-ins that arrive without this app having asked for them — which on
-  /// the web is every one of them, because the SDK owns the button.
+  /// A browser, in one window: pick the account and grant the scope together.
   ///
-  /// Each account is carried through the same authorization step a phone runs,
-  /// so a listener gets the finished [GoogleAuthResult] and not a half-done
-  /// one. Errors from the SDK arrive here too rather than as a raw exception.
-  Stream<GoogleAuthResult> get signIns => GoogleSignIn
-      .instance
-      .authenticationEvents
-      .where((e) => e is GoogleSignInAuthenticationEventSignIn)
-      .cast<GoogleSignInAuthenticationEventSignIn>()
-      .asyncMap(_afterAuthentication)
-      // The SDK reports its failures as errors on this stream. They become
-      // results like every other outcome, so a listener has one thing to
-      // handle and a dead subscription is impossible.
-      .transform(
-        StreamTransformer<GoogleAuthResult, GoogleAuthResult>.fromHandlers(
-          handleError: (error, stack, sink) => sink.add(_asResult(error)),
-        ),
-      );
-
-  /// What can be done with a freshly authenticated account, without a gesture.
-  ///
-  /// On a phone, everything: the OS shows the consent sheet whenever we ask.
-  /// In a browser, nothing — the scope consent is a popup, and a popup opened
-  /// from a stream callback is blocked, which surfaces as `uiUnavailable` and
-  /// reads to a parent as "Google could not show its sign-in screen". So the
-  /// browser stops here and hands the account back for a button to finish.
-  Future<GoogleAuthResult> _afterAuthentication(
-    GoogleSignInAuthenticationEventSignIn e,
-  ) async {
-    if (GoogleSignIn.instance.authorizationRequiresUserInteraction()) {
-      return GoogleAuthNeedsAuthorization(
-        account: e.user,
-        displayName: e.user.displayName ?? '',
-        email: e.user.email,
-      );
+  /// Goes to the platform directly because the high-level API has no way to
+  /// ask for a server auth code without an already-authenticated account, and
+  /// requiring one is exactly the second tap this avoids. With no `userId` the
+  /// SDK prompts for the account as part of the flow, which is what makes it a
+  /// single window.
+  Future<GoogleAuthResult> _webSignIn() async {
+    final tokens = await GoogleSignInPlatform.instance
+        .serverAuthorizationTokensForScopes(
+          const ServerAuthorizationTokensForScopesParameters(
+            request: AuthorizationRequestDetails(
+              scopes: webScopes,
+              userId: null,
+              email: null,
+              promptIfUnauthorized: true,
+            ),
+          ),
+        );
+    // Null is the parent closing the window, which is a decision, not a fault.
+    if (tokens == null || tokens.serverAuthCode.isEmpty) {
+      return const GoogleAuthCancelled();
     }
-    return authorize(e.user);
+    // Name and email are left to the gateway: they come out of the same token
+    // exchange, so asking Google for them twice would be a second round trip
+    // for something the next response already carries.
+    return GoogleAuthSuccess(
+      serverAuthCode: tokens.serverAuthCode,
+      email: '',
+      redirectUri: popupRedirect,
+    );
   }
 
   /// The half of the flow after Google knows who the parent is: ask for the
@@ -176,13 +170,7 @@ class GoogleAuth {
     try {
       await _initialize();
 
-      if (!GoogleSignIn.instance.supportsAuthenticate()) {
-        // The web. There is nothing wrong here and nothing to retry: the SDK
-        // owns the button, so the screen should be showing that one.
-        return const GoogleAuthUnavailable(
-          'Use the Google button above to sign in.',
-        );
-      }
+      if (!GoogleSignIn.instance.supportsAuthenticate()) return _webSignIn();
 
       // Authentication first; authorization is a separate step in 7.x.
       final user = await GoogleSignIn.instance.authenticate(
@@ -230,24 +218,6 @@ class GoogleAuthSuccess extends GoogleAuthResult {
   final String redirectUri;
   final String email;
   final String displayName;
-}
-
-/// Google knows who the parent is, and now the scope has to be asked for from
-/// a button press. Only ever emitted where a gesture is required — a browser.
-///
-/// Not a failure and not a success: the flow is half done, and the screen owes
-/// the parent one more tap.
-class GoogleAuthNeedsAuthorization extends GoogleAuthResult {
-  const GoogleAuthNeedsAuthorization({
-    required this.account,
-    required this.displayName,
-    required this.email,
-  });
-
-  /// Pass back to [GoogleAuth.authorize] from the button's handler.
-  final GoogleSignInAccount account;
-  final String displayName;
-  final String email;
 }
 
 /// The parent backed out. Not an error; say nothing.
