@@ -111,9 +111,17 @@ For the terminal shot, run the Curator in a terminal window sized 1280 x 720 wit
 cd ~/innovpk/heygilli/app
 flutter pub get
 adb devices                                 # both devices listed
-flutter run -d <tablet-serial> --dart-define=HEYGILLI_BASE_URL=http://<mac-ip>:8080   # [verify define name]
-flutter run -d <phone-serial>  --dart-define=HEYGILLI_BASE_URL=http://<mac-ip>:8080
+flutter run -d <tablet-serial> --dart-define=HEYGILLI_API_URL=http://<mac-ip>:8080 \
+                               --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
+flutter run -d <phone-serial>  --dart-define=HEYGILLI_API_URL=http://<mac-ip>:8080 \
+                               --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
 ```
+
+Both defines matter. `HEYGILLI_API_URL` (not `..._BASE_URL`) is the name `BuildConfig` reads; it
+defaults to `http://10.0.2.2:8080`, which is the emulator's alias for the host and is unreachable
+from a real device. Without `HEYGILLI_GOOGLE_SERVER_CLIENT_ID` — the **web** client id, from
+`agents/.env` — the Google button is present but disabled, and there is no way to sign in on the
+day. Take both from a build you have actually launched, not from this file.
 
 Or build once and install on both: `flutter build apk --release --dart-define=...` then `adb -s <serial> install build/app/outputs/flutter-apk/app-release.apk`. Use the release APK for recording; debug builds stutter on the embed.
 
