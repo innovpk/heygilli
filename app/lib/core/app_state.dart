@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'fake_gateway.dart';
 import 'gateway.dart';
+import 'google_auth.dart';
 import 'models.dart';
 import 'settings.dart';
 
@@ -171,6 +172,22 @@ class AppState extends ChangeNotifier {
   Future<void> setDeviceKid(Kid? kid) async {
     await settings.setKidDeviceId(kid?.id);
     _deviceKidId = kid?.id;
+    notifyListeners();
+  }
+
+  /// Ends the session on this device: the household token, the parent's name,
+  /// and Google's own local session.
+  ///
+  /// Deliberately leaves the PIN and the device owner alone. Signing out is
+  /// about this account, not about whose tablet this is — a parent signing out
+  /// on a child's device must not quietly hand them the parent app back.
+  Future<void> signOut() async {
+    await GoogleAuth.shared.signOut();
+    await settings.setToken(null);
+    _kids = const [];
+    _activeKid = null;
+    _kidMode = false;
+    gateway.forgetToken();
     notifyListeners();
   }
 

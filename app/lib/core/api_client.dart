@@ -27,6 +27,9 @@ class ApiClient implements Gateway {
   @override
   bool get signedIn => _token != null;
 
+  @override
+  void forgetToken() => _token = null;
+
   /// True when the gateway answers on the base URL. Used once at startup to
   /// choose between live and demo mode.
   Future<bool> reachable() async {

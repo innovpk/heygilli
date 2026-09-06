@@ -26,6 +26,9 @@ class FakeGateway implements Gateway {
   @override
   bool get signedIn => _signedIn;
 
+  @override
+  void forgetToken() => _signedIn = false;
+
   // ---------------------------------------------------------------- canned data
 
   /// Empty on purpose. Google has no API for a parent's children (Family Link

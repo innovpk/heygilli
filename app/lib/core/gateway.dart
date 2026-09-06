@@ -14,6 +14,10 @@ abstract class Gateway {
   Future<void> signInDev(String name);
   bool get signedIn;
 
+  /// Drops the household token this client is holding, so the next call is
+  /// unauthenticated and the app is back at sign-in.
+  void forgetToken();
+
   /// `POST /auth/google`. Takes the **server auth code** from the device; the
   /// gateway exchanges it and keeps the refresh token (PROTOCOL). The device
   /// never stores or sends a refresh token.

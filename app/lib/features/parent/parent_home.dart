@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import '../../main.dart';
+import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'inbox_screen.dart';
 import 'kid_detail_screen.dart';
@@ -29,6 +31,11 @@ class _ParentHomeState extends State<ParentHome> {
     return ParentScaffold(
       subtitle: name == null ? null : 'Hi $name',
       title: _tab == 0 ? 'Kids' : 'Inbox',
+      // Two things that belong to the household rather than to one child, and
+      // were previously nowhere: whose device this is, and a way out of the
+      // account. Both at the top of the first screen, because a setting a
+      // parent cannot find is a setting that does not exist.
+      actions: const [_AccountMenu()],
       body: _tab == 0 ? const _KidsTab() : const InboxScreen(),
       floating: _tab == 0
           ? FloatingActionButton.extended(
@@ -146,6 +153,95 @@ class _KidCard extends StatelessWidget {
           const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
         ],
       ),
+    );
+  }
+}
+
+/// The household menu: whose device this is, and the way out of the account.
+///
+/// Both were missing. "Whose device is this?" started life at the bottom of a
+/// child's page, under Time limits — a device question filed under a child,
+/// three screens from where anyone would look for it. Signing out did not
+/// exist at all: `GoogleAuth.signOut` was written and never called, so a
+/// parent who signed in on the wrong account, or on someone else's phone, had
+/// no way back.
+class _AccountMenu extends StatelessWidget {
+  const _AccountMenu();
+
+  Future<void> _giveTo(BuildContext context, Kid? kid) async {
+    final state = context.read<AppState>();
+    // Both directions, because a child who can hand the device back to
+    // themselves has no boundary at all.
+    if (!await showPinGate(context)) return;
+    await state.setDeviceKid(kid);
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    final state = context.read<AppState>();
+    final navigator = Navigator.of(context);
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: HgColors.white,
+        title: Text('Sign out?', style: HgText.display(size: 22)),
+        content: Text(
+          'Your children, their channels and everything they have watched stay '
+          'on your household. Signing in again brings it all back.',
+          style: HgText.body(size: 15, color: HgColors.brown),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Stay'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    await state.signOut();
+    navigator.pushNamedAndRemoveUntil(Routes.parent, (_) => false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final owner = state.deviceKid;
+    return PopupMenuButton<VoidCallback>(
+      icon: const Icon(Icons.more_vert_rounded, color: HgColors.ink),
+      tooltip: 'This device',
+      color: HgColors.white,
+      onSelected: (run) => run(),
+      itemBuilder: (context) => [
+        PopupMenuItem<VoidCallback>(
+          enabled: false,
+          child: Text(
+            owner == null
+                ? 'This is a parent device'
+                : 'This device is ${owner.nickname}\'s',
+            style: HgText.label(),
+          ),
+        ),
+        if (owner != null)
+          PopupMenuItem<VoidCallback>(
+            value: () => _giveTo(context, null),
+            child: const Text('Make it a parent device'),
+          ),
+        for (final kid in state.kids)
+          if (kid.id != owner?.id)
+            PopupMenuItem<VoidCallback>(
+              value: () => _giveTo(context, kid),
+              child: Text('Give this device to ${kid.nickname}'),
+            ),
+        const PopupMenuDivider(),
+        PopupMenuItem<VoidCallback>(
+          value: () => _signOut(context),
+          child: Text('Sign out', style: HgText.body(color: HgColors.coral)),
+        ),
+      ],
     );
   }
 }

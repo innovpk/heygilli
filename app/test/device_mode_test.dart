@@ -156,6 +156,39 @@ void main() {
     expect(find.byType(KidHomeScreen), findsOneWidget);
   });
 
+  test('signing out ends the session on this device', () async {
+    // There was no way to do this at all: GoogleAuth.signOut existed and
+    // nothing called it, so a parent signed in on the wrong account was stuck.
+    final app = await freshApp();
+    expect(app.signedIn, isTrue);
+    expect(app.kids, isNotEmpty);
+
+    await app.signOut();
+
+    expect(app.signedIn, isFalse, reason: 'the gateway kept its token');
+    expect(settings.token, isNull, reason: 'the token survived on disk');
+    expect(app.kids, isEmpty, reason: 'another parent could see the children');
+    expect(app.kidMode, isFalse);
+  });
+
+  test('signing out does not hand a child device back to the child', () async {
+    // The dangerous one. If signing out cleared the device owner, a child
+    // whose parent signed out would get the parent app on their own tablet.
+    final app = await freshApp();
+    await app.setDeviceKid(abeeha);
+    await app.signOut();
+
+    expect(app.settings.kidDeviceId, abeeha.id);
+    expect((await freshApp()).deviceKid?.id, abeeha.id);
+  });
+
+  test('signing out leaves the PIN alone', () async {
+    // Otherwise the way back into the parent app is gone with it.
+    final app = await freshApp();
+    await app.signOut();
+    expect(app.settings.pin, '1234');
+  });
+
   testWidgets('a parent device still opens on the household', (tester) async {
     await tester.pumpWidget(host(onParentDevice));
     await tester.pump();

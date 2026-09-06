@@ -5,7 +5,6 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
-import '../gate/pin_gate.dart';
 import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
@@ -262,8 +261,6 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
           const SizedBox(height: 12),
           TimeLimitsCard(kid: kid),
           const SizedBox(height: 16),
-          _DeviceCard(kid: kid),
-          const SizedBox(height: 16),
           BreakMessagesCard(kid: kid),
           const SizedBox(height: 24),
           Text('CHANNELS', style: HgText.label()),
@@ -476,79 +473,6 @@ class _ChannelTile extends StatelessWidget {
                 color: channel.approved ? HgColors.green : HgColors.brown,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Hands this device to one child, or takes it back.
-///
-/// The parent app has no PIN in front of it — the PIN guards *leaving* kid
-/// mode — so on a child's own tablet the first screen was the household's kid
-/// list: every child's digest, progress, watch history and limits, one tap
-/// away, in front of a five-year-old. A device given to a child boots into
-/// their videos and shows nothing else until someone types the PIN.
-///
-/// Both directions go through the PIN. A child who can hand the device back to
-/// themselves has no boundary at all, and a child who can take it away from
-/// themselves has lost their videos.
-class _DeviceCard extends StatelessWidget {
-  const _DeviceCard({required this.kid});
-
-  final Kid kid;
-
-  Future<void> _set(BuildContext context, Kid? owner) async {
-    final state = context.read<AppState>();
-    if (!await showPinGate(context)) return;
-    await state.setDeviceKid(owner);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final owner = context.select<AppState, Kid?>((s) => s.deviceKid);
-    final isThisKid = owner?.id == kid.id;
-    final name = kid.nickname;
-    return PCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 10,
-        children: [
-          Text(
-            'Whose device is this?',
-            style: HgText.display(size: 22, color: HgColors.ink),
-          ),
-          Text(
-            isThisKid
-                ? 'This one is $name\'s. It opens straight into their videos, '
-                      'and none of this page is reachable without the PIN.'
-                : owner == null
-                ? 'This is a parent device. It opens here, on the household, '
-                      'which is right on your own phone and wrong on a tablet '
-                      'you hand to $name.'
-                : 'This one is ${owner.nickname}\'s. Giving it to $name '
-                      'instead takes it away from ${owner.nickname}.',
-            style: HgText.body(size: 14, color: HgColors.brown),
-          ),
-          SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: isThisKid
-                ? OutlinedButton(
-                    onPressed: () => _set(context, null),
-                    child: Text(
-                      'Make this a parent device again',
-                      style: HgText.body(size: 16, color: HgColors.ink),
-                    ),
-                  )
-                : FilledButton(
-                    onPressed: () => _set(context, kid),
-                    child: Text(
-                      'Give this device to $name',
-                      style: HgText.body(size: 16, color: HgColors.ink),
-                    ),
-                  ),
           ),
         ],
       ),
