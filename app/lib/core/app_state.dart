@@ -41,6 +41,10 @@ class AppState extends ChangeNotifier {
     if (gateway.signedIn) {
       await state.refreshKids();
     }
+    // A child's own device comes up already in kid mode, so the first frame is
+    // their videos rather than the parent app deciding to redirect.
+    final owner = state.deviceKid;
+    if (owner != null) state.enterKidMode(owner);
     return state;
   }
 
@@ -113,11 +117,60 @@ class AppState extends ChangeNotifier {
   void enterKidMode(Kid kid) {
     _activeKid = kid;
     _kidMode = true;
+    _parentVisiting = false;
     notifyListeners();
   }
 
   void leaveKidMode() {
     _kidMode = false;
+    // Only reached through the PIN gate, so this is a parent standing at the
+    // tablet. It lasts until the app is next launched: a visit, not a change
+    // of ownership.
+    _parentVisiting = true;
+    notifyListeners();
+  }
+
+  bool _parentVisiting = false;
+
+  /// True while a parent is looking at a child's device, having typed the PIN.
+  ///
+  /// The boot route sends a kid device to its videos, but a route is one line
+  /// and every other way into the parent app would walk straight past it. The
+  /// parent root asks this instead, so on a child's device the answer is their
+  /// videos unless a parent is standing there.
+  bool get parentVisiting => _parentVisiting;
+
+  /// Back to the child, ending the visit.
+  void endParentVisit() {
+    _parentVisiting = false;
+    notifyListeners();
+  }
+
+  /// Whose device this is, read once at launch.
+  ///
+  /// Not re-read from settings on every call: which child a tablet belongs to
+  /// is decided when the app starts and must not change under a session that
+  /// is already running.
+  late String? _deviceKidId = settings.kidDeviceId;
+
+  /// The child this device belongs to, or null on a parent's device.
+  ///
+  /// Null is also the answer when the stored id names a child who no longer
+  /// exists — a deleted profile must not leave a tablet stuck on a boot screen
+  /// for nobody.
+  Kid? get deviceKid {
+    final id = _deviceKidId;
+    if (id == null) return null;
+    return _kids.where((k) => k.id == id).firstOrNull;
+  }
+
+  bool get isKidDevice => deviceKid != null;
+
+  /// Hands this device to one child, or takes it back. Behind the PIN at every
+  /// call site: a child who could undo it has no boundary at all.
+  Future<void> setDeviceKid(Kid? kid) async {
+    await settings.setKidDeviceId(kid?.id);
+    _deviceKidId = kid?.id;
     notifyListeners();
   }
 

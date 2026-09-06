@@ -59,6 +59,7 @@ class LocalSettings {
   static const _pinKey = 'parent_pin';
   static const _tokenKey = 'auth_token';
   static const _parentNameKey = 'parent_name';
+  static const _kidDeviceKey = 'kid_device_kid_id';
 
   String? get pin => _prefs.getString(_pinKey);
   Future<void> setPin(String pin) => _prefs.setString(_pinKey, pin);
@@ -71,4 +72,21 @@ class LocalSettings {
   String? get parentName => _prefs.getString(_parentNameKey);
   Future<void> setParentName(String name) =>
       _prefs.setString(_parentNameKey, name);
+
+  /// The child this device belongs to, or null when it is a parent's device.
+  ///
+  /// The parent app is not behind the PIN — the PIN guards *leaving* kid mode,
+  /// not entering the app — so on a child's own tablet the first screen was
+  /// the household's kid list, with every child's digest, progress, watch
+  /// history and limits one tap away and nothing in front of them. A device
+  /// with this set boots straight into that child's videos and never shows
+  /// the parent app until someone types the PIN.
+  ///
+  /// Stored on the device, not the account: which tablet belongs to whom is a
+  /// fact about this tablet, and a parent signing in on their own phone must
+  /// not inherit it.
+  String? get kidDeviceId => _prefs.getString(_kidDeviceKey);
+  Future<void> setKidDeviceId(String? kidId) => kidId == null || kidId.isEmpty
+      ? _prefs.remove(_kidDeviceKey)
+      : _prefs.setString(_kidDeviceKey, kidId);
 }

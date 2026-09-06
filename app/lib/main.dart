@@ -79,9 +79,13 @@ class _HeyGilliAppState extends State<HeyGilliApp> {
             title: 'HeyGilli',
             debugShowCheckedModeBanner: false,
             theme: buildTheme(),
-            initialRoute: Routes.parent,
+            // A child's own device opens on their videos. Not a redirect
+            // after the fact: the parent app must not be built even for one
+            // frame, or the first thing on a tablet handed to a five-year-old
+            // is the household's kid list.
+            initialRoute: state.isKidDevice ? Routes.kid : Routes.parent,
             routes: {
-              Routes.parent: (_) => const _ParentRoot(),
+              Routes.parent: (_) => const ParentRoot(),
               Routes.kid: (_) => const KidHomeScreen(),
             },
           ),
@@ -91,14 +95,27 @@ class _HeyGilliAppState extends State<HeyGilliApp> {
   }
 }
 
-/// Sign-in until the gateway has a token, then the parent home.
-class _ParentRoot extends StatelessWidget {
-  const _ParentRoot();
+/// Sign-in until the gateway has a token, then the parent home — unless this
+/// device belongs to a child.
+///
+/// The boot route already sends a child's device to their videos, but a route
+/// is one line and every other way here would walk past it: a deep link, a
+/// `pushNamedAndRemoveUntil` from anywhere, a future screen that pops to the
+/// root. The guard is here because this is the one door, and what is behind it
+/// is every child's digest, progress, watch history and limits.
+///
+/// A parent who typed the PIN is let through for as long as they are standing
+/// there ([AppState.parentVisiting]); the next launch is the child's again.
+class ParentRoot extends StatelessWidget {
+  const ParentRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final signedIn = context.select<AppState, bool>((s) => s.signedIn);
-    return signedIn ? const ParentHome() : const SignInScreen();
+    final state = context.watch<AppState>();
+    if (state.isKidDevice && !state.parentVisiting) {
+      return const KidHomeScreen();
+    }
+    return state.signedIn ? const ParentHome() : const SignInScreen();
   }
 }
 

@@ -136,7 +136,14 @@ HeyGilli is built for an ordinary household with a television and no time.
 4. **The parent owns everything.** Parent account, kid profiles with no PII, parent gate on all settings.
 5. **Play by YouTube's rules.** Official embed, ads shown, no overlays during playback, no downloads.
 6. **Bilingual by default.** Buddy speaks the kid's language and code-switches naturally.
-7. **Suggest, never enforce; and never claim more than the data supports.** The app cannot see a
+7. **A child's device is a child's device.** The PIN has always guarded *leaving* kid mode, never
+   entering the app, so a tablet handed to a child opened on the household: every child's digest,
+   progress, watch history and limits, one tap away, in front of a five-year-old. A device given to
+   a child boots into their videos and shows nothing else until someone types the PIN, and the
+   check is at the parent app's door rather than only in the boot route — a route is one line and
+   a deep link walks past it. A parent who types the PIN is visiting; the next launch is the
+   child's again.
+8. **Suggest, never enforce; and never claim more than the data supports.** The app cannot see a
    room, so it never tells a child what to do with their body and never pretends to check. What a
    break says is sentences a parent typed, read out verbatim; empty is a supported answer. A
    channel that drifts raises a card, it is never removed. A model can draft for a parent and can
