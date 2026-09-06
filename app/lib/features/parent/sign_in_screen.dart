@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -36,6 +37,11 @@ class _SignInScreenState extends State<SignInScreen> {
   /// before `initialize`, and initialize is a round trip.
   bool _sdkReady = false;
 
+  /// A parent Google has already identified, waiting on the one tap that asks
+  /// for YouTube access. Only ever set in a browser: the scope consent is a
+  /// popup there, and a popup needs a gesture behind it.
+  GoogleAuthNeedsAuthorization? _pending;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +63,15 @@ class _SignInScreenState extends State<SignInScreen> {
     final state = context.read<AppState>();
     _pushed = GoogleAuth.shared.signIns.listen((result) async {
       if (!mounted) return;
+      // Authenticated but not yet authorized: stop and show the button that
+      // finishes it, rather than opening a popup the browser will block.
+      if (result is GoogleAuthNeedsAuthorization) {
+        setState(() {
+          _pending = result;
+          _error = null;
+        });
+        return;
+      }
       setState(() {
         _busy = true;
         _error = null;
@@ -70,6 +85,27 @@ class _SignInScreenState extends State<SignInScreen> {
     });
     await GoogleAuth.shared.ensureInitialized();
     if (mounted) setState(() => _sdkReady = true);
+  }
+
+  /// The second half, from a real button press: ask for YouTube access and
+  /// finish the exchange. A parent who declines keeps their session and can
+  /// still paste channel links, so this never throws them back to the start.
+  Future<void> _authorize(GoogleSignInAccount account) async {
+    final state = context.read<AppState>();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final message = await handleGoogleResult(
+      state,
+      await GoogleAuth.shared.authorize(account),
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _error = message;
+      if (message != null) _pending = null;
+    });
   }
 
   Future<void> _google() async {
@@ -193,6 +229,32 @@ class _SignInScreenState extends State<SignInScreen> {
       return const SizedBox(
         height: 56,
         child: Center(child: CircularProgressIndicator(color: HgColors.mango)),
+      );
+    }
+    // Google knows who they are; the scope still has to be asked for, and the
+    // asking is a popup that only opens from a press. Ours to draw: the SDK
+    // only insists on owning the *authentication* button.
+    final pending = _pending;
+    if (pending != null) {
+      final who = pending.displayName.isNotEmpty
+          ? pending.displayName
+          : pending.email;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 8,
+        children: [
+          GoogleButton(
+            label: who.isEmpty ? 'Allow YouTube access' : 'Continue as $who',
+            busy: false,
+            onPressed: () => _authorize(pending.account),
+          ),
+          Text(
+            'One more tap. HeyGilli asks to read the channels you already '
+            'follow, and nothing else.',
+            textAlign: TextAlign.center,
+            style: HgText.body(size: 13, color: HgColors.muted),
+          ),
+        ],
       );
     }
     // Sized so the layout does not jump when the SDK's button appears.

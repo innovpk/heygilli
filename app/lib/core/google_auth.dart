@@ -82,7 +82,7 @@ class GoogleAuth {
       .authenticationEvents
       .where((e) => e is GoogleSignInAuthenticationEventSignIn)
       .cast<GoogleSignInAuthenticationEventSignIn>()
-      .asyncMap((e) => _authorize(e.user))
+      .asyncMap(_afterAuthentication)
       // The SDK reports its failures as errors on this stream. They become
       // results like every other outcome, so a listener has one thing to
       // handle and a dead subscription is impossible.
@@ -92,9 +92,33 @@ class GoogleAuth {
         ),
       );
 
+  /// What can be done with a freshly authenticated account, without a gesture.
+  ///
+  /// On a phone, everything: the OS shows the consent sheet whenever we ask.
+  /// In a browser, nothing — the scope consent is a popup, and a popup opened
+  /// from a stream callback is blocked, which surfaces as `uiUnavailable` and
+  /// reads to a parent as "Google could not show its sign-in screen". So the
+  /// browser stops here and hands the account back for a button to finish.
+  Future<GoogleAuthResult> _afterAuthentication(
+    GoogleSignInAuthenticationEventSignIn e,
+  ) async {
+    if (GoogleSignIn.instance.authorizationRequiresUserInteraction()) {
+      return GoogleAuthNeedsAuthorization(
+        account: e.user,
+        displayName: e.user.displayName ?? '',
+        email: e.user.email,
+      );
+    }
+    return authorize(e.user);
+  }
+
   /// The half of the flow after Google knows who the parent is: ask for the
   /// scope with offline access and get back the code the gateway exchanges.
-  Future<GoogleAuthResult> _authorize(GoogleSignInAccount user) async {
+  ///
+  /// **Call this from a button press.** Where
+  /// `authorizationRequiresUserInteraction()` is true — the web — anything
+  /// else is a popup the browser will not open.
+  Future<GoogleAuthResult> authorize(GoogleSignInAccount user) async {
     try {
       // Can legitimately return null when the platform has no server auth code
       // to give. PROTOCOL requires one, so that is a failure for us, not a
@@ -159,7 +183,7 @@ class GoogleAuth {
       final user = await GoogleSignIn.instance.authenticate(
         scopeHint: const [youtubeReadonlyScope],
       );
-      return _authorize(user);
+      return authorize(user);
     } catch (e) {
       // MissingPluginException on a platform without the plugin, and anything
       // else the SDK throws: the caller only ever sees a result.
@@ -195,6 +219,24 @@ class GoogleAuthSuccess extends GoogleAuthResult {
   final String serverAuthCode;
   final String email;
   final String displayName;
+}
+
+/// Google knows who the parent is, and now the scope has to be asked for from
+/// a button press. Only ever emitted where a gesture is required — a browser.
+///
+/// Not a failure and not a success: the flow is half done, and the screen owes
+/// the parent one more tap.
+class GoogleAuthNeedsAuthorization extends GoogleAuthResult {
+  const GoogleAuthNeedsAuthorization({
+    required this.account,
+    required this.displayName,
+    required this.email,
+  });
+
+  /// Pass back to [GoogleAuth.authorize] from the button's handler.
+  final GoogleSignInAccount account;
+  final String displayName;
+  final String email;
 }
 
 /// The parent backed out. Not an error; say nothing.
