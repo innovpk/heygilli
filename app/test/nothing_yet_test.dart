@@ -52,8 +52,13 @@ void main() {
     );
   });
 
-  Widget host(Kid kid) => ChangeNotifierProvider<GilliVoice>(
-    create: (_) => _SilentVoice(),
+  /// The screen asks the gateway for a voice before it speaks, so it needs an
+  /// AppState even when the test is only about what is drawn.
+  Widget host(Kid kid, {GilliVoice? voice}) => MultiProvider(
+    providers: [
+      ChangeNotifierProvider<AppState>.value(value: emptyApp),
+      ChangeNotifierProvider<GilliVoice>.value(value: voice ?? _SilentVoice()),
+    ],
     child: MaterialApp(
       home: Scaffold(body: NothingYetScreen(kid: kid)),
     ),
@@ -77,34 +82,27 @@ void main() {
 
   testWidgets('it is spoken, and slowly for a pre-reader', (tester) async {
     final voice = _SilentVoice();
-    await tester.pumpWidget(
-      ChangeNotifierProvider<GilliVoice>.value(
-        value: voice,
-        child: MaterialApp(
-          home: Scaffold(body: NothingYetScreen(kid: preReader)),
-        ),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(host(preReader, voice: voice));
+    // The voice is fetched from the gateway first, so this is not one frame.
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
 
     expect(voice.said, hasLength(1), reason: 'said once, not on every frame');
     expect(voice.slowly.single, isTrue);
   });
 
-  testWidgets('it never promises something is on its way', (tester) async {
-    // A household that has added no channels has nothing happening at all.
-    // "Coming soon" or "Gilli is looking" would be a screen lying to a child.
+  /// A household that has added no channels has nothing happening at all, and
+  /// the Curator may have stopped. "Coming soon" or "Gilli is looking" were
+  /// the obvious lines and both would be this app lying to a child.
+  ///
+  /// One kid per test: replacing the tree mid-flight leaves the first screen's
+  /// pending callback reading a context that is being torn down.
+  Future<void> expectNoPromises(WidgetTester tester, Kid kid) async {
     final voice = _SilentVoice();
-    for (final kid in [preReader, reader]) {
-      await tester.pumpWidget(
-        ChangeNotifierProvider<GilliVoice>.value(
-          value: voice,
-          child: MaterialApp(
-            home: Scaffold(body: NothingYetScreen(kid: kid)),
-          ),
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(host(kid, voice: voice));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
     }
     final everything = [
       ...voice.said,
@@ -115,9 +113,19 @@ void main() {
       expect(
         everything.contains(promise),
         isFalse,
-        reason: 'the screen promised "$promise" when nothing may be happening',
+        reason:
+            'promised "$promise" to ${kid.nickname} when nothing may happen',
       );
     }
+    expect(everything.trim(), isNotEmpty, reason: 'it said nothing at all');
+  }
+
+  testWidgets('it promises a pre-reader nothing', (tester) async {
+    await expectNoPromises(tester, preReader);
+  });
+
+  testWidgets('it promises an older child nothing either', (tester) async {
+    await expectNoPromises(tester, reader);
   });
 
   testWidgets('the home reaches for it when there is nothing to show', (

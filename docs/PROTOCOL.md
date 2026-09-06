@@ -580,3 +580,20 @@ parameter**. Not a header: a browser cannot set headers on a WebSocket at all,
 so a header-only client works on a phone and silently never connects on the
 web — the session is created over REST and then nothing ever drives it, which
 looks exactly like a video that simply never asks a question.
+
+
+### One voice, including the lines the client writes
+
+Session lines arrive with a `tts_url` already. Several screens are composed on
+the device, though — the end of the day, an empty shelf, and the break lines a
+parent typed — and those were falling straight through to on-device TTS. On a
+phone that is passable; in a browser it is the operating system's robot, and it
+is the first thing anyone says about the app.
+
+`POST /tts {text, language?, slow?}` returns `{url}` for the same cached mp3 a
+session line gets. The text is capped at 300 characters: every real caller is a
+sentence or two, and this mints Polly requests.
+
+`{"url": ""}` is a normal answer, not an error — the client then speaks the
+words on-device exactly as before. A screen going silent because Polly is down
+would be worse than a plain voice.

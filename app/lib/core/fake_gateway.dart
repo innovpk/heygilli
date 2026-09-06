@@ -748,6 +748,11 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  /// Demo mode has no Polly behind it, so every line is spoken on-device.
+  @override
+  Future<String> speechUrl(String text, {bool slow = false}) async => '';
+
+  @override
   Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     await _lag();
     final kid = _kids.where((k) => k.id == kidId).firstOrNull;

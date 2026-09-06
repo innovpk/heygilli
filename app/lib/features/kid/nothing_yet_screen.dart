@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/protocol.dart';
 import '../../core/speech.dart';
@@ -40,9 +41,10 @@ class _NothingYetScreenState extends State<NothingYetScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final preReader = widget.kid.band == AgeBand.b4to6;
-      context.read<GilliVoice>().say(
-        url: '',
-        fallbackText: preReader
+      speakLine(
+        context.read<AppState>().gateway,
+        context.read<GilliVoice>(),
+        preReader
             ? 'Nothing to watch yet. Let us try again in a little while.'
             : 'Nothing to watch here yet. New videos turn up once they have '
                   'been checked.',

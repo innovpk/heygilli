@@ -106,6 +106,13 @@ abstract class Gateway {
   /// `GET /kids/{id}/state`. Checked before anything is offered to watch, and
   /// again when the kid screen is reopened, so a break survives the app being
   /// killed mid-break.
+  /// `POST /tts`. A url for a line this app composed itself, so a screen
+  /// Gilli speaks sounds like Gilli rather than like the device.
+  ///
+  /// Returns "" when the server has no voice to give, which is not a failure:
+  /// the caller speaks the words on-device, exactly as it did before.
+  Future<String> speechUrl(String text, {bool slow});
+
   Future<WatchState> watchState(String kidId);
 
   /// `PATCH /kids/{id}/limits`. Omitted fields are left as they are.

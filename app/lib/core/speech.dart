@@ -4,6 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
+
+import 'gateway.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import 'protocol.dart';
@@ -309,4 +311,26 @@ class KidEars extends ChangeNotifier {
     _stt.cancel();
     super.dispose();
   }
+}
+
+/// Say [text] in Gilli's voice if the gateway can mint one, and in the
+/// device's if it cannot.
+///
+/// Session lines arrive with a `tts_url` already. These are the ones the app
+/// composes itself — the end of the day, an empty shelf, the break lines a
+/// parent typed — and they were going straight to on-device TTS. On a phone
+/// that is passable; in a browser it is the OS robot, and it is the first
+/// thing anyone notices about the app.
+///
+/// The fallback is not a nicety: if the server is unreachable or Polly is
+/// down, the words are still spoken, because a silent screen is worse than a
+/// plain voice.
+Future<void> speakLine(
+  Gateway gateway,
+  GilliVoice voice,
+  String text, {
+  bool slow = false,
+}) async {
+  final url = await gateway.speechUrl(text, slow: slow);
+  await voice.say(url: url, fallbackText: text, slow: slow);
 }

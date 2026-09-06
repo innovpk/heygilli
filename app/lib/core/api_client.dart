@@ -246,6 +246,22 @@ class ApiClient implements Gateway {
   }
 
   @override
+  Future<String> speechUrl(String text, {bool slow = false}) async {
+    try {
+      final j =
+          await _post('/tts', {'text': text, 'slow': slow})
+              as Map<String, dynamic>;
+      final url = j['url'] as String? ?? '';
+      // Relative, like every other tts url the protocol hands back.
+      return url.isEmpty || url.startsWith('http') ? url : '$baseUrl$url';
+    } catch (_) {
+      // A voice is a nicety; the caller speaks it on-device instead. Never let
+      // this be the reason a screen says nothing at all.
+      return '';
+    }
+  }
+
+  @override
   Future<WatchState> watchState(String kidId) async => WatchState.fromJson(
     await _get('/kids/$kidId/state') as Map<String, dynamic>,
   );

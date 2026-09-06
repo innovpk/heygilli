@@ -83,7 +83,7 @@ from .takeout import (
     parse_takeout_zip,
     parse_takeout_zip_with_history,
 )
-from .tools.tts import TTS_DIR
+from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
 
 load_dotenv()
@@ -369,6 +369,33 @@ def set_limits(kid_id: str, body: LimitsIn, hid: str = Depends(household)) -> di
     get_store().put_kid(kid)
     log.info("limits for kid %s: %s", kid_id, updates or "unchanged")
     return kid.model_dump()
+
+
+class SpeechIn(BaseModel):
+    """One line for Gilli to say, from a screen the client draws itself."""
+
+    #: Capped because this mints Polly requests. Every real caller is one or two
+    #: short sentences; anything longer is a bug or an abuse, not a buddy line.
+    text: str = Field(max_length=300)
+    language: str = "en"
+    slow: bool = False
+
+
+@app.post("/tts")
+def speech(body: SpeechIn, hid: str = Depends(household)) -> dict:
+    """A line the client wrote -> `{url}` for the same cached mp3 the session
+    uses, or `{"url": ""}` when Polly cannot serve it.
+
+    Session lines already arrive with a `tts_url`, but several screens are
+    composed on the device — the end of the day, an empty shelf, the break
+    lines a parent typed — and those were falling through to on-device TTS.
+    On a phone that is passable; in a browser it is the OS robot voice, and it
+    is the first thing anyone says about the app. Same voice everywhere now.
+
+    An empty url is not an error: the client speaks it itself, exactly as it
+    did before, so no screen goes silent because Polly is down.
+    """
+    return {"url": synthesize(body.text, body.language, body.slow)}
 
 
 @app.get("/kids/{kid_id}/state")

@@ -232,3 +232,45 @@ def test_search_can_only_ever_return_approved_videos(
 
     home = client.get(f"/kids/{kid['id']}/home?q={VIDEO.title}", headers=hdr(auth)).json()
     assert home["rows"][0]["videos"] == []
+
+
+def test_a_client_line_gets_the_same_voice_as_a_session_line(
+    client: TestClient, auth: dict, monkeypatch
+) -> None:
+    """Screens composed on the device were falling back to on-device TTS, which
+    in a browser is the OS robot voice — the first thing anyone notices."""
+    seen: dict = {}
+
+    def fake(text: str, language: str = "en", slow: bool = False) -> str:
+        seen.update(text=text, language=language, slow=slow)
+        return "/tts/abc123.mp3"
+
+    monkeypatch.setattr(gateway, "synthesize", fake)
+    r = client.post(
+        "/tts", json={"text": "Nothing to watch yet.", "slow": True}, headers=hdr(auth)
+    )
+    assert r.status_code == 200 and r.json() == {"url": "/tts/abc123.mp3"}
+    assert seen == {"text": "Nothing to watch yet.", "language": "en", "slow": True}
+
+
+def test_no_voice_is_an_empty_url_not_a_failure(
+    client: TestClient, auth: dict, monkeypatch
+) -> None:
+    # Polly being down must never silence a screen: the client speaks it itself.
+    monkeypatch.setattr(gateway, "synthesize", lambda *a, **k: "")
+    r = client.post("/tts", json={"text": "All done for today."}, headers=hdr(auth))
+    assert r.status_code == 200 and r.json() == {"url": ""}
+
+
+def test_a_wall_of_text_is_refused_before_it_reaches_polly(
+    client: TestClient, auth: dict, monkeypatch
+) -> None:
+    called = []
+    monkeypatch.setattr(gateway, "synthesize", lambda *a, **k: called.append(1) or "")
+    r = client.post("/tts", json={"text": "x" * 5000}, headers=hdr(auth))
+    assert r.status_code == 422
+    assert called == [], "a 5000-character request reached Polly"
+
+
+def test_speech_needs_a_household(client: TestClient) -> None:
+    assert client.post("/tts", json={"text": "hello"}).status_code == 401

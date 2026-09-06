@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../core/gateway.dart';
 import '../../core/models.dart';
 import '../../core/protocol.dart';
 import '../../core/speech.dart';
@@ -84,6 +85,11 @@ class _BreakScreenState extends State<BreakScreen> {
 
   GilliVoice get _voice => context.read<GilliVoice>();
 
+  /// Read once: a break speaks from timers and taps, long after the frame
+  /// that built it, and reaching through context then is a use across an
+  /// async gap.
+  late final Gateway _gateway = context.read<AppState>().gateway;
+
   /// What Gilli says when the parent has written no lines: that it is break
   /// time and nothing more. Never an invented instruction.
   String _quietLine() {
@@ -98,12 +104,14 @@ class _BreakScreenState extends State<BreakScreen> {
     if (!mounted) return;
     // A parent's line is spoken as they wrote it; with none, Gilli says only
     // that it is break time. Nothing is invented to fill the silence.
-    await _voice.say(
-      url: '',
-      fallbackText: _message?.speech ?? _quietLine(),
-      slow: _preReader,
-    );
+    await _speak(_message?.speech ?? _quietLine());
   }
+
+  /// In Gilli's voice where the gateway can give one, the device's otherwise.
+  /// The gateway is read once, in [initState], because these lines are spoken
+  /// from timers and taps long after the frame that built this screen.
+  Future<void> _speak(String text) =>
+      speakLine(_gateway, _voice, text, slow: _preReader);
 
   void _onSecond() {
     if (!mounted || _finishing) return;
@@ -124,12 +132,10 @@ class _BreakScreenState extends State<BreakScreen> {
       _gesture = Gesture.cheer;
       _gestureTick++;
     });
-    await _voice.say(
-      url: '',
-      fallbackText: byParent
+    await _speak(
+      byParent
           ? 'All done. Let us watch again!'
           : 'Great moving! You can watch again now.',
-      slow: _preReader,
     );
     if (!mounted) return;
     widget.onFinished();
@@ -158,12 +164,10 @@ class _BreakScreenState extends State<BreakScreen> {
       return;
     }
     if (!mounted) return;
-    await _voice.say(
-      url: '',
-      fallbackText: _preReader
+    await _speak(
+      _preReader
           ? 'Wow! You did it! Keep moving with me.'
           : 'Nice moving. I will call you when the time is up.',
-      slow: _preReader,
     );
   }
 
@@ -481,9 +485,10 @@ class _DayDoneScreenState extends State<DayDoneScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<GilliVoice>().say(
-        url: '',
-        fallbackText: widget.kid.band == AgeBand.b4to6
+      speakLine(
+        context.read<AppState>().gateway,
+        context.read<GilliVoice>(),
+        widget.kid.band == AgeBand.b4to6
             ? 'All done for today! We can watch again tomorrow.'
             : _line,
         slow: widget.kid.band == AgeBand.b4to6,
