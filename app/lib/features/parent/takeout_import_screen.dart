@@ -306,8 +306,10 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
     final rest = slimmed.history == 0
         ? 'including watch and search history'
         : 'including search history';
-    return '$lists$history. The other ${slimmed.skipped} files, $rest, '
-        'stayed on your phone.';
+    final others = slimmed.skipped == 1
+        ? 'The other file, $rest, stayed'
+        : 'The other ${slimmed.skipped} files, $rest, stayed';
+    return '$lists$history. $others on your phone.';
   }
 
   // ----------------------------------------------------------------- preview
@@ -522,25 +524,31 @@ class _ProfileCardState extends State<_ProfileCard> {
           if (_done != null)
             Text(_done!, style: HgText.body(size: 15, color: HgColors.green))
           else ...[
-            Text('IMPORT INTO', style: HgText.label()),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final kid in kids)
+            // A household with no kids in it yet has nothing to pick from, so
+            // the row of choices is only shown once there is a choice. Telling
+            // a parent to "pick a kid first" when there is no kid to pick sends
+            // them looking for a control that does not exist.
+            if (kids.isNotEmpty) ...[
+              Text('IMPORT INTO', style: HgText.label()),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final kid in kids)
+                    _Choice(
+                      label: kid.nickname,
+                      selected: kid.id == selectedId,
+                      onTap: () => setState(() => _kidId = kid.id),
+                    ),
                   _Choice(
-                    label: kid.nickname,
-                    selected: kid.id == selectedId,
-                    onTap: () => setState(() => _kidId = kid.id),
+                    label: 'New kid',
+                    icon: Icons.add_rounded,
+                    selected: false,
+                    onTap: _busy ? null : _createKidThenImport,
                   ),
-                _Choice(
-                  label: 'New kid',
-                  icon: Icons.add_rounded,
-                  selected: false,
-                  onTap: _busy ? null : _createKidThenImport,
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
             if (_error != null)
               Text(
                 _error!,
@@ -549,9 +557,13 @@ class _ProfileCardState extends State<_ProfileCard> {
             SizedBox(
               height: 52,
               child: FilledButton(
-                onPressed: target == null || _busy
+                // The first import of a fresh household is one action, not two:
+                // the button makes the child and brings their channels across.
+                onPressed: _busy
                     ? null
-                    : () => _import(target),
+                    : (kids.isEmpty
+                          ? _createKidThenImport
+                          : (target == null ? null : () => _import(target))),
                 style: FilledButton.styleFrom(
                   disabledBackgroundColor: HgColors.line,
                   disabledForegroundColor: HgColors.muted,
@@ -563,12 +575,12 @@ class _ProfileCardState extends State<_ProfileCard> {
                         child: CircularProgressIndicator(strokeWidth: 3),
                       )
                     : Text(
-                        target == null
-                            ? 'Pick a kid first'
-                            : 'Import $count into ${target.nickname}',
+                        _importLabel(kids.isEmpty, target, count),
                         style: HgText.body(
                           size: 16,
-                          color: target == null ? HgColors.muted : HgColors.ink,
+                          color: kids.isEmpty || target != null
+                              ? HgColors.ink
+                              : HgColors.muted,
                         ),
                       ),
               ),
@@ -577,6 +589,19 @@ class _ProfileCardState extends State<_ProfileCard> {
         ],
       ),
     );
+  }
+
+  /// What the button offers, for each of the three states this card has.
+  String _importLabel(bool noKidsYet, Kid? target, int count) {
+    if (noKidsYet) {
+      final who = widget.profile.name.isEmpty
+          ? 'this profile'
+          : widget.profile.name;
+      return 'Add $who and import $count';
+    }
+    return target == null
+        ? 'Pick a kid first'
+        : 'Import $count into ${target.nickname}';
   }
 
   /// Takeout has no age and no language, so a new kid still goes through the
