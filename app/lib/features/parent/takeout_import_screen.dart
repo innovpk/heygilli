@@ -39,6 +39,14 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
   bool _importedAnything = false;
   SlimTakeout? _slimmed;
 
+  /// Whether this import also carries the children's watch history.
+  ///
+  /// **Off, and it starts off every single time** (PROTOCOL "Watch history:
+  /// opt-in, aggregate, discarded"). It is per-import on purpose: nothing
+  /// remembers the tick, so a parent who agreed once has not agreed to every
+  /// import they will ever do.
+  bool _includeHistory = false;
+
   Future<void> _pick() async {
     setState(() => _error = null);
     PlatformFile? picked;
@@ -92,11 +100,15 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
         final slim = await slimTakeout(
           zip,
           workDir: await getTemporaryDirectory(),
+          includeHistory: _includeHistory,
         );
         toUpload = slim.file;
         if (mounted) setState(() => _slimmed = slim);
       }
-      final preview = await gateway.importTakeout(toUpload);
+      final preview = await gateway.importTakeout(
+        toUpload,
+        includeHistory: _includeHistory,
+      );
       // The slim copy has served its purpose; do not leave it in the cache.
       if (toUpload.path != zip.path) {
         unawaited(toUpload.delete().catchError((_) => toUpload));
@@ -225,6 +237,11 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
           ],
         ),
       ),
+      const SizedBox(height: 12),
+      _HistoryOptIn(
+        value: _includeHistory,
+        onChanged: _reading ? null : (v) => setState(() => _includeHistory = v),
+      ),
       const SizedBox(height: 16),
       SizedBox(
         height: 56,
@@ -264,6 +281,32 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
     ];
   }
 
+  /// What actually left the phone, in the past tense, counted rather than
+  /// promised. A parent who ticked the box is told the history went, in the
+  /// same breath as everything that did not.
+  String _sentLine(SlimTakeout? slimmed) {
+    if (slimmed == null) {
+      return _includeHistory
+          ? 'The subscription lists and the watch history were read. Search '
+                'history stayed on your phone.'
+          : 'Only the subscription lists were read. Watch and search history '
+                'stayed on your phone.';
+    }
+    final lists =
+        'Sent ${slimmed.kept} subscription '
+        '${slimmed.kept == 1 ? 'list' : 'lists'}';
+    final history = slimmed.history == 0
+        ? ''
+        : ' and ${slimmed.history} watch '
+              '${slimmed.history == 1 ? 'history' : 'histories'}, which is '
+              'counted and then deleted';
+    final rest = slimmed.history == 0
+        ? 'including watch and search history'
+        : 'including search history';
+    return '$lists$history. The other ${slimmed.skipped} files, $rest, '
+        'stayed on your phone.';
+  }
+
   // ----------------------------------------------------------------- preview
 
   List<Widget> _profiles(TakeoutPreview preview) {
@@ -294,13 +337,7 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
           ),
           Expanded(
             child: Text(
-              slimmed == null
-                  ? 'Only the subscription lists were read. Watch and search '
-                        'history stayed on your phone.'
-                  : 'Sent ${slimmed.kept} subscription '
-                        '${slimmed.kept == 1 ? 'list' : 'lists'}. The other '
-                        '${slimmed.skipped} files, including watch and search '
-                        'history, stayed on your phone.',
+              _sentLine(slimmed),
               style: HgText.body(size: 13, color: HgColors.brown),
             ),
           ),
@@ -348,6 +385,69 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
         ),
       ),
     ];
+  }
+}
+
+/// The one exception to "only the subscription lists are read", and the only
+/// place in HeyGilli where a parent can widen what leaves the phone.
+///
+/// PROTOCOL "Watch history: opt-in, aggregate, discarded". Three things the
+/// copy here must keep doing, because they are the terms of the exception:
+/// it says which file goes, it says what survives the count (channel names and
+/// numbers, no video titles, ever), and it says what still does not go at all
+/// (search history). It is off, and it starts off on every import.
+class _HistoryOptIn extends StatelessWidget {
+  const _HistoryOptIn({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PCard(
+      onTap: onChanged == null ? null : () => onChanged!(!value),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 12,
+        children: [
+          Checkbox(
+            value: value,
+            onChanged: onChanged == null ? null : (v) => onChanged!(v ?? false),
+            activeColor: HgColors.mango,
+            checkColor: HgColors.ink,
+            side: const BorderSide(color: HgColors.brown, width: 2),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 6,
+              children: [
+                Text(
+                  'Also count what they actually watched',
+                  style: HgText.body(size: 16, color: HgColors.ink),
+                ),
+                Text(
+                  'Off unless you tick it, for this import only. Ticked, one '
+                  'more file goes with the channel lists: watch-history.html. '
+                  'HeyGilli counts it — how many videos, which channels, what '
+                  'times of day — then deletes the file and every video title '
+                  'in it. No video title is stored or sent to a model; only '
+                  'channel names are. Search history is never sent either way.',
+                  style: HgText.body(size: 14, color: HgColors.brown),
+                ),
+                Text(
+                  // Said before they tick, not after: an undo they only find
+                  // out about afterwards is not much of a reassurance.
+                  'What it works out is a page of counts on the kid, and one '
+                  'tap deletes it.',
+                  style: HgText.body(size: 13, color: HgColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

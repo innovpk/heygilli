@@ -8,6 +8,7 @@ import '../../main.dart';
 import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
+import 'history_screen.dart';
 import 'import_subscriptions_screen.dart';
 import 'parent_widgets.dart';
 import 'policy_screen.dart';
@@ -185,6 +186,38 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
                         kid.band == AgeBand.b4to6
                             ? 'Minutes, words coming back, what to try'
                             : 'Minutes, what stuck, what needs another look',
+                        style: HgText.body(size: 14, color: HgColors.brown),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Only says anything once a parent has ticked history on an import.
+          // Shown anyway, because the empty state is where they find out the
+          // option exists and that it is off.
+          PCard(
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => HistoryScreen(kid: kid))),
+            child: Row(
+              spacing: 14,
+              children: [
+                const Icon(Icons.history_rounded, color: HgColors.brown),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'What they actually watched',
+                        style: HgText.display(size: 22, color: HgColors.ink),
+                      ),
+                      Text(
+                        'How much came from channels nobody chose. Only if '
+                        'you asked for it during an import',
                         style: HgText.body(size: 14, color: HgColors.brown),
                       ),
                     ],

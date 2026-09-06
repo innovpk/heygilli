@@ -8,6 +8,7 @@ class SlimTakeout {
     required this.file,
     required this.kept,
     required this.skipped,
+    this.history = 0,
   });
 
   /// A small zip holding only the subscription lists. This is what is uploaded.
@@ -18,6 +19,11 @@ class SlimTakeout {
 
   /// Everything left behind, which is mostly watch and search history.
   final int skipped;
+
+  /// Watch-history files copied across, which is zero unless the parent ticked
+  /// the box for this one import. Counted separately from [kept] so the screen
+  /// can say exactly what went, rather than one number covering both.
+  final int history;
 }
 
 /// Thrown when the picked file is not a Takeout export we can use.
@@ -40,9 +46,15 @@ class NotATakeoutExport implements Exception {
 ///
 /// [source] is the file the parent picked; [workDir] is where the slim copy is
 /// written (a temp directory the caller owns and should clean up).
+///
+/// [includeHistory] is the one exception, and it is off unless a parent ticked
+/// the box for this one import (PROTOCOL "Watch history: opt-in, aggregate,
+/// discarded"). It adds `watch-history.html` and nothing else: search history
+/// has no exception anywhere in the product and never leaves the phone.
 Future<SlimTakeout> slimTakeout(
   File source, {
   required Directory workDir,
+  bool includeHistory = false,
 }) async {
   final Archive archive;
   try {
@@ -56,16 +68,25 @@ Future<SlimTakeout> slimTakeout(
 
   final slim = Archive();
   var skipped = 0;
+  var subscriptions = 0;
+  var history = 0;
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
-    if (!isSubscriptionCsv(entry.name)) {
+    if (isSubscriptionCsv(entry.name)) {
+      subscriptions++;
+    } else if (includeHistory && isWatchHistory(entry.name)) {
+      history++;
+    } else {
       skipped++;
       continue;
     }
     slim.addFile(ArchiveFile.bytes(entry.name, entry.content));
   }
 
-  if (slim.files.isEmpty) {
+  // A zip of history with no subscription lists is not an import: the channel
+  // lists are what the product is for, and history alone would be nothing but
+  // the sensitive half.
+  if (subscriptions == 0) {
     throw const NotATakeoutExport(
       'No subscription lists in that export. Re-run Takeout and tick the '
       '"children" and "subscriptions" categories under YouTube.',
@@ -76,7 +97,12 @@ Future<SlimTakeout> slimTakeout(
     '${workDir.path}/heygilli-subscriptions-${DateTime.now().millisecondsSinceEpoch}.zip',
   );
   await out.writeAsBytes(ZipEncoder().encode(slim), flush: true);
-  return SlimTakeout(file: out, kept: slim.files.length, skipped: skipped);
+  return SlimTakeout(
+    file: out,
+    kept: subscriptions,
+    skipped: skipped,
+    history: history,
+  );
 }
 
 /// True for a Takeout member we are willing to read.
@@ -87,4 +113,15 @@ Future<SlimTakeout> slimTakeout(
 bool isSubscriptionCsv(String name) {
   if (name.contains('..')) return false;
   return name.toLowerCase().endsWith('subscriptions.csv');
+}
+
+/// True for a child's watch history, which goes only when the parent asked for
+/// it on this one import.
+///
+/// As narrow as [isSubscriptionCsv], and narrower in one way that matters:
+/// `search-history.html` is not matched by anything here or anywhere else. A
+/// child's searches are their own and no part of HeyGilli reads them.
+bool isWatchHistory(String name) {
+  if (name.contains('..')) return false;
+  return name.toLowerCase().endsWith('watch-history.html');
 }

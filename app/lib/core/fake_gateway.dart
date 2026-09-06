@@ -413,7 +413,91 @@ class FakeGateway implements Gateway {
       existing.add(ch);
       added.add(ch);
     }
+    // An import from an export the parent ticked history on is where the
+    // aggregate lands, because this is the call that finally says which kid
+    // the profile belongs to.
+    if (_historyOffered) {
+      _histories[kidId] ??= _demoHistory(kidId);
+    }
     return ImportResult(added: added, already: already);
+  }
+
+  /// Whether the last export was uploaded with history included. Off, always,
+  /// until a parent ticks the box for one import (PROTOCOL).
+  bool _historyOffered = false;
+
+  /// Whether the last export was uploaded with the history box ticked. Read
+  /// by tests that need to prove the default is off and that the tick is what
+  /// changed it.
+  bool get historyWasIncluded => _historyOffered;
+
+  final _histories = <String, HistoryInsight>{};
+
+  @override
+  Future<HistoryInsight?> history(String kidId) async {
+    await _lag();
+    return _histories[kidId];
+  }
+
+  @override
+  Future<bool> deleteHistory(String kidId) async {
+    await _lag();
+    // Gone, and gone for good: a later import has to be ticked again.
+    _historyOffered = false;
+    return _histories.remove(kidId) != null;
+  }
+
+  /// The insight without the simulated lag, for widget tests on a frozen
+  /// clock. The same object [history] would hand back.
+  HistoryInsight? savedHistory(String kidId) => _histories[kidId];
+
+  /// A year of watching, at the shape a real export has: mostly after school,
+  /// a long tail of channels nobody chose, and a couple of late nights.
+  ///
+  /// Counts and channel names only. There is no list of videos here because
+  /// there is none anywhere: the server counts the file and throws it away.
+  HistoryInsight _demoHistory(String kidId) {
+    final subscribed = {
+      for (final c in _channels[kidId] ?? const <Channel>[])
+        c.title.toLowerCase(),
+    };
+    const counted = <(String, int)>[
+      ('Super Simple Songs - Kids Songs', 143),
+      ('Slime Lab Shorts', 121),
+      ('Gacha Life Stories', 98),
+      ('SciShow Kids', 74),
+      ('Toy Haul Tuesday', 61),
+      ('Minecraft Diaries', 52),
+      ('Squishy Makeover Daily', 44),
+      ('Numberblocks', 31),
+    ];
+    return HistoryInsight(
+      kidId: kidId,
+      generatedAt: DateTime.now().toIso8601String(),
+      videos: 1284,
+      firstWatched: '2025-10-14',
+      lastWatched: '2026-09-04',
+      topChannels: [
+        for (final (title, videos) in counted)
+          HistoryChannel(
+            title: title,
+            videos: videos,
+            subscribed: subscribed.contains(title.toLowerCase()),
+          ),
+      ],
+      unsubscribedShare: 0.62,
+      // Midnight to 23:00. Quiet in the morning, a wall after school, and a
+      // little that is later than a parent probably thinks.
+      byHour: const [
+        12, 4, 1, 0, 0, 0, 2, 18, 24, 9, 6, 11, //
+        38, 22, 31, 74, 118, 143, 121, 96, 62, 41, 27, 19,
+      ],
+      summary:
+          'Most of what was watched came from channels this profile does not '
+          'follow. The busiest hour is 5pm, and there is some watching after '
+          '10pm. Only channel names and counts were kept; the file and every '
+          'video title in it were discarded.',
+    );
   }
 
   /// A stand-in for the two YouTube Kids profiles a real export contains, at
@@ -422,8 +506,15 @@ class FakeGateway implements Gateway {
   /// The zip is never opened. Demo mode has no server to unzip it, and the
   /// screen says plainly that it is using a sample.
   @override
-  Future<TakeoutPreview> importTakeout(File zip) async {
+  Future<TakeoutPreview> importTakeout(
+    File zip, {
+    bool includeHistory = false,
+  }) async {
     await _lag();
+    // Whether this export brought history with it. The insight belongs to a
+    // kid, and which kid a profile is only settled when the parent maps it,
+    // so it is attached at that point rather than here.
+    _historyOffered = includeHistory;
     return TakeoutPreview(
       profiles: [
         TakeoutProfile(

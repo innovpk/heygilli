@@ -34,7 +34,20 @@ abstract class Gateway {
   /// `POST /import/takeout`, multipart. The only route to a child's YouTube
   /// Kids subscriptions: no API exposes them. Only the subscription CSVs in
   /// the zip are read; watch and search history are ignored.
-  Future<TakeoutPreview> importTakeout(File zip);
+  ///
+  /// [includeHistory] is off unless the parent ticked the box for this one
+  /// import. With it, the zip also carries `watch-history.html`, the server
+  /// counts it and then discards the file and every video title in it
+  /// (PROTOCOL "Watch history: opt-in, aggregate, discarded"). Search history
+  /// is never included, with or without it.
+  Future<TakeoutPreview> importTakeout(File zip, {bool includeHistory});
+
+  /// `GET /kids/{id}/history`. Null when this household never opted in, which
+  /// is the default and answers 404 rather than an empty insight.
+  Future<HistoryInsight?> history(String kidId);
+
+  /// `DELETE /kids/{id}/history`. One call, and the aggregate is gone.
+  Future<bool> deleteHistory(String kidId);
 
   /// `POST /channels/reviews`. Returns whatever is cached now and lists the
   /// rest in `pending`; the caller polls with the ids still outstanding.

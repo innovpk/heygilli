@@ -893,6 +893,141 @@ class Digest {
   };
 }
 
+/// One channel in a [HistoryInsight], most watched first.
+class HistoryChannel {
+  const HistoryChannel({
+    required this.title,
+    required this.videos,
+    this.subscribed = false,
+  });
+
+  final String title;
+  final int videos;
+
+  /// Whether this child is actually subscribed to it. False is the whole
+  /// point of the screen: it means something else put the video in front of
+  /// them.
+  final bool subscribed;
+
+  factory HistoryChannel.fromJson(Map<String, dynamic> j) => HistoryChannel(
+    title: j['title'] as String? ?? '',
+    videos: (j['videos'] as num?)?.toInt() ?? 0,
+    subscribed: j['subscribed'] as bool? ?? false,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'videos': videos,
+    'subscribed': subscribed,
+  };
+}
+
+/// `GET /kids/{id}/history`, and 404 when a household never opted in.
+///
+/// PROTOCOL "Watch history: opt-in, aggregate, discarded": counts and channel
+/// names only. There is nowhere in this shape for a video title, because the
+/// server discards the file and every title in it after counting, and nothing
+/// but channel names is ever sent to a model. If a field for a title ever
+/// appears here, that promise has been broken somewhere upstream.
+class HistoryInsight {
+  const HistoryInsight({
+    required this.kidId,
+    this.generatedAt = '',
+    this.source = 'takeout',
+    this.videos = 0,
+    this.firstWatched = '',
+    this.lastWatched = '',
+    this.topChannels = const [],
+    this.unsubscribedShare = 0,
+    this.byHour = const [],
+    this.summary = '',
+  });
+
+  final String kidId;
+  final String generatedAt;
+  final String source;
+
+  /// How many videos were counted. Not which ones: none of them was kept.
+  final int videos;
+  final String firstWatched;
+  final String lastWatched;
+
+  /// At most 20, most watched first.
+  final List<HistoryChannel> topChannels;
+
+  /// 0.0-1.0: the share that came from channels this child does not follow.
+  /// PROTOCOL calls this the number that matters, and the screen leads on it.
+  final double unsubscribedShare;
+
+  /// 24 integers, local to the export. Always exactly 24 by the time it gets
+  /// here, so a chart can index it without checking.
+  final List<int> byHour;
+
+  /// Two or three sentences about the numbers above and nothing else.
+  final String summary;
+
+  /// Whole percent, clamped, so a gateway sending 0-100 by mistake or a stray
+  /// 1.02 cannot render "102%".
+  int get unsubscribedPercent =>
+      (unsubscribedShare.clamp(0.0, 1.0) * 100).round();
+
+  int get subscribedPercent => 100 - unsubscribedPercent;
+
+  bool get hasHours => byHour.any((h) => h > 0);
+
+  /// The hour with the most watching, or null when there is no watching at
+  /// all. 0-23.
+  int? get busiestHour {
+    if (!hasHours) return null;
+    var best = 0;
+    for (var h = 1; h < byHour.length; h++) {
+      if (byHour[h] > byHour[best]) best = h;
+    }
+    return best;
+  }
+
+  factory HistoryInsight.fromJson(Map<String, dynamic> j) {
+    // Padded and trimmed to 24 here rather than in every caller: an hour
+    // chart with 23 bars would be quietly wrong about when a child watches.
+    final hours = <int>[
+      for (final h in (j['by_hour'] as List? ?? const []))
+        (h as num?)?.toInt() ?? 0,
+    ];
+    while (hours.length < 24) {
+      hours.add(0);
+    }
+    return HistoryInsight(
+      kidId: '${j['kid_id'] ?? ''}',
+      generatedAt: j['generated_at'] as String? ?? '',
+      source: j['source'] as String? ?? 'takeout',
+      videos: (j['videos'] as num?)?.toInt() ?? 0,
+      firstWatched: j['first_watched'] as String? ?? '',
+      lastWatched: j['last_watched'] as String? ?? '',
+      topChannels: (j['top_channels'] as List? ?? const [])
+          .map(
+            (c) => HistoryChannel.fromJson((c as Map).cast<String, dynamic>()),
+          )
+          .toList(),
+      unsubscribedShare: (j['unsubscribed_share'] as num?)?.toDouble() ?? 0,
+      byHour: hours.take(24).toList(growable: false),
+      summary: j['summary'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'kid_id': kidId,
+    'generated_at': generatedAt,
+    'source': source,
+    'videos': videos,
+    'first_watched': firstWatched,
+    'last_watched': lastWatched,
+    'top_channels': [for (final c in topChannels) c.toJson()],
+    'unsubscribed_share': unsubscribedShare,
+    'by_hour': byHour,
+    'summary': summary,
+  };
+}
+
 /// What one household answered about one kind of video.
 ///
 /// PROTOCOL "Household policy": three choices and no more. There is no

@@ -137,12 +137,18 @@ class ApiClient implements Gateway {
   );
 
   @override
-  Future<TakeoutPreview> importTakeout(File zip) async {
+  Future<TakeoutPreview> importTakeout(
+    File zip, {
+    bool includeHistory = false,
+  }) async {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/import/takeout'),
     );
     if (_token != null) request.headers['Authorization'] = 'Bearer $_token';
+    // Sent only when it is true. A default-off setting should not travel as
+    // "include_history=false" on every import the household ever does.
+    if (includeHistory) request.fields['include_history'] = 'true';
     // fromPath streams off disk: a Takeout export is routinely hundreds of MB
     // and must never be read into memory here. No timeout for the same reason.
     request.files.add(await http.MultipartFile.fromPath('file', zip.path));
@@ -325,6 +331,28 @@ class ApiClient implements Gateway {
     return Analytics.fromJson(
       await _get('/kids/$kidId/analytics?days=$n') as Map<String, dynamic>,
     );
+  }
+
+  @override
+  Future<HistoryInsight?> history(String kidId) async {
+    try {
+      return HistoryInsight.fromJson(
+        await _get('/kids/$kidId/history') as Map<String, dynamic>,
+      );
+    } on ApiException catch (e) {
+      // 404 is the normal answer for a household that never opted in, not a
+      // failure to show a parent.
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> deleteHistory(String kidId) async {
+    final body = await _delete('/kids/$kidId/history');
+    // A gateway that answers with an empty body has still deleted it.
+    if (body is! Map) return true;
+    return body['deleted'] as bool? ?? true;
   }
 
   @override
