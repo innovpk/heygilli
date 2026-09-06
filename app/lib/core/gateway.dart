@@ -56,6 +56,14 @@ abstract class Gateway {
   /// `GET /channels/{id}/review`. `refresh: true` forces a re-review.
   Future<ChannelReview> channelReview(String channelId, {bool refresh});
 
+  /// `POST /channels/drift/check`: which of these channels are no longer what
+  /// they were when the parent approved them. Re-review is rate-limited to
+  /// once a week per channel server-side, so this is cheap to call on open.
+  ///
+  /// Information only. HeyGilli never removes a channel on its own; the drift
+  /// says what changed and the parent decides (PROTOCOL "Channel drift").
+  Future<DriftCheck> checkDrift(List<String> channelIds);
+
   /// `DELETE /kids/{kid_id}/channels/{channel_id}`. Takes one channel off one
   /// kid immediately; the review itself is cached per channel and untouched.
   Future<void> removeChannel(String kidId, String channelId);

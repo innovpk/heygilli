@@ -589,6 +589,94 @@ class FakeGateway implements Gateway {
     return channel.review;
   }
 
+  /// Channels the demo has already re-read for drift. A second check answers
+  /// from here with `checked: 0`, the way a week-long rate limit would.
+  final _driftChecked = <String>{};
+
+  @override
+  Future<DriftCheck> checkDrift(List<String> channelIds) async {
+    await _lag();
+    final drifted = <ChannelDrift>[];
+    var checked = 0;
+    for (final id in channelIds.toSet()) {
+      final channel = DemoCatalogue.byId(id);
+      if (channel == null) continue;
+      if (_driftChecked.add(id)) checked++;
+      final story = _driftStories[channel.id];
+      if (story == null) continue;
+      drifted.add(
+        ChannelDrift(
+          channelId: channel.id,
+          title: channel.title,
+          was: DriftSnapshot(
+            verdict: channel.review.verdict,
+            flags: channel.review.flags,
+            reviewedAt: channel.review.reviewedAt,
+          ),
+          now: DriftSnapshot(
+            verdict: story.verdict,
+            flags: [
+              ...channel.review.flags,
+              ReviewFlag(kind: story.flag, note: story.note),
+            ],
+            reviewedAt: DateTime.now().toUtc().toIso8601String(),
+          ),
+          worse: true,
+          whatChanged: story.whatChanged,
+          sampleTitles: story.samples,
+        ),
+      );
+    }
+    return DriftCheck(drifted: drifted, checked: checked);
+  }
+
+  /// Two channels in the demo pile that have moved since they were approved.
+  ///
+  /// Both are invented names, as every unflattering demo review is: putting a
+  /// drift on a real creator's name would be unfair to them.
+  static final _driftStories =
+      <
+        String,
+        ({
+          ReviewVerdict verdict,
+          String flag,
+          String note,
+          String whatChanged,
+          List<String> samples,
+        })
+      >{
+        'ch_slimelabkids': (
+          verdict: ReviewVerdict.concern,
+          flag: 'ads_or_merch',
+          note:
+              'Recent uploads open with a paid promotion for a mobile game '
+              'with in-app purchases.',
+          whatChanged:
+              'It used to be craft videos. Since June most uploads open with '
+              'a sponsor read for a game with loot boxes, and the channel '
+              'sells its own merch in the first minute.',
+          samples: [
+            'MY NEW MERCH IS HERE (use my code)',
+            '£100 SLIME HAUL - sponsored by Gem Quest',
+            'I spent my whole allowance in Gem Quest',
+          ],
+        ),
+        'ch_pranksquadworld': (
+          verdict: ReviewVerdict.concern,
+          flag: 'scary',
+          note: 'Several recent uploads are scare pranks on family members.',
+          whatChanged:
+              'The pranks have moved from harmless to frightening: four of '
+              'the last ten uploads are scare pranks, two of them on a child '
+              'who is crying by the end.',
+          samples: [
+            'SCARING MY LITTLE SISTER AT 3AM',
+            'She actually cried... (gone too far)',
+            'Fake spider in her bed prank',
+          ],
+        ),
+      };
+
   @override
   Future<void> removeChannel(String kidId, String channelId) async {
     await _lag();

@@ -732,6 +732,132 @@ class ChannelReviewBatch {
       );
 }
 
+/// One end of a drift: what the review said at a point in time.
+class DriftSnapshot {
+  const DriftSnapshot({
+    this.verdict = ReviewVerdict.unknown,
+    this.flags = const [],
+    this.reviewedAt = '',
+  });
+
+  final ReviewVerdict verdict;
+  final List<ReviewFlag> flags;
+  final String reviewedAt;
+
+  factory DriftSnapshot.fromJson(Map<String, dynamic> j) => DriftSnapshot(
+    verdict: ReviewVerdict.fromWire(j['verdict'] as String?),
+    flags: (j['flags'] as List? ?? const [])
+        .map((f) => ReviewFlag.fromJson((f as Map).cast<String, dynamic>()))
+        .toList(),
+    reviewedAt: j['reviewed_at'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'verdict': verdict.wire,
+    'flags': [for (final f in flags) f.toJson()],
+    'reviewed_at': reviewedAt,
+  };
+}
+
+/// `POST /channels/drift/check`: a channel is not what it was.
+///
+/// PROTOCOL "Channel drift": a review is a snapshot, and channels change
+/// hands and chase trends years after a parent approved them. Only `worse`
+/// drifts are ever shown — a channel that improved is not worth interrupting
+/// anyone about — and a drift is information. **Nothing here removes a
+/// channel.** Removal stays a thing the parent does.
+class ChannelDrift {
+  const ChannelDrift({
+    required this.channelId,
+    required this.title,
+    this.was = const DriftSnapshot(),
+    this.now = const DriftSnapshot(),
+    this.worse = false,
+    this.whatChanged = '',
+    this.sampleTitles = const [],
+  });
+
+  final String channelId;
+  final String title;
+  final DriftSnapshot was;
+  final DriftSnapshot now;
+
+  /// The verdict moved toward concern, or a new flag appeared. Defaults to
+  /// false: an unreadable drift is not surfaced as a worry.
+  final bool worse;
+
+  /// One sentence naming the difference, not restating the review.
+  final String whatChanged;
+
+  /// The new uploads that changed it.
+  final List<String> sampleTitles;
+
+  /// Flags on the new review that were not on the old one. This is the part a
+  /// parent scans for; the shared ones were already known about.
+  List<ReviewFlag> get newFlags {
+    final before = {for (final f in was.flags) f.kind};
+    return [
+      for (final f in now.flags)
+        if (!before.contains(f.kind)) f,
+    ];
+  }
+
+  /// "Looks fine, now Worth a look". Empty when the verdict did not move, in
+  /// which case a new flag is what made this a drift.
+  String get verdictMove => was.verdict == now.verdict
+      ? ''
+      : '${was.verdict.label}, now ${now.verdict.label}';
+
+  factory ChannelDrift.fromJson(Map<String, dynamic> j) => ChannelDrift(
+    channelId: '${j['channel_id'] ?? ''}',
+    title: j['title'] as String? ?? '',
+    was: DriftSnapshot.fromJson(
+      (j['was'] as Map?)?.cast<String, dynamic>() ?? const {},
+    ),
+    now: DriftSnapshot.fromJson(
+      (j['now'] as Map?)?.cast<String, dynamic>() ?? const {},
+    ),
+    worse: j['worse'] as bool? ?? false,
+    whatChanged: j['what_changed'] as String? ?? '',
+    sampleTitles: _strings(j['sample_titles']),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'channel_id': channelId,
+    'title': title,
+    'was': was.toJson(),
+    'now': now.toJson(),
+    'worse': worse,
+    'what_changed': whatChanged,
+    'sample_titles': sampleTitles,
+  };
+}
+
+/// One answer from `POST /channels/drift/check`.
+class DriftCheck {
+  const DriftCheck({this.drifted = const [], this.checked = 0});
+
+  final List<ChannelDrift> drifted;
+
+  /// How many channels were actually re-read rather than answered from cache;
+  /// re-review is rate-limited to once a week per channel.
+  final int checked;
+
+  /// The only ones a parent is shown. Filtered here as well as server-side:
+  /// a channel that got better is not an interruption.
+  List<ChannelDrift> get worse => [
+    for (final d in drifted)
+      if (d.worse) d,
+  ];
+
+  factory DriftCheck.fromJson(Map<String, dynamic> j) => DriftCheck(
+    drifted: (j['drifted'] as List? ?? const [])
+        .map((d) => ChannelDrift.fromJson((d as Map).cast<String, dynamic>()))
+        .toList(),
+    checked: (j['checked'] as num?)?.toInt() ?? 0,
+  );
+}
+
 class Video {
   const Video({
     required this.id,
@@ -1204,21 +1330,39 @@ class ParentPrompt {
   const ParentPrompt({
     required this.id,
     required this.kidId,
-    required this.video,
+    this.video,
+    this.title = '',
     required this.reason,
     required this.createdAt,
   });
 
   final String id;
   final String kidId;
-  final Video video;
+
+  /// The video this is about, when it is about one.
+  ///
+  /// Null for an entry that is not: PROTOCOL says a channel drift also raises
+  /// an inbox entry, and a drift has no video in it. The client refuses to
+  /// throw away such an entry — its whole point is to reach the parent — so
+  /// the video is optional here and the card renders without a thumbnail.
+  final Video? video;
   final String reason;
   final String createdAt;
+
+  /// A label for the thing being decided, whatever kind of entry it is.
+  String get subject => video?.title ?? title;
+
+  /// Set when the entry names something that is not a video, e.g. the channel
+  /// a drift is about.
+  final String title;
 
   factory ParentPrompt.fromJson(Map<String, dynamic> j) => ParentPrompt(
     id: '${j['id']}',
     kidId: '${j['kid_id']}',
-    video: Video.fromJson(j['video'] as Map<String, dynamic>),
+    video: j['video'] == null
+        ? null
+        : Video.fromJson((j['video'] as Map).cast<String, dynamic>()),
+    title: j['title'] as String? ?? '${j['channel_title'] ?? ''}',
     reason: j['reason'] as String? ?? '',
     createdAt: j['created_at'] as String? ?? '',
   );
@@ -1226,7 +1370,8 @@ class ParentPrompt {
   Map<String, dynamic> toJson() => {
     'id': id,
     'kid_id': kidId,
-    'video': video.toJson(),
+    if (video != null) 'video': video!.toJson(),
+    if (title.isNotEmpty) 'title': title,
     'reason': reason,
     'created_at': createdAt,
   };

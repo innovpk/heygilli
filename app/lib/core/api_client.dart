@@ -173,6 +173,13 @@ class ApiClient implements Gateway {
   );
 
   @override
+  Future<DriftCheck> checkDrift(List<String> channelIds) async =>
+      DriftCheck.fromJson(
+        await _post('/channels/drift/check', {'channel_ids': channelIds})
+            as Map<String, dynamic>,
+      );
+
+  @override
   Future<void> removeChannel(String kidId, String channelId) =>
       _delete('/kids/$kidId/channels/$channelId');
 

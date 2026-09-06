@@ -35,8 +35,8 @@ class _InboxScreenState extends State<InboxScreen> {
         SnackBar(
           content: Text(
             decision == 'approve'
-                ? '"${p.video.title}" approved.'
-                : '"${p.video.title}" hidden.',
+                ? '"${p.subject}" approved.'
+                : '"${p.subject}" hidden.',
           ),
         ),
       );
@@ -136,32 +136,40 @@ class _PromptCard extends StatelessWidget {
           Row(
             spacing: 12,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 112,
-                  height: 63,
-                  child: Image.network(
-                    v.thumb,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: HgColors.line),
+              // A channel drift raises an inbox entry too, and a drift has no
+              // video in it (PROTOCOL "Channel drift"). An entry with nothing
+              // to show a thumbnail of still has to reach the parent, so it
+              // renders as its name and its reason.
+              if (v != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 112,
+                    height: 63,
+                    child: Image.network(
+                      v.thumb,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const ColoredBox(color: HgColors.line),
+                    ),
                   ),
-                ),
-              ),
+                )
+              else
+                const Icon(Icons.tv_rounded, size: 32, color: HgColors.brown),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   spacing: 2,
                   children: [
                     Text(
-                      v.title,
+                      prompt.subject,
                       style: HgText.body(size: 16, color: HgColors.ink),
                     ),
-                    Text(
-                      '${(v.durationS / 60).round()} min',
-                      style: HgText.body(size: 13, color: HgColors.muted),
-                    ),
+                    if (v != null)
+                      Text(
+                        '${(v.durationS / 60).round()} min',
+                        style: HgText.body(size: 13, color: HgColors.muted),
+                      ),
                   ],
                 ),
               ),

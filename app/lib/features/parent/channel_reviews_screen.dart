@@ -40,6 +40,10 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
   bool _gone = false;
   bool _changed = false;
 
+  /// Channels whose review has moved toward concern since the parent approved
+  /// them. Shown above the list; never acted on without the parent.
+  List<ChannelDrift> _drifted = const [];
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +71,7 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
       if (_gone) return;
       setState(() => _list = ChannelReviewList(channels: channels));
       unawaited(_poll());
+      unawaited(_checkDrift(channels));
     } catch (e) {
       if (!_gone) setState(() => _loadError = e);
     }
@@ -102,6 +107,32 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
       _polling = false;
     }
   }
+
+  /// Which of these channels are not what they were when they were approved.
+  ///
+  /// Runs alongside the review poll rather than after it: a drift is about
+  /// channels the parent approved long ago, and it should not wait behind 153
+  /// first-time reviews. A failure here is silent on purpose — the reviews
+  /// are the screen's job, and a second error line over them would cost more
+  /// than it tells anyone.
+  Future<void> _checkDrift(List<Channel> channels) async {
+    if (channels.isEmpty) return;
+    try {
+      final check = await context.read<AppState>().gateway.checkDrift([
+        for (final c in channels) c.id,
+      ]);
+      if (_gone) return;
+      // Only the ones that got worse. A channel that improved is not an
+      // interruption (PROTOCOL).
+      setState(() => _drifted = check.worse);
+    } catch (_) {
+      // Left as it was: no drift shown is the honest state when the check
+      // did not come back.
+    }
+  }
+
+  void _dismissDrift(ChannelDrift drift) =>
+      setState(() => _drifted = [..._drifted]..remove(drift));
 
   void _checkAgain() {
     setState(() {
@@ -251,7 +282,7 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
             itemCount: rows.length + 1,
             itemBuilder: (context, i) {
-              if (i == 0) return _adviceNote(rows.length);
+              if (i == 0) return _header(list, rows.length);
               final row = rows[i - 1];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -263,6 +294,45 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
       ],
     );
   }
+
+  /// Drift first, then the note about what these reviews are.
+  ///
+  /// A drift is the one thing on this screen a parent could not have found by
+  /// scrolling: the channel already passed once, so it is sitting quietly in
+  /// a list of 153 looking exactly like the rest.
+  Widget _header(ChannelReviewList list, int shown) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final drift in _drifted)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _DriftCard(
+            drift: drift,
+            kidName: widget.kid.nickname,
+            onRemove: () {
+              final row = list
+                  .rows()
+                  .where((r) => r.channel.id == drift.channelId)
+                  .firstOrNull;
+              _dismissDrift(drift);
+              unawaited(
+                _remove(
+                  row?.channel ??
+                      Channel(
+                        id: drift.channelId,
+                        title: drift.title,
+                        thumbUrl: '',
+                        approved: true,
+                      ),
+                ),
+              );
+            },
+            onKeep: () => _dismissDrift(drift),
+          ),
+        ),
+      _adviceNote(shown),
+    ],
+  );
 
   /// Scrolls away with the list rather than sitting over it: at 153 rows the
   /// screen belongs to the channels.
@@ -277,6 +347,148 @@ class _ChannelReviewsScreenState extends State<ChannelReviewsScreen> {
       style: HgText.body(size: 14, color: HgColors.brown),
     ),
   );
+}
+
+/// A channel that is not what it was when this parent approved it.
+///
+/// PROTOCOL "Channel drift". Three things this card has to keep doing:
+///
+///  - **Say what changed, not what the channel is.** The parent already read
+///    the review once and approved it; the only news is the difference, so
+///    `what_changed` leads and the two verdicts sit under it as evidence.
+///  - **Show the uploads it is based on.** `sample_titles` are the new videos
+///    that moved the review, so the parent can check the claim rather than
+///    take it.
+///  - **Decide nothing.** HeyGilli never removes a channel on its own. Both
+///    buttons here are the parent's, and "Keep it" is a real answer that
+///    simply puts the card away.
+class _DriftCard extends StatelessWidget {
+  const _DriftCard({
+    required this.drift,
+    required this.kidName,
+    required this.onRemove,
+    required this.onKeep,
+  });
+
+  final ChannelDrift drift;
+  final String kidName;
+  final VoidCallback onRemove;
+  final VoidCallback onKeep;
+
+  @override
+  Widget build(BuildContext context) {
+    final move = drift.verdictMove;
+    return PCard(
+      color: const Color(0xFFFDF1E7),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 10,
+        children: [
+          Row(
+            spacing: 10,
+            children: [
+              const Icon(Icons.trending_down_rounded, color: HgColors.coral),
+              Expanded(
+                child: Text(
+                  'This is not what it was',
+                  style: HgText.label(color: HgColors.coral),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            drift.title,
+            style: HgText.display(size: 22, color: HgColors.ink),
+          ),
+          if (drift.whatChanged.isNotEmpty)
+            Text(
+              drift.whatChanged,
+              style: HgText.body(size: 15, color: HgColors.ink),
+            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (move.isNotEmpty)
+                _DriftChip(label: move)
+              else
+                const _DriftChip(label: 'Same verdict, something new in it'),
+              for (final f in drift.newFlags)
+                _DriftChip(label: 'New: ${f.label}'),
+            ],
+          ),
+          for (final f in drift.newFlags)
+            if (f.note.isNotEmpty)
+              Text(f.note, style: HgText.body(size: 14, color: HgColors.brown)),
+          if (drift.sampleTitles.isNotEmpty) ...[
+            Text('THE UPLOADS THAT CHANGED IT', style: HgText.label()),
+            for (final t in drift.sampleTitles)
+              Text('- $t', style: HgText.body(size: 14, color: HgColors.brown)),
+          ],
+          Text(
+            // Said out loud because a parent who sees a warning card may
+            // reasonably assume something was already done about it.
+            'Nothing has changed for $kidName. This channel is still '
+            'approved, and it stays approved until you say otherwise.',
+            style: HgText.body(size: 13, color: HgColors.muted),
+          ),
+          Row(
+            spacing: 10,
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: onRemove,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: HgColors.coral,
+                      side: const BorderSide(color: HgColors.coral, width: 2),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Text(
+                      'Remove it',
+                      style: HgText.body(size: 15, color: HgColors.coral),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: onKeep,
+                    child: Text(
+                      'Keep it',
+                      style: HgText.body(size: 15, color: HgColors.ink),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DriftChip extends StatelessWidget {
+  const _DriftChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: HgColors.white,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: HgText.body(size: 13, color: HgColors.brown)),
+    );
+  }
 }
 
 /// "Reviewed 40 of 153", with a thin bar. Honest about what has not come back.
