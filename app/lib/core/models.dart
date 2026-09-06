@@ -1326,11 +1326,30 @@ class PolicyQuestion {
   };
 }
 
+/// What kind of thing the parent is being asked about.
+///
+/// Unknown to this build means a gateway newer than the app. Such an entry is
+/// still shown — its whole point is to reach the parent — but with no decision
+/// buttons, because this build does not know what deciding would mean.
+enum PromptKind {
+  video,
+  channelDrift,
+  unknown;
+
+  static PromptKind fromWire(String? s) => switch (s) {
+    'video' || null => PromptKind.video,
+    'channel_drift' => PromptKind.channelDrift,
+    _ => PromptKind.unknown,
+  };
+}
+
 class ParentPrompt {
   const ParentPrompt({
     required this.id,
     required this.kidId,
+    this.kind = PromptKind.video,
     this.video,
+    this.drift,
     this.title = '',
     required this.reason,
     required this.createdAt,
@@ -1339,6 +1358,11 @@ class ParentPrompt {
   final String id;
   final String kidId;
 
+  /// Which of the two things this is. PROTOCOL sends `video` and `drift` both,
+  /// one of them null, so this is read rather than inferred from which key
+  /// happens to be present.
+  final PromptKind kind;
+
   /// The video this is about, when it is about one.
   ///
   /// Null for an entry that is not: PROTOCOL says a channel drift also raises
@@ -1346,11 +1370,21 @@ class ParentPrompt {
   /// throw away such an entry — its whole point is to reach the parent — so
   /// the video is optional here and the card renders without a thumbnail.
   final Video? video;
+
+  /// The drift this entry is about, on a `channel_drift` entry.
+  final ChannelDrift? drift;
+
   final String reason;
   final String createdAt;
 
   /// A label for the thing being decided, whatever kind of entry it is.
-  String get subject => video?.title ?? title;
+  String get subject =>
+      video?.title ?? drift?.title ?? (title.isNotEmpty ? title : 'Something');
+
+  /// Whether approve/hide mean anything here. They do not for a drift: a
+  /// drift is information, and the only action is one the parent takes on the
+  /// channel itself (PROTOCOL "Channel drift").
+  bool get isDecidable => kind == PromptKind.video;
 
   /// Set when the entry names something that is not a video, e.g. the channel
   /// a drift is about.
@@ -1359,6 +1393,10 @@ class ParentPrompt {
   factory ParentPrompt.fromJson(Map<String, dynamic> j) => ParentPrompt(
     id: '${j['id']}',
     kidId: '${j['kid_id']}',
+    kind: PromptKind.fromWire(j['kind'] as String?),
+    drift: j['drift'] == null
+        ? null
+        : ChannelDrift.fromJson((j['drift'] as Map).cast<String, dynamic>()),
     video: j['video'] == null
         ? null
         : Video.fromJson((j['video'] as Map).cast<String, dynamic>()),
@@ -1370,7 +1408,13 @@ class ParentPrompt {
   Map<String, dynamic> toJson() => {
     'id': id,
     'kid_id': kidId,
+    'kind': switch (kind) {
+      PromptKind.video => 'video',
+      PromptKind.channelDrift => 'channel_drift',
+      PromptKind.unknown => 'unknown',
+    },
     if (video != null) 'video': video!.toJson(),
+    if (drift != null) 'drift': drift!.toJson(),
     if (title.isNotEmpty) 'title': title,
     'reason': reason,
     'created_at': createdAt,

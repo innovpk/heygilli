@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:heygilli/core/app_state.dart';
+import 'package:heygilli/core/api_client.dart';
 import 'package:heygilli/core/fake_gateway.dart';
 import 'package:heygilli/core/models.dart';
 import 'package:heygilli/core/settings.dart';
@@ -39,6 +43,8 @@ const _export = {
 };
 
 void main() {
+  group('the import that attaches a history', _wire);
+
   group('what leaves the phone', () {
     late Directory tmp;
 
@@ -254,8 +260,23 @@ void main() {
         reason: 'an upload alone says nothing about whose history it is',
       );
 
-      await gateway.importChannels(kid.id, const ['ch_numberblocks']);
+      await gateway.importChannels(kid.id, const [
+        'ch_numberblocks',
+      ], profile: 'Ayaan');
       expect(gateway.savedHistory(kid.id), isNotNull);
+    });
+
+    test('an import that names no profile attaches nothing', () async {
+      // Pasting a channel URL, or importing from the parent's own account,
+      // carries no Takeout profile and so no history. Attaching one anyway
+      // would hand a parent another child's watching under this child's name.
+      final kid = (await gateway.kids()).single;
+      await gateway.importTakeout(
+        File('sample-takeout.zip'),
+        includeHistory: true,
+      );
+      await gateway.importChannels(kid.id, const ['ch_numberblocks']);
+      expect(gateway.savedHistory(kid.id), isNull);
     });
 
     test('deleting it also forgets that history was ever offered', () async {
@@ -264,7 +285,9 @@ void main() {
         File('sample-takeout.zip'),
         includeHistory: true,
       );
-      await gateway.importChannels(kid.id, const ['ch_numberblocks']);
+      await gateway.importChannels(kid.id, const [
+        'ch_numberblocks',
+      ], profile: 'Ayaan');
 
       expect(await gateway.deleteHistory(kid.id), isTrue);
       expect(await gateway.history(kid.id), isNull);
@@ -328,7 +351,9 @@ void main() {
           File('sample-takeout.zip'),
           includeHistory: true,
         );
-        await gateway.importChannels(kid.id, const ['ch_numberblocks']);
+        await gateway.importChannels(kid.id, const [
+          'ch_numberblocks',
+        ], profile: 'Ayaan');
       });
 
       testWidgets('the unsubscribed share is the headline', (tester) async {
@@ -382,6 +407,57 @@ void main() {
 
         expect(gateway.savedHistory(kid.id), isNotNull);
       });
+    });
+  });
+}
+
+/// The seam between the two sides: the gateway can only attach a profile's
+/// watch history to a child if this call names the profile. It is optional on
+/// the wire, so getting it wrong is silent — the import succeeds and the
+/// history is simply never seen again.
+void _wire() {
+  test('the Takeout profile is sent with the import that names it', () async {
+    late http.Request seen;
+    final api = ApiClient(
+      baseUrl: 'http://gateway',
+      token: 't',
+      client: MockClient((r) async {
+        seen = r;
+        return http.Response(
+          jsonEncode({'added': [], 'already': []}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    await api.importChannels('k1', const ['UCa'], profile: 'Ayaan');
+    expect(jsonDecode(seen.body), {
+      'channel_ids': ['UCa'],
+      'profile': 'Ayaan',
+    });
+  });
+
+  test('an import with no profile sends no profile key at all', () async {
+    // Not an empty string: the server treats the key's absence as "these
+    // channels came from somewhere other than a Takeout profile".
+    late http.Request seen;
+    final api = ApiClient(
+      baseUrl: 'http://gateway',
+      token: 't',
+      client: MockClient((r) async {
+        seen = r;
+        return http.Response(
+          jsonEncode({'added': [], 'already': []}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    await api.importChannels('k1', const ['UCa']);
+    expect(jsonDecode(seen.body), {
+      'channel_ids': ['UCa'],
     });
   });
 }

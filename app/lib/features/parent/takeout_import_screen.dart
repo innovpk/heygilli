@@ -597,6 +597,10 @@ class _ProfileCardState extends State<_ProfileCard> {
       final result = await context.read<AppState>().gateway.importChannels(
         kid.id,
         widget.profile.channelIds,
+        // This is the parent saying which child the profile belongs to, and
+        // the only point at which a watch-history aggregate can be attached
+        // to one. Takeout itself carries no identity.
+        profile: widget.profile.name,
       );
       if (!mounted) return;
       final added = result.added.length;

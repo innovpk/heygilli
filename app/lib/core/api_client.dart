@@ -130,9 +130,13 @@ class ApiClient implements Gateway {
   @override
   Future<ImportResult> importChannels(
     String kidId,
-    List<String> channelIds,
-  ) async => ImportResult.fromJson(
-    await _post('/kids/$kidId/channels/import', {'channel_ids': channelIds})
+    List<String> channelIds, {
+    String profile = '',
+  }) async => ImportResult.fromJson(
+    await _post('/kids/$kidId/channels/import', {
+          'channel_ids': channelIds,
+          if (profile.isNotEmpty) 'profile': profile,
+        })
         as Map<String, dynamic>,
   );
 

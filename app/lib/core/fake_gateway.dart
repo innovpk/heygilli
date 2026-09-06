@@ -386,8 +386,9 @@ class FakeGateway implements Gateway {
   @override
   Future<ImportResult> importChannels(
     String kidId,
-    List<String> channelIds,
-  ) async {
+    List<String> channelIds, {
+    String profile = '',
+  }) async {
     await _lag();
     final existing = _channels[kidId] ??= [];
     final added = <Channel>[];
@@ -422,9 +423,11 @@ class FakeGateway implements Gateway {
       added.add(ch);
     }
     // An import from an export the parent ticked history on is where the
-    // aggregate lands, because this is the call that finally says which kid
-    // the profile belongs to.
-    if (_historyOffered) {
+    // aggregate lands, because naming [profile] is the call that finally says
+    // which kid it belongs to. Without a profile name there is nothing to
+    // attach — a pasted URL or an import from the parent's own account
+    // carries no history with it.
+    if (_historyOffered && profile.isNotEmpty) {
       _histories[kidId] ??= _demoHistory(kidId);
     }
     return ImportResult(added: added, already: already);

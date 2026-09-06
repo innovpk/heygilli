@@ -29,7 +29,18 @@ abstract class Gateway {
   /// `POST /kids/{kid_id}/channels/import`. Approves several channels for one
   /// kid at once. It approves channels, never videos: the Curator still
   /// screens every upload.
-  Future<ImportResult> importChannels(String kidId, List<String> channelIds);
+  /// `POST /kids/{id}/channels/import`. [profile] names the Takeout profile
+  /// these channels came from, when they came from one.
+  ///
+  /// It is the parent saying "this profile is this child", and it is the only
+  /// moment the server can attach that profile's watch-history aggregate to a
+  /// kid: Takeout carries no age and no identity of its own. Omitting it on a
+  /// Takeout import leaves the aggregate stranded under a profile name.
+  Future<ImportResult> importChannels(
+    String kidId,
+    List<String> channelIds, {
+    String profile,
+  });
 
   /// `POST /import/takeout`, multipart. The only route to a child's YouTube
   /// Kids subscriptions: no API exposes them. Only the subscription CSVs in

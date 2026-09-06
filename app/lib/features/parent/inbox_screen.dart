@@ -140,7 +140,13 @@ class _PromptCard extends StatelessWidget {
               // video in it (PROTOCOL "Channel drift"). An entry with nothing
               // to show a thumbnail of still has to reach the parent, so it
               // renders as its name and its reason.
-              if (v != null)
+              if (v == null && prompt.drift != null)
+                const Icon(
+                  Icons.change_circle_outlined,
+                  size: 32,
+                  color: HgColors.brown,
+                )
+              else if (v != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
@@ -182,7 +188,9 @@ class _PromptCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              'Curator: ${prompt.reason}',
+              prompt.drift != null
+                  ? 'What changed: ${prompt.drift!.whatChanged.isNotEmpty ? prompt.drift!.whatChanged : prompt.reason}'
+                  : 'Curator: ${prompt.reason}',
               style: HgText.body(
                 size: 14,
                 color: HgColors.brown,
@@ -190,35 +198,47 @@ class _PromptCard extends StatelessWidget {
               ),
             ),
           ),
-          Row(
-            spacing: 10,
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: busy ? null : onApprove,
-                    child: const Text('Approve'),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: busy ? null : onHide,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: HgColors.coral,
-                      side: const BorderSide(color: HgColors.coral, width: 2),
-                      shape: const StadiumBorder(),
-                      textStyle: HgText.body(size: 16),
+          // Approve and Hide are about one video. A drift is not a video and
+          // is not a decision: nothing has been done to the channel, and the
+          // only action is one the parent takes on the channel itself. An
+          // entry this build does not recognise gets no buttons either,
+          // rather than two whose meaning it is guessing at.
+          if (prompt.isDecidable)
+            Row(
+              spacing: 10,
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: busy ? null : onApprove,
+                      child: const Text('Approve'),
                     ),
-                    child: const Text('Hide'),
                   ),
                 ),
-              ),
-            ],
-          ),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: busy ? null : onHide,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: HgColors.coral,
+                        side: const BorderSide(color: HgColors.coral, width: 2),
+                        shape: const StadiumBorder(),
+                        textStyle: HgText.body(size: 16),
+                      ),
+                      child: const Text('Hide'),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              'Nothing has been done. ${prompt.subject} is still approved — '
+              'open Channels to look at it and decide.',
+              style: HgText.body(size: 14, color: HgColors.brown),
+            ),
         ],
       ),
     );
