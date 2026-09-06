@@ -11,6 +11,7 @@ import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
 import 'break_screen.dart';
 import 'gilli_widget.dart';
+import 'nothing_yet_screen.dart';
 import 'session_screen.dart';
 
 /// Kid home: rows of thumbnails from the kid's approved channels only.
@@ -169,6 +170,13 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                             // empty shelf a child keeps tapping at.
                             if (!home.state.watchingAllowed) {
                               return DayDoneScreen(kid: kid);
+                            }
+                            // Nothing approved yet — every new profile starts
+                            // here, and the Curator may still be working. An
+                            // empty ListView renders literally nothing, which
+                            // a child cannot tell apart from a broken app.
+                            if (home.rows.every((r) => r.videos.isEmpty)) {
+                              return NothingYetScreen(kid: kid);
                             }
                             return ListView(
                               padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
