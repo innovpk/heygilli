@@ -1,13 +1,5 @@
 {
-  "buildCommand": "cd app && flutter build web --release",
-  "outputDirectory": "app/build/web",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html",
-      "status": 200
-    }
-  ],
+  "public": "app/build/web",
   "env": {
     "HEYGILLI_API_URL": "@heygilli-api-url"
   }
