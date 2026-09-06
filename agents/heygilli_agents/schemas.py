@@ -239,6 +239,79 @@ class ChannelReview(BaseModel):
     model: str = ""
 
 
+# --- household policy (PROTOCOL.md "Household policy: what this family actually wants") ---
+#
+# "Is this all right for a child" has no general answer. Without asking, the
+# Curator applies someone else's taste and the parent corrects it one video at a
+# time forever. These few answers are how a household says what it wants.
+#
+# Questions are proposed by the Coach; the answers are the parent's alone, and an
+# unanswered question simply never appears in `answers`, so it carries no weight.
+
+PolicyChoice = Literal["fine", "sometimes", "rather_not"]
+POLICY_OPTIONS: list[PolicyChoice] = ["fine", "sometimes", "rather_not"]
+
+# How far an answer actually travels, which is what `weight` reports. It is not a
+# knob a parent or a model sets: `rather_not` is enforced in code (a video the
+# Curator attributes to it goes to the parent rather than being decided
+# silently), while the other two only reach the model as context.
+POLICY_WEIGHTS: dict[str, float] = {"rather_not": 1.0, "sometimes": 0.5, "fine": 0.5}
+
+
+class PolicyQuestion(BaseModel):
+    """One question worth asking THIS parent. `why` names the channels that
+    prompted it, so the parent can see it was not a guess."""
+
+    id: str
+    question: str
+    why: str = ""
+    options: list[PolicyChoice] = Field(default_factory=lambda: list(POLICY_OPTIONS))
+
+
+class PolicyQuestionDraft(BaseModel):
+    """What the model returns. The id is assigned in code from the question text,
+    so the same question keeps the same id across re-asks and an answer given
+    last month still lines up with it."""
+
+    question: str
+    why: str = ""
+
+
+class SuggestedPolicyQuestions(BaseModel):
+    questions: list[PolicyQuestionDraft] = Field(default_factory=list)
+
+
+class PolicyAnswer(BaseModel):
+    id: str
+    question: str = ""
+    choice: PolicyChoice
+    weight: float = Field(default=0.5, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _weight_from_choice(self) -> PolicyAnswer:
+        # Derived, never accepted from the wire: `weight` is a report of what the
+        # server does with this answer, so a client cannot inflate its own.
+        self.weight = POLICY_WEIGHTS[self.choice]
+        return self
+
+
+class Policy(BaseModel):
+    """An empty policy is valid and means the Curator falls back to age-band
+    defaults (PROTOCOL.md)."""
+
+    kid_id: str
+    updated_at: str = Field(default_factory=now_iso)
+    answers: list[PolicyAnswer] = Field(default_factory=list)
+    notes: str = ""
+
+    def rather_not(self) -> dict[str, PolicyAnswer]:
+        """The answers that are enforced in code, by question id."""
+        return {a.id: a for a in self.answers if a.choice == "rather_not"}
+
+    def is_empty(self) -> bool:
+        return not self.answers and not self.notes.strip()
+
+
 class Screening(BaseModel):
     age_ok: list[AgeBand] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
@@ -591,6 +664,11 @@ class CuratorDecision(BaseModel):
     decision: Literal["approve", "hide", "ask_parent"]
     reason: str = Field(description="One line a parent can read")
     topics: list[str] = Field(default_factory=list)
+    policy_id: str = Field(
+        default="",
+        description="If this decision turns on one of the household's own policy answers, "
+                    "that answer's id; otherwise empty.",
+    )
 
 
 # --- WebSocket messages (PROTOCOL.md) ------------------------------------------------------

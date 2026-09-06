@@ -127,6 +127,15 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
             "seconds": 120,
             "spoken": "Crouch low, count down from five, and erupt up tall. Five times!",
         }
+    if model_name == "SuggestedPolicyQuestions":
+        return {
+            "questions": [
+                {"question": "Are unboxing videos all right?",
+                 "why": "Toy Hauls Daily and Blocks and Bricks both post them every week."},
+                {"question": "Is cartoon peril all right?",
+                 "why": "Sprout Science posts monster explainers."},
+            ]
+        }
     if model_name == "CuratorDecision":
         return {"decision": "approve", "reason": "Educational animal video, calm tone.", "topics": ["animals"]}
     if model_name == "ChannelReviewDraft":

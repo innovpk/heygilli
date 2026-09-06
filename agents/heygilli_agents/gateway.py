@@ -60,6 +60,8 @@ from .schemas import (
     ClientMessage,
     Kid,
     Language,
+    Policy,
+    PolicyAnswer,
     ServerBreak,
     ServerError,
     ServerPause,
@@ -251,6 +253,59 @@ def create_kid(body: KidIn, hid: str = Depends(household)) -> dict:
 @app.get("/kids")
 def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
+
+
+# --- household policy (PROTOCOL.md "Household policy: what this family actually wants") ----------
+
+
+class PolicyIn(BaseModel):
+    """What the parent saves. `weight` is not accepted from the wire: it reports
+    what the server does with an answer, so it is derived in `PolicyAnswer`."""
+
+    answers: list[PolicyAnswer] = Field(default_factory=list)
+    notes: str = ""
+
+
+@app.get("/kids/{kid_id}/policy")
+def get_policy(kid_id: str, hid: str = Depends(household)) -> dict:
+    """A kid who was never asked has an empty policy, not a 404: nothing is
+    wrong, this family simply has not said anything yet and the Curator falls
+    back to age-band defaults."""
+    kid = _kid(hid, kid_id)
+    policy = get_store().get_policy(hid, kid.id) or Policy(kid_id=kid.id)
+    return policy.model_dump()
+
+
+@app.put("/kids/{kid_id}/policy")
+def put_policy(kid_id: str, body: PolicyIn, hid: str = Depends(household)) -> dict:
+    """Replace this kid's policy. The answers are the parent's alone.
+
+    An id answered twice keeps the last one, because the parent's most recent
+    tap is what they meant.
+    """
+    kid = _kid(hid, kid_id)
+    deduped = {a.id: a for a in body.answers if a.id.strip()}
+    policy = Policy(kid_id=kid.id, answers=list(deduped.values()), notes=body.notes)
+    get_store().put_policy(hid, policy)
+    log.info("policy for kid %s: %d answer(s), notes %s", kid_id, len(policy.answers),
+             "set" if policy.notes.strip() else "empty")
+    return policy.model_dump()
+
+
+@app.post("/kids/{kid_id}/policy/questions")
+def policy_questions(kid_id: str, hid: str = Depends(household)) -> dict:
+    """Questions worth asking THIS parent, drawn from what this child watches.
+
+    Parent-facing only: nothing here is ever shown to a child, and asking again
+    is free — an id is derived from the question text, so a question the parent
+    has already answered comes back under the same id.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    channels = [c.title for c in store.list_channels(hid, kid.id) if c.approved]
+    titles = _video_titles(store, [s.video_id for s in store.list_sessions(hid, kid.id)])
+    questions = coach.suggest_policy_questions(kid, channels, titles)
+    return {"questions": [q.model_dump() for q in questions]}
 
 
 # --- time limits and movement breaks (PROTOCOL.md) -----------------------------------------------

@@ -1,18 +1,20 @@
-"""Break-message suggestions, written for the parent to approve.
+"""What the Coach proposes to a parent: break messages, and policy questions.
 
-PROTOCOL.md "Time limits and break periods". A parent decides what a child
-should do when watching pauses, because a parent knows the house, the hour and
-the child; a model does not. So the model's only job here is to help with the
-blank page: it proposes a few short lines, drawn from what this child actually
-watches, and the parent edits, keeps or discards them in the parent app.
+PROTOCOL.md "Time limits and break periods" and "Household policy". Both halves
+of this module write FOR THE PARENT. A parent decides what a child should do
+when watching pauses, and a parent decides what this family is comfortable
+watching, because a parent knows the house, the hour and the child; a model does
+not. The model's only job here is to help with the blank page.
 
-Nothing in this module can reach a child. A suggestion becomes something Gilli
-says only after the parent saves it. That is why there is no model call
-anywhere in the child-facing break path.
+Nothing in this module can reach a child. A break line becomes something Gilli
+says only after the parent saves it, and a policy question is never shown to
+anyone but the parent. That is why there is no model call anywhere in the
+child-facing break path.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from collections.abc import Sequence
 
@@ -20,7 +22,14 @@ from strands import Agent
 
 from . import breaks
 from .llm import make_agent, structured
-from .schemas import AgeBand, BreakMessage, Kid, SuggestedMessages
+from .schemas import (
+    AgeBand,
+    BreakMessage,
+    Kid,
+    PolicyQuestion,
+    SuggestedMessages,
+    SuggestedPolicyQuestions,
+)
 
 log = logging.getLogger(__name__)
 
@@ -43,8 +52,36 @@ Rules:
 - These are suggestions a parent will edit. Ordinary and useful beats clever."""
 
 
+POLICY_SYSTEM_PROMPT = """You help a parent set up what their family is comfortable with their
+child watching. You are given the channels this child is already subscribed to and some titles
+they have watched. From those, write the questions worth asking THIS parent.
+
+A household with forty gaming channels should be asked about gaming, not about make-up tutorials.
+Ask about what is actually in front of this child.
+
+Rules:
+- One question each, answerable with "fine", "sometimes" or "rather not". Never open-ended.
+- Ask about a kind of content, never about a specific channel being good or bad, and never about
+  the child ("is your child sensitive?"). The parent is describing their household, not defending it.
+- `why` names the channels or titles that prompted the question, in a few plain words, so the parent
+  can see it was drawn from their own list rather than guessed.
+- Neutral wording. Both answers must sound equally reasonable; nothing that implies a right answer
+  or that a parent has been careless.
+- No question about religion, politics, money, health or family circumstances.
+- Ordinary and specific beats clever. "Are unboxing videos all right?" is a good question."""
+
+WANTED_QUESTIONS = 5  # a parent will answer five; they will not answer twenty
+MIN_CHANNELS = 2  # below this there is nothing household-specific to draw on
+MAX_CHANNELS_IN_PROMPT = 30
+MAX_QUESTION_CHARS = 160
+
+
 def coach_agent(model=None) -> Agent:
     return make_agent("coach", SUGGEST_SYSTEM_PROMPT, model=model)
+
+
+def policy_agent(model=None) -> Agent:
+    return make_agent("coach", POLICY_SYSTEM_PROMPT, model=model)
 
 
 def suggest_prompt(band: AgeBand, nickname: str, titles: Sequence[str]) -> str:
@@ -121,3 +158,90 @@ def builtin_suggestions(band: AgeBand) -> list[BreakMessage]:
             ("Read a page of a book.", "Break time. Go and read a page of a book."),
         ]
     return [BreakMessage(text=t, spoken=s) for t, s in lines]
+
+
+# --- household policy questions (PROTOCOL.md "Household policy") ---------------
+
+
+def question_id(question: str) -> str:
+    """A stable id for a question, derived from its own text.
+
+    The id is what an answer is filed under, so it must survive the question
+    being asked again next month: deriving it from the text means a re-ask lands
+    on the answer the parent already gave instead of asking twice.
+    """
+    key = " ".join(question.lower().split()).strip(" ?.!")
+    return f"pq_{hashlib.sha1(key.encode()).hexdigest()[:10]}"
+
+
+def policy_prompt(nickname: str, band: AgeBand, channels: Sequence[str], titles: Sequence[str]) -> str:
+    watched = "\n".join(f"- {t}" for t in list(titles)[:MAX_TITLES]) or "- (nothing recent)"
+    subscribed = "\n".join(f"- {c}" for c in list(channels)[:MAX_CHANNELS_IN_PROMPT])
+    return (
+        f"Child's nickname: {nickname}\n"
+        f"Age band: {band}\n"
+        f"Channels this child is subscribed to ({len(channels)}):\n{subscribed}\n"
+        f"Recently watched:\n{watched}\n\n"
+        f"Return at most {WANTED_QUESTIONS} questions worth asking this parent."
+    )
+
+
+def suggest_policy_questions(
+    kid: Kid,
+    channels: Sequence[str] = (),
+    titles: Sequence[str] = (),
+    agent: Agent | None = None,
+) -> list[PolicyQuestion]:
+    """Questions for the parent's policy screen. Parent-facing only.
+
+    Two things are decided in code rather than in the prompt, for the same
+    reason the Reviewer decides them in code: with too few channels there is
+    nothing household-specific to draw on, so the model is not called at all and
+    cannot invent a household; and when it is called but returns nothing usable,
+    the parent gets the built-ins rather than an empty screen.
+    """
+    channels = [c.strip() for c in channels if c.strip()]
+    if len(channels) < MIN_CHANNELS:
+        return builtin_policy_questions()
+
+    try:
+        agent = agent or policy_agent()
+        drafts = structured(
+            agent,
+            policy_prompt(kid.nickname, kid.age_band or "7_8", channels, titles),
+            SuggestedPolicyQuestions,
+        ).questions
+    except Exception as e:  # noqa: BLE001 - a provider error must not empty the parent's screen
+        log.warning("policy questions failed for %s: %s", kid.id, e)
+        return builtin_policy_questions()
+
+    kept: list[PolicyQuestion] = []
+    seen: set[str] = set()
+    for draft in drafts:
+        text = " ".join(draft.question.split())
+        if not text or len(text) > MAX_QUESTION_CHARS:
+            continue  # an essay is not a question a parent will answer
+        qid = question_id(text)
+        if qid in seen:
+            continue
+        seen.add(qid)
+        kept.append(PolicyQuestion(id=qid, question=text, why=" ".join(draft.why.split())))
+        if len(kept) >= WANTED_QUESTIONS:
+            break
+    return kept or builtin_policy_questions()
+
+
+def builtin_policy_questions() -> list[PolicyQuestion]:
+    """The questions worth asking any household, used when there is not enough
+    to go on. Their `why` says plainly that they were not drawn from this
+    family's own channels, because claiming otherwise would be a lie the parent
+    could not check."""
+    generic = "Asked of every family: this is one of the commonest things a child's feed fills with."
+    pairs = [
+        ("Are unboxing and toy-haul videos all right?", generic),
+        ("Are challenge and prank videos all right?", generic),
+        ("Is cartoon peril — chases, monsters, mild scares — all right?", generic),
+        ("Are videos that push merchandise or a sponsor all right?", generic),
+        ("Is rude humour — toilet jokes, name-calling — all right?", generic),
+    ]
+    return [PolicyQuestion(id=question_id(q), question=q, why=why) for q, why in pairs]

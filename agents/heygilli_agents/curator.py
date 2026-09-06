@@ -18,7 +18,7 @@ from strands import Agent
 
 from .llm import LLMError, make_agent, structured
 from .planner import SAFETY_RULES, ensure_plan, planner_agent
-from .schemas import CuratorDecision, Kid, Video
+from .schemas import CuratorDecision, Kid, Policy, Video
 from .store import Store
 from .tools.notify import notify_parent
 from .tools.screening import prescreen, screen_video
@@ -40,6 +40,12 @@ body topics), or you simply cannot tell from the title, description and transcri
 Decide alone on clear cases; ask the parent only on borderline ones. Give ONE line a parent can read,
 and up to 3 topic tags.
 
+This household may have told you what it actually wants. When a household policy is given, it
+outranks your own taste: a thing this family said is "fine" is fine here even if you would normally
+hesitate, and a thing they would "rather not" have is not fine here even if it is harmless. When
+your decision turns on one of those answers, put that answer's id in `policy_id` and name the
+preference in `reason`. Leave `policy_id` empty when the policy had nothing to do with it.
+
 {SAFETY_RULES}
 """.strip()
 
@@ -54,18 +60,58 @@ def curator_agent(model=None) -> Agent:
     return make_agent("curator", CURATOR_SYSTEM_PROMPT, tools=[screen_video], model=model)
 
 
-def decide(video: Video, band: str, agent: Agent, excerpt: str) -> CuratorDecision:
+def policy_prompt(policy: Policy | None) -> str:
+    """The household's own answers, as the Curator sees them.
+
+    An empty policy contributes nothing at all rather than an empty heading: the
+    Curator then falls back to age-band defaults, which is exactly what
+    PROTOCOL.md says an empty policy means.
+    """
+    if policy is None or policy.is_empty():
+        return ""
+    lines = [f"- [{a.id}] {a.question or a.id}: {a.choice}" for a in policy.answers]
+    if policy.notes.strip():
+        lines.append(f"- the parent's own words: {policy.notes.strip()}")
+    return "This household's policy:\n" + "\n".join(lines) + "\n\n"
+
+
+def apply_policy(decision: CuratorDecision, policy: Policy | None) -> CuratorDecision:
+    """A `rather_not` never hides a video silently; it sends it to the parent.
+
+    PROTOCOL.md: the parent stays the decider. A preference is not a safety
+    rule — it is a matter of taste this family expressed, so the video goes to
+    their inbox where they can say yes to this one. The general safety rules are
+    untouched: a decision the model did not attribute to a policy answer, and an
+    id that is not in fact answered `rather_not`, both pass through unchanged, so
+    the model cannot launder a `hide` into an `ask_parent` by naming an id.
+    """
+    if not decision.policy_id or decision.decision == "ask_parent":
+        return decision
+    answer = (policy.rather_not() if policy else {}).get(decision.policy_id)
+    if answer is None:
+        return decision
+    preference = answer.question or answer.id
+    return decision.model_copy(update={
+        "decision": "ask_parent",
+        "reason": f"{decision.reason} You said you would rather not: {preference}",
+    })
+
+
+def decide(
+    video: Video, band: str, agent: Agent, excerpt: str, policy: Policy | None = None
+) -> CuratorDecision:
     prescreened = prescreen(video)
     if prescreened.verdict != "pass":
         return CuratorDecision(decision=prescreened.verdict if prescreened.verdict != "pass" else "approve",
                                reason=prescreened.reason)
     prompt = (
         f"age_band: {band}\ntitle: {video.title}\nduration_s: {video.duration_s}\n"
-        f"description: {video.description[:600]}\n\nTranscript excerpt:\n{excerpt}\n\n"
+        f"description: {video.description[:600]}\n\n{policy_prompt(policy)}"
+        f"Transcript excerpt:\n{excerpt}\n\n"
         f"Return the CuratorDecision."
     )
     try:
-        return structured(agent, prompt, CuratorDecision)
+        return apply_policy(structured(agent, prompt, CuratorDecision), policy)
     except LLMError as e:
         log.warning("curator model failed for %s: %s", video.id, e)
         return CuratorDecision(decision="ask_parent", reason="Could not review automatically.")
@@ -82,6 +128,9 @@ def run_curator(
     planner = planner or planner_agent()
     report = CuratorReport()
     seen = store.list_kid_videos(kid.household_id, kid.id)
+    # Read once for the whole run: what this family wants does not change
+    # halfway through a batch of uploads.
+    policy = store.get_policy(kid.household_id, kid.id)
 
     for channel in store.list_channels(kid.household_id, kid.id):
         if not channel.approved:
@@ -101,7 +150,7 @@ def run_curator(
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")
             tr = fetch_transcript(video.id)
             excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
-            decision = decide(video, kid.age_band or "7_8", curator, excerpt)
+            decision = decide(video, kid.age_band or "7_8", curator, excerpt, policy)
             video.screening.topics = decision.topics
             video.screening.reason = decision.reason
             video.transcript_source = tr["source"]

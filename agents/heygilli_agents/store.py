@@ -22,6 +22,7 @@ from .schemas import (
     GoogleLink,
     Kid,
     ParentPrompt,
+    Policy,
     QuestionPlan,
     Session,
     Video,
@@ -70,6 +71,16 @@ class Store(ABC):
 
     def clear_google_link(self, household: str) -> None:
         self.delete(household, "google_link", "youtube")
+
+    # -- household policy (one per kid; PROTOCOL.md "Household policy")
+    def put_policy(self, household: str, policy: Policy) -> None:
+        self.put(household, "policy", policy.kid_id, policy.model_dump())
+
+    def get_policy(self, household: str, kid_id: str) -> Policy | None:
+        """None means the parent has never answered anything, which is a valid
+        state: the Curator then falls back to age-band defaults."""
+        d = self.get(household, "policy", kid_id)
+        return Policy.model_validate(d) if d else None
 
     # -- channels (per kid)
     def put_channel(self, household: str, kid_id: str, ch: Channel) -> None:
