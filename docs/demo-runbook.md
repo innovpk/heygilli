@@ -117,15 +117,28 @@ flutter run -d <phone-serial>  --dart-define=HEYGILLI_API_URL=http://<mac-ip>:80
                                --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
 ```
 
-Both defines matter. `HEYGILLI_API_URL` (not `..._BASE_URL`) is the name `BuildConfig` reads; it
-defaults to `http://10.0.2.2:8080`, which is the emulator's alias for the host and is unreachable
-from a real device. Without `HEYGILLI_GOOGLE_SERVER_CLIENT_ID` — the **web** client id, from
+Both defines matter. `HEYGILLI_API_URL` (not `..._BASE_URL`) is the name `BuildConfig` reads.
+It now defaults per platform — `10.0.2.2` on an Android emulator, `localhost` on an iOS simulator
+or in a browser — and **neither is reachable from a real device on your wifi**, which is what the
+demo runs on. Without `HEYGILLI_GOOGLE_SERVER_CLIENT_ID` — the **web** client id, from
 `agents/.env` — the Google button is present but disabled, and there is no way to sign in on the
 day. Take both from a build you have actually launched, not from this file.
 
 Or build once and install on both: `flutter build apk --release --dart-define=...` then `adb -s <serial> install build/app/outputs/flutter-apk/app-release.apk`. Use the release APK for recording; debug builds stutter on the embed.
 
 The tablet is the kid's screen. The phone is the parent's screen and, for beat 9, a kid-mode screen.
+
+If a beat needs an iOS simulator or a browser instead — the same codebase builds both — the
+gateway is at `localhost` for each, so only the client id define is needed:
+
+```bash
+flutter run -d "iPhone 17 Pro"              --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
+flutter run -d web-server --web-port 5601   --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id>
+```
+
+Google sign-in does not complete in a browser (google_sign_in's web plugin wants a rendered
+button, not the phone flow) and the app says so rather than hanging. Record any web beat in demo
+mode, or hand the browser a token minted with `POST /auth/dev`.
 
 Start screen mirroring for backup footage: `scrcpy -s <tablet-serial> --record tablet-take1.mp4 --no-audio-playback`.
 

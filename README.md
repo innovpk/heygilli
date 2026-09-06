@@ -15,6 +15,10 @@ Built for the **Agents for Humans** hackathon (AWS × Devpost), Everyday Agents 
 | A 4-year-old answers with one word or a tap on one of three pictures; Gilli always models the answer word | A nightly two-line digest: words said for pre-readers, understood and shaky for older kids, one thing to ask at dinner |
 | A 9-year-old answers in a sentence, in English or Urdu | Leaving kid mode needs the parent PIN |
 | Kid mode is landscape and locks to the app | A Progress screen: minutes a day, whether questions are being answered, words coming back, what needs another look |
+| When the day's minutes run out the video stops and Gilli reads out a line **the parent wrote**; no line, and the break is simply quiet | Write those lines yourself. Gilli can draft some, but a draft reaches a child only after you save it, and whether the break holds is your setting |
+| One question a session may quietly revisit something they were shaky on, asked as a fresh question about today's video — never first, never two sessions running | A handful of questions about what is actually fine in this house. A "rather not" hides nothing: it routes a matching video to your inbox |
+| For an Urdu-speaking household, one Urdu word a session, offered only for something they have just got right in English | An approved channel that has changed raises a card. It is never removed for you — that card has no Approve and no Hide |
+| — | Optionally, once, what they have *actually* watched: counts only, and the file and every video title in it are discarded as it is read |
 
 Ads still play and creators still get paid. Nothing a child says is stored; only a score and a ten-word paraphrase.
 
@@ -28,7 +32,7 @@ Ads still play and creators still get paid. Nothing a child says is stored; only
 <img src="docs/screens/14-progress-ayaan.png" width="19%" alt="Progress for an older kid">
 </p>
 
-Live against the gateway on an Android emulator, 5 September: the Curator's approved uploads on Zara's picture-only home, then a Planner question on a real SciShow Kids video, spoken by Polly, and Gilli's reply after the listening window.
+Live against the gateway on an Android emulator, 5 September: the Curator's approved uploads on a pre-reader's picture-only home, then a Planner question on a real SciShow Kids video, spoken by Polly, and Gilli's reply after the listening window.
 
 <p>
 <img src="docs/screens/09-live-kid-home-curated.png" width="24%" alt="Live kid home with Curator-approved videos">
@@ -85,27 +89,76 @@ HEYGILLI_MODEL_PLANNER=fake: uv run python eval/run_eval.py
 HEYGILLI_MODEL_PLANNER=bedrock:us.amazon.nova-pro-v1:0 AWS_REGION=us-east-1 uv run python eval/run_eval.py
 ```
 
-App, live against the gateway (Android emulator reaches the host at 10.0.2.2):
+App, live against the gateway. Android, iOS and web all build from this one
+codebase, and each already knows how to reach a gateway on the same machine —
+the Android emulator through its own NAT at `10.0.2.2`, the others at
+`localhost` — so no define is needed for a local run:
 
 ```bash
 cd app
-flutter run --dart-define=HEYGILLI_API_URL=http://10.0.2.2:8080
+flutter run -d emulator-5554                                   # Android
+flutter run -d "iPhone 17 Pro"                                 # iOS simulator
+flutter run -d web-server --web-port 5601                      # web
 ```
 
-App, demo mode with no gateway (canned kids, videos, plans, digests; a "demo" badge is shown):
+Point it at a gateway somewhere else — a real phone on your wifi, or a deployed
+one — with the define. It is `HEYGILLI_API_URL`; `HEYGILLI_BASE_URL` is read by
+nothing, and a build carrying it silently talks to the default instead:
+
+```bash
+flutter run --dart-define=HEYGILLI_API_URL=http://192.168.1.20:8080
+```
+
+Google sign-in needs the **web** OAuth client id at build time, on every
+platform (Android needs it before Google will issue a server auth code at all).
+Without it the button renders and is disabled, and says so:
+
+```bash
+flutter run \
+  --dart-define=HEYGILLI_API_URL=http://10.0.2.2:8080 \
+  --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID=<web client id from agents/.env>
+```
+
+App, demo mode with no gateway (canned videos, plans and digests, built around
+whichever kid you add; a "demo" badge is shown). An unreachable gateway is never
+silently swapped for this — demo data ships only when asked for at build time:
 
 ```bash
 cd app
 flutter run --dart-define=HEYGILLI_DEMO=true
 ```
 
+The iOS and web icons are generated rather than checked in by hand:
+
+```bash
+sh app/tool/gen_platform_icons.sh      # needs librsvg + imagemagick
+```
+
 Full demo click path: [docs/demo-runbook.md](docs/demo-runbook.md). Agent service details: [agents/README.md](agents/README.md).
 
 ## Status
 
-Nine-day build for the 14 September 2026 deadline. Verified so far: 73 offline tests; planner on a real SciShow Kids video via its public captions; Curator screening real uploads from two channels; a full live session turn on Bedrock with Polly audio; the Flutter client running live against the gateway on an Android emulator and in demo mode. Anthropic models on Bedrock are pending the account's use-case approval, so the interim default is Amazon Nova Pro; the switch back is one environment variable.
+Nine-day build for the 14 September 2026 deadline.
 
-Not built yet: Google TV layout, AgentCore Runtime deployment (documented in `agents/README.md`), Gemini transcript path (no key on the build machine), EventBridge schedules.
+**Verified:** 367 backend tests and 249 client tests, both offline; `flutter analyze` clean. The
+Planner on a real SciShow Kids video via its public captions; the Curator screening real uploads
+from two channels; a full live session turn on Bedrock with Polly audio. The client runs live
+against the gateway on **all three platforms** — Android emulator, iPhone 17 Pro simulator and
+Chrome — and in demo mode.
+
+The five agent features added after the core loop (household policy, opt-in watch history, channel
+drift, revisits, Urdu word seeding) are specified in `docs/PROTOCOL.md` v1.7, described in SPEC 7.6,
+and were each walked through on a device against the running gateway rather than only in tests.
+
+**Anthropic models on Bedrock are still gated** on this account pending the use-case form, so the
+interim default is Amazon Nova Pro and every feature falls back to a deterministic built-in when a
+model call fails. Nothing in the product is currently showing Anthropic output. The switch back is
+one environment variable.
+
+**Not built:** Google TV layout, AgentCore Runtime deployment (documented in `agents/README.md`),
+Gemini transcript path (no key on the build machine), EventBridge schedules. Google sign-in on the
+web reaches Google's own "not available on this platform" path — google_sign_in's web plugin wants a
+rendered button rather than the phone flow — so a browser run uses demo mode or a gateway token.
 
 ## Honest notes
 

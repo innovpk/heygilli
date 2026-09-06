@@ -37,51 +37,65 @@ class ParentScaffold extends StatelessWidget {
     final canPop = Navigator.of(context).canPop();
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: HgColors.cream,
-        floatingActionButton: floating,
-        bottomNavigationBar: bottom,
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                child: Row(
-                  spacing: 12,
+      // This is a phone layout that is now also opened in a browser window.
+      // Unconstrained, one kid's row stretches across 1400 px of cream and the
+      // page reads as broken rather than as an app. The constraint wraps the
+      // whole Scaffold rather than its body, so the bottom bar and the add
+      // button stay with the content instead of hugging the window's edges;
+      // the cream behind it is the same ground, so no seam shows.
+      child: ColoredBox(
+        color: HgColors.cream,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Scaffold(
+              backgroundColor: HgColors.cream,
+              floatingActionButton: floating,
+              bottomNavigationBar: bottom,
+              body: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (leading != null)
-                      leading!
-                    else if (canPop)
-                      IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        color: HgColors.ink,
-                        tooltip: 'Back',
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                      child: Row(
+                        spacing: 12,
                         children: [
-                          if (subtitle != null)
-                            Text(subtitle!, style: HgText.label()),
-                          Text(
-                            title,
-                            style: HgText.display(
-                              size: 32,
+                          if (leading != null)
+                            leading!
+                          else if (canPop)
+                            IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              icon: const Icon(Icons.arrow_back_rounded),
                               color: HgColors.ink,
+                              tooltip: 'Back',
+                            ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (subtitle != null)
+                                  Text(subtitle!, style: HgText.label()),
+                                Text(
+                                  title,
+                                  style: HgText.display(
+                                    size: 32,
+                                    color: HgColors.ink,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          if (isDemo) const DemoBadge(),
+                          ...actions,
                         ],
                       ),
                     ),
-                    if (isDemo) const DemoBadge(),
-                    ...actions,
+                    Expanded(child: body),
                   ],
                 ),
               ),
-              Expanded(child: body),
-            ],
+            ),
           ),
         ),
       ),
