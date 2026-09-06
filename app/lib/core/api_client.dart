@@ -406,14 +406,10 @@ class ApiClient implements Gateway {
   );
 
   @override
-  Future<List<PolicyQuestion>> policyQuestions(String kidId) async {
-    final body =
-        await _post('/kids/$kidId/policy/questions') as Map<String, dynamic>;
-    return [
-      for (final q in (body['questions'] as List? ?? const []))
-        PolicyQuestion.fromJson((q as Map).cast<String, dynamic>()),
-    ];
-  }
+  Future<PolicyQuestions> policyQuestions(String kidId) async =>
+      PolicyQuestions.fromJson(
+        await _post('/kids/$kidId/policy/questions') as Map<String, dynamic>,
+      );
 
   @override
   Future<List<ParentPrompt>> inbox() async =>

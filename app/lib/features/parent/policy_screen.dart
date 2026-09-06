@@ -33,7 +33,7 @@ class PolicyScreen extends StatefulWidget {
 
 /// The two calls this screen opens with, kept together so the questions and
 /// the answers already given arrive as one thing to render.
-typedef _Loaded = ({Policy policy, List<PolicyQuestion> questions});
+typedef _Loaded = ({Policy policy, PolicyQuestions questions});
 
 class _PolicyScreenState extends State<PolicyScreen> {
   late Future<_Loaded> _future = _load();
@@ -78,7 +78,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
     _savedChoices = Map.of(_choices);
     _asked.addEntries([
       for (final a in policy.answers) MapEntry(a.id, a.question),
-      for (final q in questions) MapEntry(q.id, q.question),
+      for (final q in questions.questions) MapEntry(q.id, q.question),
     ]);
     _notes.text = policy.notes;
     _savedNotes = policy.notes;
@@ -152,7 +152,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
           }
           // Anything answered that is no longer proposed still gets a card:
           // a parent must be able to find and change what they told us.
-          final ids = {for (final q in loaded.questions) q.id};
+          final ids = {for (final q in loaded.questions.questions) q.id};
           final extras = [
             for (final a in loaded.policy.answers)
               if (!ids.contains(a.id))
@@ -161,9 +161,13 @@ class _PolicyScreenState extends State<PolicyScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              _Intro(name: name, updatedAt: loaded.policy.updatedAt),
+              _Intro(
+                name: name,
+                updatedAt: loaded.policy.updatedAt,
+                basedOn: loaded.questions.basedOn,
+              ),
               const SizedBox(height: 12),
-              for (final q in [...loaded.questions, ...extras]) ...[
+              for (final q in [...loaded.questions.questions, ...extras]) ...[
                 _QuestionCard(
                   question: q,
                   chosen: _choices[q.id],
@@ -225,10 +229,18 @@ class _PolicyScreenState extends State<PolicyScreen> {
 }
 
 class _Intro extends StatelessWidget {
-  const _Intro({required this.name, required this.updatedAt});
+  const _Intro({
+    required this.name,
+    required this.updatedAt,
+    required this.basedOn,
+  });
 
   final String name;
   final String updatedAt;
+
+  /// The channels the questions were actually drawn from. Empty means there
+  /// were none to draw on.
+  final List<String> basedOn;
 
   @override
   Widget build(BuildContext context) {
@@ -242,9 +254,16 @@ class _Intro extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Without your answers it screens on age alone, which is somebody '
-            "else's taste. These questions come from the channels $name is "
-            'already subscribed to.',
+            // Which sentence is true depends on whether there was anything to
+            // read. Claiming these came from $name's channels when they did
+            // not is a small lie, and every 'why' below would contradict it.
+            basedOn.isEmpty
+                ? 'Without your answers it screens on age alone, which is '
+                      "somebody else's taste. $name has no channels yet, so "
+                      'these are the questions every family is asked.'
+                : 'Without your answers it screens on age alone, which is '
+                      'somebody else\'s taste. These questions come from the '
+                      'channels $name is already subscribed to.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           const SizedBox(height: 10),

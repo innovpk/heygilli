@@ -171,7 +171,7 @@ abstract class Gateway {
   /// `POST /kids/{id}/policy/questions`: questions worth asking *this*
   /// household, drawn from what this child already watches. Proposals only —
   /// nothing here changes screening until the parent answers and saves.
-  Future<List<PolicyQuestion>> policyQuestions(String kidId);
+  Future<PolicyQuestions> policyQuestions(String kidId);
 
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);

@@ -313,7 +313,15 @@ def policy_questions(kid_id: str, hid: str = Depends(household)) -> dict:
     channels = [c.title for c in store.list_channels(hid, kid.id) if c.approved]
     titles = _video_titles(store, [s.video_id for s in store.list_sessions(hid, kid.id)])
     questions = coach.suggest_policy_questions(kid, channels, titles)
-    return {"questions": [q.model_dump() for q in questions]}
+    # Whether there was anything to draw on. A child with no channels yet gets
+    # the common questions every family is asked, and the screen must be able
+    # to say so: claiming a question came from this child's own channels when
+    # it did not is the kind of small lie that costs a parent's trust in the
+    # rest of the page.
+    return {
+        "questions": [q.model_dump() for q in questions],
+        "based_on": channels[:6],
+    }
 
 
 # --- time limits and movement breaks (PROTOCOL.md) -----------------------------------------------

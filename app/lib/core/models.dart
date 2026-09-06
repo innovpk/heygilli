@@ -1289,6 +1289,30 @@ class Policy {
 /// PROTOCOL: `why` says which channels prompted it. The screen always shows
 /// it, so a parent can see the question came from their own child's channels
 /// rather than from a list someone else wrote.
+/// The questions to put to a parent, and what they were drawn from.
+///
+/// [basedOn] is the channels this child actually has. Empty means there was
+/// nothing to draw on and these are the questions every family is asked — the
+/// screen has to say which it is, because a page that claims a question came
+/// from your own child's channels when it did not is a small lie that costs
+/// trust in everything else on it.
+class PolicyQuestions {
+  const PolicyQuestions({this.questions = const [], this.basedOn = const []});
+
+  final List<PolicyQuestion> questions;
+  final List<String> basedOn;
+
+  bool get isPersonal => basedOn.isNotEmpty;
+
+  factory PolicyQuestions.fromJson(Map<String, dynamic> j) => PolicyQuestions(
+    questions: [
+      for (final q in (j['questions'] as List? ?? const []))
+        PolicyQuestion.fromJson((q as Map).cast<String, dynamic>()),
+    ],
+    basedOn: _strings(j['based_on']),
+  );
+}
+
 class PolicyQuestion {
   const PolicyQuestion({
     required this.id,

@@ -1168,7 +1168,7 @@ class FakeGateway implements Gateway {
       ];
 
   @override
-  Future<List<PolicyQuestion>> policyQuestions(String kidId) async {
+  Future<PolicyQuestions> policyQuestions(String kidId) async {
     await _lag();
     final name = _kid(kidId)?.nickname ?? 'this child';
     final titles = [
@@ -1195,18 +1195,21 @@ class FakeGateway implements Gateway {
     }
     if (questions.isEmpty) {
       // Nothing to point at is said plainly rather than dressed up as a
-      // finding. A question with an invented reason is worse than no question.
-      return [
-        PolicyQuestion(
-          id: 'q_ads',
-          question: 'Videos that sell something — merch, a sponsor, a code?',
-          why:
-              'Asked of every household. HeyGilli has not read enough of '
-              "$name's channels yet to say which prompted it.",
-        ),
-      ];
+      // finding. A question with an invented reason is worse than no question,
+      // and an empty basedOn is how the screen knows to say so.
+      return PolicyQuestions(
+        questions: [
+          PolicyQuestion(
+            id: 'q_ads',
+            question: 'Videos that sell something — merch, a sponsor, a code?',
+            why:
+                'Asked of every household. HeyGilli has not read enough of '
+                "$name's channels yet to say which prompted it.",
+          ),
+        ],
+      );
     }
-    return questions;
+    return PolicyQuestions(questions: questions, basedOn: titles);
   }
 
   @override

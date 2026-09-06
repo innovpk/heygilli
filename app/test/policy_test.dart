@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// child's name; and a question nobody answered must reach the Curator as
 /// nothing at all, never as a quiet "fine".
 void main() {
+  group('what the page claims about itself', _honesty);
+
   late FakeGateway gateway;
   late AppState app;
   late Kid kid;
@@ -22,6 +24,7 @@ void main() {
   /// The questions the demo Coach will propose for this kid, fetched here
   /// rather than in a test body: FakeGateway's lag is a real delay and the
   /// clock inside testWidgets is frozen.
+  late PolicyQuestions asked;
   late List<PolicyQuestion> questions;
 
   setUp(() async {
@@ -38,7 +41,8 @@ void main() {
     // the way a real imported pile would.
     await gateway.addChannel(kid.id, 'https://youtube.com/@MinecraftDiaries');
     await gateway.addChannel(kid.id, 'https://youtube.com/@LegoBuildZone');
-    questions = await gateway.policyQuestions(kid.id);
+    asked = await gateway.policyQuestions(kid.id);
+    questions = asked.questions;
   });
 
   Widget host() => ChangeNotifierProvider<AppState>.value(
@@ -250,5 +254,92 @@ void main() {
       );
       expect(a.weightLabel, isNull);
     });
+  });
+}
+
+/// The page must not claim more than it knows.
+///
+/// The first live run of this screen showed a header saying the questions came
+/// from this child's own channels while every "why" underneath said "asked of
+/// every family" — because the child had no channels yet. A parent who spots
+/// one page overclaiming has no reason to believe the next one.
+void _honesty() {
+  // Both households are built here rather than in a test body: FakeGateway's
+  // lag is a real delay, and inside testWidgets the clock is the tester's, so
+  // an awaited call there would never come back.
+  late AppState bare;
+  late Kid bareKid;
+  late AppState stocked;
+  late Kid stockedKid;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+
+    final empty = FakeGateway();
+    await empty.signInDev('parent');
+    bare = AppState(gateway: empty, settings: await LocalSettings.load());
+    bareKid = await empty.createKid(
+      nickname: 'Abu',
+      age: 8,
+      languages: const ['en'],
+    );
+    // A new kid in demo mode starts with a few channels so the rest of the
+    // app has something to show. This household has removed them, which is
+    // the real state a parent reaches by clearing an import they regret.
+    for (final c in await empty.channels(bareKid.id)) {
+      await empty.removeChannel(bareKid.id, c.id);
+    }
+    expect(
+      (await empty.policyQuestions(bareKid.id)).basedOn,
+      isEmpty,
+      reason: 'nothing to have drawn on',
+    );
+
+    final full = FakeGateway();
+    await full.signInDev('parent');
+    stocked = AppState(gateway: full, settings: await LocalSettings.load());
+    stockedKid = await full.createKid(
+      nickname: 'Abu',
+      age: 8,
+      languages: const ['en'],
+    );
+    await full.addChannel(
+      stockedKid.id,
+      'https://youtube.com/@MinecraftDiaries',
+    );
+    await full.addChannel(stockedKid.id, 'https://youtube.com/@LegoBuildZone');
+    expect((await full.policyQuestions(stockedKid.id)).basedOn, isNotEmpty);
+  });
+
+  Future<void> open(WidgetTester tester, AppState app, Kid kid) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: MaterialApp(home: PolicyScreen(kid: kid)),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+  }
+
+  testWidgets('with no channels it says these are the common questions', (
+    tester,
+  ) async {
+    await open(tester, bare, bareKid);
+    expect(
+      find.textContaining('has no channels yet'),
+      findsOneWidget,
+      reason: 'the page claimed the questions came from this child',
+    );
+    expect(find.textContaining('already subscribed to'), findsNothing);
+  });
+
+  testWidgets('with channels it says where the questions came from', (
+    tester,
+  ) async {
+    await open(tester, stocked, stockedKid);
+    expect(find.textContaining('already subscribed to'), findsOneWidget);
+    expect(find.textContaining('has no channels yet'), findsNothing);
   });
 }

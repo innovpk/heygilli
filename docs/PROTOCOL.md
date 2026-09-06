@@ -40,7 +40,7 @@ GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest
 GET  /kids/{kid_id}/analytics?days=14                         → Analytics
 GET  /kids/{kid_id}/policy                                    → Policy
 PUT  /kids/{kid_id}/policy     {answers: [...], notes}        → Policy
-POST /kids/{kid_id}/policy/questions                          → {questions: PolicyQuestion[]}
+POST /kids/{kid_id}/policy/questions                          → {questions: [...], based_on: [channel titles]}
 GET  /kids/{kid_id}/history                                   → HistoryInsight   (404 if never opted in)
 DELETE /kids/{kid_id}/history                                 → {deleted: bool}
 GET  /kids/{kid_id}/revisits                                  → {concepts: [...]}
@@ -268,13 +268,15 @@ PolicyQuestion { id, question, why, options: ["fine", "sometimes", "rather_not"]
 ```
 GET  /kids/{kid_id}/policy                                    → Policy
 PUT  /kids/{kid_id}/policy      {answers: [...], notes}       → Policy
-POST /kids/{kid_id}/policy/questions                          → {questions: PolicyQuestion[]}
+POST /kids/{kid_id}/policy/questions                          → {questions: [...], based_on: [channel titles]}
 ```
 
 `POST /policy/questions` asks the Coach agent for questions worth asking **this** parent, drawn from
 what this child already watches: a household with forty gaming channels gets asked about gaming, not
 about make-up tutorials. `why` says which channels prompted the question, so the parent can see it
-was not a guess. Questions are proposed; answers are the parent's alone, and an unanswered question
+was not a guess, and `based_on` lists the channel titles the questions were actually drawn from.
+An empty `based_on` means there was nothing to draw on — a child with no channels yet gets the
+questions every family is asked, and the screen must say so rather than claiming otherwise. Questions are proposed; answers are the parent's alone, and an unanswered question
 carries no weight. An empty `Policy` is valid and means the Curator falls back to age-band defaults.
 
 The Curator reads the policy when screening, and a `rather_not` answer is a reason to route a video
