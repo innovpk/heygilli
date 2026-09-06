@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
@@ -23,14 +24,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// the phone. History goes only when a parent ticked the box for that one
 /// import, search history never goes at all, and both of those are decided on
 /// the device before the network is involved.
-File _zip(Directory dir, Map<String, String> members) {
+TakeoutZip _zip(Directory dir, Map<String, String> members) {
   final archive = Archive();
   members.forEach((path, body) {
     archive.addFile(ArchiveFile.string(path, body));
   });
-  return File('${dir.path}/takeout.zip')
-    ..writeAsBytesSync(ZipEncoder().encode(archive));
+  File(
+    '${dir.path}/takeout.zip',
+  ).writeAsBytesSync(ZipEncoder().encode(archive));
+  return TakeoutZip.path('takeout.zip', '${dir.path}/takeout.zip');
 }
+
+/// Stands in for the slimmed zip an upload carries. FakeGateway never opens
+/// it, and the real one only ever sees the slimmed bytes, never the export.
+final _sample = Uint8List(0);
 
 const _csv = 'Channel ID,Channel URL,Channel title\nUC1,http://x,Danny Go!\n';
 
@@ -51,47 +58,37 @@ void main() {
     setUp(() => tmp = Directory.systemTemp.createTempSync('heygilli_history'));
     tearDown(() => tmp.deleteSync(recursive: true));
 
-    List<String> namesIn(File f) => [
-      for (final m in ZipDecoder().decodeStream(InputFileStream(f.path)).files)
+    List<String> namesIn(SlimTakeout slim) => [
+      for (final m
+          in ZipDecoder().decodeStream(InputMemoryStream(slim.bytes)).files)
         m.name,
     ];
 
     test('history stays on the phone unless it was asked for', () async {
-      final slim = await slimTakeout(_zip(tmp, _export), workDir: tmp);
+      final slim = await slimTakeout(_zip(tmp, _export));
 
-      expect(namesIn(slim.file), hasLength(1));
-      expect(namesIn(slim.file).single, endsWith('subscriptions.csv'));
+      expect(namesIn(slim), hasLength(1));
+      expect(namesIn(slim).single, endsWith('subscriptions.csv'));
       expect(slim.history, 0);
     });
 
     test('the tick is the only thing that adds the watch history', () async {
-      final slim = await slimTakeout(
-        _zip(tmp, _export),
-        workDir: tmp,
-        includeHistory: true,
-      );
+      final slim = await slimTakeout(_zip(tmp, _export), includeHistory: true);
 
       expect(slim.kept, 1, reason: 'the subscription list still goes');
       expect(slim.history, 1);
       expect(
-        namesIn(slim.file).any((n) => n.endsWith('watch-history.html')),
+        namesIn(slim).any((n) => n.endsWith('watch-history.html')),
         isTrue,
       );
     });
 
     test('search history never goes, ticked or not', () async {
-      final slim = await slimTakeout(
-        _zip(tmp, _export),
-        workDir: tmp,
-        includeHistory: true,
-      );
+      final slim = await slimTakeout(_zip(tmp, _export), includeHistory: true);
 
       // There is no opt-in for this one anywhere in the product. A child's
       // searches are their own.
-      expect(
-        namesIn(slim.file).any((n) => n.contains('search-history')),
-        isFalse,
-      );
+      expect(namesIn(slim).any((n) => n.contains('search-history')), isFalse);
       expect(isWatchHistory('children/Abu/search-history.html'), isFalse);
       expect(slim.skipped, 1);
     });
@@ -104,7 +101,7 @@ void main() {
 
       // Uploading the sensitive half on its own is not an import of anything.
       expect(
-        () => slimTakeout(src, workDir: tmp, includeHistory: true),
+        () => slimTakeout(src, includeHistory: true),
         throwsA(isA<NotATakeoutExport>()),
       );
     });
@@ -238,22 +235,16 @@ void main() {
     // and a widget test's clock never reaches it. What the tick does to an
     // import is asserted directly against the gateway instead.
     test('an import carries no history unless it was asked for', () async {
-      await gateway.importTakeout(File('sample-takeout.zip'));
+      await gateway.importTakeout(_sample, 'sample.zip');
       expect(gateway.historyWasIncluded, isFalse);
 
-      await gateway.importTakeout(
-        File('sample-takeout.zip'),
-        includeHistory: true,
-      );
+      await gateway.importTakeout(_sample, 'sample.zip', includeHistory: true);
       expect(gateway.historyWasIncluded, isTrue);
     });
 
     test('the aggregate lands on the kid the profile was mapped to', () async {
       final kid = (await gateway.kids()).single;
-      await gateway.importTakeout(
-        File('sample-takeout.zip'),
-        includeHistory: true,
-      );
+      await gateway.importTakeout(_sample, 'sample.zip', includeHistory: true);
       expect(
         gateway.savedHistory(kid.id),
         isNull,
@@ -271,20 +262,14 @@ void main() {
       // carries no Takeout profile and so no history. Attaching one anyway
       // would hand a parent another child's watching under this child's name.
       final kid = (await gateway.kids()).single;
-      await gateway.importTakeout(
-        File('sample-takeout.zip'),
-        includeHistory: true,
-      );
+      await gateway.importTakeout(_sample, 'sample.zip', includeHistory: true);
       await gateway.importChannels(kid.id, const ['ch_numberblocks']);
       expect(gateway.savedHistory(kid.id), isNull);
     });
 
     test('deleting it also forgets that history was ever offered', () async {
       final kid = (await gateway.kids()).single;
-      await gateway.importTakeout(
-        File('sample-takeout.zip'),
-        includeHistory: true,
-      );
+      await gateway.importTakeout(_sample, 'sample.zip', includeHistory: true);
       await gateway.importChannels(kid.id, const [
         'ch_numberblocks',
       ], profile: 'Ayaan');
@@ -348,7 +333,8 @@ void main() {
       /// delay and the clock inside testWidgets never reaches it.
       setUp(() async {
         await gateway.importTakeout(
-          File('sample-takeout.zip'),
+          _sample,
+          'sample.zip',
           includeHistory: true,
         );
         await gateway.importChannels(kid.id, const [

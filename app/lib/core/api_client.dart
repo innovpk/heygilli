@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -142,7 +142,8 @@ class ApiClient implements Gateway {
 
   @override
   Future<TakeoutPreview> importTakeout(
-    File zip, {
+    Uint8List zipBytes,
+    String filename, {
     bool includeHistory = false,
   }) async {
     final request = http.MultipartRequest(
@@ -153,9 +154,13 @@ class ApiClient implements Gateway {
     // Sent only when it is true. A default-off setting should not travel as
     // "include_history=false" on every import the household ever does.
     if (includeHistory) request.fields['include_history'] = 'true';
-    // fromPath streams off disk: a Takeout export is routinely hundreds of MB
-    // and must never be read into memory here. No timeout for the same reason.
-    request.files.add(await http.MultipartFile.fromPath('file', zip.path));
+    // Bytes, not a path: this is the slimmed zip, which is kilobytes. The
+    // hundreds of megabytes a real export weighs were already left on the
+    // device by slimTakeout and never reach this call. No timeout: a slow
+    // connection is not a reason to abandon a household's only import route.
+    request.files.add(
+      http.MultipartFile.fromBytes('file', zipBytes, filename: filename),
+    );
     final response = await http.Response.fromStream(await _http.send(request));
     return TakeoutPreview.fromJson(_decode(response) as Map<String, dynamic>);
   }

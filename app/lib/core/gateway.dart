@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'analytics.dart';
 import 'models.dart';
@@ -46,12 +46,21 @@ abstract class Gateway {
   /// Kids subscriptions: no API exposes them. Only the subscription CSVs in
   /// the zip are read; watch and search history are ignored.
   ///
+  /// [zipBytes] is the slimmed zip, not the export the parent picked: the
+  /// original is stripped on the device first (`slimTakeout`), so what
+  /// travels is a few kilobytes of channel lists rather than the family's
+  /// whole export. [filename] is only what the upload is labelled.
+  ///
   /// [includeHistory] is off unless the parent ticked the box for this one
   /// import. With it, the zip also carries `watch-history.html`, the server
   /// counts it and then discards the file and every video title in it
   /// (PROTOCOL "Watch history: opt-in, aggregate, discarded"). Search history
   /// is never included, with or without it.
-  Future<TakeoutPreview> importTakeout(File zip, {bool includeHistory});
+  Future<TakeoutPreview> importTakeout(
+    Uint8List zipBytes,
+    String filename, {
+    bool includeHistory,
+  });
 
   /// `GET /kids/{id}/history`. Null when this household never opted in, which
   /// is the default and answers 404 rather than an empty insight.

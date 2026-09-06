@@ -1,17 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Build-time configuration.
 ///
 ///   flutter run --dart-define=HEYGILLI_API_URL=http://10.0.2.2:8080
 ///   flutter run --dart-define=HEYGILLI_DEMO=true
-///
-/// 10.0.2.2 is the Android emulator's alias for the host machine, where the
-/// gateway runs during development.
 abstract final class BuildConfig {
-  static const apiUrl = String.fromEnvironment(
-    'HEYGILLI_API_URL',
-    defaultValue: 'http://10.0.2.2:8080',
-  );
+  static const _apiUrl = String.fromEnvironment('HEYGILLI_API_URL');
+
+  /// Where the gateway is. A define wins; otherwise it is the local one, at
+  /// whatever address *this* platform calls the host machine.
+  static String get apiUrl => _apiUrl.isEmpty ? _localGateway : _apiUrl;
+
+  /// The dev gateway, addressed the way each platform can reach it.
+  ///
+  /// The Android emulator is the odd one out: it runs behind its own NAT and
+  /// `localhost` is the emulated phone, not the Mac. 10.0.2.2 is its alias for
+  /// the host. Everywhere else — iOS simulator, web, desktop — shares the
+  /// host's loopback and `localhost` is right. A real phone reaches neither
+  /// and needs the define.
+  static String get _localGateway =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+      ? 'http://10.0.2.2:8080'
+      : 'http://localhost:8080';
 
   static const forceDemo = bool.fromEnvironment(
     'HEYGILLI_DEMO',
@@ -30,8 +41,10 @@ abstract final class BuildConfig {
     'HEYGILLI_GOOGLE_SERVER_CLIENT_ID',
   );
 
-  /// Device label sent with POST /sessions.
-  static const device = 'android';
+  /// Device label sent with `POST /sessions`, so a digest can say where a
+  /// session happened rather than guessing.
+  static String get device =>
+      kIsWeb ? 'web' : defaultTargetPlatform.name.toLowerCase();
 }
 
 /// Small persisted settings. Nothing a child says is ever stored here.

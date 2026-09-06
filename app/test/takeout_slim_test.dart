@@ -4,8 +4,11 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/core/takeout_slim.dart';
 
-/// Writes a zip with the given members and returns it.
-File _zip(
+/// Writes a zip with the given members and returns it as a picked export.
+///
+/// A path, not bytes: on a phone this is the streaming route, which is the
+/// one a real hundreds-of-megabyte export takes.
+TakeoutZip _zip(
   Directory dir,
   Map<String, String> members, {
   String name = 'takeout.zip',
@@ -14,9 +17,8 @@ File _zip(
   members.forEach((path, body) {
     archive.addFile(ArchiveFile.string(path, body));
   });
-  final f = File('${dir.path}/$name')
-    ..writeAsBytesSync(ZipEncoder().encode(archive));
-  return f;
+  File('${dir.path}/$name').writeAsBytesSync(ZipEncoder().encode(archive));
+  return TakeoutZip.path(name, '${dir.path}/$name');
 }
 
 const _csv = 'Channel ID,Channel URL,Channel title\nUC1,http://x,Danny Go!\n';
@@ -27,7 +29,8 @@ void main() {
   setUp(() => tmp = Directory.systemTemp.createTempSync('heygilli_slim'));
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  Archive open(File f) => ZipDecoder().decodeStream(InputFileStream(f.path));
+  Archive open(SlimTakeout s) =>
+      ZipDecoder().decodeStream(InputMemoryStream(s.bytes));
 
   group('what leaves the phone', () {
     test('watch and search history are not in the uploaded zip', () async {
@@ -40,8 +43,8 @@ void main() {
             '<html>every search the child made</html>',
       });
 
-      final slim = await slimTakeout(src, workDir: tmp);
-      final names = open(slim.file).files.map((f) => f.name).toList();
+      final slim = await slimTakeout(src);
+      final names = open(slim).files.map((f) => f.name).toList();
 
       expect(names, hasLength(1));
       expect(names.single, endsWith('children/Abu/subscriptions.csv'));
@@ -62,12 +65,12 @@ void main() {
             'x',
       });
 
-      final slim = await slimTakeout(src, workDir: tmp);
+      final slim = await slimTakeout(src);
 
       expect(slim.kept, 3);
       expect(slim.skipped, 1);
       expect(
-        open(slim.file).files.map((f) => f.name),
+        open(slim).files.map((f) => f.name),
         everyElement(endsWith('.csv')),
       );
     });
@@ -78,22 +81,55 @@ void main() {
             _csv,
       });
 
-      final slim = await slimTakeout(src, workDir: tmp);
-      final body = String.fromCharCodes(open(slim.file).files.single.content);
+      final slim = await slimTakeout(src);
+      final body = String.fromCharCodes(open(slim).files.single.content);
 
       expect(body, _csv);
     });
 
-    test('the slim copy is a different file from the one picked', () async {
+    test('nothing is written to disk on the way out', () async {
+      // The slim copy lives in memory and is uploaded from there. A temp file
+      // would be a second copy of a family's channel lists left on the
+      // device, outliving the import that needed it.
+      final before = tmp.listSync().length;
       final src = _zip(tmp, {
         'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
             _csv,
       });
 
-      final slim = await slimTakeout(src, workDir: tmp);
+      final slim = await slimTakeout(src);
 
-      expect(slim.file.path, isNot(src.path));
-      expect(slim.file.existsSync(), isTrue);
+      expect(slim.bytes, isNotEmpty);
+      expect(tmp.listSync().length, before + 1, reason: 'only the input zip');
+    });
+
+    test('a browser, with no path to stream from, gets the same result', () {
+      // On the web the picker has no file path, so the export arrives as
+      // bytes. Same export, same slimming, or the privacy promise holds on
+      // one platform and not the other.
+      final path = _zip(tmp, {
+        'Takeout/YouTube and YouTube Music/children/Abu/subscriptions.csv':
+            _csv,
+        'Takeout/YouTube and YouTube Music/children/Abu/watch-history.html':
+            '<html>every video the child watched</html>',
+      });
+      final bytes = TakeoutZip.bytes(
+        'takeout.zip',
+        File(path.path!).readAsBytesSync(),
+      );
+
+      return Future.wait([slimTakeout(path), slimTakeout(bytes)]).then((r) {
+        expect(r[1].kept, r[0].kept);
+        expect(r[1].skipped, r[0].skipped);
+        expect(
+          open(r[1]).files.map((f) => f.name),
+          open(r[0]).files.map((f) => f.name),
+        );
+        expect(
+          open(r[1]).files.any((f) => f.name.contains('history')),
+          isFalse,
+        );
+      });
     });
   });
 
@@ -106,7 +142,7 @@ void main() {
         });
 
         expect(
-          () => slimTakeout(src, workDir: tmp),
+          () => slimTakeout(src),
           throwsA(
             isA<NotATakeoutExport>().having(
               (e) => e.message,
@@ -119,10 +155,11 @@ void main() {
     );
 
     test('a file that is not a zip is refused, not crashed on', () async {
-      final notZip = File('${tmp.path}/notes.txt')..writeAsStringSync('hello');
+      File('${tmp.path}/notes.txt').writeAsStringSync('hello');
+      final notZip = TakeoutZip.path('notes.txt', '${tmp.path}/notes.txt');
 
       expect(
-        () => slimTakeout(notZip, workDir: tmp),
+        () => slimTakeout(notZip),
         throwsA(isA<NotATakeoutExport>()),
       );
     });

@@ -1,18 +1,44 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+
+/// The export a parent picked, named in a way that works on every platform.
+///
+/// On a phone this is a [path] and the zip is streamed off disk, because a
+/// real Takeout export is routinely hundreds of megabytes and reading one into
+/// memory would kill the app. In a browser there is no path to stream from, so
+/// the picker hands over [bytes] instead. Exactly one of the two is set.
+class TakeoutZip {
+  /// A file on disk. Streamed, never loaded whole.
+  const TakeoutZip.path(this.name, String this.path) : bytes = null;
+
+  /// A file the browser already has in memory.
+  const TakeoutZip.bytes(this.name, Uint8List this.bytes) : path = null;
+
+  /// What the parent saw the file called, shown back to them on screen.
+  final String name;
+  final String? path;
+  final Uint8List? bytes;
+
+  /// How the decoder reads it, without either side knowing which it got.
+  InputStream open() =>
+      path != null ? InputFileStream(path!) : InputMemoryStream(bytes!);
+}
 
 /// What came out of slimming an export.
 class SlimTakeout {
   const SlimTakeout({
-    required this.file,
+    required this.bytes,
     required this.kept,
     required this.skipped,
     this.history = 0,
   });
 
-  /// A small zip holding only the subscription lists. This is what is uploaded.
-  final File file;
+  /// A small zip holding only the subscription lists. This is what is
+  /// uploaded, and it is held in memory rather than written anywhere: it is a
+  /// few kilobytes, and a temp file would be one more copy of a family's data
+  /// left lying on the device.
+  final Uint8List bytes;
 
   /// Subscription CSVs copied across.
   final int kept;
@@ -35,7 +61,7 @@ class NotATakeoutExport implements Exception {
 }
 
 /// Strips a Google Takeout export down to just the subscription lists, on the
-/// phone, before anything is uploaded.
+/// device, before anything is uploaded.
 ///
 /// A YouTube export also contains each child's `watch-history.html` and
 /// `search-history.html`. Those are the most sensitive files in it and nothing
@@ -44,21 +70,17 @@ class NotATakeoutExport implements Exception {
 /// zip is what leaves the device. It is also the difference between uploading
 /// a few kilobytes and a few hundred megabytes over a phone connection.
 ///
-/// [source] is the file the parent picked; [workDir] is where the slim copy is
-/// written (a temp directory the caller owns and should clean up).
-///
 /// [includeHistory] is the one exception, and it is off unless a parent ticked
 /// the box for this one import (PROTOCOL "Watch history: opt-in, aggregate,
 /// discarded"). It adds `watch-history.html` and nothing else: search history
-/// has no exception anywhere in the product and never leaves the phone.
+/// has no exception anywhere in the product and never leaves the device.
 Future<SlimTakeout> slimTakeout(
-  File source, {
-  required Directory workDir,
+  TakeoutZip source, {
   bool includeHistory = false,
 }) async {
   final Archive archive;
   try {
-    archive = ZipDecoder().decodeStream(InputFileStream(source.path));
+    archive = ZipDecoder().decodeStream(source.open());
   } catch (_) {
     throw const NotATakeoutExport(
       'That file could not be opened as a zip. Pick the .zip Google emailed '
@@ -93,12 +115,8 @@ Future<SlimTakeout> slimTakeout(
     );
   }
 
-  final out = File(
-    '${workDir.path}/heygilli-subscriptions-${DateTime.now().millisecondsSinceEpoch}.zip',
-  );
-  await out.writeAsBytes(ZipEncoder().encode(slim), flush: true);
   return SlimTakeout(
-    file: out,
+    bytes: Uint8List.fromList(ZipEncoder().encode(slim)),
     kept: subscriptions,
     skipped: skipped,
     history: history,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'settings.dart';
@@ -21,7 +22,8 @@ class GoogleAuth {
   static final GoogleAuth shared = GoogleAuth();
 
   /// The **web** OAuth client id. Android needs it as `serverClientId` before
-  /// the platform will issue a server auth code at all.
+  /// the platform will issue a server auth code at all; in a browser the same
+  /// id is the `clientId`, because there the app *is* the web client.
   final String serverClientId;
 
   /// PROTOCOL: the only scope we ask for. Read-only, the parent's own account.
@@ -46,7 +48,10 @@ class GoogleAuth {
     if (!isConfigured) return const GoogleAuthNotConfigured();
     try {
       _initialized ??= GoogleSignIn.instance.initialize(
-        serverClientId: serverClientId,
+        // In a browser the id identifies this app to Google directly; on a
+        // phone it names the server the auth code is minted for.
+        clientId: kIsWeb ? serverClientId : null,
+        serverClientId: kIsWeb ? null : serverClientId,
       );
       await _initialized;
 

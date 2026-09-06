@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'analytics.dart';
 import 'demo_catalogue.dart';
@@ -518,7 +518,8 @@ class FakeGateway implements Gateway {
   /// screen says plainly that it is using a sample.
   @override
   Future<TakeoutPreview> importTakeout(
-    File zip, {
+    Uint8List zipBytes,
+    String filename, {
     bool includeHistory = false,
   }) async {
     await _lag();

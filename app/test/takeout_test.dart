@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/core/demo_catalogue.dart';
@@ -73,7 +73,7 @@ void main() {
   group('FakeGateway takeout import', () {
     test('the sample export is the size a real one is', () async {
       final gateway = FakeGateway();
-      final preview = await gateway.importTakeout(File('sample-takeout.zip'));
+      final preview = await gateway.importTakeout(Uint8List(0), 'sample.zip');
 
       expect(preview.profiles, hasLength(2));
       // The numbers from the export this was built against: one child with a
@@ -87,7 +87,7 @@ void main() {
 
     test('importing a profile puts its channels on that kid only', () async {
       final gateway = FakeGateway();
-      final preview = await gateway.importTakeout(File('sample-takeout.zip'));
+      final preview = await gateway.importTakeout(Uint8List(0), 'sample.zip');
       final profile = preview.profiles.last;
 
       final result = await gateway.importChannels(

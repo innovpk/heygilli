@@ -1,9 +1,8 @@
-import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -61,15 +60,6 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
     }
     if (picked == null) return; // Backed out of the picker: not an error.
     final file = picked;
-    final path = file.path;
-    if (path == null) {
-      setState(
-        () => _error =
-            'That file could not be opened from here. Copy it into the '
-            'phone\'s Downloads folder and try again.',
-      );
-      return;
-    }
     if (!file.name.toLowerCase().endsWith('.zip')) {
       setState(
         () => _error =
@@ -78,15 +68,36 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
       );
       return;
     }
-    await _read(File(path), file.name);
+    // A phone gives a path and the zip is streamed off disk; a browser has no
+    // path and the bytes have to be read in. Either way the slimming below
+    // happens here, on the parent's own machine, before anything is uploaded.
+    final path = kIsWeb ? null : file.path;
+    final TakeoutZip zip;
+    try {
+      zip = path != null
+          ? TakeoutZip.path(file.name, path)
+          : TakeoutZip.bytes(file.name, await file.readAsBytes());
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _error =
+            'That file could not be opened from here. Copy it into the '
+            'Downloads folder and try again.',
+      );
+      return;
+    }
+    await _read(zip, file.name);
   }
 
-  Future<void> _read(File zip, String name) async {
+  /// Reads an export and shows what is in it. [zip] is null only for the demo
+  /// sample, which has no real file behind it.
+  Future<void> _read(TakeoutZip? zip, String name) async {
     setState(() {
       _reading = true;
       _error = null;
       _preview = null;
       _pickedName = name;
+      _slimmed = null;
     });
     // Captured before the first await: the gateway is needed after slimming,
     // and reaching through context at that point is a use across an async gap.
@@ -94,25 +105,18 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
     try {
       // Strip the export to just the subscription lists BEFORE anything is
       // uploaded, so the children's watch and search history never leave the
-      // phone. Also turns a hundreds-of-MB upload into a few KB.
-      var toUpload = zip;
-      if (await zip.exists()) {
-        final slim = await slimTakeout(
-          zip,
-          workDir: await getTemporaryDirectory(),
-          includeHistory: _includeHistory,
-        );
-        toUpload = slim.file;
+      // device. Also turns a hundreds-of-MB upload into a few KB.
+      var toUpload = Uint8List(0);
+      if (zip != null) {
+        final slim = await slimTakeout(zip, includeHistory: _includeHistory);
+        toUpload = slim.bytes;
         if (mounted) setState(() => _slimmed = slim);
       }
       final preview = await gateway.importTakeout(
         toUpload,
+        name,
         includeHistory: _includeHistory,
       );
-      // The slim copy has served its purpose; do not leave it in the cache.
-      if (toUpload.path != zip.path) {
-        unawaited(toUpload.delete().catchError((_) => toUpload));
-      }
       if (!mounted) return;
       setState(() {
         _reading = false;
@@ -139,11 +143,10 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
     }
   }
 
-  /// Demo mode has no gateway to unzip anything, so it stands in for the file
-  /// itself. Labelled as a sample on the button so it cannot be mistaken for
-  /// a real import.
-  Future<void> _useSample() =>
-      _read(File('sample-takeout.zip'), 'sample-takeout.zip (demo)');
+  /// Demo mode has no gateway to unzip anything, so there is no file to slim.
+  /// Labelled as a sample on the button so it cannot be mistaken for a real
+  /// import.
+  Future<void> _useSample() => _read(null, 'sample-takeout.zip (demo)');
 
   void _reset() => setState(() {
     _preview = null;
