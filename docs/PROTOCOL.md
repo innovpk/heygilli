@@ -313,6 +313,26 @@ the numbers show and nothing else — it makes no claim about a child's characte
 A household that never opts in has no `HistoryInsight`, and `GET /kids/{id}/history` answers 404.
 Deleting it is one call: `DELETE /kids/{kid_id}/history` → `{deleted: bool}`.
 
+Which kid a profile's history belongs to is something only the parent knows, since Takeout carries
+no identity, so the server holds each profile's aggregate against the **profile name** until the
+parent says. That is the existing mapping step, and it gains one optional field:
+
+```
+POST /kids/{kid_id}/channels/import  {channel_ids: [...], profile?: "Ayaan"}  → {added, already}
+```
+
+`profile` is the `TakeoutProfile.name` these channels came from. With it, that profile's pending
+aggregate becomes this kid's `HistoryInsight` (which is also the first moment `subscribed` and
+`unsubscribed_share` can be computed, because they are relative to what this kid now follows) and
+the pending copy is deleted. Without it nothing is attached, so an import the parent abandons
+leaves counts under a profile name and nothing tied to a child.
+
+Two limits of the parse, stated because they show on the screen. Only a file named exactly
+`watch-history.html`, inside a child profile's folder, is ever opened: a localised export yields no
+history at all rather than risk opening the search history, and the signed-in parent's own watch
+history is never in scope. And the timestamps Google writes are localised, so a non-English export
+contributes its counts with no dates and an empty `by_hour`.
+
 ### Channel drift: a channel is not what it was
 
 A review is a snapshot. Channels change hands, chase trends, and start running gambling ads two

@@ -127,6 +127,11 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
             "seconds": 120,
             "spoken": "Crouch low, count down from five, and erupt up tall. Five times!",
         }
+    if model_name == "HistorySummary":
+        return {
+            "summary": "Most of this watching came from channels this child does not follow, "
+                       "and it clusters in the late afternoon."
+        }
     if model_name == "SuggestedPolicyQuestions":
         return {
             "questions": [

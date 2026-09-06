@@ -198,6 +198,65 @@ class TakeoutPreview(BaseModel):
     parent: TakeoutParentList | None = None
 
 
+# --- watch history (PROTOCOL.md "Watch history: opt-in, aggregate, discarded") ---
+#
+# The default is unchanged: history never leaves the phone. A parent may opt in
+# for one import, and then the terms are narrow — the file is parsed to counts,
+# the counts are written, and the file and every video title in it are dropped.
+#
+# That promise is a property of these shapes. There is nowhere in `HistoryAggregate`
+# or `HistoryInsight` to put a video title or a video id, so no later mistake can
+# persist one. `tests/test_history.py` watches every store write to prove it.
+
+
+def _hours() -> list[int]:
+    return [0] * 24
+
+
+class HistoryChannelCount(BaseModel):
+    """Internal: one channel and how many of this child's watches came from it.
+
+    The channel id is kept only long enough to work out which channels the child
+    actually follows; it never reaches the parent's screen shape below.
+    """
+
+    channel_id: str
+    title: str = ""
+    videos: int = 0
+
+
+class HistoryAggregate(BaseModel):
+    """What a watch-history file is reduced to while it is still being read."""
+
+    videos: int = 0
+    attributed: int = 0  # videos whose channel could be read (a removed video has none)
+    first_watched: str | None = None  # YYYY-MM-DD
+    last_watched: str | None = None
+    by_hour: list[int] = Field(default_factory=_hours)
+    channels: list[HistoryChannelCount] = Field(default_factory=list)
+
+
+class HistoryChannel(BaseModel):
+    """PROTOCOL.md `top_channels`: a name and a count, never a video."""
+
+    title: str
+    videos: int = 0
+    subscribed: bool = False
+
+
+class HistoryInsight(BaseModel):
+    kid_id: str
+    generated_at: str = Field(default_factory=now_iso)
+    source: Literal["takeout"] = "takeout"
+    videos: int = 0
+    first_watched: str | None = None
+    last_watched: str | None = None
+    top_channels: list[HistoryChannel] = Field(default_factory=list)
+    unsubscribed_share: float = Field(default=0.0, ge=0.0, le=1.0)
+    by_hour: list[int] = Field(default_factory=_hours)
+    summary: str = ""
+
+
 # --- channel reviews (PROTOCOL.md "Channel reviews") ------------------------
 #
 # A review is a property of the channel, not of a kid, so it is cached globally.

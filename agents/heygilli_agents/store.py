@@ -20,6 +20,8 @@ from .schemas import (
     Channel,
     Digest,
     GoogleLink,
+    HistoryAggregate,
+    HistoryInsight,
     Kid,
     ParentPrompt,
     Policy,
@@ -81,6 +83,32 @@ class Store(ABC):
         state: the Curator then falls back to age-band defaults."""
         d = self.get(household, "policy", kid_id)
         return Policy.model_validate(d) if d else None
+
+    # -- watch history (PROTOCOL.md "Watch history: opt-in, aggregate, discarded")
+    #
+    # Only counts are ever written here. A pending aggregate is one profile's
+    # history waiting for the parent to say which kid it belongs to; it is
+    # deleted the moment it is attached, so an import the parent abandons leaves
+    # nothing behind that is tied to a child.
+    def put_history(self, household: str, insight: HistoryInsight) -> None:
+        self.put(household, "history", insight.kid_id, insight.model_dump())
+
+    def get_history(self, household: str, kid_id: str) -> HistoryInsight | None:
+        d = self.get(household, "history", kid_id)
+        return HistoryInsight.model_validate(d) if d else None
+
+    def delete_history(self, household: str, kid_id: str) -> None:
+        self.delete(household, "history", kid_id)
+
+    def put_pending_history(self, household: str, profile: str, agg: HistoryAggregate) -> None:
+        self.put(household, "history_pending", profile, agg.model_dump())
+
+    def get_pending_history(self, household: str, profile: str) -> HistoryAggregate | None:
+        d = self.get(household, "history_pending", profile)
+        return HistoryAggregate.model_validate(d) if d else None
+
+    def delete_pending_history(self, household: str, profile: str) -> None:
+        self.delete(household, "history_pending", profile)
 
     # -- channels (per kid)
     def put_channel(self, household: str, kid_id: str, ch: Channel) -> None:

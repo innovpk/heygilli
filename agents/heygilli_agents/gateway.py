@@ -25,6 +25,7 @@ from fastapi import (
     Depends,
     FastAPI,
     File,
+    Form,
     Header,
     HTTPException,
     UploadFile,
@@ -35,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach
+from . import breaks, coach, history
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -74,7 +75,12 @@ from .schemas import (
     wire,
 )
 from .store import get_store
-from .takeout import MAX_ZIP_BYTES, TakeoutError, parse_takeout_zip
+from .takeout import (
+    MAX_ZIP_BYTES,
+    TakeoutError,
+    parse_takeout_zip,
+    parse_takeout_zip_with_history,
+)
 from .tools.tts import TTS_DIR
 from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
 
@@ -458,6 +464,11 @@ def add_channel(kid_id: str, body: ChannelIn, hid: str = Depends(household)) -> 
 
 class ImportChannelsIn(BaseModel):
     channel_ids: list[str] = Field(default_factory=list)
+    profile: str = Field(
+        default="",
+        description="The Takeout profile these channels came from. Present only when the parent "
+                    "opted history in for that import; it is what says this profile is this kid.",
+    )
 
 
 _curating: set[str] = set()  # kid ids with a Curator run in flight
@@ -503,6 +514,11 @@ def import_channels(
     Importing does not auto-approve any video: the Curator still screens each
     upload (PROTOCOL.md), which is kicked off in the background so the response
     does not wait on it.
+
+    `profile` names the Takeout profile these channels came from. It is the
+    parent saying "this profile is this child", which is the only moment the
+    server can attach a watch-history aggregate to a kid, since Takeout carries
+    no age and no identity of its own.
     """
     kid = _kid(hid, kid_id)
     store = get_store()
@@ -521,6 +537,8 @@ def import_channels(
 
     if added:
         tasks.add_task(_curate_in_background, kid)
+    if body.profile.strip():
+        _attach_history(hid, kid, body.profile.strip(), tasks)
     return {"added": added, "already": already}
 
 
@@ -564,26 +582,99 @@ async def _read_capped(file: UploadFile, limit: int) -> bytes:
 
 @app.post("/import/takeout")
 async def import_takeout(
-    file: Annotated[UploadFile, File()], hid: str = Depends(household)
+    file: Annotated[UploadFile, File()],
+    include_history: Annotated[bool, Form()] = False,
+    hid: str = Depends(household),
 ) -> dict:
-    """A Takeout zip in, a `TakeoutPreview` out. Nothing is persisted.
+    """A Takeout zip in, a `TakeoutPreview` out. No video title is persisted.
 
     This is the only route to a YouTube Kids profile's subscriptions; no API
-    exposes them. Only the subscription CSVs inside the zip are read — watch and
+    exposes them. By default only the subscription CSVs are read — watch and
     search history are never opened, stored or sent to a model (SPEC §12). The
     parent maps each profile to a kid afterwards, through the existing per-kid
     import, and that is what writes.
+
+    `include_history=true` is the parent opting in for this one import
+    (PROTOCOL.md "Watch history"). Even then, search history is never opened,
+    and the watch history is reduced to counts here and dropped: what is kept is
+    one aggregate per profile, waiting for the parent to say which kid it
+    belongs to. Nothing about the zip survives this request otherwise.
     """
     data = await _read_capped(file, MAX_ZIP_BYTES)
     try:
-        preview = await asyncio.to_thread(parse_takeout_zip, data)
+        if include_history:
+            preview, histories = await asyncio.to_thread(parse_takeout_zip_with_history, data)
+        else:
+            preview, histories = await asyncio.to_thread(parse_takeout_zip, data), {}
     except TakeoutError as e:
         raise HTTPException(400, str(e)) from e
+
+    store = get_store()
+    for profile, aggregate in histories.items():
+        store.put_pending_history(hid, profile, aggregate)
     log.info(
-        "takeout preview for household %s: %d profiles, %d parent channels",
+        "takeout preview for household %s: %d profiles, %d parent channels, history for %d",
         hid, len(preview.profiles), preview.parent.channel_count if preview.parent else 0,
+        len(histories),
     )
     return preview.model_dump()
+
+
+# --- watch history (PROTOCOL.md "Watch history: opt-in, aggregate, discarded") --------------------
+
+
+def _summarise_history(hid: str, kid: Kid) -> None:
+    """Upgrade a kid's history summary from the numbers-only one to the model's.
+
+    Runs after the response, because the counts are the substance and they are
+    already saved: a parent who opens the screen before this finishes reads the
+    plain summary, which is true, rather than a spinner.
+    """
+    store = get_store()
+    insight = store.get_history(hid, kid.id)
+    if insight is None:
+        return
+    insight.summary = history.write_summary(insight, kid)
+    store.put_history(hid, insight)
+
+
+def _attach_history(hid: str, kid: Kid, profile: str, tasks: BackgroundTasks) -> bool:
+    """Turn the profile's pending aggregate into this kid's `HistoryInsight`.
+
+    Done here, after the channels are approved, because `subscribed` and
+    `unsubscribed_share` only mean anything once we know what this child follows.
+    """
+    store = get_store()
+    aggregate = store.get_pending_history(hid, profile)
+    if aggregate is None:
+        return False
+    subscribed = {c.id for c in store.list_channels(hid, kid.id) if c.approved}
+    store.put_history(hid, history.build_insight(kid.id, aggregate, subscribed))
+    store.delete_pending_history(hid, profile)
+    tasks.add_task(_summarise_history, hid, kid)
+    log.info("watch history attached to kid %s from profile %r", kid.id, profile)
+    return True
+
+
+@app.get("/kids/{kid_id}/history")
+def get_history(kid_id: str, hid: str = Depends(household)) -> dict:
+    """404 when this household never opted in, which is the normal case."""
+    kid = _kid(hid, kid_id)
+    insight = get_store().get_history(hid, kid.id)
+    if insight is None:
+        raise HTTPException(404, "no watch history has been imported for this kid")
+    return insight.model_dump()
+
+
+@app.delete("/kids/{kid_id}/history")
+def delete_history(kid_id: str, hid: str = Depends(household)) -> dict:
+    """One call, and it is gone. `false` means there was nothing to delete."""
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    existed = store.get_history(hid, kid.id) is not None
+    store.delete_history(hid, kid.id)
+    log.info("watch history for kid %s deleted (existed: %s)", kid.id, existed)
+    return {"deleted": existed}
 
 
 # --- channel reviews (PROTOCOL.md "Channel reviews") ----------------------------------------------
