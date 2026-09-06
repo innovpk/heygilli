@@ -184,14 +184,14 @@ Push notification, then a card. Its shape depends on the band.
 
 Ages 7 to 11:
 
-> **Ayaan, today:** 42 min, 4 videos, 9 questions, 6 answered.
+> **Rayan, today:** 42 min, 4 videos, 9 questions, 6 answered.
 > **Understood:** volcanoes erupt when pressure builds. **Shaky:** why the moon changes shape.
 > **Ask at dinner:** "What would happen if you shook a fizzy drink bottle and opened it?"
 
 Ages 4 to 6:
 
-> **Zara, today:** 35 min, 5 videos, 6 questions.
-> **Words Zara said:** giraffe, red, three, truck.
+> **Lisa, today:** 35 min, 5 videos, 6 questions.
+> **Words Lisa said:** giraffe, red, three, truck.
 > **Words she heard but didn't say yet:** hippo, purple.
 > **Try today:** count the cars on the way to school.
 
@@ -565,14 +565,14 @@ The video must show a working project and cover problem, audience, and impact. O
 |---|---|---|
 | 0:00 | Problem and audience in two sentences. "Kids 4 to 11 watch YouTube on the TV for hours, passively. Parents police it. HeyGilli is the parent's agent that turns that time into a conversation and reports back." | Slide over footage of a kid staring at a TV |
 | 0:25 | Parent adds a channel on the phone, hands the tablet to the kid in kid mode. | Phone + tablet |
-| 0:45 | **Agent in the background.** Curator finds a new upload, screens it, plans questions; Strands trace scrolls for three seconds. One video is borderline: the parent's phone gets "New from Blippi: 'Trip to the candy factory'. Sugar-heavy, fine for Zara?" Parent taps yes. | Terminal trace + phone |
+| 0:45 | **Agent in the background.** Curator finds a new upload, screens it, plans questions; Strands trace scrolls for three seconds. One video is borderline: the parent's phone gets "New from Blippi: 'Trip to the candy factory'. Sugar-heavy, fine for Lisa?" Parent taps yes. | Terminal trace + phone |
 | 1:15 | 4-year-old's profile on the tablet. Picture-only home. Video pauses on a giraffe. Gilli: "What animal is that?" Kid taps the big mic and says "gaffe". Gilli: "A giraffe! Gi-raffe" and stretches. Resume. | Tablet, real child |
 | 1:45 | Pick-it: three pictures, "Show me the blue one". Kid taps the fish. | Tablet, real child |
 | 2:05 | 9-year-old's profile. Volcano video. "Why did the lava come out?" Full-sentence answer into the tablet mic. Gilli builds on it. | Tablet, real child |
 | 2:30 | Same loop in Urdu: question, answer, reply. | Tablet |
 | 2:50 | **Provider swap.** One config line changes Bedrock to a second provider, redeploy, the same question turn runs again. "Strands makes the model a setting." | Terminal + tablet |
 | 3:15 | Phone in kid mode, ten seconds: same loop on the small screen, parent-gated exit. If the TV stretch landed, use this slot for the TV and remote instead. | Phone or TV |
-| 3:30 | Nightly digest: both phone cards. "Words Zara said: giraffe, blue." "Ayaan understood pressure; ask him about fizzy drinks." Digest agent decided nothing else needed a notification. | Phone |
+| 3:30 | Nightly digest: both phone cards. "Words Lisa said: giraffe, blue." "Rayan understood pressure; ask them about fizzy drinks." Digest agent decided nothing else needed a notification. | Phone |
 | 4:00 | Architecture diagram, 20 seconds: four Strands agents, AgentCore Runtime and Memory, DynamoDB, one Flutter codebase for phone, tablet, and TV. Show the TV mockup and say it is the next milestone if it is not built. | Slide |
 | 4:20 | Impact and honesty: "Ads still play, creators still get paid, nothing violates YouTube's terms. Every household with a TV and a child. Bilingual from day one." Then what is not built yet. | Slide |
 | 4:50 | Repo, live demo link, builder.aws posts. | Slide |

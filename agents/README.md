@@ -93,7 +93,7 @@ YouTube and YouTube Music/children/<Profile name>/subscriptions.csv  one per You
   `.csv` and either is named `subscriptions.csv` or has a stem equal to its own folder's name
   (`abonnements/abonnements.csv`), and that same test tells the parent's list from a child profile.
   The own-list file is what names the locale's word for "subscriptions", so a French export
-  (`enfants/Ayaan/abonnements.csv`) parses like an English one. Top folder name is irrelevant.
+  (`enfants/Rayan/abonnements.csv`) parses like an English one. Top folder name is irrelevant.
 - **Guards.** 50 MB upload cap (streamed, refused at 413 rather than buffered), 20 000 entries,
   4 MB per CSV, 5 000 channels per list, 50 profiles; any member with an absolute path or a `..`
   segment refuses the whole zip; a zip with no subscriptions CSV gets a 400 that says what to

@@ -80,7 +80,7 @@ screenshot from a real one, and this is the moment the product stops looking lik
 
 ### 4. It keeps screening, on its own. 1:20 to 1:40
 
-On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then a Graph edge into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Zara?" with Yes and Hide. Parent taps Yes.
+On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then a Graph edge into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Lisa?" with Yes and Hide. Parent taps Yes.
 
 Record: SCR (terminal, large font, dark theme), CAM or SCR (phone notification; CAM reads better).
 
@@ -93,13 +93,13 @@ Voice-over:
 
 ### 5. Pre-reader, name-it. 1:40 to 2:05
 
-On screen: tablet, Zara's picture-only home. Child taps a thumbnail. Video plays. At the planned moment it pauses on a giraffe. Gilli appears small in the corner. Gilli: "What animal is that?" Big mic button pulses. Child says something close to "giraffe". Gilli: "A giraffe! Gi-raffe." with a stretch gesture. Video resumes.
+On screen: tablet, Lisa's picture-only home. Child taps a thumbnail. Video plays. At the planned moment it pauses on a giraffe. Gilli appears small in the corner. Gilli: "What animal is that?" Big mic button pulses. Child says something close to "giraffe". Gilli: "A giraffe! Gi-raffe." with a stretch gesture. Video resumes.
 
 Record: CAM (child's hands and the tablet, face optional and only with the parent's consent), SCR (tablet via `scrcpy`, in parallel, as backup).
 
 Voice-over:
 
-> Zara is four. She cannot read, so nothing on this screen is text.
+> Lisa is four and cannot read yet, so nothing on this screen is text.
 > Gilli pauses at a natural break and asks about what is on the frame.
 > Whatever she says, Gilli says the word back once, clearly. That is the learning event.
 > A whispered "gaffe" counts. Silence counts too. Nobody is ever wrong.
@@ -117,13 +117,13 @@ Voice-over:
 
 ### 7. Older kid, English. 2:20 to 2:40
 
-On screen: tablet, Ayaan's profile (9). Volcano video. Pause. Question shown as text and spoken: "Why did the lava come out?" Child answers in a sentence into the mic. Gilli replies, building on the answer, then resumes.
+On screen: tablet, Rayan's profile (9). Volcano video. Pause. Question shown as text and spoken: "Why did the lava come out?" Child answers in a sentence into the mic. Gilli replies, building on the answer, then resumes.
 
 Record: CAM, SCR backup. If no 9 to 11 year old is available, SCR only with an adult voice and say so in the caption.
 
 Voice-over:
 
-> Ayaan is nine. Same agents, different band.
+> Rayan is nine. Same agents, different band.
 > Now the questions are why and what next. Text appears alongside the voice.
 > Gilli talks like an older cousin who finds the topic interesting. No baby talk. An eleven-year-old who feels talked down to will not answer twice.
 
@@ -185,15 +185,15 @@ Voice-over, TV:
 
 ### 12. Nightly digest and Progress. 3:40 to 4:05
 
-On screen: parent's phone. Notification arrives. Open it. Two cards: Zara's (words said, words heard, try today) and Ayaan's (understood, shaky, ask at dinner). Scroll slowly.
+On screen: parent's phone. Notification arrives. Open it. Two cards: Lisa's (words said, words heard, try today) and Rayan's (understood, shaky, ask at dinner). Scroll slowly.
 
 Record: SCR (phone), CAM of the phone in hand for the first second.
 
 Voice-over:
 
 > At night the Digest agent reads the day's sessions and writes two lines per child.
-> For Zara: the words she said, the words she heard but did not say yet, and one thing to try tomorrow.
-> For Ayaan: what he understood, what was shaky, and one question for dinner.
+> For Lisa: the words they said, the words they heard but did not say yet, and one thing to try tomorrow.
+> For Rayan: what they understood, what was shaky, and one question for dinner.
 > The Digest also decides whether anything else deserves a notification. Tonight, nothing did.
 
 ### 13. Architecture. 4:05 to 4:25

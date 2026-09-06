@@ -293,7 +293,7 @@ def phone_digest_pre():
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <div>
         <div class="label">Today · Friday</div>
-        <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Zara</div>
+        <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Lisa</div>
       </div>
       <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{gilli(50, talking=False)}</div>
     </div>
@@ -303,7 +303,7 @@ def phone_digest_pre():
       <div class="card" style="flex-grow:1; padding:14px 16px;"><div class="display" style="font-size:26px; font-weight:800;">6</div><div class="label">questions</div></div>
     </div>
     <div class="card" style="display:flex; flex-direction:column; gap:12px;">
-      <div class="label">Words Zara said</div>
+      <div class="label">Words Lisa said</div>
       <div style="display:flex; flex-wrap:wrap; gap:8px;">{said}</div>
     </div>
     <div class="card" style="display:flex; flex-direction:column; gap:12px;">
@@ -322,7 +322,7 @@ def phone_digest_older():
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <div>
         <div class="label">Today · Friday</div>
-        <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Ayaan</div>
+        <div class="display" style="font-size:34px; font-weight:800; line-height:1.1;">Rayan</div>
       </div>
       <div style="width:56px; height:56px; border-radius:50%; background:#ffffff; display:flex; align-items:flex-end; justify-content:center;">{gilli(50, talking=False)}</div>
     </div>

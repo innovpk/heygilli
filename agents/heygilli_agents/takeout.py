@@ -30,7 +30,7 @@ and the two shapes in PROTOCOL.md are then told apart by that same second test:
     .../children/<Profile name>/<subs>.csv     -> one YouTube Kids profile
 
 where `<subs>` is whatever the own-list file was called, so a French export
-(`enfants/Ayaan/abonnements.csv`) parses exactly like an English one. A
+(`enfants/Rayan/abonnements.csv`) parses exactly like an English one. A
 candidate whose rows are not channel ids simply contributes nothing.
 
 An `.html` can never be a candidate, which is what makes "history is never

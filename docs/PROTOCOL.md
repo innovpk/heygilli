@@ -320,7 +320,7 @@ no identity, so the server holds each profile's aggregate against the **profile 
 parent says. That is the existing mapping step, and it gains one optional field:
 
 ```
-POST /kids/{kid_id}/channels/import  {channel_ids: [...], profile?: "Ayaan"}  → {added, already}
+POST /kids/{kid_id}/channels/import  {channel_ids: [...], profile?: "Rayan"}  → {added, already}
 ```
 
 `profile` is the `TakeoutProfile.name` these channels came from. With it, that profile's pending

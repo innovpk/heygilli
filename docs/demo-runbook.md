@@ -62,21 +62,21 @@ TOKEN=$(curl -s -X POST $BASE/auth/dev -H 'content-type: application/json' -d '{
 H="-H 'authorization: Bearer $TOKEN' -H 'content-type: application/json'"
 
 # Pre-reader
-ZARA=$(eval curl -s -X POST $BASE/kids $H -d "'{\"nickname\":\"Zara\",\"age\":4,\"languages\":[\"en\",\"ur\"]}'" | jq -r .id)
+LISA=$(eval curl -s -X POST $BASE/kids $H -d "'{\"nickname\":\"Lisa\",\"age\":4,\"languages\":[\"en\",\"ur\"]}'" | jq -r .id)
 # Older kid
-AYAAN=$(eval curl -s -X POST $BASE/kids $H -d "'{\"nickname\":\"Ayaan\",\"age\":9,\"languages\":[\"en\",\"ur\"]}'" | jq -r .id)
+RAYAN=$(eval curl -s -X POST $BASE/kids $H -d "'{\"nickname\":\"Rayan\",\"age\":9,\"languages\":[\"en\",\"ur\"]}'" | jq -r .id)
 
-# Five channels for Zara, by URL (channel URL, @handle, or a video URL; the server resolves)
+# Five channels for Lisa, by URL (channel URL, @handle, or a video URL; the server resolves)
 for URL in \
   "https://www.youtube.com/@<channel1>" \
   "https://www.youtube.com/@<channel2>" \
   "https://www.youtube.com/@<channel3>" \
   "https://www.youtube.com/@<channel4>" \
   "https://www.youtube.com/@<channel5>"; do
-  eval curl -s -X POST $BASE/kids/$ZARA/channels $H -d "'{\"url\":\"$URL\"}'" | jq -c '{title, approved}'
+  eval curl -s -X POST $BASE/kids/$LISA/channels $H -d "'{\"url\":\"$URL\"}'" | jq -c '{title, approved}'
 done
-# At least one science channel for Ayaan (the volcano video)
-eval curl -s -X POST $BASE/kids/$AYAAN/channels $H -d "'{\"url\":\"https://www.youtube.com/@<science-channel>\"}'" | jq -c .
+# At least one science channel for Rayan (the volcano video)
+eval curl -s -X POST $BASE/kids/$RAYAN/channels $H -d "'{\"url\":\"https://www.youtube.com/@<science-channel>\"}'" | jq -c .
 ```
 
 Write the kid ids down; the app needs the right profile selected.
@@ -88,8 +88,8 @@ If a `make seed` or `python -m heygilli_agents.seed` exists **[verify]**, use it
 This is the "agent in the background" beat and also the cache warm-up. Do it the day before recording, and again ten minutes before, so plans are cached and no child waits on the Planner.
 
 ```bash
-eval curl -s -X POST $BASE/curator/run $H -d "'{\"kid_id\":\"$ZARA\"}'" | jq .
-eval curl -s -X POST $BASE/curator/run $H -d "'{\"kid_id\":\"$AYAAN\"}'" | jq .
+eval curl -s -X POST $BASE/curator/run $H -d "'{\"kid_id\":\"$LISA\"}'" | jq .
+eval curl -s -X POST $BASE/curator/run $H -d "'{\"kid_id\":\"$RAYAN\"}'" | jq .
 ```
 
 Expect `{approved: [...], hidden: [...], ask_parent: [...]}`. For the video beat, one video must land in `ask_parent`. Stage it: add a channel with a sugar-heavy or ad-heavy recent upload (the spec uses a Blippi candy-factory video as the example) so `screen_video` marks it borderline. If the Curator approves it anyway, lower the borderline threshold in the Curator system prompt **[verify config name]** rather than faking the response.
@@ -98,7 +98,7 @@ Check the inbox and the plans:
 
 ```bash
 eval curl -s $BASE/parent/inbox $H | jq .
-eval curl -s "$BASE/kids/$ZARA/home" $H | jq '.rows[].videos[] | {id, title, age_ok, plan_ready}'
+eval curl -s "$BASE/kids/$LISA/home" $H | jq '.rows[].videos[] | {id, title, age_ok, plan_ready}'
 ```
 
 Every demo video must show `plan_ready: true` before you record.
@@ -146,19 +146,19 @@ Start screen mirroring for backup footage: `scrcpy -s <tablet-serial> --record t
 
 Beat numbers match `docs/video-script.md`.
 
-**Beat 2, parent setup (phone).** Open HeyGilli. Sign in (dev auth). Kids list shows Zara and Ayaan. Tap Zara. Channels tab shows the five channels. Tap "Add channel", paste one more URL, watch it resolve to a title and thumbnail. Tap "Kid mode". The phone is now locked to kid mode; hand the tablet over.
+**Beat 2, parent setup (phone).** Open HeyGilli. Sign in with Google — there is no name-typing path in the UI any more, so the build must carry `HEYGILLI_GOOGLE_SERVER_CLIENT_ID` (section 5). Kids list shows Lisa and Rayan. Tap Lisa. Channels tab shows the five channels. Tap "Add channel", paste one more URL, watch it resolve to a title and thumbnail. Tap "Kid mode". The phone is now locked to kid mode; hand the tablet over.
 
-**Beat 3, Curator (terminal plus phone).** In the terminal run the `curator/run` command from section 4 for Zara. Trace scrolls. On the phone, the inbox badge or push appears: "New from <channel>: '<title>'. <reason>. Fine for Zara?" Tap Yes. Confirm in the terminal: `curl $BASE/parent/inbox` now returns an empty list, and the video shows in Zara's home.
+**Beat 3, Curator (terminal plus phone).** In the terminal run the `curator/run` command from section 4 for Lisa. Trace scrolls. On the phone, the inbox badge or push appears: "New from <channel>: '<title>'. <reason>. Fine for Lisa?" Tap Yes. Confirm in the terminal: `curl $BASE/parent/inbox` now returns an empty list, and the video shows in Lisa's home.
 
-**Beat 4, pre-reader name-it (tablet).** Open HeyGilli on the tablet. Profile picker: tap Zara's avatar. Picture-only home. Tap the giraffe video's thumbnail; Gilli reads the title aloud on focus if the client supports it. Video plays. At the planned timestamp (about two minutes in; check `t_sec` in the plan) the video pauses on the frame, Gilli appears in the corner, the question plays, the big mic button pulses for five seconds. Child speaks. Gilli replies with the model-the-answer line and a gesture. Video resumes.
+**Beat 4, pre-reader name-it (tablet).** Open HeyGilli on the tablet. Profile picker: tap Lisa's avatar. Picture-only home. Tap the giraffe video's thumbnail; Gilli reads the title aloud on focus if the client supports it. Video plays. At the planned timestamp (about two minutes in; check `t_sec` in the plan) the video pauses on the frame, Gilli appears in the corner, the question plays, the big mic button pulses for five seconds. Child speaks. Gilli replies with the model-the-answer line and a gesture. Video resumes.
 
 To skip the wait during rehearsals, seek to five seconds before the first `t_sec` using the player's scrubber. Do not seek during the recorded take; the pause must look natural.
 
 **Beat 5, pick-it (tablet).** Same video or the second demo video. At the next pause, three pictures appear. Question plays: "Show me the blue one." Child taps. Gilli replies. Resume. If the mic gave nothing in beat 4 twice, the Buddy has already switched this question to pick-it on its own, which is fine and worth saying on camera.
 
-**Beat 6, older kid English (tablet).** Exit to the profile picker (parent gate: PIN or long-press, **[verify]**). Tap Ayaan. Home shows channel rows with titles. Tap the volcano video. At the first pause the question shows as text and is spoken. Tap the mic, answer in a sentence within eight seconds. Gilli builds on the answer. Resume.
+**Beat 6, older kid English (tablet).** Exit to the profile picker (parent gate: PIN or long-press, **[verify]**). Tap Rayan. Home shows channel rows with titles. Tap the volcano video. At the first pause the question shows as text and is spoken. Tap the mic, answer in a sentence within eight seconds. Gilli builds on the answer. Resume.
 
-**Beat 7, Urdu (tablet).** In Ayaan's session, language toggle to Urdu **[verify where: parent settings or per-session]**. Next question arrives in Urdu. Answer in Urdu. Reply in Urdu. Or run a second video with the profile's language set to `ur`.
+**Beat 7, Urdu (tablet).** In Rayan's session, language toggle to Urdu **[verify where: parent settings or per-session]**. Next question arrives in Urdu. Answer in Urdu. Reply in Urdu. Or run a second video with the profile's language set to `ur`.
 
 **Beat 8, provider swap (terminal plus tablet).** In the terminal:
 
@@ -176,11 +176,11 @@ On the tablet, start a new session on the same video and let one question turn r
 **Beat 10, digest (phone).** Run the Digest agent now rather than waiting for midnight:
 
 ```bash
-eval curl -s -X POST $BASE/kids/$ZARA/digest/run $H | jq .
-eval curl -s -X POST $BASE/kids/$AYAAN/digest/run $H | jq .
+eval curl -s -X POST $BASE/kids/$LISA/digest/run $H | jq .
+eval curl -s -X POST $BASE/kids/$RAYAN/digest/run $H | jq .
 ```
 
-On the phone, open Digest. Zara's card: minutes, videos, questions, words said, words heard, try today. Ayaan's card: minutes, videos, asked, answered, understood, shaky, ask at dinner. The digest is built from the sessions you just ran, so do beats 4 to 7 first.
+On the phone, open Digest. Lisa's card: minutes, videos, questions, words said, words heard, try today. Rayan's card: minutes, videos, asked, answered, understood, shaky, ask at dinner. The digest is built from the sessions you just ran, so do beats 4 to 7 first.
 
 **Beats 11 to 13** are slides: `docs/architecture.png` and the closing slides.
 

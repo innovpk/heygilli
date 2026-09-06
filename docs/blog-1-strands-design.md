@@ -55,7 +55,7 @@ The hackathon brief says agents should run in the background and surface only wh
 
 The agent acts alone when it screens a clear upload, generates a plan, runs a session end to end, adapts a session to pick-it, writes the digest, and notices which channels never get watched. It surfaces to the parent only when an upload is borderline and needs a yes or no, when a child has been stuck on one concept across three sessions, and when the daily time budget is about to end mid-video.
 
-So the parent's phone shows two things: one prompt from Curator, "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Zara?" with Yes and Hide, and one nightly card from Digest. Everything else stays inside the agents.
+So the parent's phone shows two things: one prompt from Curator, "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Lisa?" with Yes and Hide, and one nightly card from Digest. Everything else stays inside the agents.
 
 ## What we would do differently
 
