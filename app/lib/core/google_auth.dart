@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -13,6 +15,15 @@ import 'settings.dart';
 /// Written against google_sign_in 7.2.0, whose API is not the 5.x/6.x one:
 /// `GoogleSignIn.instance`, `initialize(...)`, `authenticate(...)`, and a
 /// separate `authorizationClient` for scopes and server access.
+///
+/// **The web is a different shape and cannot be made to look like the others.**
+/// The GIS SDK refuses to sign anyone in from an app's own button:
+/// `supportsAuthenticate()` is false there and `authenticate()` throws. The
+/// browser flow is therefore push, not pull — render the SDK's button, wait on
+/// [signIns] for the account it produces — while a phone stays a single
+/// awaited [signIn] call. Everything after authentication is identical on both:
+/// the same `authorizeServer`, the same server auth code, the same
+/// `POST /auth/google`.
 class GoogleAuth {
   GoogleAuth({String? serverClientId})
     : serverClientId = serverClientId ?? BuildConfig.googleServerClientId;
@@ -34,42 +45,60 @@ class GoogleAuth {
   /// UI then hides the button instead of showing one that cannot work.
   bool get isConfigured => serverClientId.isNotEmpty;
 
+  /// True where the SDK insists on drawing the button itself, so the screen
+  /// must render [googleRenderedButton] and listen to [signIns] instead of
+  /// calling [signIn] on a tap of its own.
+  bool get usesRenderedButton => kIsWeb;
+
   /// `initialize` must be called exactly once per process, so the future is
   /// cached and awaited rather than the call repeated.
   Future<void>? _initialized;
 
-  /// Runs the whole flow and returns the server auth code.
+  Future<void> _initialize() {
+    return _initialized ??= GoogleSignIn.instance.initialize(
+      // In a browser the id identifies this app to Google directly; on a
+      // phone it names the server the auth code is minted for.
+      clientId: kIsWeb ? serverClientId : null,
+      serverClientId: kIsWeb ? null : serverClientId,
+    );
+  }
+
+  /// Brings up the SDK so the rendered button has something to attach to.
+  /// Safe to call more than once. Only meaningful where
+  /// [usesRenderedButton] is true; a phone initializes inside [signIn].
+  Future<void> ensureInitialized() async {
+    if (!isConfigured) return;
+    await _initialize();
+  }
+
+  /// Sign-ins that arrive without this app having asked for them — which on
+  /// the web is every one of them, because the SDK owns the button.
   ///
-  /// Must be called from a user interaction (a button press): the scope and
-  /// server-authorization calls are allowed to show platform UI.
-  ///
-  /// Never throws a raw platform exception; every outcome is a typed result.
-  Future<GoogleAuthResult> signIn() async {
-    if (!isConfigured) return const GoogleAuthNotConfigured();
+  /// Each account is carried through the same authorization step a phone runs,
+  /// so a listener gets the finished [GoogleAuthResult] and not a half-done
+  /// one. Errors from the SDK arrive here too rather than as a raw exception.
+  Stream<GoogleAuthResult> get signIns => GoogleSignIn
+      .instance
+      .authenticationEvents
+      .where((e) => e is GoogleSignInAuthenticationEventSignIn)
+      .cast<GoogleSignInAuthenticationEventSignIn>()
+      .asyncMap((e) => _authorize(e.user))
+      // The SDK reports its failures as errors on this stream. They become
+      // results like every other outcome, so a listener has one thing to
+      // handle and a dead subscription is impossible.
+      .transform(
+        StreamTransformer<GoogleAuthResult, GoogleAuthResult>.fromHandlers(
+          handleError: (error, stack, sink) => sink.add(_asResult(error)),
+        ),
+      );
+
+  /// The half of the flow after Google knows who the parent is: ask for the
+  /// scope with offline access and get back the code the gateway exchanges.
+  Future<GoogleAuthResult> _authorize(GoogleSignInAccount user) async {
     try {
-      _initialized ??= GoogleSignIn.instance.initialize(
-        // In a browser the id identifies this app to Google directly; on a
-        // phone it names the server the auth code is minted for.
-        clientId: kIsWeb ? serverClientId : null,
-        serverClientId: kIsWeb ? null : serverClientId,
-      );
-      await _initialized;
-
-      if (!GoogleSignIn.instance.supportsAuthenticate()) {
-        return const GoogleAuthUnavailable(
-          'Google sign-in is not available on this device.',
-        );
-      }
-
-      // Authentication first; authorization is a separate step in 7.x.
-      final user = await GoogleSignIn.instance.authenticate(
-        scopeHint: const [youtubeReadonlyScope],
-      );
-
-      // `authorizeServer` asks for the scope with offline access and returns
-      // the code the gateway exchanges. It can legitimately return null when
-      // the platform has no server auth code to give (PROTOCOL requires one,
-      // so that is a failure for us, not a silent success).
+      // Can legitimately return null when the platform has no server auth code
+      // to give. PROTOCOL requires one, so that is a failure for us, not a
+      // silent success.
       final server = await user.authorizationClient.authorizeServer(const [
         youtubeReadonlyScope,
       ]);
@@ -81,24 +110,60 @@ class GoogleAuth {
         email: user.email,
         displayName: user.displayName ?? '',
       );
-    } on GoogleSignInException catch (e) {
-      return switch (e.code) {
-        GoogleSignInExceptionCode.canceled ||
-        GoogleSignInExceptionCode.interrupted => const GoogleAuthCancelled(),
-        GoogleSignInExceptionCode.clientConfigurationError ||
-        GoogleSignInExceptionCode.providerConfigurationError =>
-          const GoogleAuthNotConfigured(
-            'This build\'s Google client id does not match the app signature.',
-          ),
-        GoogleSignInExceptionCode.uiUnavailable => const GoogleAuthUnavailable(
-          'Google could not show its sign-in screen just now.',
+    } catch (e) {
+      return _asResult(e);
+    }
+  }
+
+  /// Every failure the SDK can raise, as one of our own results. Nothing that
+  /// reaches a screen is ever a raw platform exception.
+  static GoogleAuthResult _asResult(Object e) {
+    if (e is! GoogleSignInException) return GoogleAuthFailed('$e');
+    return switch (e.code) {
+      GoogleSignInExceptionCode.canceled ||
+      GoogleSignInExceptionCode.interrupted => const GoogleAuthCancelled(),
+      GoogleSignInExceptionCode.clientConfigurationError ||
+      GoogleSignInExceptionCode.providerConfigurationError =>
+        const GoogleAuthNotConfigured(
+          'Google rejected this build\'s client id. On the web that is '
+          'usually the page\'s address missing from the client\'s '
+          'Authorized JavaScript origins.',
         ),
-        _ => GoogleAuthFailed(e.description ?? 'Google sign-in failed.'),
-      };
+      GoogleSignInExceptionCode.uiUnavailable => const GoogleAuthUnavailable(
+        'Google could not show its sign-in screen just now.',
+      ),
+      _ => GoogleAuthFailed(e.description ?? 'Google sign-in failed.'),
+    };
+  }
+
+  /// Runs the whole flow and returns the server auth code.
+  ///
+  /// Must be called from a user interaction (a button press): the scope and
+  /// server-authorization calls are allowed to show platform UI.
+  ///
+  /// Never throws a raw platform exception; every outcome is a typed result.
+  Future<GoogleAuthResult> signIn() async {
+    if (!isConfigured) return const GoogleAuthNotConfigured();
+    try {
+      await _initialize();
+
+      if (!GoogleSignIn.instance.supportsAuthenticate()) {
+        // The web. There is nothing wrong here and nothing to retry: the SDK
+        // owns the button, so the screen should be showing that one.
+        return const GoogleAuthUnavailable(
+          'Use the Google button above to sign in.',
+        );
+      }
+
+      // Authentication first; authorization is a separate step in 7.x.
+      final user = await GoogleSignIn.instance.authenticate(
+        scopeHint: const [youtubeReadonlyScope],
+      );
+      return _authorize(user);
     } catch (e) {
       // MissingPluginException on a platform without the plugin, and anything
       // else the SDK throws: the caller only ever sees a result.
-      return GoogleAuthFailed('$e');
+      return _asResult(e);
     }
   }
 

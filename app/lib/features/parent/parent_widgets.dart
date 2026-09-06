@@ -336,7 +336,19 @@ Future<String?> runGoogleSignIn(BuildContext context) async {
     return null;
   }
 
-  final result = await GoogleAuth.shared.signIn();
+  return handleGoogleResult(state, await GoogleAuth.shared.signIn());
+}
+
+/// Turns a finished [GoogleAuthResult] into a session, or into the one line
+/// the screen should show. Shared by the two shapes the flow comes in: a
+/// phone's awaited call, and the web's stream of sign-ins the SDK pushes.
+///
+/// Returns null when there is nothing to say — including a cancellation, which
+/// is a decision, not an error.
+Future<String?> handleGoogleResult(
+  AppState state,
+  GoogleAuthResult result,
+) async {
   switch (result) {
     case GoogleAuthSuccess(:final serverAuthCode, :final displayName):
       try {

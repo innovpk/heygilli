@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/demo_badge.dart';
 import '../../core/google_auth.dart';
+import '../../core/google_web_button.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
 
@@ -24,6 +27,50 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   bool _busy = false;
   String? _error;
+
+  /// Sign-ins the SDK pushes at us rather than ones we asked for. On the web
+  /// this is the only way in; elsewhere it never fires.
+  StreamSubscription<GoogleAuthResult>? _pushed;
+
+  /// Whether the SDK's own button is ready to be drawn. It cannot be built
+  /// before `initialize`, and initialize is a round trip.
+  bool _sdkReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (GoogleAuth.shared.usesRenderedButton) _listenForPushedSignIn();
+  }
+
+  @override
+  void dispose() {
+    _pushed?.cancel();
+    super.dispose();
+  }
+
+  /// The browser flow is push, not pull: the parent clicks Google's button,
+  /// Google decides who they are, and the account arrives here. Subscribed
+  /// before the button exists so a fast sign-in cannot land on nothing.
+  Future<void> _listenForPushedSignIn() async {
+    // Read once, here: the listener fires long after this frame, and reaching
+    // through context at that point is a use across an async gap.
+    final state = context.read<AppState>();
+    _pushed = GoogleAuth.shared.signIns.listen((result) async {
+      if (!mounted) return;
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      final message = await handleGoogleResult(state, result);
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = message;
+      });
+    });
+    await GoogleAuth.shared.ensureInitialized();
+    if (mounted) setState(() => _sdkReady = true);
+  }
 
   Future<void> _google() async {
     setState(() {
@@ -92,15 +139,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         if (isDemo) const DemoBadge(),
                       ],
                     ),
-                    GoogleButton(
-                      label: 'Continue with Google',
-                      busy: _busy,
-                      onPressed: canUseGoogle ? _google : null,
-                      reason: canUseGoogle
-                          ? null
-                          : 'This build has no Google client id, so sign-in '
-                                'is unavailable.',
-                    ),
+                    _signInControl(canUseGoogle),
                     Text(
                       'Use the account your kids already watch on, usually '
                       'the one signed in on the TV. Its subscriptions become '
@@ -122,6 +161,48 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Whichever button can actually sign this parent in.
+  ///
+  /// The GIS SDK refuses a click from a widget we drew, so in a browser the
+  /// button has to be its own. Everywhere else it is HeyGilli's, which is the
+  /// one a parent should see wherever we are allowed to draw it.
+  Widget _signInControl(bool canUseGoogle) {
+    if (!canUseGoogle) {
+      return GoogleButton(
+        label: 'Continue with Google',
+        busy: false,
+        onPressed: null,
+        reason:
+            'This build has no Google client id, so sign-in is unavailable.',
+      );
+    }
+    // Demo mode has no OAuth client at all, so it keeps our own button even in
+    // a browser: the fake gateway stands in for the whole exchange.
+    final isDemo = context.read<AppState>().isDemo;
+    if (!GoogleAuth.shared.usesRenderedButton || isDemo) {
+      return GoogleButton(
+        label: 'Continue with Google',
+        busy: _busy,
+        onPressed: _busy ? null : _google,
+      );
+    }
+    if (_busy) {
+      return const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator(color: HgColors.mango)),
+      );
+    }
+    // Sized so the layout does not jump when the SDK's button appears.
+    return SizedBox(
+      height: 56,
+      child: _sdkReady
+          ? googleRenderedButton()
+          : const Center(
+              child: CircularProgressIndicator(color: HgColors.mango),
+            ),
     );
   }
 }
