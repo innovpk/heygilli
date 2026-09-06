@@ -350,9 +350,17 @@ Future<String?> handleGoogleResult(
   GoogleAuthResult result,
 ) async {
   switch (result) {
-    case GoogleAuthSuccess(:final serverAuthCode, :final displayName):
+    case GoogleAuthSuccess(
+      :final serverAuthCode,
+      :final displayName,
+      :final redirectUri,
+    ):
       try {
-        await state.signInWithGoogle(serverAuthCode, displayName: displayName);
+        await state.signInWithGoogle(
+          serverAuthCode,
+          displayName: displayName,
+          redirectUri: redirectUri,
+        );
         return null;
       } catch (e) {
         return 'Signed in with Google, but HeyGilli could not be reached: $e';

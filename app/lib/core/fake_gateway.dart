@@ -341,7 +341,10 @@ class FakeGateway implements Gateway {
   String _email = '';
 
   @override
-  Future<Session> signInWithGoogle(String serverAuthCode) async {
+  Future<Session> signInWithGoogle(
+    String serverAuthCode, {
+    String redirectUri = '',
+  }) async {
     await _lag();
     // The demo has no OAuth: any code stands in for one the real gateway would
     // exchange. Nothing that looks like a refresh token exists on this side.

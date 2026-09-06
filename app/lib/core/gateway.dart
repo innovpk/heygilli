@@ -17,7 +17,7 @@ abstract class Gateway {
   /// `POST /auth/google`. Takes the **server auth code** from the device; the
   /// gateway exchanges it and keeps the refresh token (PROTOCOL). The device
   /// never stores or sends a refresh token.
-  Future<Session> signInWithGoogle(String serverAuthCode);
+  Future<Session> signInWithGoogle(String serverAuthCode, {String redirectUri});
 
   /// `GET /me/youtube`. `linked: false` is a normal state, not an error.
   Future<YouTubeStatus> youtubeStatus();

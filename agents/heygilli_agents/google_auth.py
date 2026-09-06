@@ -140,23 +140,41 @@ def _token_request(payload: dict[str, str], what: str) -> GoogleTokens:
     )
 
 
-def exchange_code(server_auth_code: str) -> GoogleTokens:
-    """Android server auth code -> tokens.
+#: The only redirect a client may name. Google requires the token exchange to
+#: match what the code was minted against, and there are exactly two cases:
+#: a native consent has no redirect at all, and a browser popup uses Google's
+#: own reserved word. Anything else is refused rather than forwarded, so this
+#: endpoint cannot be talked into exchanging a code against a redirect of an
+#: attacker's choosing.
+POPUP_REDIRECT = "postmessage"
+ALLOWED_REDIRECTS = frozenset({"", POPUP_REDIRECT})
 
-    `redirect_uri` is deliberately absent: for a server auth code minted by the
-    Android client there is no redirect. The credentials are the **web** OAuth
-    client's, even though the code came from the Android client.
+
+def exchange_code(server_auth_code: str, redirect_uri: str = "") -> GoogleTokens:
+    """Server auth code -> tokens. The credentials are always the **web** OAuth
+    client's, whichever platform the code came from.
+
+    `redirect_uri` is empty for a code minted by the Android or iOS client,
+    which has no redirect and is refused if sent one. A browser's popup code
+    must be exchanged against `postmessage`, or Google answers
+    `invalid_request Missing parameter: redirect_uri` (PROTOCOL "Google sign-in
+    and subscription import").
     """
+    if redirect_uri not in ALLOWED_REDIRECTS:
+        raise GoogleAuthError(
+            f"Unsupported redirect_uri. Send {POPUP_REDIRECT!r} for a browser "
+            "sign-in, or nothing at all for a phone."
+        )
     client_id, client_secret = credentials()
-    return _token_request(
-        {
-            "grant_type": "authorization_code",
-            "code": server_auth_code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        },
-        "exchange the sign-in code",
-    )
+    payload = {
+        "grant_type": "authorization_code",
+        "code": server_auth_code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+    if redirect_uri:
+        payload["redirect_uri"] = redirect_uri
+    return _token_request(payload, "exchange the sign-in code")
 
 
 def refresh_access_token(refresh_token: str) -> GoogleTokens:
@@ -219,7 +237,10 @@ def household_id_for(sub: str, email: str) -> str:
 
 
 def link_household(
-    server_auth_code: str, store: Store, household_id: str | None = None
+    server_auth_code: str,
+    store: Store,
+    household_id: str | None = None,
+    redirect_uri: str = "",
 ) -> tuple[str, GoogleLink]:
     """Exchange the code and persist the link. Returns `(household_id, link)`.
 
@@ -231,7 +252,7 @@ def link_household(
     A later exchange comes back without one, and the stored token is kept rather
     than overwritten with nothing.
     """
-    tokens = exchange_code(server_auth_code)
+    tokens = exchange_code(server_auth_code, redirect_uri)
     sub, email = account_identity(tokens)
     hid = household_id or household_id_for(sub, email)
     stored = store.get_google_link(hid)

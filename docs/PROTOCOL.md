@@ -18,7 +18,7 @@ Base URL: `http://<host>:8080`. All bodies JSON. Auth: `Authorization: Bearer <t
 
 ```
 POST /auth/dev                 {name}                         → {token, household_id}   (kept as a fallback)
-POST /auth/google              {server_auth_code}             → Session
+POST /auth/google              {server_auth_code, redirect_uri?}  → Session
 GET  /me/youtube                                              → {linked, email}
 GET  /me/youtube/subscriptions                                → {linked, subscriptions: Subscription[]}
 POST /kids/{kid_id}/channels/import  {channel_ids: [...]}     → {added: Channel[], already: [...]}
@@ -76,9 +76,20 @@ The parent signs in with Google; a child never signs in to anything. One consent
 identity and `https://www.googleapis.com/auth/youtube.readonly`, which is what lets the parent
 import the channels they already follow instead of pasting URLs.
 
-`POST /auth/google` takes the **server auth code** from the Android client (not an access token),
+`POST /auth/google` takes the **server auth code** from the client (not an access token),
 exchanges it server-side for a refresh token using the *web* OAuth client credentials, and stores
 that refresh token against the household. The refresh token never touches the device.
+
+`redirect_uri` says what the code was minted against, because Google's token endpoint requires it
+to match and the two platforms differ:
+
+| Where the code came from | `redirect_uri` | Why |
+|---|---|---|
+| Android or iOS | omitted, or `""` | a native consent has no redirect at all, and sending one is refused |
+| A browser | `"postmessage"` | Google's own name for a popup-mode code client; omitting it fails with `invalid_request Missing parameter: redirect_uri` |
+
+Those two are the only values the server accepts. It is not a general passthrough: an arbitrary
+redirect from a client is refused rather than forwarded to Google.
 
 ```
 Session      {token, household_id, email, youtube_linked: bool}

@@ -397,3 +397,66 @@ def test_import_requires_a_real_kid(client: TestClient, auth: dict) -> None:
     r = client.post("/kids/nope/channels/import", json={"channel_ids": ["UC_x"]}, headers=hdr(auth))
     assert r.status_code == 404
     assert client.post("/kids/nope/channels/import", json={"channel_ids": []}).status_code == 401
+
+
+# --- what the code was minted against ----------------------------------------------------------
+#
+# PROTOCOL "Google sign-in and subscription import". Google's token endpoint
+# requires redirect_uri to match how the code was created, and the two client
+# platforms differ. Getting this wrong is not a soft failure: the whole sign-in
+# ends at "Google could not exchange the sign-in code".
+
+
+def test_a_phone_code_is_exchanged_with_no_redirect_at_all(
+    google_http: dict, store: LocalStore
+) -> None:
+    queue(google_http, tokens_response())
+    google_auth.link_household(CODE, store)
+
+    # Not "empty string": absent. Google refuses an empty redirect_uri on a
+    # native code, so sending the key at all would break every phone sign-in.
+    assert "redirect_uri" not in google_http["posts"][0]["data"]
+
+
+def test_a_browser_code_is_exchanged_against_postmessage(
+    google_http: dict, store: LocalStore
+) -> None:
+    queue(google_http, tokens_response())
+    google_auth.link_household(CODE, store, None, google_auth.POPUP_REDIRECT)
+
+    posted = google_http["posts"][0]["data"]
+    assert posted["redirect_uri"] == "postmessage"
+    assert posted["code"] == CODE
+    assert posted["grant_type"] == "authorization_code"
+
+
+def test_any_other_redirect_is_refused_before_google_is_called(
+    google_http: dict, store: LocalStore
+) -> None:
+    # The client names the redirect, so this endpoint must not be a passthrough
+    # that would exchange a code against somewhere an attacker chose.
+    with pytest.raises(google_auth.GoogleAuthError, match="Unsupported redirect_uri"):
+        google_auth.link_household(CODE, store, None, "https://evil.example/steal")
+
+    assert google_http["posts"] == [], "a refused redirect must not reach Google"
+
+
+def test_the_endpoint_passes_the_redirect_it_was_given(
+    google_http: dict, store: LocalStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The seam: a browser's POST body has to arrive at the exchange intact.
+
+    Asserted through the real HTTP endpoint rather than the function, because
+    both halves have been green before while the field never crossed between
+    them.
+    """
+    monkeypatch.setattr(gateway, "get_store", lambda: store)
+    queue(google_http, tokens_response())
+
+    r = TestClient(gateway.app).post(
+        "/auth/google",
+        json={"server_auth_code": CODE, "redirect_uri": "postmessage"},
+    )
+
+    assert r.status_code == 200, r.text
+    assert google_http["posts"][0]["data"]["redirect_uri"] == "postmessage"

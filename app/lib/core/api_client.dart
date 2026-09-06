@@ -107,9 +107,17 @@ class ApiClient implements Gateway {
   }
 
   @override
-  Future<Session> signInWithGoogle(String serverAuthCode) async {
+  Future<Session> signInWithGoogle(
+    String serverAuthCode, {
+    String redirectUri = '',
+  }) async {
     final session = Session.fromJson(
-      await _post('/auth/google', {'server_auth_code': serverAuthCode})
+      await _post('/auth/google', {
+            'server_auth_code': serverAuthCode,
+            // Sent only when there is one. A phone has no redirect, and
+            // Google refuses the exchange if it is given an empty one.
+            if (redirectUri.isNotEmpty) 'redirect_uri': redirectUri,
+          })
           as Map<String, dynamic>,
     );
     _token = session.token;

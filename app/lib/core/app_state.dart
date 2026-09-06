@@ -70,8 +70,12 @@ class AppState extends ChangeNotifier {
   Future<Session> signInWithGoogle(
     String serverAuthCode, {
     String displayName = '',
+    String redirectUri = '',
   }) async {
-    final session = await gateway.signInWithGoogle(serverAuthCode);
+    final session = await gateway.signInWithGoogle(
+      serverAuthCode,
+      redirectUri: redirectUri,
+    );
     final name = displayName.trim().isNotEmpty
         ? displayName.trim()
         : _nameFromEmail(session.email);

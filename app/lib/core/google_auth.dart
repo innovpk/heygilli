@@ -41,6 +41,10 @@ class GoogleAuth {
   static const youtubeReadonlyScope =
       'https://www.googleapis.com/auth/youtube.readonly';
 
+  /// Google's own reserved word for a code minted by a popup, which is the
+  /// only flow a browser has. A phone sends nothing instead.
+  static const popupRedirect = 'postmessage';
+
   /// False when the build carries no `HEYGILLI_GOOGLE_SERVER_CLIENT_ID`. The
   /// UI then hides the button instead of showing one that cannot work.
   bool get isConfigured => serverClientId.isNotEmpty;
@@ -133,6 +137,7 @@ class GoogleAuth {
         serverAuthCode: server.serverAuthCode,
         email: user.email,
         displayName: user.displayName ?? '',
+        redirectUri: kIsWeb ? popupRedirect : '',
       );
     } catch (e) {
       return _asResult(e);
@@ -213,10 +218,16 @@ class GoogleAuthSuccess extends GoogleAuthResult {
     required this.serverAuthCode,
     required this.email,
     this.displayName = '',
+    this.redirectUri = '',
   });
 
   /// Sent to `POST /auth/google`. Single use, exchanged server-side.
   final String serverAuthCode;
+
+  /// What Google minted the code against, travelling with the code because
+  /// only the side that asked for it knows: empty from a phone, `postmessage`
+  /// from a browser popup. The token exchange fails without a match.
+  final String redirectUri;
   final String email;
   final String displayName;
 }

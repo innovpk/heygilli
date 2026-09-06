@@ -140,6 +140,9 @@ def auth_dev(body: DevAuthIn) -> dict:
 
 class GoogleAuthIn(BaseModel):
     server_auth_code: str
+    #: What the code was minted against: "" from a phone, "postmessage" from a
+    #: browser popup. PROTOCOL "Google sign-in and subscription import".
+    redirect_uri: str = ""
 
 
 def _google_http(e: GoogleAuthError) -> HTTPException:
@@ -155,7 +158,7 @@ def _google_http(e: GoogleAuthError) -> HTTPException:
 
 @app.post("/auth/google")
 def auth_google(body: GoogleAuthIn, authorization: str = Header(default="")) -> dict:
-    """Server auth code from the Android client -> a household token.
+    """Server auth code from any client -> a household token.
 
     The client sends the *server auth code*, never an access token: the refresh
     token is minted here and stays here. An optional bearer token attaches
@@ -169,7 +172,9 @@ def auth_google(body: GoogleAuthIn, authorization: str = Header(default="")) -> 
         with contextlib.suppress(HTTPException):
             started_in = verify(token)
     try:
-        hid, link = link_household(body.server_auth_code, get_store(), started_in)
+        hid, link = link_household(
+            body.server_auth_code, get_store(), started_in, body.redirect_uri
+        )
     except GoogleAuthError as e:
         raise _google_http(e) from e
     return AuthSession(

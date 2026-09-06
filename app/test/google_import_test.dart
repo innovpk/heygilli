@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heygilli/core/api_client.dart';
 import 'package:heygilli/core/fake_gateway.dart';
 import 'package:heygilli/core/google_auth.dart';
 import 'package:heygilli/core/models.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 /// PROTOCOL "Google sign-in and subscription import": payload shapes, the
 /// "already approved" rule, and the path where no Google client id exists.
@@ -25,6 +30,54 @@ void main() {
       expect(s.householdId, '1');
       expect(s.email, isEmpty);
       expect(s.youtubeLinked, isFalse);
+    });
+  });
+
+  group('what the sign-in code was minted against', () {
+    /// PROTOCOL "Google sign-in and subscription import". Google's token
+    /// endpoint matches `redirect_uri` against how the code was created, and
+    /// a browser popup and a phone differ. This is a seam: both halves were
+    /// green while the field did not cross between them, and the symptom was
+    /// a sign-in that got all the way to the last hop and died there.
+    Future<Map<String, dynamic>> bodyOf(
+      Future<void> Function(ApiClient) call,
+    ) async {
+      late http.Request seen;
+      final api = ApiClient(
+        baseUrl: 'http://gateway',
+        client: MockClient((r) async {
+          seen = r;
+          return http.Response(
+            jsonEncode({'token': 't', 'household_id': 'hh_1'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      await call(api);
+      return jsonDecode(seen.body) as Map<String, dynamic>;
+    }
+
+    test('a browser sign-in names postmessage', () async {
+      final body = await bodyOf(
+        (api) => api.signInWithGoogle('4/code', redirectUri: 'postmessage'),
+      );
+      expect(body, {
+        'server_auth_code': '4/code',
+        'redirect_uri': 'postmessage',
+      });
+    });
+
+    test('a phone sign-in sends no redirect key at all', () async {
+      // Not an empty string. Google refuses a native code that carries a
+      // redirect_uri, so the key's absence is the message.
+      final body = await bodyOf((api) => api.signInWithGoogle('4/code'));
+      expect(body, {'server_auth_code': '4/code'});
+      expect(body.containsKey('redirect_uri'), isFalse);
+    });
+
+    test('the value is Google\'s reserved word, not one we invented', () {
+      expect(GoogleAuth.popupRedirect, 'postmessage');
     });
   });
 
