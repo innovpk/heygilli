@@ -1,10 +1,16 @@
 # HeyGilli demo video script
 
-Target length: 4:45. Hard limit: 5:00. Upload to YouTube, public, before the Devpost form is submitted.
+Target length: 4:55. Hard limit: 5:00. Upload to YouTube, public, before the Devpost form is submitted.
 
 Adapted from SPEC section 13 for a phone-and-tablet build. The TV appears once, as a mockup, and only if the stretch did not land. If the TV layout is built, it replaces beat 9.
 
 Judging reminder: the video must show a working project and cover the problem, the audience, and why it matters. The order below puts the agent doing something on its own before 1:15, so a judge who stops early has still seen it.
+
+**Positioning, and the one mistake to avoid.** Do not open with the quiz. Pausing a video to ask a
+question already exists in QuizStop, Edpuzzle, PlayPosit and others, and a judge who knows any of
+them will file this as a copy in the first fifteen seconds and never re-open the question. Open with
+the number instead: 148 channels one child follows that a parent has never seen. The quiz is a
+feature of a governance product, and the video has to say that in the order it shows things.
 
 Voice-over lines are written to be spoken. Short sentences. Read them at a normal pace; each beat's line count fits its slot with a second or two to spare.
 
@@ -14,31 +20,65 @@ Legend for "Record": CAM = phone camera or mirrorless on a tripod. SCR = screen 
 
 ## Beats
 
-### 1. Problem and audience. 0:00 to 0:25
+### 1. The number. 0:00 to 0:30
 
-On screen: a child on a sofa watching YouTube on a tablet, back of head, no face. Cut to a parent's phone showing a YouTube history screen. Title card: "HeyGilli".
+On screen: open on the real subscription list scrolling, 148 rows, names blurred or not, going on and
+on past the bottom of the screen. Hold on the scroll for a beat longer than feels comfortable: the
+length is the point. Then the count, large: **148**. Then a second, smaller: **19**. Then title card
+"HeyGilli".
 
-Record: CAM (b-roll), SLIDE.
-
-Voice-over:
-
-> Kids aged four to eleven watch YouTube for hours. Nobody asks them anything.
-> Parents filter what plays. Then they police the minutes.
-> HeyGilli is the parent's agent. It watches alongside the child, asks a question by voice every few minutes, and reports back at night.
-> The buddy is Gilli, a palm squirrel. Kids just say "Hey Gilli".
-
-### 2. Parent setup. 0:25 to 0:45
-
-On screen: phone, parent app. Create kid profile "Zara, 4". Paste a channel URL. Channel appears. Tap "Kid mode". Hand the tablet to the child (CAM, hands only).
-
-Record: SCR (phone), CAM (handover).
+Record: SCR (the reviews screen scrolling, or the raw list), SLIDE.
 
 Voice-over:
 
-> Setup is a minute on the phone. A nickname, an age, and the channels you already trust.
-> No search. No recommendations. Only what the parent added.
+> My six-year-old is subscribed to a hundred and forty-eight YouTube channels.
+> I had seen about ten of them.
+> Her brother follows nineteen. My own account follows one.
+> No parent can check a hundred and forty-eight channels. So nobody does.
+> HeyGilli is the agent that does it for you.
 
-### 3. Agent in the background: the Curator. 0:45 to 1:15
+Editing note: this beat carries the whole pitch. If it lands, the judge watches the rest asking "how",
+not "how is this different from QuizStop".
+
+### 2. Where that list comes from. 0:30 to 0:50
+
+On screen: sign in with Google. Then the Takeout import screen, the zip picked, and the preview
+showing both child profiles by name with their counts, 148 and 19. Map each to a kid. Import.
+
+Record: SCR (phone).
+
+Voice-over:
+
+> No API can read a YouTube Kids profile. Google's own export is the only way in.
+> One file, and Gilli has both children's real lists.
+> Their watch history is in that file too. It never leaves the phone: only the subscription lists
+> are pulled out and sent.
+
+Editing note: use the parent's real names for the profiles, and the real counts. If the export is
+shown at all, show the privacy line on screen at the same time; it is a claim the code actually
+enforces and it is worth the two seconds.
+
+### 3. What those channels actually are. 0:50 to 1:20
+
+**The most important beat in the video.** On screen: the channel review list for the six-year-old,
+"Reviewed 148 of 148", filter chips reading All 148 / Needs a look 3 / Good 121. Sort brings the
+three concerns to the top. Tap one: the summary, the specific flags, and the sample titles the review
+was drawn from. Then the Remove button.
+
+Record: SCR.
+
+Voice-over:
+
+> Gilli read every one of those channels and what they have been publishing.
+> A hundred and twenty-one are fine. Three are worth a look.
+> This one is prank and challenge videos. It says why, and shows the titles it read.
+> One tap and it is gone from her list.
+> That took about five minutes and cost less than a dollar.
+
+Editing note: show a real flagged channel with its real reason. A judge can tell a generated
+screenshot from a real one, and this is the moment the product stops looking like a quiz app.
+
+### 4. It keeps screening, on its own. 1:20 to 1:40
 
 On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then a Graph edge into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Zara?" with Yes and Hide. Parent taps Yes.
 
@@ -51,7 +91,7 @@ Voice-over:
 > Clear cases it decides alone. This one is borderline, so it asks the parent once. Yes or no.
 > That is the whole relationship. The agent works. The parent gets one question.
 
-### 4. Pre-reader, name-it. 1:15 to 1:45
+### 5. Pre-reader, name-it. 1:40 to 2:05
 
 On screen: tablet, Zara's picture-only home. Child taps a thumbnail. Video plays. At the planned moment it pauses on a giraffe. Gilli appears small in the corner. Gilli: "What animal is that?" Big mic button pulses. Child says something close to "giraffe". Gilli: "A giraffe! Gi-raffe." with a stretch gesture. Video resumes.
 
@@ -64,7 +104,7 @@ Voice-over:
 > Whatever she says, Gilli says the word back once, clearly. That is the learning event.
 > A whispered "gaffe" counts. Silence counts too. Nobody is ever wrong.
 
-### 5. Pre-reader, pick-it. 1:45 to 2:05
+### 6. Pre-reader, pick-it. 2:05 to 2:20
 
 On screen: same session. Video pauses. Three big pictures appear. Gilli: "Show me the blue one." Child taps the fish. Gilli: "Yes! Blue. The fish is blue." Resume.
 
@@ -75,7 +115,7 @@ Voice-over:
 > Pick-it questions need no speech at all. Three pictures from a fixed, kid-safe icon library. One tap.
 > If the mic hears nothing twice, the Buddy agent switches the rest of the session to pick-it on its own.
 
-### 6. Older kid, English. 2:05 to 2:30
+### 7. Older kid, English. 2:20 to 2:40
 
 On screen: tablet, Ayaan's profile (9). Volcano video. Pause. Question shown as text and spoken: "Why did the lava come out?" Child answers in a sentence into the mic. Gilli replies, building on the answer, then resumes.
 
@@ -87,7 +127,7 @@ Voice-over:
 > Now the questions are why and what next. Text appears alongside the voice.
 > Gilli talks like an older cousin who finds the topic interesting. No baby talk. An eleven-year-old who feels talked down to will not answer twice.
 
-### 7. Older kid, Urdu. 2:30 to 2:50
+### 8. Older kid, Urdu. 2:40 to 2:55
 
 On screen: same profile, Urdu selected. Question in Urdu. Answer in Urdu. Reply in Urdu. Subtitles in English burned into the edit.
 
@@ -98,7 +138,26 @@ Voice-over:
 > Bilingual households get nothing from English-first products.
 > Gilli asks in Urdu, listens in Urdu, and switches when the child does.
 
-### 8. Provider swap. 2:50 to 3:15
+### 9. The limits are yours, and so are the words. 2:55 to 3:15
+
+On screen: the parent's Time limits card, four settings. Then kid mode: watching stops, Gilli
+appears with a countdown, and says the parent's own line. Then the parent screen showing where that
+line was written, with the suggestion list beside it.
+
+Record: SCR.
+
+Voice-over:
+
+> You set the limits. After twenty-five minutes Gilli stops the video.
+> What he says then is your sentence, not his.
+> Gilli can suggest lines, but only to you, and only in your app.
+> Nothing he says to a child was written by a model.
+
+Editing note: land the last line clearly. It is the answer to the obvious question about letting an
+AI talk to a six-year-old, and it is a real architectural claim: there is no model call anywhere in
+the child-facing break path.
+
+### 10. Provider swap. 3:15 to 3:30
 
 On screen: Mac terminal. Show `.env` with `HEYGILLI_MODEL_BUDDY=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0`. Change the one line to `HEYGILLI_MODEL_BUDDY=anthropic:claude-opus-5` (or the second provider chosen). Restart the gateway. Cut to the tablet: the same question turn runs again and Gilli replies. Optional: show the trace header naming the provider.
 
@@ -110,7 +169,7 @@ Voice-over:
 > Default is Claude on Amazon Bedrock. Change the line, restart, same agents, same session.
 > Strands makes the model a setting. We run the same eval on every provider before we trust it.
 
-### 9. Phone kid mode, or TV if built. 3:15 to 3:30
+### 11. Phone kid mode, or TV if built. 3:30 to 3:40
 
 On screen, phone version: phone in kid mode, one question turn on the small screen, then the parent-gated exit (PIN). TV version, if the stretch landed: TV home with D-pad focus, a pick-it answered with the remote's left, centre, right.
 
@@ -124,7 +183,7 @@ Voice-over, TV:
 
 > On the TV, the remote is the whole interface. Left, centre, right answers a pick-it. The mic button answers everything else.
 
-### 10. Nightly digest. 3:30 to 4:00
+### 12. Nightly digest and Progress. 3:40 to 4:05
 
 On screen: parent's phone. Notification arrives. Open it. Two cards: Zara's (words said, words heard, try today) and Ayaan's (understood, shaky, ask at dinner). Scroll slowly.
 
@@ -137,7 +196,7 @@ Voice-over:
 > For Ayaan: what he understood, what was shaky, and one question for dinner.
 > The Digest also decides whether anything else deserves a notification. Tonight, nothing did.
 
-### 11. Architecture. 4:00 to 4:20
+### 13. Architecture. 4:05 to 4:25
 
 On screen: `docs/architecture.png`. Optionally zoom on the agents panel, then the provider layer, then the deployment box.
 
@@ -153,7 +212,7 @@ If TV is not built, add:
 
 > The TV layout is the next milestone. It is a new layout on the same codebase, not a new app.
 
-### 12. Impact and honesty. 4:20 to 4:45
+### 14. Impact and honesty. 4:25 to 4:45
 
 On screen: SLIDE with four lines: "Ads still play. Creators still get paid." / "Official YouTube embed, nothing overlaid or downloaded." / "Nothing a child says is stored." / "Every household with a screen and a child. Bilingual from day one." Then a second SLIDE: "Not built yet: TV layout, subscription import, sibling mode, AgentCore Memory." Adjust to what shipped.
 
@@ -166,7 +225,7 @@ Voice-over:
 > This works for every household with a screen and a child, in two languages from day one.
 > Not built yet: the TV layout, subscription import, and sibling mode.
 
-### 13. Close. 4:45 to 4:55
+### 15. Close. 4:45 to 4:55
 
 On screen: SLIDE with repo URL, live demo or APK link, two builder.aws post titles, "Built on Strands Agents SDK and Amazon Bedrock for Agents for Humans".
 
