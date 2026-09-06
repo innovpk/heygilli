@@ -228,18 +228,27 @@ class _AccountMenu extends StatelessWidget {
         if (owner != null)
           PopupMenuItem<VoidCallback>(
             value: () => _giveTo(context, null),
-            child: const Text('Make it a parent device'),
+            child: Text(
+              'Make it a parent device',
+              style: HgText.body(size: 15, color: HgColors.ink),
+            ),
           ),
         for (final kid in state.kids)
           if (kid.id != owner?.id)
             PopupMenuItem<VoidCallback>(
               value: () => _giveTo(context, kid),
-              child: Text('Give this device to ${kid.nickname}'),
+              child: Text(
+                'Give this device to ${kid.nickname}',
+                style: HgText.body(size: 15, color: HgColors.ink),
+              ),
             ),
         const PopupMenuDivider(),
         PopupMenuItem<VoidCallback>(
           value: () => _signOut(context),
-          child: Text('Sign out', style: HgText.body(color: HgColors.coral)),
+          child: Text(
+            'Sign out',
+            style: HgText.body(size: 15, color: HgColors.coral),
+          ),
         ),
       ],
     );

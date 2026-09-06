@@ -283,14 +283,33 @@ class _Header extends StatelessWidget {
             )
           else
             const Spacer(),
-          // 48 dp target, low contrast on purpose: parents find it, kids ignore it.
-          IconButton(
-            onPressed: onExit,
-            iconSize: 26,
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            icon: const Icon(Icons.lock_outline_rounded),
-            color: HgColors.cream.withValues(alpha: 0.55),
-            tooltip: 'Parent',
+          // The way back to the parent. It was cream at 55% on teal and
+          // nothing else — findable on a phone, invisible in the corner of a
+          // wide window, and the first thing a parent hunts for. It is a
+          // filled circle now: still quiet, but unmistakably a control.
+          //
+          // Quiet is the point, not hidden. The child this is kept from is
+          // four and cannot read the label anyway; what actually stops them
+          // is the PIN behind it, so making the door visible costs nothing.
+          Tooltip(
+            message: 'Parent',
+            child: Material(
+              color: HgColors.cream.withValues(alpha: 0.14),
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: onExit,
+                customBorder: const CircleBorder(),
+                child: const SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    size: 26,
+                    color: HgColors.cream,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

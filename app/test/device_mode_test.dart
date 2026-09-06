@@ -189,6 +189,28 @@ void main() {
     expect(app.settings.pin, '1234');
   });
 
+  testWidgets('a child device still offers the way back to a parent', (
+    tester,
+  ) async {
+    // The control a parent hunts for, and the one they could not find. It has
+    // to be present and tappable however wide the window is: a lock in the
+    // far corner of a two-thousand-pixel screen is not an affordance.
+    tester.view.physicalSize = const Size(2000, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(host(onKidDevice));
+    await settle(tester);
+
+    final lock = find.byTooltip('Parent');
+    expect(lock, findsOneWidget, reason: 'no way back to the parent app');
+    expect(
+      tester.getSize(lock).shortestSide,
+      greaterThanOrEqualTo(48),
+      reason: 'below the minimum touch target',
+    );
+  });
+
   testWidgets('a parent device still opens on the household', (tester) async {
     await tester.pumpWidget(host(onParentDevice));
     await tester.pump();

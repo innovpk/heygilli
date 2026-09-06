@@ -43,7 +43,7 @@ class _PinGateScreenState extends State<PinGateScreen> {
         _hint ??
         (settingUp
             ? 'Kids need this to leave kid mode.'
-            : 'Four digits to leave kid mode.');
+            : 'Four digits, so this is you and not them.');
 
     return Scaffold(
       backgroundColor: HgColors.tealDeep,
@@ -53,8 +53,16 @@ class _PinGateScreenState extends State<PinGateScreen> {
             // This gate opens from kid mode, which is landscape, so it is
             // usually short and wide: put the keypad beside the prompt rather
             // than under it, and size the keys to the height we actually have.
-            final side = box.maxWidth > box.maxHeight && box.maxHeight < 560;
             final keyH = ((box.maxHeight - 140) / 4.6).clamp(46.0, 72.0);
+            // Side by side only when the keypad and a readable prompt both
+            // fit. The keypad's width follows its height, so a short window
+            // can be "landscape" and still be too narrow: 3 keys, their gaps,
+            // 40 of spacing, 48 of padding, and something left for the words.
+            final keypadW = keyH * 1.12 * 3 + 40;
+            final side =
+                box.maxWidth > box.maxHeight &&
+                box.maxHeight < 560 &&
+                box.maxWidth - keypadW - 88 > 200;
 
             final prompt = Column(
               mainAxisSize: MainAxisSize.min,
@@ -89,14 +97,19 @@ class _PinGateScreenState extends State<PinGateScreen> {
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
                     child: side
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            spacing: 40,
-                            children: [
-                              Flexible(child: prompt),
-                              keypad,
-                            ],
+                        ? ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: box.maxWidth - 48,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              spacing: 40,
+                              children: [
+                                Flexible(child: prompt),
+                                keypad,
+                              ],
+                            ),
                           )
                         : Column(
                             mainAxisSize: MainAxisSize.min,
