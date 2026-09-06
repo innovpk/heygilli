@@ -137,11 +137,13 @@ flutter run -d web-server --web-port 5601   --dart-define=HEYGILLI_GOOGLE_SERVER
 ```
 
 In a browser the sign-in button is the one Google's SDK renders, not HeyGilli's — the GIS SDK
-refuses a click from an app's own widget. It works, but only if `http://localhost:5601` is listed
-under **Authorized JavaScript origins** on the web OAuth client. **As of 6 September it is not**:
-the button opens Google, Google answers `401 invalid_client / no registered origin`, and the app
-shows nothing, because that refusal never comes back through the SDK. Register the origin before
-recording, not on the day. The button's language follows the signed-in Google account, so a Google set to German
+refuses a click from an app's own widget. It works, but only if the page's exact address is listed
+under **Authorized JavaScript origins** on the web OAuth client; `http://localhost:5601` was
+registered on 6 September. Without it Google answers `401 invalid_client / no registered origin`
+and the app shows nothing, because that refusal never comes back through the SDK. If a web beat is
+recorded from any other address, register that one too, and check it before the day rather than on
+it. Tell-tale for a missing origin: the button renders in the wrong language, because the
+unverified fallback button ignores the locale we ask for. The button's language follows the signed-in Google account, so a Google set to German
 gives a German button under English copy. If any of that is in the way, record web beats in demo
 mode or hand the browser a token minted with `POST /auth/dev`.
 

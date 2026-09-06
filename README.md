@@ -128,13 +128,16 @@ same on every platform — one `authorizeServer`, one server auth code, one
 For that button to work, the page's exact address must be listed under
 **Authorized JavaScript origins** on the web OAuth client (Google Cloud console
 → Credentials). For a local run that is `http://localhost:5601`, which is why
-the port is pinned rather than random. **This is not registered yet** — signing
-in from a browser currently returns Google's own `Error 401: invalid_client —
-no registered origin`, and HeyGilli shows nothing at all afterwards, because
-that refusal happens inside Google's popup and the SDK does not report it back.
+the port is pinned rather than random. Registered on 6 September; Google
+answers `401 invalid_client — no registered origin` without it, and HeyGilli
+shows nothing at all afterwards, because that refusal happens inside Google's
+popup and the SDK does not report it back.
 
-The button's language comes from the signed-in Google account, not from the
-page, so it may not be English.
+An unregistered origin has a second symptom worth knowing, because it does not
+look like a configuration problem: the SDK renders an unverified fallback
+button that ignores `locale` and comes out in the browser's or the account's
+language. Once the origin is registered the button honours the setting and
+reads "Continue with Google".
 
 App, demo mode with no gateway (canned videos, plans and digests, built around
 whichever kid you add; a "demo" badge is shown). An unreachable gateway is never

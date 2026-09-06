@@ -11,13 +11,11 @@ Widget? googleRenderedButton() => Center(
       text: web.GSIButtonText.continueWith,
       shape: web.GSIButtonShape.pill,
       minimumWidth: 320,
-      // Asked for, but not guaranteed: the GIS SDK takes the language from
-      // the signed-in Google account before it takes this, so a parent whose
-      // Google is set to German gets a German button under English copy.
-      // Verified: `document.documentElement.lang` and `navigator.language`
-      // are both en-US here and the button still renders "Weiter mit Google".
-      // Nothing in the page can override it, so it is left asked-for rather
-      // than claimed.
+      // Pinned, or the SDK follows the browser or Google account language and
+      // a German button lands under English copy. This works only once the
+      // page's origin is registered on the OAuth client: before that the SDK
+      // renders an unverified fallback button that ignores the setting, which
+      // looks exactly like the setting not working.
       locale: 'en',
     ),
   ),
