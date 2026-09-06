@@ -93,6 +93,7 @@ sealed class ServerMessage {
               .map((o) => PickOption.fromJson(o as Map<String, dynamic>))
               .toList(),
           gesture: Gesture.fromWire(j['gesture'] as String?),
+          revisit: QuestionRevisit.fromJson(j['revisit']),
         );
       case 'reply':
         return ReplyMessage(
@@ -157,6 +158,32 @@ class PickOption {
   Map<String, dynamic> toJson() => {'icon_id': iconId, 'label': label};
 }
 
+/// Bookkeeping saying this question is quietly coming back to an earlier
+/// concept (PROTOCOL "Revisiting a shaky concept").
+///
+/// **Nothing here is ever shown or spoken to a child.** A revisit is asked as
+/// a fresh question about the video they are watching now; a child noticing
+/// they are being retested is the failure mode the whole design avoids. The
+/// only screen this reaches is the parent's.
+class QuestionRevisit {
+  const QuestionRevisit({required this.concept, this.lastSeen = ''});
+
+  final String concept;
+  final String lastSeen;
+
+  /// Null for all but at most one question per plan, and null is the norm.
+  static QuestionRevisit? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final j = raw.cast<String, dynamic>();
+    final concept = j['concept'] as String? ?? '';
+    if (concept.isEmpty) return null;
+    return QuestionRevisit(
+      concept: concept,
+      lastSeen: j['last_seen'] as String? ?? '',
+    );
+  }
+}
+
 class AskMessage extends ServerMessage {
   const AskMessage({
     required this.q,
@@ -169,6 +196,7 @@ class AskMessage extends ServerMessage {
     required this.listenMs,
     required this.options,
     required this.gesture,
+    this.revisit,
   });
 
   final int q;
@@ -194,6 +222,13 @@ class AskMessage extends ServerMessage {
   final int listenMs;
   final List<PickOption> options;
   final Gesture gesture;
+
+  /// Set on at most one question per plan. Read so the client understands the
+  /// frame, and used by nothing on the kid side: it changes no word Gilli
+  /// says, nothing on screen, and no timing (PROTOCOL "Revisiting a shaky
+  /// concept"). Anything that made a revisit look or sound different would
+  /// tell the child they are being retested.
+  final QuestionRevisit? revisit;
 }
 
 class ReplyMessage extends ServerMessage {

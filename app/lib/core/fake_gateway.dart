@@ -1199,6 +1199,33 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<List<RevisitConcept>> revisits(String kidId) async {
+    await _lag();
+    final kid = _kid(kidId);
+    final shape = kid == null ? null : _demoShapes[kid.band];
+    final today = DateTime.now();
+    String daysAgo(int n) => DateTime(
+      today.year,
+      today.month,
+      today.day - n,
+    ).toIso8601String().substring(0, 10);
+    // The same list Analytics calls needs_another_look, seen from the other
+    // side: what has been come back to, and what is still waiting a turn.
+    // A pre-reader's shape has none, and that is the honest answer.
+    return [
+      for (final (i, s) in (shape?.needsAnotherLook ?? const []).indexed)
+        RevisitConcept(
+          concept: s.$1,
+          timesShaky: s.$2,
+          lastSeen: daysAgo(s.$3),
+          // The first one has had its turn; anything after it is queued,
+          // because at most one revisit fits in a session (PROTOCOL).
+          askedAgain: i == 0 ? 1 : 0,
+        ),
+    ];
+  }
+
+  @override
   Future<List<ParentPrompt>> inbox() async {
     await _lag();
     // Attach the sample prompt to the oldest kid the parent has actually

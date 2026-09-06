@@ -131,6 +131,14 @@ abstract class Gateway {
   /// Rolling window for the parent Progress screen. `days` is 7-90.
   Future<Analytics> analytics(String kidId, {int days = 14});
 
+  /// `GET /kids/{id}/revisits`: the shaky concepts, and which of them a later
+  /// session has quietly come back to.
+  ///
+  /// Parent-side only. The child is never told a question is a revisit, so
+  /// nothing this returns may reach a kid screen (PROTOCOL "Revisiting a
+  /// shaky concept").
+  Future<List<RevisitConcept>> revisits(String kidId);
+
   /// `GET /kids/{id}/policy`. An empty policy is a real answer: the Curator
   /// then screens on age-band defaults alone.
   Future<Policy> policy(String kidId);

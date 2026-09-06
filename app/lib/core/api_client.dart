@@ -341,6 +341,15 @@ class ApiClient implements Gateway {
   }
 
   @override
+  Future<List<RevisitConcept>> revisits(String kidId) async {
+    final body = await _get('/kids/$kidId/revisits') as Map<String, dynamic>;
+    return [
+      for (final c in (body['concepts'] as List? ?? const []))
+        RevisitConcept.fromJson((c as Map).cast<String, dynamic>()),
+    ];
+  }
+
+  @override
   Future<HistoryInsight?> history(String kidId) async {
     try {
       return HistoryInsight.fromJson(

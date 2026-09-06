@@ -262,6 +262,51 @@ class ConceptStat {
 }
 
 /// Shaky on two or more separate days: the short list worth a parent's time.
+/// `GET /kids/{id}/revisits`: a shaky concept and whether it has been asked
+/// about again.
+///
+/// PROTOCOL "Revisiting a shaky concept". This is the parent's side of a
+/// mechanism the child must never notice. The Planner may seed one question
+/// about an earlier concept into a later video's plan, asked as a fresh
+/// question about the new video; the bookkeeping lives here and nowhere a
+/// child can see it.
+class RevisitConcept {
+  const RevisitConcept({
+    required this.concept,
+    this.timesShaky = 0,
+    this.lastSeen = '',
+    this.askedAgain = 0,
+  });
+
+  final String concept;
+
+  /// Shaky on this many separate days.
+  final int timesShaky;
+  final String lastSeen;
+
+  /// How many later sessions have quietly come back to it.
+  final int askedAgain;
+
+  /// Nothing has come back to this one yet. Not a failure: at most one
+  /// revisit fits in a session and never as the first question, so a concept
+  /// can sit here for days before its turn.
+  bool get waiting => askedAgain == 0;
+
+  factory RevisitConcept.fromJson(Map<String, dynamic> j) => RevisitConcept(
+    concept: j['concept'] as String? ?? '',
+    timesShaky: _int(j['times_shaky'], 0),
+    lastSeen: j['last_seen'] as String? ?? '',
+    askedAgain: _int(j['asked_again'], 0),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'concept': concept,
+    'times_shaky': timesShaky,
+    'last_seen': lastSeen,
+    'asked_again': askedAgain,
+  };
+}
+
 class ShakyConcept {
   const ShakyConcept({
     required this.concept,

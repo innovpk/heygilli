@@ -28,10 +28,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
   int _days = 14;
   late Future<Analytics> _future = _load();
 
+  /// Which shaky concepts a later session has quietly come back to. Loaded
+  /// separately because it does not move with the day range: a revisit is
+  /// about a concept, not about a window.
+  late Future<List<RevisitConcept>> _revisits = _loadRevisits();
+
   Future<Analytics> _load() =>
       context.read<AppState>().gateway.analytics(widget.kid.id, days: _days);
 
-  void _reload() => setState(() => _future = _load());
+  Future<List<RevisitConcept>> _loadRevisits() =>
+      context.read<AppState>().gateway.revisits(widget.kid.id);
+
+  void _reload() => setState(() {
+    _future = _load();
+    _revisits = _loadRevisits();
+  });
 
   void _setDays(int days) {
     if (days == _days) return;
@@ -64,7 +75,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     child: CircularProgressIndicator(color: HgColors.mango),
                   );
                 }
-                return _Body(analytics: a, kid: widget.kid);
+                return FutureBuilder<List<RevisitConcept>>(
+                  future: _revisits,
+                  builder: (context, revisits) => _Body(
+                    analytics: a,
+                    kid: widget.kid,
+                    // An empty list until it arrives, and an empty list if it
+                    // never does: the rest of the screen is worth more than a
+                    // spinner over it.
+                    revisits: revisits.data ?? const [],
+                  ),
+                );
               },
             ),
           ),
@@ -119,10 +140,15 @@ class _RangeRow extends StatelessWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.analytics, required this.kid});
+  const _Body({
+    required this.analytics,
+    required this.kid,
+    this.revisits = const [],
+  });
 
   final Analytics analytics;
   final Kid kid;
+  final List<RevisitConcept> revisits;
 
   bool get _preReader => kid.band == AgeBand.b4to6;
 
@@ -207,6 +233,40 @@ class _Body extends StatelessWidget {
                           'Shaky on ${s.timesShaky} days, '
                           'last ${_shortDate(s.lastSeen)}',
                     ),
+                ],
+              ),
+            ),
+          ],
+          if (revisits.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _Section(
+              label: 'Coming back to these',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 10,
+                children: [
+                  for (final r in revisits)
+                    _ConceptLine(
+                      concept: r.concept,
+                      detail: r.waiting
+                          ? 'Shaky on ${r.timesShaky} days. Not been back to '
+                                'it yet'
+                          : 'Asked again ${r.askedAgain} '
+                                '${r.askedAgain == 1 ? 'time' : 'times'} since',
+                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    // The whole point of the feature from the parent's side,
+                    // and the one thing they cannot see for themselves: what
+                    // this looks like from where their child is sitting.
+                    'When one of these comes round again it is asked as an '
+                    'ordinary question about whatever ${kid.nickname} is '
+                    'watching that day, never as "remember when you got this '
+                    'wrong". At most one a session, never the first question, '
+                    "and nothing on ${kid.nickname}'s screen says it is a "
+                    'repeat.',
+                    style: HgText.body(size: 13, color: HgColors.brown),
+                  ),
                 ],
               ),
             ),
