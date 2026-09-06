@@ -573,13 +573,17 @@ class FakeGateway implements Gateway {
   final _sessions = <String, _FakeSessionInfo>{};
 
   @override
-  Future<SessionStart> startSession({
+  Future<SessionStartResult> startSession({
     required String kidId,
     required String videoId,
     required String device,
   }) async {
     await _lag();
     final kid = _kids.firstWhere((k) => k.id == kidId);
+    // The live gateway answers 409 here while a break runs; so does this one,
+    // which is how the demo proves nothing plays during a break.
+    final active = _liveBreak(kidId);
+    if (active != null) return SessionBlockedByBreak(active);
     final video = [_ducks, _twinkle, _volcano, _ears].firstWhere(
       (v) => v.id == videoId,
       orElse: () => Video(
@@ -592,7 +596,9 @@ class FakeGateway implements Gateway {
     );
     final id = 'sess_${DateTime.now().millisecondsSinceEpoch}';
     _sessions[id] = _FakeSessionInfo(kid: kid, video: video);
-    return SessionStart(sessionId: id, video: video, planReady: true);
+    return SessionStarted(
+      SessionStart(sessionId: id, video: video, planReady: true),
+    );
   }
 
   @override
@@ -602,6 +608,218 @@ class FakeGateway implements Gateway {
       kid: info.kid,
       video: info.video,
       plan: _plans[info.video.id] ?? const [],
+      // Demo mode compresses the real 25 minutes into one, so a judge sees a
+      // break inside a three-minute video instead of taking the app's word
+      // for it. Off entirely when the parent set "never".
+      breakAtS: info.kid.takesBreaks ? _demoBreakAtS : null,
+      onBreakDue: () => startDemoBreak(info.kid.id, source: info.video.title),
+    );
+  }
+
+  // ------------------------------------------------- time limits and breaks
+
+  /// Demo only: how long into a video Gilli calls a break.
+  static const _demoBreakAtS = 60;
+
+  final _breaks = <String, MovementBreak>{};
+
+  /// Minutes "already watched today", moved by the demo controls so the
+  /// numbers on the parent card agree with whatever screen is being shown.
+  final _minutesToday = <String, int>{};
+
+  /// The break for [kidId] if it is still running, expiring it when its own
+  /// timer has passed. The break ends on the clock, never on a tap.
+  MovementBreak? _liveBreak(String kidId) {
+    final b = _breaks[kidId];
+    if (b == null) return null;
+    final left = _secondsLeft(b);
+    if (left <= 0) {
+      _breaks.remove(kidId);
+      return null;
+    }
+    return b.copyWith(secondsLeft: left);
+  }
+
+  int _secondsLeft(MovementBreak b) {
+    final ends = DateTime.tryParse(b.endsAt);
+    if (ends == null) return b.secondsLeft;
+    return ends.difference(DateTime.now()).inSeconds;
+  }
+
+  Kid? _kid(String id) => _kids.where((k) => k.id == id).firstOrNull;
+
+  @override
+  Future<WatchState> watchState(String kidId) async {
+    await _lag();
+    return watchStateNow(kidId);
+  }
+
+  /// The same answer without the fake network lag, so the demo controls can
+  /// read back what they just did.
+  WatchState watchStateNow(String kidId) {
+    final kid = _kid(kidId);
+    final active = _liveBreak(kidId);
+    final today = _minutesToday[kidId] ?? 0;
+    final daily = kid?.dailyMinutes ?? 0;
+    final dayDone = daily > 0 && today >= daily;
+    return WatchState(
+      minutesToday: today,
+      minutesLeftToday: daily == 0 ? 0 : (daily - today).clamp(0, daily),
+      continuousMinutes: active == null ? today : 0,
+      watchingAllowed: active == null && !dayDone,
+      // A break wins over the daily limit: it is the thing the child is
+      // standing in the middle of.
+      blockedReason: active != null
+          ? BlockedReason.movementBreak
+          : (dayDone ? BlockedReason.dailyLimit : null),
+      activeBreak: active,
+    );
+  }
+
+  @override
+  Future<Kid> updateLimits(
+    String kidId, {
+    int? dailyMinutes,
+    int? breakAfterMinutes,
+    int? breakMinutes,
+    int? maxVideoMinutes,
+  }) async {
+    await _lag();
+    final i = _kids.indexWhere((k) => k.id == kidId);
+    if (i < 0) throw StateError('No kid $kidId');
+    final updated = _kids[i].copyWith(
+      dailyMinutes: dailyMinutes,
+      breakAfterMinutes: breakAfterMinutes,
+      breakMinutes: breakMinutes,
+      maxVideoMinutes: maxVideoMinutes,
+    );
+    _kids[i] = updated;
+    return updated;
+  }
+
+  @override
+  Future<MovementBreak> ackBreak(String kidId) async {
+    await _lag();
+    final b = _liveBreak(kidId);
+    if (b == null) throw StateError('No break running for $kidId');
+    // Recorded, and that is all: the seconds left are untouched.
+    final acked = b.copyWith(acked: true);
+    _breaks[kidId] = acked;
+    return acked;
+  }
+
+  @override
+  Future<void> overrideBreak(String kidId) async {
+    await _lag();
+    _breaks.remove(kidId);
+  }
+
+  /// Demo control: start a break right now, built from [source].
+  ///
+  /// The real one is written by the Break agent from the session's transcript;
+  /// this picks from the same safe shapes so the screen can be shown and
+  /// screenshotted without waiting 25 minutes for one.
+  MovementBreak startDemoBreak(String kidId, {String source = ''}) {
+    final kid = _kid(kidId);
+    final minutes = kid?.breakMinutes ?? Kid.defaultBreakMinutes;
+    final now = DateTime.now();
+    final task = _demoTask(source);
+    final active = MovementBreak(
+      id: 'brk_${now.millisecondsSinceEpoch}',
+      kidId: kidId,
+      startedAt: now.toIso8601String(),
+      endsAt: now.add(Duration(minutes: minutes)).toIso8601String(),
+      secondsLeft: minutes * 60,
+      task: BreakTask(
+        title: task.title,
+        steps: task.steps,
+        seconds: minutes * 60,
+        spoken: task.spoken,
+      ),
+      sourceTitles: [if (source.isNotEmpty) source else _volcano.title],
+    );
+    _breaks[kidId] = active;
+    // Keep the counters honest: a break fires because they have been watching.
+    final after = kid?.breakAfterMinutes ?? Kid.defaultBreakAfterMinutes;
+    _minutesToday[kidId] =
+        (_minutesToday[kidId] ?? 0) + (after > 0 ? after : 25);
+    return active;
+  }
+
+  /// Demo control: put the kid at their daily limit so the end-of-day screen
+  /// can be seen.
+  void useUpTheDay(String kidId) {
+    _breaks.remove(kidId);
+    final daily = _kid(kidId)?.dailyMinutes ?? Kid.defaultDailyMinutes;
+    _minutesToday[kidId] = daily == 0 ? 0 : daily;
+  }
+
+  /// Demo control: back to a normal day with everything to watch.
+  void clearDemoLimits(String kidId) {
+    _breaks.remove(kidId);
+    _minutesToday.remove(kidId);
+  }
+
+  /// The built-in fallback set PROTOCOL requires: indoors, on the spot, no
+  /// equipment, nothing to fetch, one move a four-year-old can copy. A break
+  /// never depends on a model call having succeeded.
+  static ({String title, List<String> steps, String spoken}) _demoTask(
+    String source,
+  ) {
+    final s = source.toLowerCase();
+    if (s.contains('volcano')) {
+      return (
+        title: 'Be a volcano',
+        steps: [
+          'Crouch down small, like a sleeping mountain',
+          'Count to three',
+          'Push your arms up and go whoosh',
+          'Do it three more times',
+        ],
+        spoken:
+            'Let us be a volcano! Crouch down small, small, small. '
+            'One, two, three, and whoooosh, up you go! Again!',
+      );
+    }
+    if (s.contains('duck')) {
+      return (
+        title: 'Waddle like the five little ducks',
+        steps: [
+          'Stand up and put your hands on your hips',
+          'Waddle five steps one way',
+          'Waddle five steps back',
+          'Say quack on every step',
+        ],
+        spoken:
+            'Stand up like a little duck! Waddle, waddle, waddle. '
+            'Quack on every step. Now waddle back to me!',
+      );
+    }
+    if (s.contains('ear') || s.contains('hear')) {
+      return (
+        title: 'Listen like a squirrel',
+        steps: [
+          'Stand still and cup your hands behind your ears',
+          'Turn slowly to one side and listen',
+          'Turn slowly to the other side',
+          'Tell me one sound you found',
+        ],
+        spoken:
+            'Cup your hands behind your ears like me. Turn slowly this way '
+            'and listen. Now the other way. What can you hear?',
+      );
+    }
+    return (
+      title: 'Stretch tall like a tree',
+      steps: [
+        'Stand up tall and reach your arms up high',
+        'Sway slowly like branches in the wind',
+        'Bend down and touch your toes',
+        'Stretch back up tall',
+      ],
+      spoken:
+          'Stand up tall like a big tree! Reach your branches up high. '
+          'Sway in the wind. Now bend all the way down to your toes.',
     );
   }
 
@@ -892,7 +1110,13 @@ class PlannedAsk {
 /// pause → ask → (answer) → reply → resume for each planned question, scoring
 /// answers the way SPEC 7.4 describes (forgiving for pre-readers).
 class FakeSession implements SessionSocket {
-  FakeSession({required this.kid, required this.video, required this.plan}) {
+  FakeSession({
+    required this.kid,
+    required this.video,
+    required this.plan,
+    this.breakAtS,
+    this.onBreakDue,
+  }) {
     _out = StreamController<ServerMessage>.broadcast();
   }
 
@@ -900,10 +1124,18 @@ class FakeSession implements SessionSocket {
   final Video video;
   final List<PlannedAsk> plan;
 
+  /// Position at which this session calls a movement break, or null for none.
+  final int? breakAtS;
+
+  /// Registers the break with the gateway and hands it back, so the same
+  /// break is what `GET /state` and `POST /sessions` see afterwards.
+  final MovementBreak Function()? onBreakDue;
+
   late final StreamController<ServerMessage> _out;
   int _nextQ = 0;
   bool _busy = false;
   bool _closed = false;
+  bool _breakSent = false;
   Completer<ClientMessage?>? _awaitingAnswer;
   Timer? _answerTimeout;
 
@@ -928,6 +1160,14 @@ class FakeSession implements SessionSocket {
         );
       case PositionMessage(:final seconds):
         if (_busy) return;
+        // PROTOCOL: the break waits for a natural moment, so it never lands
+        // while a question is in flight (_busy covers that).
+        if (!_breakSent && breakAtS != null && seconds >= breakAtS!) {
+          _breakSent = true;
+          final active = onBreakDue?.call();
+          if (active != null) _emit(BreakMessage(active));
+          return;
+        }
         if (_nextQ < plan.length && seconds >= plan[_nextQ].atS) {
           _runQuestion(_nextQ);
         } else if (video.durationS > 0 && seconds >= video.durationS - 1) {

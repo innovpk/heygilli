@@ -60,6 +60,15 @@ class ApiClient implements Gateway {
     return _decode(r);
   }
 
+  Future<dynamic> _patch(String path, [Object? body]) async {
+    final r = await _http.patch(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(),
+      body: body == null ? null : jsonEncode(body),
+    );
+    return _decode(r);
+  }
+
   Future<dynamic> _delete(String path) async {
     final r = await _http.delete(
       Uri.parse('$baseUrl$path'),
@@ -188,18 +197,63 @@ class ApiClient implements Gateway {
   }
 
   @override
-  Future<SessionStart> startSession({
-    required String kidId,
-    required String videoId,
-    required String device,
-  }) async => SessionStart.fromJson(
-    await _post('/sessions', {
-          'kid_id': kidId,
-          'video_id': videoId,
-          'device': device,
+  Future<WatchState> watchState(String kidId) async => WatchState.fromJson(
+    await _get('/kids/$kidId/state') as Map<String, dynamic>,
+  );
+
+  @override
+  Future<Kid> updateLimits(
+    String kidId, {
+    int? dailyMinutes,
+    int? breakAfterMinutes,
+    int? breakMinutes,
+    int? maxVideoMinutes,
+  }) async => Kid.fromJson(
+    await _patch('/kids/$kidId/limits', {
+          // Omitted fields are left alone by the gateway, so a screen that
+          // only touched one setting sends only that one.
+          'daily_minutes': ?dailyMinutes,
+          'break_after_minutes': ?breakAfterMinutes,
+          'break_minutes': ?breakMinutes,
+          'max_video_minutes': ?maxVideoMinutes,
         })
         as Map<String, dynamic>,
   );
+
+  @override
+  Future<MovementBreak> ackBreak(String kidId) async => MovementBreak.fromJson(
+    await _post('/kids/$kidId/break/ack') as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> overrideBreak(String kidId) =>
+      _post('/kids/$kidId/break/override', {'pin_ok': true});
+
+  @override
+  Future<SessionStartResult> startSession({
+    required String kidId,
+    required String videoId,
+    required String device,
+  }) async {
+    try {
+      return SessionStarted(
+        SessionStart.fromJson(
+          await _post('/sessions', {
+                'kid_id': kidId,
+                'video_id': videoId,
+                'device': device,
+              })
+              as Map<String, dynamic>,
+        ),
+      );
+    } on ApiException catch (e) {
+      // 409 is "a break is running", which the kid screen shows as the break.
+      // Any other status is a real failure and still throws.
+      final active = e.status == 409 ? breakFromErrorBody(e.body) : null;
+      if (active == null) rethrow;
+      return SessionBlockedByBreak(active);
+    }
+  }
 
   @override
   Future<SessionSocket> openSession(String sessionId) {
@@ -242,6 +296,36 @@ class ApiClient implements Gateway {
   @override
   Future<void> decide(String promptId, String decision) =>
       _post('/parent/inbox/$promptId', {'decision': decision});
+}
+
+/// Digs the active break out of a 409 body from `POST /sessions`.
+///
+/// PROTOCOL says the 409 "carries the active break" without pinning the
+/// envelope, and FastAPI wraps raised errors in `detail`. So all four shapes
+/// the gateway could plausibly send are accepted: the break at the top level,
+/// under `break`, under `active_break`, or under `detail` holding any of
+/// those. Anything else returns null and the caller rethrows rather than
+/// inventing a break out of an error body.
+MovementBreak? breakFromErrorBody(String body) {
+  Object? decoded;
+  try {
+    decoded = jsonDecode(body);
+  } catch (_) {
+    return null;
+  }
+  return _breakIn(decoded, depth: 0);
+}
+
+MovementBreak? _breakIn(Object? node, {required int depth}) {
+  if (node is! Map || depth > 2) return null;
+  final j = node.cast<String, dynamic>();
+  // A break is recognised by its task, which is the part the screen needs.
+  if (j['task'] is Map) return MovementBreak.fromJson(j);
+  for (final key in const ['break', 'active_break', 'detail']) {
+    final found = _breakIn(j[key], depth: depth + 1);
+    if (found != null) return found;
+  }
+  return null;
 }
 
 class ApiException implements Exception {

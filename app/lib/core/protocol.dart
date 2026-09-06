@@ -7,6 +7,8 @@ library;
 
 import 'dart:convert';
 
+import 'models.dart';
+
 // ---------------------------------------------------------------- helpers
 
 /// True when [s] contains Arabic-script letters (Urdu is written in it).
@@ -102,6 +104,13 @@ sealed class ServerMessage {
         );
       case 'resume':
         return const ResumeMessage();
+      case 'break':
+        // PROTOCOL "Time limits and movement breaks": stop playback now. A
+        // frame with no break in it is dropped rather than opening an empty
+        // break screen a child could not leave.
+        final b = (j['break'] as Map?)?.cast<String, dynamic>();
+        if (b == null) return UnknownMessage('break', j);
+        return BreakMessage(MovementBreak.fromJson(b));
       case 'end':
         return EndMessage(
           summaryTtsUrl: j['summary_tts_url'] as String? ?? '',
@@ -219,6 +228,13 @@ class EndMessage extends ServerMessage {
   final String summaryTtsUrl;
   final List<String> wordsSaid;
   final String? summaryText;
+}
+
+/// `{t: "break", break: MovementBreak}`. The video stops here and does not
+/// come back until the break's own timer runs out.
+class BreakMessage extends ServerMessage {
+  const BreakMessage(this.movementBreak);
+  final MovementBreak movementBreak;
 }
 
 class ErrorMessage extends ServerMessage {

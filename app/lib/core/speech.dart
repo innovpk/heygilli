@@ -10,15 +10,31 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// voice, Urdu support) and falls back to on-device TTS when the URL is empty
 /// or fails, per PROTOCOL.md "TTS".
 class GilliVoice extends ChangeNotifier {
-  GilliVoice() {
-    _player.onPlayerComplete.listen((_) => _finish());
-    _tts.setCompletionHandler(_finish);
-    _tts.setCancelHandler(_finish);
-    _tts.setErrorHandler((_) => _finish());
+  GilliVoice();
+
+  // Built on first use, not in the constructor: creating one of these reaches
+  // for a platform channel, and the object itself is constructed in places
+  // (tests, a screen that never speaks) where no audio is ever asked for.
+  AudioPlayer? _playerOrNull;
+  FlutterTts? _ttsOrNull;
+
+  AudioPlayer get _player {
+    final player = _playerOrNull;
+    if (player != null) return player;
+    final made = AudioPlayer();
+    made.onPlayerComplete.listen((_) => _finish());
+    return _playerOrNull = made;
   }
 
-  final _player = AudioPlayer();
-  final _tts = FlutterTts();
+  FlutterTts get _tts {
+    final tts = _ttsOrNull;
+    if (tts != null) return tts;
+    final made = FlutterTts();
+    made.setCompletionHandler(_finish);
+    made.setCancelHandler(_finish);
+    made.setErrorHandler((_) => _finish());
+    return _ttsOrNull = made;
+  }
 
   bool _speaking = false;
   Completer<void>? _done;
@@ -84,16 +100,16 @@ class GilliVoice extends ChangeNotifier {
   Future<void> stop() async {
     if (!_speaking) return;
     try {
-      await _player.stop();
-      await _tts.stop();
+      await _playerOrNull?.stop();
+      await _ttsOrNull?.stop();
     } catch (_) {}
     _finish();
   }
 
   @override
   void dispose() {
-    _player.dispose();
-    _tts.stop();
+    _playerOrNull?.dispose();
+    _ttsOrNull?.stop();
     super.dispose();
   }
 }

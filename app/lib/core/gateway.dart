@@ -59,7 +59,33 @@ abstract class Gateway {
 
   Future<List<HomeRow>> home(String kidId);
 
-  Future<SessionStart> startSession({
+  /// `GET /kids/{id}/state`. Checked before anything is offered to watch, and
+  /// again when the kid screen is reopened, so a break survives the app being
+  /// killed mid-break.
+  Future<WatchState> watchState(String kidId);
+
+  /// `PATCH /kids/{id}/limits`. Omitted fields are left as they are.
+  /// 0 means "no limit" for daily and max-video minutes, and "never" for the
+  /// break interval (PROTOCOL).
+  Future<Kid> updateLimits(
+    String kidId, {
+    int? dailyMinutes,
+    int? breakAfterMinutes,
+    int? breakMinutes,
+    int? maxVideoMinutes,
+  });
+
+  /// `POST /kids/{id}/break/ack`: the child says they did the task. Records
+  /// it and nothing more; the break still ends on its own timer.
+  Future<MovementBreak> ackBreak(String kidId);
+
+  /// `POST /kids/{id}/break/override`: a parent ends a break early, behind
+  /// the PIN.
+  Future<void> overrideBreak(String kidId);
+
+  /// `POST /sessions`. Answers 409 with the active break when one is running,
+  /// which is a [SessionBlockedByBreak], not an error.
+  Future<SessionStartResult> startSession({
     required String kidId,
     required String videoId,
     required String device,

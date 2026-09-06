@@ -62,7 +62,18 @@ class Kid {
     required this.band,
     required this.languages,
     this.avatar = '',
+    this.dailyMinutes = defaultDailyMinutes,
+    this.breakAfterMinutes = defaultBreakAfterMinutes,
+    this.breakMinutes = defaultBreakMinutes,
+    this.maxVideoMinutes = defaultMaxVideoMinutes,
   });
+
+  /// PROTOCOL "Time limits and movement breaks" defaults. A gateway that has
+  /// not been upgraded yet omits the four fields, and these are what it means.
+  static const defaultDailyMinutes = 60;
+  static const defaultBreakAfterMinutes = 25;
+  static const defaultBreakMinutes = 5;
+  static const defaultMaxVideoMinutes = 0;
 
   final String id;
   final String nickname;
@@ -71,7 +82,41 @@ class Kid {
   final List<String> languages;
   final String avatar;
 
+  /// Total watching allowed per day. 0 = no limit.
+  final int dailyMinutes;
+
+  /// Continuous watching before Gilli calls a movement break. 0 = never.
+  final int breakAfterMinutes;
+
+  /// How long a movement break lasts. Always at least a minute: a break of
+  /// zero is not a break, so the protocol gives it no "off" value.
+  final int breakMinutes;
+
+  /// Longest single video offered. 0 = no limit.
+  final int maxVideoMinutes;
+
   bool get speaksUrdu => languages.contains('ur');
+
+  bool get hasDailyLimit => dailyMinutes > 0;
+  bool get takesBreaks => breakAfterMinutes > 0;
+
+  Kid copyWith({
+    int? dailyMinutes,
+    int? breakAfterMinutes,
+    int? breakMinutes,
+    int? maxVideoMinutes,
+  }) => Kid(
+    id: id,
+    nickname: nickname,
+    age: age,
+    band: band,
+    languages: languages,
+    avatar: avatar,
+    dailyMinutes: dailyMinutes ?? this.dailyMinutes,
+    breakAfterMinutes: breakAfterMinutes ?? this.breakAfterMinutes,
+    breakMinutes: breakMinutes ?? this.breakMinutes,
+    maxVideoMinutes: maxVideoMinutes ?? this.maxVideoMinutes,
+  );
 
   factory Kid.fromJson(Map<String, dynamic> j) => Kid(
     id: '${j['id']}',
@@ -82,6 +127,14 @@ class Kid {
         : AgeBand.forAge((j['age'] as num?)?.toInt() ?? 4),
     languages: (j['languages'] as List?)?.cast<String>() ?? const ['en'],
     avatar: j['avatar'] as String? ?? '',
+    // A missing limit is the protocol default, never "unlimited": a client
+    // that guessed 0 here would quietly switch a household's limits off.
+    dailyMinutes: (j['daily_minutes'] as num?)?.toInt() ?? defaultDailyMinutes,
+    breakAfterMinutes:
+        (j['break_after_minutes'] as num?)?.toInt() ?? defaultBreakAfterMinutes,
+    breakMinutes: (j['break_minutes'] as num?)?.toInt() ?? defaultBreakMinutes,
+    maxVideoMinutes:
+        (j['max_video_minutes'] as num?)?.toInt() ?? defaultMaxVideoMinutes,
   );
 
   Map<String, dynamic> toJson() => {
@@ -91,6 +144,182 @@ class Kid {
     'age_band': band.wire,
     'languages': languages,
     'avatar': avatar,
+    'daily_minutes': dailyMinutes,
+    'break_after_minutes': breakAfterMinutes,
+    'break_minutes': breakMinutes,
+    'max_video_minutes': maxVideoMinutes,
+  };
+}
+
+/// One thing to do during a movement break.
+///
+/// PROTOCOL: built from what the child just watched, doable indoors on the
+/// spot, 1 to 3 minutes. [spoken] is what Gilli says, and is the whole task
+/// for band 4_6, which sees no text at all.
+class BreakTask {
+  const BreakTask({
+    this.title = '',
+    this.steps = const [],
+    this.seconds = 0,
+    this.spoken = '',
+  });
+
+  final String title;
+  final List<String> steps;
+  final int seconds;
+  final String spoken;
+
+  /// What Gilli says out loud. Falls back to the title so a task with no
+  /// `spoken` is still never silent for a pre-reader.
+  String get speech => spoken.isNotEmpty ? spoken : title;
+
+  factory BreakTask.fromJson(Map<String, dynamic> j) => BreakTask(
+    title: j['title'] as String? ?? '',
+    steps: _strings(j['steps']),
+    seconds: (j['seconds'] as num?)?.toInt() ?? 0,
+    spoken: j['spoken'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'steps': steps,
+    'seconds': seconds,
+    'spoken': spoken,
+  };
+}
+
+/// An active movement break. Nothing plays while one of these exists.
+class MovementBreak {
+  const MovementBreak({
+    required this.id,
+    required this.kidId,
+    required this.task,
+    this.startedAt = '',
+    this.endsAt = '',
+    this.secondsLeft = 0,
+    this.sourceTitles = const [],
+    this.acked = false,
+  });
+
+  final String id;
+  final String kidId;
+  final String startedAt;
+  final String endsAt;
+
+  /// Seconds still to run when the server sent this. The client counts down
+  /// from here rather than from [endsAt], so a device clock that is minutes
+  /// off does not end a break early or hold a child in one.
+  final int secondsLeft;
+  final BreakTask task;
+
+  /// The videos the task was built from. Shown to the parent, never the kid.
+  final List<String> sourceTitles;
+
+  /// The child has said they did it. Recorded only: it never shortens the
+  /// break (PROTOCOL).
+  final bool acked;
+
+  MovementBreak copyWith({int? secondsLeft, bool? acked}) => MovementBreak(
+    id: id,
+    kidId: kidId,
+    startedAt: startedAt,
+    endsAt: endsAt,
+    secondsLeft: secondsLeft ?? this.secondsLeft,
+    task: task,
+    sourceTitles: sourceTitles,
+    acked: acked ?? this.acked,
+  );
+
+  factory MovementBreak.fromJson(Map<String, dynamic> j) => MovementBreak(
+    id: '${j['id'] ?? ''}',
+    kidId: '${j['kid_id'] ?? ''}',
+    startedAt: j['started_at'] as String? ?? '',
+    endsAt: j['ends_at'] as String? ?? '',
+    secondsLeft: (j['seconds_left'] as num?)?.toInt() ?? 0,
+    task: BreakTask.fromJson(
+      (j['task'] as Map?)?.cast<String, dynamic>() ?? const {},
+    ),
+    sourceTitles: _strings(j['source_titles']),
+    acked: j['acked'] as bool? ?? false,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'kid_id': kidId,
+    'started_at': startedAt,
+    'ends_at': endsAt,
+    'seconds_left': secondsLeft,
+    'task': task.toJson(),
+    'source_titles': sourceTitles,
+    'acked': acked,
+  };
+}
+
+/// Why a child cannot watch right now. `null` on the wire means they can.
+enum BlockedReason {
+  dailyLimit('daily_limit'),
+  movementBreak('break');
+
+  const BlockedReason(this.wire);
+
+  final String wire;
+
+  /// Unknown or absent reasons are not invented: the caller sees null and
+  /// falls back to [WatchState.watchingAllowed].
+  static BlockedReason? fromWire(String? s) =>
+      BlockedReason.values.where((r) => r.wire == s).firstOrNull;
+}
+
+/// `GET /kids/{id}/state`: what the client checks before offering anything.
+class WatchState {
+  const WatchState({
+    this.minutesToday = 0,
+    this.minutesLeftToday = 0,
+    this.continuousMinutes = 0,
+    this.watchingAllowed = true,
+    this.blockedReason,
+    this.activeBreak,
+  });
+
+  final int minutesToday;
+  final int minutesLeftToday;
+
+  /// Since the last break, or a 10-minute gap.
+  final int continuousMinutes;
+  final bool watchingAllowed;
+  final BlockedReason? blockedReason;
+  final MovementBreak? activeBreak;
+
+  /// A break is only "on" when the server sent one to run. A blocked_reason
+  /// of "break" with no break attached is treated as no break rather than as
+  /// an empty screen the child cannot leave.
+  bool get isOnBreak => !watchingAllowed && activeBreak != null;
+
+  bool get isDayDone =>
+      !watchingAllowed && blockedReason == BlockedReason.dailyLimit;
+
+  factory WatchState.fromJson(Map<String, dynamic> j) => WatchState(
+    minutesToday: (j['minutes_today'] as num?)?.toInt() ?? 0,
+    minutesLeftToday: (j['minutes_left_today'] as num?)?.toInt() ?? 0,
+    continuousMinutes: (j['continuous_minutes'] as num?)?.toInt() ?? 0,
+    // Absent means allowed: a gateway that has not shipped limits yet must
+    // not lock every child out.
+    watchingAllowed: j['watching_allowed'] as bool? ?? true,
+    blockedReason: BlockedReason.fromWire(j['blocked_reason'] as String?),
+    activeBreak: j['active_break'] == null
+        ? null
+        : MovementBreak.fromJson(
+            (j['active_break'] as Map).cast<String, dynamic>(),
+          ),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'minutes_today': minutesToday,
+    'minutes_left_today': minutesLeftToday,
+    'continuous_minutes': continuousMinutes,
+    'watching_allowed': watchingAllowed,
+    'blocked_reason': blockedReason?.wire,
+    'active_break': activeBreak?.toJson(),
   };
 }
 
@@ -562,6 +791,26 @@ class SessionStart {
     video: Video.fromJson(j['video'] as Map<String, dynamic>),
     planReady: j['plan_ready'] as bool? ?? false,
   );
+}
+
+/// What `POST /sessions` answers with.
+///
+/// PROTOCOL: no video plays during a break, so the endpoint can answer 409
+/// with the break that is running. That is a normal state of the product, not
+/// a failure, so it is a value the caller switches on rather than an
+/// exception with a status code in it that some screen would print at a child.
+sealed class SessionStartResult {
+  const SessionStartResult();
+}
+
+class SessionStarted extends SessionStartResult {
+  const SessionStarted(this.session);
+  final SessionStart session;
+}
+
+class SessionBlockedByBreak extends SessionStartResult {
+  const SessionBlockedByBreak(this.activeBreak);
+  final MovementBreak activeBreak;
 }
 
 /// Two shapes (SPEC 6.5): "prereader" is a vocabulary log, "older" is a

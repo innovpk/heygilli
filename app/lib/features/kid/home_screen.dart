@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../main.dart';
 import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
+import 'break_screen.dart';
 import 'gilli_widget.dart';
 import 'session_screen.dart';
 
@@ -22,18 +23,37 @@ class KidHomeScreen extends StatefulWidget {
   State<KidHomeScreen> createState() => _KidHomeScreenState();
 }
 
+/// The rows plus the answer to "is this child allowed to watch at all".
+///
+/// Both are loaded together so the home screen never paints a shelf of
+/// thumbnails for a second before finding out a break is running.
+class _Home {
+  const _Home(this.rows, this.state);
+  final List<HomeRow> rows;
+  final WatchState state;
+}
+
 class _KidHomeScreenState extends State<KidHomeScreen> {
-  late Future<List<HomeRow>> _rows = _load();
+  late Future<_Home> _home = _load();
+
+  /// Mirrors what the last build painted, so the back handler knows a break
+  /// is on screen without waiting on the future again.
+  bool _onBreak = false;
 
   void _reload() => setState(() {
-    _rows = _load();
+    _home = _load();
   });
 
-  Future<List<HomeRow>> _load() {
+  Future<_Home> _load() async {
     final state = context.read<AppState>();
     final kid = state.activeKid;
-    if (kid == null) return Future.value(const []);
-    return state.gateway.home(kid.id);
+    if (kid == null) return const _Home([], WatchState());
+    // PROTOCOL: `GET /kids/{id}/state` is what the client checks before
+    // offering anything to watch. Checking it here is also what makes a break
+    // survive the app being killed and reopened mid-break.
+    final watch = await state.gateway.watchState(kid.id);
+    if (!watch.watchingAllowed) return _Home(const [], watch);
+    return _Home(await state.gateway.home(kid.id), watch);
   }
 
   @override
@@ -54,11 +74,14 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     Navigator.of(context).pushNamedAndRemoveUntil(Routes.parent, (_) => false);
   }
 
-  void _open(Video video) {
+  Future<void> _open(Video video) async {
     context.read<GilliVoice>().stop();
-    Navigator.of(
+    await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => SessionScreen(video: video)));
+    // Coming back may mean the session ended, or that a break ran and is now
+    // over: either way the watch state has moved on.
+    if (mounted) _reload();
   }
 
   @override
@@ -79,10 +102,12 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     }
     final showTitles = kid.band.showsVideoTitles;
     return PopScope(
-      // Back never leaves kid mode; it opens the PIN gate instead.
+      // Back never leaves kid mode; it opens the PIN gate instead. During a
+      // break it does nothing at all: the break screen has its own PIN way
+      // out, and back must not become a second one.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _tryExit();
+        if (!didPop && !_onBreak) _tryExit();
       },
       child: Scaffold(
         backgroundColor: HgColors.teal,
@@ -93,46 +118,66 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
               final thumbWidth = wide
                   ? box.maxWidth * 0.26
                   : box.maxWidth * 0.46;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _Header(kid: kid, onExit: _tryExit),
-                  Expanded(
-                    child: FutureBuilder<List<HomeRow>>(
-                      future: _rows,
-                      builder: (context, snap) {
-                        if (snap.hasError) {
-                          return Center(
-                            child: FilledButton(
-                              onPressed: _reload,
-                              child: const Text('Try again'),
-                            ),
-                          );
-                        }
-                        final rows = snap.data;
-                        if (rows == null) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: HgColors.mango,
-                            ),
-                          );
-                        }
-                        return ListView(
-                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                          children: [
-                            for (final row in rows)
-                              _VideoRow(
-                                row: row,
-                                showTitles: showTitles,
-                                thumbWidth: thumbWidth,
-                                onOpen: _open,
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              return FutureBuilder<_Home>(
+                future: _home,
+                builder: (context, snap) {
+                  final home = snap.data;
+                  _onBreak = home?.state.isOnBreak ?? false;
+                  // A running break replaces the whole screen, header and
+                  // all: there is nothing to start, so there is nothing to
+                  // show around it.
+                  if (home != null && home.state.isOnBreak) {
+                    return BreakScreen(
+                      kid: kid,
+                      movementBreak: home.state.activeBreak!,
+                      onFinished: _reload,
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Header(kid: kid, onExit: _tryExit),
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            if (snap.hasError) {
+                              return Center(
+                                child: FilledButton(
+                                  onPressed: _reload,
+                                  child: const Text('Try again'),
+                                ),
+                              );
+                            }
+                            if (home == null) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  color: HgColors.mango,
+                                ),
+                              );
+                            }
+                            // Out of minutes: a calm end to the day, not an
+                            // empty shelf a child keeps tapping at.
+                            if (!home.state.watchingAllowed) {
+                              return DayDoneScreen(kid: kid);
+                            }
+                            return ListView(
+                              padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                              children: [
+                                for (final row in home.rows)
+                                  _VideoRow(
+                                    row: row,
+                                    showTitles: showTitles,
+                                    thumbWidth: thumbWidth,
+                                    onOpen: _open,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           ),

@@ -95,7 +95,10 @@ class _Splash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Same cream as the native launch background, so the handover from the
+    // Android splash to Flutter is invisible rather than a colour flash.
     return Scaffold(
+      backgroundColor: HgColors.cream,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

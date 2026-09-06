@@ -11,6 +11,7 @@ import 'import_subscriptions_screen.dart';
 import 'parent_widgets.dart';
 import 'progress_screen.dart';
 import 'takeout_import_screen.dart';
+import 'time_limits_card.dart';
 
 /// One kid: enter kid mode, open the digest or progress, manage channels.
 class KidDetailScreen extends StatefulWidget {
@@ -191,6 +192,8 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          TimeLimitsCard(kid: kid),
           const SizedBox(height: 24),
           Text('CHANNELS', style: HgText.label()),
           const SizedBox(height: 8),

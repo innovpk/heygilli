@@ -14,6 +14,7 @@ import '../../core/session_socket.dart';
 import '../../core/settings.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
+import 'break_screen.dart';
 import 'gilli_widget.dart';
 import 'mic_button.dart';
 import 'pick_cards.dart';
@@ -77,6 +78,10 @@ class _SessionScreenState extends State<SessionScreen> {
   PlayerState _playerState = PlayerState.unknown;
   bool _serverPaused = false;
   bool _ended = false;
+
+  /// True once a movement break has taken the screen. Nothing here plays,
+  /// asks or ends after that.
+  bool _onBreak = false;
   String? _errorText;
 
   AskMessage? _ask;
@@ -109,11 +114,18 @@ class _SessionScreenState extends State<SessionScreen> {
   Future<void> _connect() async {
     final gateway = context.read<AppState>().gateway;
     try {
-      final start = await gateway.startSession(
+      final result = await gateway.startSession(
         kidId: _kid.id,
         videoId: widget.video.id,
         device: BuildConfig.device,
       );
+      // A break is running: nothing plays, so go straight to it rather than
+      // showing a child a 409.
+      if (result case SessionBlockedByBreak(:final activeBreak)) {
+        if (mounted) _openBreak(activeBreak);
+        return;
+      }
+      final start = (result as SessionStarted).session;
       _sessionId = start.sessionId;
       final socket = await gateway.openSession(start.sessionId);
       if (!mounted) {
@@ -189,7 +201,7 @@ class _SessionScreenState extends State<SessionScreen> {
   // ---------------------------------------------------------------- protocol
 
   void _onMessage(ServerMessage m) {
-    if (!mounted) return;
+    if (!mounted || _onBreak) return;
     debugPrint('[ws] ${m.runtimeType}');
     switch (m) {
       case ReadyMessage(:final language):
@@ -207,6 +219,8 @@ class _SessionScreenState extends State<SessionScreen> {
         _handleReply(m);
       case ResumeMessage():
         _handleResume();
+      case BreakMessage(:final movementBreak):
+        _handleBreak(movementBreak);
       case EndMessage():
         _handleEnd(m);
       case ErrorMessage(:final message):
@@ -332,6 +346,48 @@ class _SessionScreenState extends State<SessionScreen> {
     });
     await _yt.playVideo();
     _socket?.send(const ResumedMessage());
+  }
+
+  /// `{t: "break"}`: stop the video now and hand the screen to Gilli. The
+  /// session is over as far as this screen is concerned; the break decides
+  /// when anything plays again.
+  Future<void> _handleBreak(MovementBreak movementBreak) async {
+    if (_onBreak || _ended) return;
+    _onBreak = true;
+    _serverPaused = true;
+    final gateway = context.read<AppState>().gateway;
+    _positionTimer?.cancel();
+    _listenWindow?.cancel();
+    await _yt.pauseVideo();
+    await _ears.stopListening();
+    await _voice.stop();
+    // Nothing else is coming down this socket, and the session is over: end
+    // it now rather than leaving it open behind the break.
+    await _sub?.cancel();
+    await _socket?.close();
+    _socket = null;
+    final id = _sessionId;
+    _sessionId = null;
+    if (id != null) unawaited(gateway.endSession(id));
+    if (!mounted) return;
+    _openBreak(movementBreak);
+  }
+
+  /// The break sits on top of this screen and, when it is over, everything
+  /// above the kid's home is popped at once. The home screen re-checks the
+  /// watch state as it comes back, so it never shows rows a break still bars.
+  void _openBreak(MovementBreak movementBreak) {
+    _onBreak = true;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (routeContext) => BreakScreen(
+          kid: _kid,
+          movementBreak: movementBreak,
+          onFinished: () =>
+              Navigator.of(routeContext).popUntil((r) => r.isFirst),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleEnd(EndMessage end) async {

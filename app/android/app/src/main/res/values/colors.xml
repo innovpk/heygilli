@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HgColors.cream: the app's ground colour, so the launcher icon and the
+         splash match the first screen a parent sees. -->
+    <color name="gilli_cream">#FBF3E6</color>
+</resources>
