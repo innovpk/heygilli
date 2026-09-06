@@ -889,6 +889,136 @@ class FakeGateway implements Gateway {
     return shape.build(kid!, days.clamp(7, 90));
   }
 
+  /// One saved policy per kid. Nothing is seeded: a household that has not
+  /// answered anything has an empty policy, which is a valid state and the one
+  /// every new kid starts in (PROTOCOL).
+  final _policies = <String, Policy>{};
+
+  @override
+  Future<Policy> policy(String kidId) async {
+    await _lag();
+    return _policies[kidId] ?? Policy(kidId: kidId);
+  }
+
+  @override
+  Future<Policy> savePolicy(
+    String kidId, {
+    required List<PolicyAnswer> answers,
+    required String notes,
+  }) async {
+    await _lag();
+    final saved = Policy(
+      kidId: kidId,
+      updatedAt: DateTime.now().toIso8601String(),
+      // The weight is the server's, and the real one recomputes it from how
+      // often the answer actually decided a video. The demo settles for a
+      // stable number per choice so the parent screen has something true to
+      // its own data to show: a "rather not" does more work than a "fine".
+      answers: [
+        for (final a in answers)
+          PolicyAnswer(
+            id: a.id,
+            question: a.question,
+            choice: a.choice,
+            weight: switch (a.choice) {
+              PolicyChoice.ratherNot => 0.8,
+              PolicyChoice.sometimes => 0.5,
+              PolicyChoice.fine => 0.2,
+            },
+          ),
+      ],
+      notes: notes,
+    );
+    _policies[kidId] = saved;
+    return saved;
+  }
+
+  /// The saved policy without the simulated network lag, for widget tests on
+  /// a frozen clock. Same object [policy] would hand back.
+  Policy savedPolicy(String kidId) => _policies[kidId] ?? Policy(kidId: kidId);
+
+  /// Question templates for the demo Coach.
+  ///
+  /// Each one only gets asked when this child's own channels match it, and
+  /// `why` names the ones that did — which is the whole point of the endpoint
+  /// (PROTOCOL): a household with forty gaming channels is asked about gaming.
+  static const _policyTemplates =
+      <({String id, List<String> match, String question, String why})>[
+        (
+          id: 'q_gaming',
+          match: ['minecraft', 'roblox', 'gacha', 'among', 'sandbox', 'gaming'],
+          question:
+              'Gaming videos, where someone plays and talks over the top?',
+          why: 'do this',
+        ),
+        (
+          id: 'q_toys',
+          match: ['toy', 'lego', 'hot wheels', 'nerf', 'doll', 'squishy'],
+          question: 'Toy videos that are mostly about buying the toy?',
+          why: 'post unboxings and hauls',
+        ),
+        (
+          id: 'q_slime',
+          match: ['slime', 'squishy', 'shorts', 'clips'],
+          question: 'Very short videos, one after another?',
+          why: 'publish mostly shorts',
+        ),
+        (
+          id: 'q_peril',
+          match: ['dino', 'monster', 'mystery', 'wild', 'nat geo'],
+          question: 'Animals hunting, or a creature in danger?',
+          why: 'show this sometimes',
+        ),
+        (
+          id: 'q_songs',
+          match: ['songs', 'rhymes', 'nursery', 'simple'],
+          question: 'Songs and rhymes on repeat, with no story?',
+          why: 'are mostly songs',
+        ),
+      ];
+
+  @override
+  Future<List<PolicyQuestion>> policyQuestions(String kidId) async {
+    await _lag();
+    final name = _kid(kidId)?.nickname ?? 'this child';
+    final titles = [
+      for (final c in _channels[kidId] ?? const <Channel>[]) c.title,
+    ];
+    final questions = <PolicyQuestion>[];
+    for (final t in _policyTemplates) {
+      final hits = [
+        for (final title in titles)
+          if (t.match.any((m) => title.toLowerCase().contains(m))) title,
+      ];
+      if (hits.isEmpty) continue;
+      final named = hits.take(2).join(' and ');
+      questions.add(
+        PolicyQuestion(
+          id: t.id,
+          question: t.question,
+          why: hits.length > 2
+              ? '$named and ${hits.length - 2} more of the channels you '
+                    'approved for $name ${t.why}.'
+              : '$named ${t.why}.',
+        ),
+      );
+    }
+    if (questions.isEmpty) {
+      // Nothing to point at is said plainly rather than dressed up as a
+      // finding. A question with an invented reason is worse than no question.
+      return [
+        PolicyQuestion(
+          id: 'q_ads',
+          question: 'Videos that sell something — merch, a sponsor, a code?',
+          why:
+              'Asked of every household. HeyGilli has not read enough of '
+              "$name's channels yet to say which prompted it.",
+        ),
+      ];
+    }
+    return questions;
+  }
+
   @override
   Future<List<ParentPrompt>> inbox() async {
     await _lag();

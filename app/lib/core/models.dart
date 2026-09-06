@@ -893,6 +893,178 @@ class Digest {
   };
 }
 
+/// What one household answered about one kind of video.
+///
+/// PROTOCOL "Household policy": three choices and no more. There is no
+/// "block it" here on purpose — the strongest thing a parent can say is
+/// `rather_not`, and that routes a video to their inbox rather than hiding it
+/// behind their back.
+enum PolicyChoice {
+  fine('fine'),
+  sometimes('sometimes'),
+  ratherNot('rather_not');
+
+  const PolicyChoice(this.wire);
+
+  final String wire;
+
+  /// Null for anything unrecognised, including absent. An unanswered question
+  /// carries no weight (PROTOCOL), so guessing a choice here would invent an
+  /// opinion this household never expressed.
+  static PolicyChoice? fromWire(String? s) =>
+      PolicyChoice.values.where((c) => c.wire == s).firstOrNull;
+
+  /// The words on the button. Deliberately a parent's words, not a rating:
+  /// nobody thinks of their own household as "moderate".
+  String get label => switch (this) {
+    PolicyChoice.fine => 'Fine',
+    PolicyChoice.sometimes => 'Sometimes',
+    PolicyChoice.ratherNot => 'Rather not',
+  };
+
+  /// One line under the chosen button saying what will actually happen, so a
+  /// parent is never guessing what their tap did.
+  String get effect => switch (this) {
+    PolicyChoice.fine => 'These go straight through, like anything else.',
+    PolicyChoice.sometimes =>
+      'Gilli reads these more closely and sends the doubtful ones to you.',
+    PolicyChoice.ratherNot =>
+      'These come to your inbox to decide. Nothing is hidden without you.',
+  };
+}
+
+/// One answer in a saved [Policy].
+class PolicyAnswer {
+  const PolicyAnswer({
+    required this.id,
+    required this.question,
+    required this.choice,
+    this.weight = 0,
+  });
+
+  final String id;
+
+  /// The question as it was asked. Kept with the answer so a saved policy is
+  /// readable on its own, even after the Coach stops proposing that question.
+  final String question;
+  final PolicyChoice choice;
+
+  /// 0.0-1.0: how much this answer actually moved the Curator. The server
+  /// owns it; the client never sends a weight it made up.
+  final double weight;
+
+  /// Plain words for [weight], or null when the server sent none. A parent
+  /// deserves to know which of their answers is doing the work, and a bare
+  /// "0.62" tells them nothing.
+  String? get weightLabel {
+    if (weight <= 0) return null;
+    if (weight >= 0.66) return 'Weighs heavily when Gilli screens a video';
+    if (weight >= 0.33) return 'Weighs a fair amount when Gilli screens';
+    return 'Weighs a little when Gilli screens';
+  }
+
+  factory PolicyAnswer.fromJson(Map<String, dynamic> j) => PolicyAnswer(
+    id: '${j['id'] ?? ''}',
+    question: j['question'] as String? ?? '',
+    // Unrecognised choices default to the mildest of the three rather than to
+    // a restriction nobody asked for.
+    choice: PolicyChoice.fromWire(j['choice'] as String?) ?? PolicyChoice.fine,
+    weight: (j['weight'] as num?)?.toDouble() ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'question': question,
+    'choice': choice.wire,
+    'weight': weight,
+  };
+}
+
+/// `GET /kids/{id}/policy`, `PUT /kids/{id}/policy`.
+///
+/// PROTOCOL "Household policy": an empty policy is valid and means the Curator
+/// falls back to age-band defaults. It is not a setup step anyone must finish.
+class Policy {
+  const Policy({
+    required this.kidId,
+    this.updatedAt = '',
+    this.answers = const [],
+    this.notes = '',
+  });
+
+  final String kidId;
+  final String updatedAt;
+  final List<PolicyAnswer> answers;
+
+  /// The parent's own words, free text. May be empty.
+  final String notes;
+
+  bool get isEmpty => answers.isEmpty && notes.trim().isEmpty;
+
+  PolicyAnswer? answerFor(String questionId) =>
+      answers.where((a) => a.id == questionId).firstOrNull;
+
+  PolicyChoice? choiceFor(String questionId) => answerFor(questionId)?.choice;
+
+  factory Policy.fromJson(Map<String, dynamic> j) => Policy(
+    kidId: '${j['kid_id'] ?? ''}',
+    updatedAt: j['updated_at'] as String? ?? '',
+    answers: (j['answers'] as List? ?? const [])
+        .map((a) => PolicyAnswer.fromJson((a as Map).cast<String, dynamic>()))
+        .toList(),
+    notes: j['notes'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'kid_id': kidId,
+    'updated_at': updatedAt,
+    'answers': [for (final a in answers) a.toJson()],
+    'notes': notes,
+  };
+}
+
+/// One question the Coach thinks is worth asking *this* household.
+///
+/// PROTOCOL: `why` says which channels prompted it. The screen always shows
+/// it, so a parent can see the question came from their own child's channels
+/// rather than from a list someone else wrote.
+class PolicyQuestion {
+  const PolicyQuestion({
+    required this.id,
+    required this.question,
+    this.why = '',
+    this.options = PolicyChoice.values,
+  });
+
+  final String id;
+  final String question;
+  final String why;
+
+  /// The choices this question offers. All three unless the server narrows
+  /// them; an empty or unreadable list falls back to all three rather than to
+  /// a question with no way to answer it.
+  final List<PolicyChoice> options;
+
+  factory PolicyQuestion.fromJson(Map<String, dynamic> j) {
+    final options = _strings(
+      j['options'],
+    ).map(PolicyChoice.fromWire).nonNulls.toList(growable: false);
+    return PolicyQuestion(
+      id: '${j['id'] ?? ''}',
+      question: j['question'] as String? ?? '',
+      why: j['why'] as String? ?? '',
+      options: options.isEmpty ? PolicyChoice.values : options,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'question': question,
+    'why': why,
+    'options': [for (final o in options) o.wire],
+  };
+}
+
 class ParentPrompt {
   const ParentPrompt({
     required this.id,

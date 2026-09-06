@@ -110,6 +110,24 @@ abstract class Gateway {
   /// Rolling window for the parent Progress screen. `days` is 7-90.
   Future<Analytics> analytics(String kidId, {int days = 14});
 
+  /// `GET /kids/{id}/policy`. An empty policy is a real answer: the Curator
+  /// then screens on age-band defaults alone.
+  Future<Policy> policy(String kidId);
+
+  /// `PUT /kids/{id}/policy`. Replaces the answers with exactly what the
+  /// parent chose. Only answered questions are sent — an unanswered one
+  /// carries no weight (PROTOCOL) and must not arrive as a silent "fine".
+  Future<Policy> savePolicy(
+    String kidId, {
+    required List<PolicyAnswer> answers,
+    required String notes,
+  });
+
+  /// `POST /kids/{id}/policy/questions`: questions worth asking *this*
+  /// household, drawn from what this child already watches. Proposals only —
+  /// nothing here changes screening until the parent answers and saves.
+  Future<List<PolicyQuestion>> policyQuestions(String kidId);
+
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);
 }

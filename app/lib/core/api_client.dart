@@ -328,6 +328,37 @@ class ApiClient implements Gateway {
   }
 
   @override
+  Future<Policy> policy(String kidId) async => Policy.fromJson(
+    await _get('/kids/$kidId/policy') as Map<String, dynamic>,
+  );
+
+  @override
+  Future<Policy> savePolicy(
+    String kidId, {
+    required List<PolicyAnswer> answers,
+    required String notes,
+  }) async => Policy.fromJson(
+    await _put('/kids/$kidId/policy', {
+          // Weight is the server's to work out, but it round-trips rather
+          // than being dropped: an answer the parent has not touched keeps
+          // the weight it had earned.
+          'answers': [for (final a in answers) a.toJson()],
+          'notes': notes,
+        })
+        as Map<String, dynamic>,
+  );
+
+  @override
+  Future<List<PolicyQuestion>> policyQuestions(String kidId) async {
+    final body =
+        await _post('/kids/$kidId/policy/questions') as Map<String, dynamic>;
+    return [
+      for (final q in (body['questions'] as List? ?? const []))
+        PolicyQuestion.fromJson((q as Map).cast<String, dynamic>()),
+    ];
+  }
+
+  @override
   Future<List<ParentPrompt>> inbox() async =>
       (await _get('/parent/inbox') as List)
           .map((p) => ParentPrompt.fromJson(p as Map<String, dynamic>))

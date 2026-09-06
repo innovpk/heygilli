@@ -10,6 +10,7 @@ import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'import_subscriptions_screen.dart';
 import 'parent_widgets.dart';
+import 'policy_screen.dart';
 import 'progress_screen.dart';
 import 'takeout_import_screen.dart';
 import 'time_limits_card.dart';
@@ -184,6 +185,37 @@ class _KidDetailScreenState extends State<KidDetailScreen> {
                         kid.band == AgeBand.b4to6
                             ? 'Minutes, words coming back, what to try'
                             : 'Minutes, what stuck, what needs another look',
+                        style: HgText.body(size: 14, color: HgColors.brown),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Sits above the time settings because it is the one that decides
+          // what reaches this child at all, rather than for how long.
+          PCard(
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => PolicyScreen(kid: kid))),
+            child: Row(
+              spacing: 14,
+              children: [
+                const Icon(Icons.rule_rounded, color: HgColors.brown),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'What your household wants',
+                        style: HgText.display(size: 22, color: HgColors.ink),
+                      ),
+                      Text(
+                        'A few questions about what is fine here, drawn from '
+                        "${kid.nickname}'s own channels",
                         style: HgText.body(size: 14, color: HgColors.brown),
                       ),
                     ],

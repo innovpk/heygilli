@@ -1,0 +1,254 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:heygilli/core/app_state.dart';
+import 'package:heygilli/core/fake_gateway.dart';
+import 'package:heygilli/core/models.dart';
+import 'package:heygilli/core/settings.dart';
+import 'package:heygilli/features/parent/policy_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// What this household actually wants (PROTOCOL "Household policy").
+///
+/// Two rules matter more than the rest of this file. A question must show the
+/// parent where it came from, or it is a stranger's checklist wearing this
+/// child's name; and a question nobody answered must reach the Curator as
+/// nothing at all, never as a quiet "fine".
+void main() {
+  late FakeGateway gateway;
+  late AppState app;
+  late Kid kid;
+
+  /// The questions the demo Coach will propose for this kid, fetched here
+  /// rather than in a test body: FakeGateway's lag is a real delay and the
+  /// clock inside testWidgets is frozen.
+  late List<PolicyQuestion> questions;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    gateway = FakeGateway();
+    await gateway.signInDev('parent');
+    app = AppState(gateway: gateway, settings: await LocalSettings.load());
+    kid = await gateway.createKid(
+      nickname: 'Zoya',
+      age: 8,
+      languages: const ['en'],
+    );
+    // Two more channels so the Coach has more than one thing to ask about,
+    // the way a real imported pile would.
+    await gateway.addChannel(kid.id, 'https://youtube.com/@MinecraftDiaries');
+    await gateway.addChannel(kid.id, 'https://youtube.com/@LegoBuildZone');
+    questions = await gateway.policyQuestions(kid.id);
+  });
+
+  Widget host() => ChangeNotifierProvider<AppState>.value(
+    value: app,
+    child: MaterialApp(home: PolicyScreen(kid: kid)),
+  );
+
+  /// FakeGateway's lag runs on the tester's clock, so time is pumped rather
+  /// than settled. The screen opens with two calls in flight and a save is
+  /// one more, so four rounds covers either.
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+  }
+
+  /// A tall surface so every card is built and tappable without scrolling.
+  Future<void> open(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(host());
+    await settle(tester);
+  }
+
+  /// The saved policy as it stands, read without the simulated lag.
+  Policy saved() => gateway.savedPolicy(kid.id);
+
+  testWidgets('every question says which of this child\'s channels asked it', (
+    tester,
+  ) async {
+    await open(tester);
+
+    expect(questions, isNotEmpty, reason: 'the demo Coach proposed nothing');
+    // The why is the difference between a question about this household and a
+    // checklist someone else wrote.
+    expect(find.text('WHY YOU ARE BEING ASKED'), findsWidgets);
+    for (final q in questions) {
+      expect(q.why, isNotEmpty, reason: q.question);
+    }
+    expect(find.text(questions.first.why), findsOneWidget);
+  });
+
+  testWidgets('a question left alone is saved as no answer at all', (
+    tester,
+  ) async {
+    await open(tester);
+
+    await tester.tap(find.text('Fine').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    // One answered, the rest skipped. An untouched question arriving as
+    // "fine" would put an opinion in this household's mouth.
+    expect(saved().answers.length, 1);
+    expect(saved().answers.single.id, questions.first.id);
+    expect(saved().answers.single.choice, PolicyChoice.fine);
+  });
+
+  testWidgets('the question is saved with the answer, in the words asked', (
+    tester,
+  ) async {
+    await open(tester);
+
+    await tester.tap(find.text('Sometimes').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    expect(saved().answers.single.question, questions.first.question);
+  });
+
+  testWidgets('"rather not" says the video comes to the parent, not that it '
+      'disappears', (tester) async {
+    await open(tester);
+
+    await tester.tap(find.text('Rather not').first);
+    await tester.pump();
+
+    // The strongest answer in the product still leaves the decision with the
+    // parent, and the card says so where they are deciding.
+    expect(find.textContaining('come to your inbox'), findsOneWidget);
+    expect(
+      find.textContaining('Nothing is hidden without you'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('tapping the same answer again goes back to unanswered', (
+    tester,
+  ) async {
+    await open(tester);
+
+    await tester.tap(find.text('Fine').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+    expect(saved().answers, hasLength(1));
+
+    await tester.tap(find.text('Fine').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    // A parent who tapped by accident can take it back. Unanswered is a real
+    // state, not a gap to be filled with the mildest choice.
+    expect(saved().answers, isEmpty);
+  });
+
+  testWidgets('answers are still there when the screen is opened again', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(find.text('Rather not').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(host());
+    await settle(tester);
+
+    // The effect line only shows under a chosen answer, so seeing it means
+    // the saved choice came back selected.
+    expect(find.textContaining('come to your inbox'), findsOneWidget);
+  });
+
+  testWidgets('the notes are saved as the parent wrote them', (tester) async {
+    await open(tester);
+
+    await tester.enterText(
+      find.byType(TextField),
+      'Nothing about dieting, and no gambling ads.',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    expect(saved().notes, 'Nothing about dieting, and no gambling ads.');
+  });
+
+  testWidgets('answering nothing is a valid state, and nothing nags', (
+    tester,
+  ) async {
+    await open(tester);
+
+    // Nothing to save, because a household that skips every question is
+    // telling the Curator to fall back to age alone. That is a setting.
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.text('Save these answers'), findsNothing);
+    expect(saved().isEmpty, isTrue);
+  });
+
+  testWidgets('a saved answer says how much it is actually doing', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(find.text('Rather not').first);
+    await tester.pump();
+    await tester.tap(find.text('Save these answers'));
+    await settle(tester);
+
+    // weight is the server's number; the screen turns it into words rather
+    // than showing a parent "0.8".
+    expect(saved().answers.single.weight, greaterThan(0));
+    expect(find.textContaining('Weighs'), findsOneWidget);
+  });
+
+  group('Policy wire types', () {
+    test('an unanswered question has no choice to read', () {
+      expect(PolicyChoice.fromWire(null), isNull);
+      expect(PolicyChoice.fromWire('block_it'), isNull);
+      expect(PolicyChoice.fromWire('rather_not'), PolicyChoice.ratherNot);
+    });
+
+    test('an empty policy round-trips as empty', () {
+      final p = Policy.fromJson({'kid_id': 'kid_1'});
+      expect(p.isEmpty, isTrue);
+      expect(p.answers, isEmpty);
+      expect(p.notes, '');
+      expect(p.choiceFor('q_gaming'), isNull);
+    });
+
+    test('a question with no options offered still has three', () {
+      final q = PolicyQuestion.fromJson({
+        'id': 'q_1',
+        'question': 'Gaming videos?',
+        'why': 'Two of these channels are gaming channels.',
+      });
+      expect(q.options, PolicyChoice.values);
+    });
+
+    test('unreadable options are dropped, not turned into a dead question', () {
+      final q = PolicyQuestion.fromJson({
+        'id': 'q_1',
+        'question': 'Gaming videos?',
+        'options': ['fine', 'nope'],
+      });
+      expect(q.options, [PolicyChoice.fine]);
+    });
+
+    test('a weight of zero has nothing to say', () {
+      const a = PolicyAnswer(
+        id: 'q_1',
+        question: 'Gaming videos?',
+        choice: PolicyChoice.fine,
+      );
+      expect(a.weightLabel, isNull);
+    });
+  });
+}
