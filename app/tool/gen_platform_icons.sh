@@ -48,7 +48,11 @@ render 192 "$WEB/icons/Icon-192.png"
 render 512 "$WEB/icons/Icon-512.png"
 render 192 "$WEB/icons/Icon-maskable-192.png"
 render 512 "$WEB/icons/Icon-maskable-512.png"
-render 32  "$WEB/favicon.png"
+# Tighter than the rest on purpose: a browser tab is 16-32px, and the
+# launcher safe zone leaves nothing legible at that size.
+magick "$TMP/gilli.png" -resize 30x30 "$TMP/fav.png"
+magick -size 32x32 "xc:$CREAM" "$TMP/fav.png" -gravity center -composite \
+  "$WEB/favicon.png"
 
 # iOS launch screen. The storyboard paints cream behind this and centres it,
 # so these are transparent squares at the three scales the imageView asks for.

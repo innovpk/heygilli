@@ -13,11 +13,45 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import re
+import threading
+import time
 
 from strands import tool
 
 from ..store import get_store
+
+#: Seconds to leave between two caption requests. YouTube rate-limits a machine
+#: that pulls many in a row, and it took about thirty to trip: a 148-channel
+#: household hits that every time. Overridable so tests do not sleep and so a
+#: recording day can slow it down further.
+CAPTION_INTERVAL_S = float(os.getenv("HEYGILLI_CAPTION_INTERVAL_S", "1.5"))
+
+_last_caption_at = 0.0
+_caption_lock = threading.Lock()
+
+
+def _wait_turn() -> None:
+    """Space caption requests out, one caller at a time.
+
+    Deliberately a real sleep on a real lock rather than a token bucket: the
+    Curator is the only caller, it runs in a background thread, and nothing is
+    waiting on it. Being slow here costs a parent nothing and is the difference
+    between screening a household and getting cut off a third of the way in.
+
+    The jitter matters as much as the delay. Requests spaced exactly evenly
+    look more like a script than requests that are merely slow.
+    """
+    global _last_caption_at
+    if CAPTION_INTERVAL_S <= 0:
+        return
+    with _caption_lock:
+        gap = time.monotonic() - _last_caption_at
+        wait = CAPTION_INTERVAL_S + random.uniform(0, CAPTION_INTERVAL_S / 2) - gap
+        if wait > 0:
+            time.sleep(wait)
+        _last_caption_at = time.monotonic()
 
 
 class TranscriptsBlocked(Exception):
@@ -73,6 +107,7 @@ def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
         NoTranscriptFound,
     )
 
+    _wait_turn()
     api = YouTubeTranscriptApi()
     try:
         tl = api.list(video_id)
@@ -99,6 +134,7 @@ def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
         if not available:
             return None
         chosen = available[0]
+    _wait_turn()
     try:
         fetched = chosen.fetch()
     except IpBlocked as e:

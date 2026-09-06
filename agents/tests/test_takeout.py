@@ -248,3 +248,89 @@ def test_import_takeout_persists_nothing(client: TestClient, hdr: dict, store) -
                 headers=hdr)
     assert client.get("/kids", headers=hdr).json() == []
     assert not any(p.is_file() for p in store.root.rglob("*.json"))
+
+
+# --- pacing the caption fetches ------------------------------------------------------------------
+
+
+def test_captions_are_spaced_out_so_youtube_does_not_cut_us_off(monkeypatch) -> None:
+    """A 148-channel household tripped YouTube's rate limit about thirty
+    requests in, and curation stopped a fifth of the way through. Being slow
+    costs a parent nothing; being cut off costs them the whole screening."""
+    from heygilli_agents.tools import transcript
+
+    slept: list[float] = []
+    monkeypatch.setattr(transcript, "CAPTION_INTERVAL_S", 2.0)
+    monkeypatch.setattr(transcript.time, "sleep", slept.append)
+    monkeypatch.setattr(transcript.time, "monotonic", lambda: 0.0)
+    monkeypatch.setattr(transcript, "_last_caption_at", 0.0)
+
+    transcript._wait_turn()
+    transcript._wait_turn()
+
+    assert slept, "requests went out back to back"
+    # Jittered, never less than the interval: evenly spaced requests read as a
+    # script even when they are slow.
+    assert all(2.0 <= s <= 3.0 for s in slept), slept
+
+
+def test_the_throttle_can_be_turned_off(monkeypatch) -> None:
+    from heygilli_agents.tools import transcript
+
+    slept: list[float] = []
+    monkeypatch.setattr(transcript, "CAPTION_INTERVAL_S", 0.0)
+    monkeypatch.setattr(transcript.time, "sleep", slept.append)
+    transcript._wait_turn()
+    assert slept == [], "a disabled throttle still slept"
+
+
+def test_the_caption_path_actually_waits_its_turn(monkeypatch) -> None:
+    """The wiring, not the helper.
+
+    Testing `_wait_turn` in isolation says nothing about whether the caption
+    code calls it: deleting both calls left every other test in this file
+    green. This one drives `_from_captions` and asserts the throttle was
+    reached before each network step.
+    """
+    from heygilli_agents.tools import transcript
+
+    waits: list[str] = []
+    monkeypatch.setattr(transcript, "_wait_turn", lambda: waits.append("wait"))
+
+    class _Transcript:
+        language_code = "en"
+        is_generated = True
+
+        def fetch(self):
+            waits.append("fetch")
+            return []
+
+    class _Listing:
+        def find_manually_created_transcript(self, langs):
+            raise transcript_errors().NoTranscriptFound("v", langs, {})
+
+        def find_generated_transcript(self, langs):
+            return _Transcript()
+
+        def __iter__(self):
+            return iter([_Transcript()])
+
+    class _Api:
+        def list(self, video_id: str):
+            waits.append("list")
+            return _Listing()
+
+    import youtube_transcript_api
+
+    monkeypatch.setattr(youtube_transcript_api, "YouTubeTranscriptApi", _Api)
+    transcript._from_captions("vid123")
+
+    # A throttle before the listing and again before the fetch: both are
+    # requests, and it was the sheer number of them that got us cut off.
+    assert waits == ["wait", "list", "wait", "fetch"], waits
+
+
+def transcript_errors():
+    import youtube_transcript_api._errors as e
+
+    return e

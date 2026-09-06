@@ -39,6 +39,14 @@ def store(tmp_path: Path) -> LocalStore:
 
 
 @pytest.fixture(autouse=True)
+def no_caption_throttle(monkeypatch: pytest.MonkeyPatch):
+    """The caption throttle is a real sleep. Tests must not serve it."""
+    from heygilli_agents.tools import transcript
+
+    monkeypatch.setattr(transcript, "CAPTION_INTERVAL_S", 0.0)
+
+
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch: pytest.MonkeyPatch):
     """Any accidental HTTP call fails loudly instead of hitting YouTube or AWS."""
     import httpx
