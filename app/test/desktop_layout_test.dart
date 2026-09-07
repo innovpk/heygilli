@@ -14,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// gets an actual desktop shape — a left rail instead of a bottom bar, and a
 /// kid grid instead of a stack of full-width rows.
 void main() {
+  _pushedScreenTests();
+
   late AppState app;
 
   setUp(() async {
@@ -142,3 +144,54 @@ void main() {
   });
 }
 
+
+
+/// A screen pushed on top of the tab root — kid detail, digest, policy — is
+/// most of the app, and every one of them was a 560px phone column in the
+/// middle of whatever window the parent had open. The doc comment on
+/// [ParentScaffold.sidebar] said they got "the same wide column with no rail";
+/// the code ANDed the width test with `sidebar != null`, so they did not.
+void _pushedScreenTests() {
+  Future<void> pumpScaffold(WidgetTester tester, Size size) async {
+    // Built through runAsync: the fake gateway uses a real delay, and
+    // awaiting one inside `testWidgets` waits on a clock only `pump` moves.
+    late AppState app;
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      final gateway = FakeGateway();
+      await gateway.signInDev('parent');
+      app = AppState(gateway: gateway, settings: await LocalSettings.load());
+    });
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: const MaterialApp(
+          home: ParentScaffold(
+            title: 'Abeeha',
+            body: SizedBox(height: 200, child: Text('content')),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  testWidgets('a pushed screen uses the width it has', (tester) async {
+    await pumpScaffold(tester, const Size(1600, 1000));
+
+    final width = tester.getRect(find.text('content')).width;
+    expect(
+      width,
+      greaterThan(900),
+      reason: 'a phone column in a 1600px window is the bug being fixed',
+    );
+  });
+
+  testWidgets('a phone still gets one readable column', (tester) async {
+    await pumpScaffold(tester, const Size(420, 900));
+    expect(tester.getRect(find.text('content')).width, lessThan(500));
+  });
+}

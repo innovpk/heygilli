@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/models.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 
 /// Bottom sheet: nickname, age (sets the band live), languages.
@@ -14,13 +15,8 @@ Future<Kid?> showAddKidSheet(
   BuildContext context, {
   String initialNickname = '',
 }) {
-  return showModalBottomSheet<Kid>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: HgColors.cream,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
+  return showHgModal<Kid>(
+    context,
     builder: (_) => _AddKidSheet(initialNickname: initialNickname),
   );
 }
@@ -32,15 +28,7 @@ Future<Kid?> showAddKidSheet(
 /// cosmetic — it sets the band, which decides what the Curator screens for and
 /// whether the child is read to or shown text.
 Future<Kid?> showEditKidSheet(BuildContext context, Kid kid) {
-  return showModalBottomSheet<Kid>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: HgColors.cream,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (_) => _AddKidSheet(editing: kid),
-  );
+  return showHgModal<Kid>(context, builder: (_) => _AddKidSheet(editing: kid));
 }
 
 class _AddKidSheet extends StatefulWidget {

@@ -59,8 +59,14 @@ class ParentScaffold extends StatelessWidget {
         color: HgColors.cream,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final wide =
-                constraints.maxWidth >= wideBreakpoint && sidebar != null;
+            // Two separate questions that had been one. `wide` is "does this
+            // screen show a navigation rail", which needs a sidebar to show.
+            // `roomy` is "is there width to use", which does not — and folding
+            // them together capped every screen pushed on top of the tab root
+            // at 560px however large the window was, which is the phone
+            // layout the doc comment above says it is not.
+            final roomy = constraints.maxWidth >= wideBreakpoint;
+            final wide = roomy && sidebar != null;
             final header = Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
               child: Row(
@@ -118,7 +124,17 @@ class ParentScaffold extends StatelessWidget {
                 // that tier could never actually be reached. 1400 clears it
                 // with room, while still leaving real margin on an ultrawide
                 // monitor rather than stretching edge to edge.
-                constraints: BoxConstraints(maxWidth: wide ? 1400 : 560),
+                // 560 is a readable single column and stays the answer on a
+                // phone. A pushed screen on a desktop gets 1120: wide enough
+                // for two columns of cards side by side, narrow enough that a
+                // paragraph in one of them is still a paragraph.
+                constraints: BoxConstraints(
+                  maxWidth: wide
+                      ? 1400
+                      : roomy
+                      ? 1120
+                      : 560,
+                ),
                 child: wide
                     ? Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),

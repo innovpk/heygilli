@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/models.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 
 /// The faces a child may wear.
@@ -28,13 +29,10 @@ const kidAvatars = <String>[
 ///
 /// Returns the chosen icon id, or null if they backed out.
 Future<String?> showAvatarPicker(BuildContext context, Kid kid) =>
-    showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: HgColors.tealDeep,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    showHgModal<String>(
+      context,
+      maxWidth: 640,
+      background: HgColors.tealDeep,
       builder: (_) => _AvatarPicker(kid: kid),
     );
 

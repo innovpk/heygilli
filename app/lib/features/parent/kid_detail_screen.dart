@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/models.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import 'break_messages_card.dart';
@@ -414,11 +415,17 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TimeLimitsCard(kid: kid),
-                    const SizedBox(height: 16),
-                    BreakMessagesCard(kid: kid),
-                    const SizedBox(height: 16),
-                    PromptsCard(kid: kid),
+                    // Four independent cards. In one column a parent scrolls
+                    // past Time limits to reach Break time on a window with
+                    // room for both; side by side once there is room for two
+                    // readable columns.
+                    HgCardColumns(
+                      children: [
+                        TimeLimitsCard(kid: kid),
+                        BreakMessagesCard(kid: kid),
+                        PromptsCard(kid: kid),
+                      ],
+                    ),
                     const SizedBox(height: 24),
                   ],
                 ),
