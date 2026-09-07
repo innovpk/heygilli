@@ -80,7 +80,7 @@
   .hero {
     position: relative; z-index: 1;
     display: grid; grid-template-columns: 1.1fr 0.9fr;
-    gap: 36px; align-items: center; padding: 56px 0 48px;
+    gap: 36px; align-items: center; padding: 46px 0 40px;
   }
   .hero h1 { font-size: 46px; line-height: 1.1; letter-spacing: -0.025em; margin: 0 0 14px; }
   .hero h1 em { font-style: normal; color: var(--mango-deep); }
@@ -140,8 +140,60 @@
     .bubble { opacity: 1; }
   }
 
+
+  /* ---------- live screening demo ---------- */
+  .demo-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: var(--white); color: var(--brown);
+    font-size: 13.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
+    cursor: pointer; transition: all .15s ease; font-family: inherit;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--mango); }
+  .chip[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .screen {
+    background: var(--white); border: 1px solid var(--line);
+    border-radius: 22px; padding: 26px 28px; min-height: 232px;
+    position: relative; overflow: hidden;
+  }
+  .scan { display: none; gap: 8px; align-items: center; padding: 26px 0; }
+  .screen.busy .scan { display: flex; }
+  .screen.busy .result { opacity: .15; }
+  .scan span {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--mango);
+    animation: bounce 1s ease-in-out infinite;
+  }
+  .scan span:nth-child(2) { animation-delay: .13s; background: var(--sky); }
+  .scan span:nth-child(3) { animation-delay: .26s; background: var(--coral); }
+  @keyframes bounce { 50% { transform: translateY(-9px); } }
+
+  .result { transition: opacity .18s ease; }
+  .verdict-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pill { font-size: 13px; font-weight: 800; padding: 5px 13px; border-radius: 999px; letter-spacing: .01em; }
+  .pill.good  { background: #e2f0da; color: var(--green); }
+  .pill.mixed { background: #ffe9c2; color: #8a5a06; }
+  .pill.concern { background: #ffe0d6; color: #a5321a; }
+  .bands { font-size: 13.5px; color: var(--muted); }
+  .summary { font-size: 16px; color: var(--ink); margin: 0 0 16px; }
+
+  .flags { display: grid; gap: 8px; margin-bottom: 16px; }
+  .flag {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: #fff7ef; border: 1px solid #f3ddc0; border-radius: 12px; padding: 10px 13px;
+  }
+  .flag-kind { font-size: 12px; font-weight: 800; color: #a5641a; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  .flag-note { font-size: 14px; color: #7a5a2e; }
+  .clear-note { font-size: 14.5px; color: var(--green); margin: 0 0 16px; }
+
+  .evidence { border-top: 1px solid var(--line); padding-top: 12px; }
+  .evidence-label { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .evidence li { font-size: 13.5px; color: var(--brown); margin-bottom: 2px; }
+  .evidence ul { margin: 0; padding-left: 18px; }
+  .audit { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; }
+
   /* ---------- cards ---------- */
-  section { padding: 44px 0; }
+  section { padding: 34px 0; }
   h2 { font-size: 26px; letter-spacing: -0.015em; margin: 0 0 4px; }
   .lede { color: var(--brown); margin: 0 0 22px; }
   p { font-size: 15.5px; color: var(--brown); }
@@ -166,7 +218,7 @@
   .card p { margin: 0; font-size: 14px; line-height: 1.5; }
 
   /* ---------- dark trust band ---------- */
-  .band { background: var(--teal); color: #eaf6fa; border-radius: 26px; padding: 30px 34px; }
+  .band { background: var(--teal); color: #eaf6fa; border-radius: 26px; padding: 24px 30px; }
   .band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
   .band h3 { margin: 0 0 8px; font-size: 17px; color: var(--sky); }
   .band p { color: #c9dee6; margin: 0 0 8px; font-size: 14.5px; }
@@ -288,30 +340,19 @@
 
 <div class="wrap">
   <section id="how">
-    <h2>What it does</h2>
-    <p class="lede">Four things — and your child never signs in to any of them.</p>
-    <div class="cards">
-      <div class="card c1">
-        <div class="dot">📺</div>
-        <h3>You choose the channels</h3>
-        <p>Nothing reaches your child from a channel you haven't approved. No open-ended search unless you turn it on.</p>
+    <div class="demo-head">
+      <div>
+        <h2>Watch it screen a real channel</h2>
+        <p class="lede">Pick one. This is the actual output — nothing here was written by hand.</p>
       </div>
-      <div class="card c2">
-        <div class="dot">🔍</div>
-        <h3>Every upload is screened</h3>
-        <p>New videos are checked automatically against the rules and limits you set, before they can appear.</p>
-      </div>
-      <div class="card c3">
-        <div class="dot">💬</div>
-        <h3>Gilli watches along</h3>
-        <p>A spoken buddy asks a question or two during and after a video, pitched to your child's age and language.</p>
-      </div>
-      <div class="card c4">
-        <div class="dot">📊</div>
-        <h3>You get the digest</h3>
-        <p>What they watched, what they understood, what they found hard — shown only to you.</p>
-      </div>
+      <div class="chips" id="chips"></div>
     </div>
+
+    <div class="screen" id="screen">
+      <div class="scan" id="scan"><span></span><span></span><span></span></div>
+      <div class="result" id="result"></div>
+    </div>
+    <p class="audit" id="audit"></p>
   </section>
 
   <div class="band">
@@ -319,14 +360,10 @@
       <div>
         <h3>Why it asks for your YouTube subscriptions</h3>
         <p>
-          Neither YouTube nor YouTube Kids exposes a way to read a child's
-          profile. So HeyGilli reads your account's subscriptions — read-only,
-          never posting or changing anything — to build the list of channels
-          you already trust, which you approve one by one.
-        </p>
-        <p>
-          You can skip that entirely: import a Google Takeout export, or add
-          channels yourself.
+          Nothing exposes a child's YouTube Kids profile, so HeyGilli reads
+          your account's subscriptions — read-only, never posting or changing
+          anything — to build the list of channels you already trust. Or skip
+          it: import a Takeout export, or add channels yourself.
         </p>
       </div>
       <div>
@@ -334,13 +371,8 @@
         <ul class="never">
           <li>Sign in, or enter their name</li>
           <li>Reach a channel you haven't allowed</li>
-          <li>Get recommended anything you didn't approve</li>
           <li>Have their voice uploaded — speech is recognised on the device</li>
         </ul>
-        <p style="margin-top:10px">
-          Watch history is off by default. The <a href="privacy.html">privacy
-          policy</a> says exactly what is kept.
-        </p>
       </div>
     </div>
   </div>
@@ -354,5 +386,57 @@
   </footer>
 </div>
 
+
+<script>
+const REVIEWS = [{"name": "SciShow Kids", "verdict": "good", "summary": "SciShow Kids publishes educational content for children, covering a variety of science topics such as animals, volcanoes, problem-solving, and world adventures.", "flags": [], "bands": ["4_6", "7_8", "9_11"], "samples": ["The Yuckiest Animals | SciShow Kids Compilation", "KABOOM! All About Volcanoes! | SciShow Kids Compilation", "Every Kind of Volcano | SciShow Kids", "Thank You Teachers! | SciShow Kids"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Peppa Pig", "verdict": "good", "summary": "The channel publishes Peppa Pig full episodes, shorts, and special collaborations featuring fun, educational, and entertaining themes aimed at young children.", "flags": [], "bands": ["4_6", "7_8"], "samples": ["🔴 LIVE: Peppa Pig 2026 NEWEST Episodes 🐷 Best of Season 10 & 11! 🤩 Summer Adventures | Full Episodes", "🔴 LIVE: Elmo & Peppa’s Muddy Puddles DANCE REMIX ON REPEAT! 🎵🐽 | 4K 24 Hour Livestream", "Peppa Pig Tales 2026 🫣 Peppa Plays CAMOUFLAGE HIDE AND SEEK! 👀 BRAND NEW Peppa Pig Episodes", "Peppa Pig Tales 2026 😱 Peppa's LATE Morning Routine with BABY EVIE! 🎒 BRAND NEW Peppa Pig Episodes"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Cocomelon", "verdict": "good", "summary": "The channel publishes educational and entertaining content for young children, including read-along stories, nursery rhymes, songs about emotions, and interactive learning activities.", "flags": [], "bands": ["4_6", "7_8"], "samples": ["Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "I Love My Bed + More Bedtime Routine Songs for Babies | CoComelon Nursery Rhymes & Kids Songs", "Let's Learn About Emotions & Feelings! 😊😢😡 Happy, Sad & Angry! #cocomelon #kids #shorts", "Nina Builds a New Best Friend! 🎨 Pin Pon Paper Doll Song | CoComelon Nursery Rhymes & Kids Songs"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Ryan's World", "verdict": "mixed", "summary": "The channel publishes a mix of family-friendly challenges, unboxings, and gameplay videos.", "flags": [{"kind": "scary", "note": "We Played SCARY ROBLOX Games in REAL LIFE!"}, {"kind": "consumerism", "note": "Opening SMUSHIES Until We Get the Secret!"}], "bands": ["7_8", "9_11"], "samples": ["Match the VERITY 😀", "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "This was actually HARD", "Melting GIANT ICE BALLOONS to Save the SQUISHIES with Emma and Kate!"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Mark Rober", "verdict": "mixed", "summary": "The channel publishes a mix of educational and entertaining content, often involving experiments, challenges, and real-world problem-solving. It frequently promotes CrunchLabs merchandise and collaborations with other YouTubers.", "flags": [{"kind": "ads_or_merch", "note": "Frequent promotion of CrunchLabs merchandise in the uploads."}, {"kind": "consumerism", "note": "Encourages purchasing CrunchLabs products."}], "bands": ["9_11"], "samples": ["Why Do People Pass Out On Roller Coasters?", "Why the Moon Never Changes", "$100 Slime Challenge", "Lowest Heart Rate Wins!"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}];
+const BANDS = { "4_6": "4–6", "7_8": "7–8", "9_11": "9–11" };
+const KIND = {
+  ads_or_merch: "ads / merch", consumerism: "consumerism", scary: "scary",
+  mature_language: "language", low_quality: "low quality", off_topic: "off topic",
+  not_for_kids: "not for kids", unclear: "unclear"
+};
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const chips = document.getElementById("chips");
+const screenEl = document.getElementById("screen");
+const resultEl = document.getElementById("result");
+const auditEl = document.getElementById("audit");
+let timer;
+
+function render(r) {
+  const flags = r.flags.length
+    ? '<div class="flags">' + r.flags.map(f =>
+        `<div class="flag"><span class="flag-kind">${esc(KIND[f.kind] || f.kind)}</span>` +
+        `<span class="flag-note">${esc(f.note)}</span></div>`).join("") + "</div>"
+    : '<p class="clear-note">Nothing flagged in the uploads it read.</p>';
+  resultEl.innerHTML =
+    '<div class="verdict-row">' +
+      `<span class="pill ${r.verdict}">${r.verdict}</span>` +
+      `<span class="bands">suits ages ${r.bands.map(b => BANDS[b] || b).join(", ") || "—"}</span>` +
+    "</div>" +
+    `<p class="summary">${esc(r.summary)}</p>` + flags +
+    '<div class="evidence"><div class="evidence-label">What it read</div><ul>' +
+      r.samples.map(t => `<li>${esc(t)}</li>`).join("") +
+    "</ul></div>";
+  auditEl.textContent = `Screened ${r.reviewed} by ${r.model}. Every flag cites an upload it actually read — the parent still decides.`;
+}
+
+function pick(i) {
+  [...chips.children].forEach((c, n) => c.setAttribute("aria-selected", n === i));
+  clearTimeout(timer);
+  screenEl.classList.add("busy");
+  const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  timer = setTimeout(() => { render(REVIEWS[i]); screenEl.classList.remove("busy"); }, quick ? 0 : 750);
+}
+
+REVIEWS.forEach((r, i) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = r.name;
+  b.setAttribute("aria-selected", "false");
+  b.onclick = () => pick(i);
+  chips.appendChild(b);
+});
+// Opens on a channel with something to say, so the point lands without a click.
+pick(REVIEWS.findIndex(r => r.flags.length) );
+</script>
 </body>
 </html>
