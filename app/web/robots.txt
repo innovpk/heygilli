@@ -1,0 +1,11 @@
+# HeyGilli — https://heygilli.com
+# The public pages are meant to be found and quoted. /app/ is a signed-in
+# Flutter application: there is nothing there for a crawler to read, and every
+# URL under it needs a household token, so it is left out rather than crawled
+# into a wall of empty pages.
+
+User-agent: *
+Allow: /
+Disallow: /app/
+
+Sitemap: https://heygilli.com/sitemap.xml

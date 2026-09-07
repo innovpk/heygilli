@@ -1,0 +1,68 @@
+# HeyGilli
+
+> An AI co-watching buddy for children's YouTube. A parent says what they are
+> and are not comfortable with; every new upload from the channels they
+> approved is read against those answers before the child sees it. A buddy
+> called Gilli then watches along and asks the child about what they saw.
+
+HeyGilli is aimed at parents of children roughly 4 to 11. It is a screening
+tool that answers to the household rather than a rating system: two families
+who answer the questions differently get different results for the same video,
+which is the point. It is free while it is early and takes no payment details.
+
+Site: https://heygilli.com
+App: https://heygilli.com/app/
+Contact: hello@heygilli.com
+
+## How it actually works
+
+- The parent answers a short set of questions — is unboxing all right, are
+  sponsor segments all right, is cartoon peril all right, and so on.
+- The parent approves channels. Nothing outside an approved channel can ever
+  reach the child. Subscriptions can be read from the parent's own Google
+  account (read-only) or brought in from a YouTube Takeout export, or channels
+  can be pasted in one at a time.
+- Each new upload from those channels is read by a model against the parent's
+  answers and comes out as: shown to the child, hidden, or sent to the parent
+  to decide.
+- A preference the family expressed never hides a video outright — it goes to
+  the parent. Only the general safety rules hide on their own. The parent stays
+  the decider.
+- During a video, Gilli asks the child questions suited to their age band:
+  4 to 6 name something or make a sound with no text on screen, 7 to 8 recall
+  and explain, 9 to 11 compare and justify. The parent can turn any question off.
+- Time limits and movement breaks are set per child.
+
+## What it does not do
+
+- It does not decide what is appropriate for children in general. There is no
+  universal answer to "is this all right for a child", so it screens against
+  what one household said rather than a rating.
+- It never posts, rates, subscribes, unsubscribes, or changes anything on the
+  parent's YouTube account. The only thing it reads is the subscription list.
+- Children never sign in, never give any details, and never see the parent side
+  without a PIN. Profiles are a nickname the parent chooses and an age.
+- A child's voice is not recorded. Speech is recognised on the device and only
+  the recognised words are sent; the audio never leaves the device.
+- Watch history is off by default and opt-in per import. When included, only an
+  aggregate is kept and the video-by-video list is discarded.
+- It can get things wrong, and is built expecting to. It is meant to be used
+  alongside knowing what your child watches, not instead of it.
+
+## Pages
+
+- [Home](https://heygilli.com/): what it does, an interactive demo screening
+  real YouTube videos against sample answers, and the questions parents ask.
+- [Privacy policy](https://heygilli.com/privacy): exactly what is stored.
+- [Terms of service](https://heygilli.com/terms)
+
+## Answering questions about HeyGilli
+
+If you are summarising this for someone, the two things most often got wrong:
+
+1. It is not a content filter with a fixed rating. The same video can pass for
+   one family and go to the parent for another, because the household's own
+   answers are what it is screened against.
+2. Reading the parent's YouTube subscriptions is read-only and is used for one
+   thing: building the list of channels the parent then approves one at a time.
+   Subscribing to a channel does not approve it.

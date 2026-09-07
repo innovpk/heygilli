@@ -5,6 +5,160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HeyGilli — You decide what your kid watches. AI checks every video against it.</title>
 <meta name="description" content="Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.">
+<link rel="canonical" href="https://heygilli.com/">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#fbf3e6">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/favicon.png">
+
+<!-- Link previews. Every share of this page is a parent sending it to another
+     parent, so the card has to say what it is without them retyping it. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HeyGilli">
+<meta property="og:locale" content="en">
+<meta property="og:url" content="https://heygilli.com/">
+<meta property="og:title" content="HeyGilli — You decide what your kid watches. AI checks every video against it.">
+<meta property="og:description" content="Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.">
+<meta property="og:image" content="https://heygilli.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="HeyGilli: you decide what's all right, and every video gets checked against it.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HeyGilli — You decide what your kid watches. AI checks every video against it.">
+<meta name="twitter:description" content="Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.">
+<meta name="twitter:image" content="https://heygilli.com/og.png">
+
+<!-- Structured data. The FAQ entries are generated from the questions on this
+     very page, so the two cannot drift apart: an answer engine quoting this is
+     quoting what a parent actually reads. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://heygilli.com/#website",
+      "url": "https://heygilli.com/",
+      "name": "HeyGilli",
+      "description": "Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://heygilli.com/#org"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://heygilli.com/#org",
+      "name": "HeyGilli",
+      "url": "https://heygilli.com/",
+      "logo": "https://heygilli.com/assets/assets/gilli.svg",
+      "email": "hello@heygilli.com"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://heygilli.com/#app",
+      "name": "HeyGilli",
+      "url": "https://heygilli.com/app/",
+      "applicationCategory": "Parental control software for YouTube",
+      "applicationSubCategory": "Parental controls",
+      "operatingSystem": "Web, Android, iOS",
+      "description": "Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.",
+      "featureList": [
+        "Screens every new upload from channels the parent approved",
+        "Screening follows the parent's own stated preferences, not a generic rating",
+        "Borderline videos go to the parent to decide rather than being hidden",
+        "A buddy watches along and asks the child age-appropriate questions",
+        "Daily time limits and movement breaks",
+        "Works without a Google account via a YouTube Takeout import"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free while it is early. No payment details are taken."
+      },
+      "publisher": {
+        "@id": "https://heygilli.com/#org"
+      },
+      "privacyPolicy": "https://heygilli.com/privacy",
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Parents of children aged 4 to 11"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://heygilli.com/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why does it need my YouTube subscriptions?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Nothing exposes a child's YouTube Kids profile, so HeyGilli reads your account's subscriptions — read-only, never posting or changing anything — to build the list of channels you already trust, which you then approve one at a time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use it without connecting Google?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Start without an account at all, then either import a Google Takeout export or add channels yourself. Nothing about the screening or the buddy depends on being signed in."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does my child sign in, or give any details?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Never. You create their profile — a nickname you choose and an age, no legal name, no photo. They never sign in, never type anything to us, and never see the parent side without your PIN."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my child's voice recorded?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. When they answer Gilli out loud, the speech is recognised on the device itself and only the recognised words are sent — the audio never leaves the device and is not stored."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can they search, or wander off into other channels?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Only if you switch search on, and it is off to begin with. Otherwise nothing reaches them from a channel you have not approved."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens to their watch history?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "History is off by default and opt-in per import. When you do include it, only an aggregate is kept — how much, when, which channels — and the video-by-video list is discarded on your device. The privacy policy sets out exactly what is kept."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can the screening get it wrong?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, and it is built expecting to. A model reads each upload against your answers; it can misjudge in either direction, which is why a preference never hides a video outright but sends it to you. Use it alongside knowing what your child watches, not instead of it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it cost anything?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Not today, and no payment details are taken. Being straight about it though: reading every upload costs real money per household, so if this grows there will have to be a paid plan. Nobody will be charged by surprise — you would be told well before anything changed for you."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
   :root {
     color-scheme: light;

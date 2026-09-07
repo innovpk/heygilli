@@ -27,11 +27,26 @@ DIST=build/site
 rm -rf "$DIST"
 mkdir -p "$DIST/app" "$DIST/assets/assets"
 
+# Structured data is a copy of the FAQ a few hundred lines below it in the
+# same file. A copy is only true while something checks: a stale schema serves
+# old wording to Google and to every model that reads the page, which is worse
+# than no schema — a confident wrong answer with a site behind it.
+echo "==> checking SEO/AEO"
+python3 app/web/check_seo.py
+
 echo "==> assembling $DIST"
 cp app/web/about.html   "$DIST/index.html"     # root is the public page
 cp app/web/about.html   "$DIST/about.html"     # and reachable by name too
 cp app/web/privacy.html "$DIST/"
 cp app/web/terms.html   "$DIST/"
+# Findable, and quotable by the answer engines people actually ask. og.png is
+# the link preview; llms.txt is the plain-text summary for models, which the
+# rendered page cannot be — /app/ is a canvas an LLM reads as nothing.
+cp app/web/robots.txt   "$DIST/"
+cp app/web/sitemap.xml  "$DIST/"
+cp app/web/llms.txt     "$DIST/"
+cp app/web/og.png       "$DIST/"
+cp app/web/favicon.png  "$DIST/"
 cp app/assets/gilli.svg "$DIST/assets/assets/gilli.svg"
 cp -R app/build/web/.   "$DIST/app/"
 
