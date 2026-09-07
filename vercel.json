@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cp -r app/build/web public",
-  "env": {
-    "HEYGILLI_API_URL": "@heygilli-api-url"
-  }
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
