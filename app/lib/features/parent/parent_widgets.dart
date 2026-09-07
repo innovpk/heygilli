@@ -544,13 +544,12 @@ Future<String?> handleGoogleResult(
     case GoogleAuthNotConfigured(:final reason):
       return reason;
     case GoogleAuthScopeDenied():
-      // Refusing YouTube access no longer costs a way in — channels come from
-      // suggestions, a Takeout export, or a pasted link. What it costs is
-      // video lengths, which is what a "longest video" limit is checked
-      // against, so say that rather than naming a feature that is gone.
-      return 'Without YouTube access HeyGilli cannot look up how long a video '
-          'is, so a longest-video limit cannot be applied. Everything else '
-          'works.';
+      // The only thing sign-in asks for now is who they are, so this means
+      // Google gave back no usable identity rather than a feature being
+      // withheld. Nothing is lost by not signing in at all: the second door
+      // does everything.
+      return 'Google did not confirm who you are, so nothing was signed in. '
+          'You can set up without Google instead — nothing needs it.';
     case GoogleAuthUnavailable(:final message):
       return message;
     case GoogleAuthFailed(:final message):

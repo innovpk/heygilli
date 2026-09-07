@@ -146,11 +146,11 @@ class _SignInScreenState extends State<SignInScreen> {
                                 ),
                               ),
                               Text(
-                                'Use the account your kids already watch on, '
-                                'usually the one signed in on the TV. Its '
-                                'subscriptions become the channels you pick '
-                                'from. Only you sign in; your child never '
-                                'does.',
+                                'Signing in only says which household is '
+                                'yours, so your children and their channels '
+                                'are here on any device. HeyGilli asks for '
+                                'nothing else from your Google account, and '
+                                'your child never signs in.',
                                 style: HgText.body(
                                   size: 15,
                                   color: HgColors.muted,
@@ -195,10 +195,10 @@ class _SignInScreenState extends State<SignInScreen> {
       _signInControl(canUseGoogle),
       if (!tight)
         Text(
-          'Use the account your kids already watch on, usually '
-          'the one signed in on the TV. Its subscriptions become '
-          'the channels you pick from. Only you sign in; your '
-          'child never does.',
+          'Signing in only says which household is yours, so your children '
+          'and their channels are here on any device. HeyGilli asks for '
+          'nothing else from your Google account, and your child never '
+          'signs in.',
           textAlign: TextAlign.center,
           style: HgText.body(size: 14, color: HgColors.brown),
         ),
