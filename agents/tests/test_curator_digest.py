@@ -120,7 +120,10 @@ def test_a_blocked_ip_stops_the_run_instead_of_screening_on_titles(
 
     # It came back rather than raising, and the first video's real decision kept.
     assert report.stopped_early, "a partial run that reports itself as whole is the worst outcome"
-    assert "captions" in report.stopped_early
+    assert "unscreened" in report.stopped_early
+    # Carrying the cause matters as much as reporting the stop: "nothing was
+    # screened" without it sends whoever reads it to check the wrong thing.
+    assert "the request was blocked" in report.stopped_early, report.stopped_early
     decided = len(report.approved) + len(report.hidden) + len(report.ask_parent)
     assert decided == 1, "only the video that had a transcript was judged"
     # And nothing was invented for the two it never got to.

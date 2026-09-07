@@ -215,9 +215,9 @@ def run_curator(
                 # and say so; what has been decided so far is already stored.
                 log.warning("stopping curation for kid %s: %s", kid.id, e)
                 report.stopped_early = (
-                    "YouTube stopped serving captions to this machine part way "
-                    "through, so the rest was left unscreened rather than "
-                    "judged on titles alone. Try again later."
+                    "No transcript could be read, so the rest was left "
+                    "unscreened rather than judged on titles alone. "
+                    f"({e})"
                 )
                 return report
             excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"

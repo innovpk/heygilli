@@ -91,6 +91,12 @@ _captions_blocked = False
 #: Monotonic time before which Gemini is out of quota and must not be called.
 _gemini_until = 0.0
 
+#: Why Gemini last turned us down. Carried into the `TranscriptsBlocked` message
+#: so that "nothing was screened" arrives with its cause attached: a bad key, a
+#: disabled API and an exhausted quota are three different jobs for whoever
+#: reads it, and they are indistinguishable from an empty home.
+_gemini_last_error = ""
+
 
 def _note_captions_blocked(e: Exception) -> None:
     global _captions_blocked
@@ -115,12 +121,31 @@ def _is_quota_error(e: Exception) -> bool:
 
 
 def _note_gemini_failure(video_id: str, e: Exception) -> None:
-    global _gemini_until
+    global _gemini_until, _gemini_last_error
+    _gemini_last_error = f"{type(e).__name__}: {e}"[:200]
     if _is_quota_error(e):
         _gemini_until = time.monotonic() + GEMINI_COOLDOWN_S
         log.warning("gemini quota reached; standing down for %ds", int(GEMINI_COOLDOWN_S))
     else:
         log.warning("gemini transcript failed for %s: %s", video_id, e)
+
+
+def _why_blocked(captions_error: Exception | None = None) -> str:
+    """One line naming every source that could have answered and did not.
+
+    Whoever reads this is trying to work out why a household has nothing to
+    watch, and "captions were refused" alone has sent that person to check the
+    wrong thing more than once.
+    """
+    parts = [f"captions: {captions_error or 'refused to this machine'}"]
+    if not os.getenv("GOOGLE_API_KEY"):
+        parts.append("gemini: no GOOGLE_API_KEY")
+    elif not _gemini_ready():
+        parts.append("gemini: out of quota, standing down")
+    else:
+        parts.append(f"gemini: {_gemini_last_error or 'no transcript returned'}")
+    parts.append("proxy: configured" if _proxy_config() else "proxy: not configured")
+    return "no transcript source answered — " + "; ".join(parts)
 
 
 def _proxy_config():
@@ -267,7 +292,7 @@ def fetch_transcript(video_id: str) -> dict:
         # answers — a skipped attempt is not the same as an absent caption
         # track, and returning "none" here would tell the Curator to screen
         # every remaining video on its title as though that were normal.
-        blocked = TranscriptsBlocked("YouTube is refusing captions to this machine")
+        blocked = TranscriptsBlocked(_why_blocked())
     else:
         try:
             cap = _from_captions(video_id)
@@ -302,7 +327,7 @@ def fetch_transcript(video_id: str) -> dict:
                     blocked = None
 
     if source == "none" and blocked is not None:
-        raise blocked
+        raise TranscriptsBlocked(_why_blocked(blocked))
 
     out = {"video_id": video_id, "source": source, "segments": segments}
     store.cache_put("transcript", video_id, out)
