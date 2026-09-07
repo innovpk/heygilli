@@ -502,3 +502,53 @@ def test_suggestions_follow_the_band_and_the_topics(client) -> None:
     songs = client.get("/starter-channels?band=4_6&topics=songs").json()["channels"]
     assert 0 < len(songs) <= len(young)
     assert all("songs" in c["topics"] for c in songs)
+
+
+def test_a_parent_can_search_youtube_for_channels(client, auth, monkeypatch, store) -> None:
+    """A parent searching is not a child searching. The result is a suggestion
+    they then approve, and every upload from an approved channel is still read
+    against their answers — the allowlist is untouched. A child's own home has
+    no path to YouTube at all."""
+    from heygilli_agents.schemas import Channel
+
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    store.put_channel(auth["_hid"], kid["id"], Channel(id="UChave", title="Had It", approved=True))
+
+    monkeypatch.setattr(gateway, "search_youtube_channels", lambda q, **k: [
+        {"channel_id": "UCnew", "title": "SciShow Kids", "blurb": "science", "thumb_url": "t"},
+        {"channel_id": "UChave", "title": "Had It", "blurb": "already", "thumb_url": "t"},
+    ])
+
+    body = client.get("/channels/search?q=science", headers=hdr(auth)).json()
+    assert body["query"] == "science"
+    by_id = {c["channel_id"]: c for c in body["channels"]}
+    assert by_id["UCnew"]["approved_for"] == []
+    # Says which children already have it, so a parent is not offered a
+    # channel they approved months ago as though it were new.
+    assert by_id["UChave"]["approved_for"] == [kid["id"]]
+
+    # Searching approves nothing by itself.
+    assert {c["id"] for c in client.get(f"/kids/{kid['id']}/channels",
+                                        headers=hdr(auth)).json()} == {"UChave"}
+
+
+def test_search_that_cannot_run_says_so_rather_than_finding_nothing(
+    client, auth, monkeypatch
+) -> None:
+    """The daily allowance is a hundred searches for every household put
+    together, and a key not permitted to search answers the same way. Both look
+    like "no results" to a parent, who would retype their query for ever."""
+    from heygilli_agents.tools.youtube import SearchUnavailable
+
+    def refused(q, **k):
+        raise SearchUnavailable("YouTube turned the search down.")
+
+    monkeypatch.setattr(gateway, "search_youtube_channels", refused)
+    r = client.get("/channels/search?q=peppa", headers=hdr(auth))
+    assert r.status_code == 503
+    assert "turned the search down" in r.json()["detail"]
+
+
+def test_searching_needs_a_household(client) -> None:
+    """It spends a shared allowance, so it is not open to anyone who finds it."""
+    assert client.get("/channels/search?q=peppa").status_code == 401

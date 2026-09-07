@@ -363,3 +363,71 @@ def test_a_hidden_stream_never_reaches_the_inbox_or_the_child() -> None:
     assert screening.prescreen(
         Video(id="c", title="Ben and Holly: The Lost Egg", duration_s=600)
     ).verdict == "pass"
+
+
+def test_channel_search_needs_a_key_and_says_which_problem_it_hit(monkeypatch) -> None:
+    """A setup problem and an empty result look identical to a parent, who
+    would retype their query for ever. They are told apart here."""
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    with pytest.raises(youtube.SearchUnavailable, match="not set up"):
+        youtube.search_channels("peppa pig")
+
+    # An empty query costs no quota: search.list is 100 units a call, and a
+    # parent who has typed nothing is not searching yet.
+    assert youtube.search_channels("   ") == []
+
+
+def test_channel_search_reads_channels_out_of_the_response(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    seen = {}
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"items": [
+                {"id": {"channelId": "UCabc"},
+                 "snippet": {"title": "SciShow &amp; Kids", "description": "science",
+                             "thumbnails": {"medium": {"url": "http://img/m.jpg"}}}},
+                # A video result has no channelId of its own here; skipped
+                # rather than added under an empty id.
+                {"id": {"kind": "youtube#video"}, "snippet": {"title": "nope"}},
+            ]}
+
+    class _Client:
+        def __init__(self, *a, **k): ...
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, params=None):
+            seen["url"], seen["params"] = url, params
+            return _Resp()
+
+    monkeypatch.setattr(youtube.httpx, "Client", _Client)
+    out = youtube.search_channels("scishow")
+
+    assert out == [{"channel_id": "UCabc", "title": "SciShow & Kids",
+                    "blurb": "science", "thumb_url": "http://img/m.jpg"}]
+    assert seen["params"]["type"] == "channel", "videos are not what a parent approves"
+    assert seen["params"]["key"] == "test-key"
+
+
+def test_a_refused_search_is_raised_not_returned_empty(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+
+    class _Resp:
+        status_code = 403
+
+        @staticmethod
+        def json():
+            return {"error": {"message": "YouTube Data API has not been used..."}}
+
+    class _Client:
+        def __init__(self, *a, **k): ...
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, params=None): return _Resp()
+
+    monkeypatch.setattr(youtube.httpx, "Client", _Client)
+    with pytest.raises(youtube.SearchUnavailable, match="daily search limit|not being allowed"):
+        youtube.search_channels("peppa")

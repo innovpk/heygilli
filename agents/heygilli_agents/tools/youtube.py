@@ -6,8 +6,10 @@ swap for the Data API (SPEC §9.4).
 """
 from __future__ import annotations
 
+import contextlib
 import html
 import logging
+import os
 import re
 import xml.etree.ElementTree as ET
 
@@ -165,6 +167,96 @@ def fetch_video_meta(video_id: str) -> dict:
     if meta["title"]:
         get_store().cache_put("video_meta", video_id, meta)
     return meta
+
+
+# --- Searching YouTube, for the parent only ---------------------------------------------
+#
+# The one place HeyGilli asks YouTube a question rather than reading a feed,
+# and it is deliberately narrow. A *child* can never search: their home filters
+# the videos already approved for them, because searching would hand back the
+# open internet and undo the allowlist the product rests on. A parent searching
+# for a channel to approve is the opposite — the result is a suggestion they
+# then approve, and every upload from it is still screened.
+#
+# Channels, not videos: HeyGilli approves a channel and screens what it
+# publishes from then on, so a channel is the thing a parent is looking for.
+
+SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+#: `search.list` costs 100 quota units a call against a default 10,000 a day,
+#: so this is a hundred searches a day for every household put together — by
+#: far the most expensive call in here, and the reason it is not used anywhere
+#: automatic.
+SEARCH_COST_UNITS = 100
+
+
+class SearchUnavailable(Exception):
+    """YouTube search is not usable, and why — a message a parent can act on."""
+
+
+def search_channels(query: str, limit: int = 10) -> list[dict]:
+    """Channels matching what the parent typed.
+
+    Needs `GOOGLE_API_KEY` to be allowed to call the YouTube Data API. A key
+    restricted to another API answers 403, which is a setup problem rather than
+    a bad search, so it is raised as one instead of coming back as "no
+    results" — a parent retyping their query would never fix it.
+    """
+    q = query.strip()
+    if not q:
+        return []
+    key = os.getenv("GOOGLE_API_KEY", "").strip()
+    if not key:
+        raise SearchUnavailable(
+            "Searching YouTube is not set up on this server."
+        )
+    params = {
+        "part": "snippet",
+        "type": "channel",
+        "q": q,
+        "maxResults": max(1, min(limit, 25)),
+        "key": key,
+    }
+    try:
+        with httpx.Client(timeout=20.0) as c:
+            r = c.get(SEARCH_URL, params=params)
+    except httpx.HTTPError as e:
+        raise SearchUnavailable(f"Could not reach YouTube: {type(e).__name__}") from e
+
+    if r.status_code == 403:
+        # Both the "key cannot call this API" and "quota gone" cases, which
+        # read the same to a parent: not something their query can fix.
+        detail = ""
+        with contextlib.suppress(Exception):
+            detail = str((r.json().get("error") or {}).get("message") or "")
+        raise SearchUnavailable(
+            "YouTube turned the search down. This is usually the daily search "
+            f"limit, or the API key not being allowed to search. {detail}".strip()
+        )
+    if r.status_code != 200:
+        raise SearchUnavailable(f"YouTube answered {r.status_code} to the search.")
+
+    out: list[dict] = []
+    for item in (r.json().get("items") or []):
+        channel_id = str((item.get("id") or {}).get("channelId") or "").strip()
+        snippet = item.get("snippet") or {}
+        if not channel_id:
+            continue
+        out.append({
+            "channel_id": channel_id,
+            "title": html.unescape(str(snippet.get("title") or "")).strip(),
+            "blurb": html.unescape(str(snippet.get("description") or "")).strip(),
+            "thumb_url": _best_thumb(snippet),
+        })
+    return out
+
+
+def _best_thumb(snippet: dict) -> str:
+    thumbs = snippet.get("thumbnails") or {}
+    for size in ("medium", "high", "default"):
+        url = (thumbs.get(size) or {}).get("url")
+        if url:
+            return str(url)
+    return ""
 
 
 # --- Strands tools -----------------------------------------------------------------------

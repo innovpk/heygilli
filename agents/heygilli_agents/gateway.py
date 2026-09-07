@@ -83,7 +83,12 @@ from .takeout import (
 )
 from .tools import transcript as transcript_sources
 from .tools.tts import TTS_DIR, synthesize
-from .tools.youtube import fetch_video_meta, resolve_channel_url
+from .tools.youtube import (
+    SearchUnavailable,
+    fetch_video_meta,
+    resolve_channel_url,
+)
+from .tools.youtube import search_channels as search_youtube_channels
 
 load_dotenv()
 log = logging.getLogger("heygilli.gateway")
@@ -269,6 +274,37 @@ def starter_channels(band: str = "7_8", topics: str = "") -> dict:
                 "topics": list(c.topics),
             }
             for c in starter_channels_data.suggest(band, wanted)
+        ],
+    }
+
+
+@app.get("/channels/search")
+def search_channels_endpoint(
+    q: str, hid: str = Depends(household)
+) -> dict:
+    """Channels on YouTube matching what the parent typed.
+
+    Behind the household token, because it spends a shared daily allowance:
+    `search.list` costs 100 quota units of a default 10,000, so this is a
+    hundred searches a day across every household. Nothing calls it
+    automatically for that reason.
+
+    A parent searching is not a child searching. The result is a suggestion
+    they then approve, and every upload from an approved channel is still read
+    against their answers — the allowlist is untouched. A child's own home has
+    no path to YouTube at all.
+    """
+    already = _approved_by_channel(hid)
+    try:
+        found = search_youtube_channels(q)
+    except SearchUnavailable as e:
+        # A setup or quota problem is not an empty result: a parent retyping
+        # their query would never fix it, so say what happened.
+        raise HTTPException(503, str(e)) from e
+    return {
+        "query": q.strip(),
+        "channels": [
+            {**c, "approved_for": already.get(c["channel_id"], [])} for c in found
         ],
     }
 
