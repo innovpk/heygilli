@@ -429,5 +429,33 @@ def test_a_refused_search_is_raised_not_returned_empty(monkeypatch) -> None:
         def get(self, url, params=None): return _Resp()
 
     monkeypatch.setattr(youtube.httpx, "Client", _Client)
-    with pytest.raises(youtube.SearchUnavailable, match="daily search limit|not being allowed"):
+    with pytest.raises(youtube.SearchUnavailable) as e:
         youtube.search_channels("peppa")
+    # Google's own words, not just the number: a 401 and a 403 need different
+    # things changed by whoever runs the server, and reporting only the status
+    # made them look like the same shrug.
+    assert "403" in str(e.value)
+    assert "daily search limit" in str(e.value)
+    assert "YouTube Data API has not been used" in str(e.value)
+
+
+def test_an_unaccepted_key_is_named_as_such(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+
+    class _Resp:
+        status_code = 401
+
+        @staticmethod
+        def json():
+            return {"error": {"message": "API key not valid."}}
+
+    class _Client:
+        def __init__(self, *a, **k): ...
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, params=None): return _Resp()
+
+    monkeypatch.setattr(youtube.httpx, "Client", _Client)
+    with pytest.raises(youtube.SearchUnavailable) as e:
+        youtube.search_channels("peppa")
+    assert "not accepted" in str(e.value) and "API key not valid" in str(e.value)

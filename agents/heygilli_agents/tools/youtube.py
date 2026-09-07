@@ -222,18 +222,28 @@ def search_channels(query: str, limit: int = 10) -> list[dict]:
     except httpx.HTTPError as e:
         raise SearchUnavailable(f"Could not reach YouTube: {type(e).__name__}") from e
 
-    if r.status_code == 403:
-        # Both the "key cannot call this API" and "quota gone" cases, which
-        # read the same to a parent: not something their query can fix.
+    if r.status_code != 200:
+        # Google's own words, whatever the status. Reporting only the number
+        # made a 401 ("the key is not accepted") and a 403 ("this key may not
+        # call this API") look like the same shrug, and neither is something a
+        # parent's query can fix — the difference is entirely in what the
+        # person running the server has to go and change.
         detail = ""
         with contextlib.suppress(Exception):
             detail = str((r.json().get("error") or {}).get("message") or "")
+        hint = {
+            401: "the API key was not accepted",
+            403: "the key may not call this API, or the daily search limit is spent",
+        }.get(r.status_code, "")
         raise SearchUnavailable(
-            "YouTube turned the search down. This is usually the daily search "
-            f"limit, or the API key not being allowed to search. {detail}".strip()
+            " ".join(
+                part for part in (
+                    f"YouTube answered {r.status_code} to the search.",
+                    f"({hint})" if hint else "",
+                    detail,
+                ) if part
+            )
         )
-    if r.status_code != 200:
-        raise SearchUnavailable(f"YouTube answered {r.status_code} to the search.")
 
     out: list[dict] = []
     for item in (r.json().get("items") or []):
