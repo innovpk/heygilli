@@ -63,7 +63,6 @@ class LocalSettings {
   static const _parentNameKey = 'parent_name';
   static const _kidDeviceKey = 'kid_device_kid_id';
   static const _trialKey = 'trial_household';
-  static const _introKey = 'intro_seen';
 
   String? get pin => _prefs.getString(_pinKey);
   Future<void> setPin(String pin) => _prefs.setString(_pinKey, pin);
@@ -98,11 +97,6 @@ class LocalSettings {
   Future<void> setKidDeviceId(String? kidId) => kidId == null || kidId.isEmpty
       ? _prefs.remove(_kidDeviceKey)
       : _prefs.setString(_kidDeviceKey, kidId);
-
-  /// Whether the parent has been shown what HeyGilli is. Once, ever: it is an
-  /// explanation, and a second showing is an obstacle.
-  bool get introSeen => _prefs.getBool(_introKey) ?? false;
-  Future<void> setIntroSeen() => _prefs.setBool(_introKey, true);
 
   /// The household name used by the without-Google path, kept so that closing
   /// the app and coming back lands in the same household rather than a new
