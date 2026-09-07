@@ -90,6 +90,21 @@ load_dotenv()
 log = logging.getLogger("heygilli.gateway")
 logging.basicConfig(level=os.getenv("HEYGILLI_LOG", "INFO"))
 
+
+class _DropHealthChecks(logging.Filter):
+    """Keep the platform's liveness probe out of the access log.
+
+    Render polls /healthz every few seconds forever, which buries every real
+    request. Dropped at the access logger rather than by lowering the log level,
+    so a genuine 4xx/5xx on any other route is still visible.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/healthz" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_DropHealthChecks())
+
 SECRET = os.getenv("HEYGILLI_SECRET", "dev-secret-change-me").encode()
 ANSWER_GRACE_MS = 1500  # PROTOCOL: listen_ms + 1500 ms -> input "none"
 PREREADER_ECHO_WAIT_S = 3.0  # SPEC §7.4: "Can you say giraffe?" then 3 s, then resume regardless
