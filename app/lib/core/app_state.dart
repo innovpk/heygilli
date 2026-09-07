@@ -123,12 +123,14 @@ class AppState extends ChangeNotifier {
     String? nickname,
     int? age,
     List<String>? languages,
+    String? avatar,
   }) async {
     final kid = await gateway.editKid(
       kidId,
       nickname: nickname,
       age: age,
       languages: languages,
+      avatar: avatar,
     );
     await refreshKids();
     if (_activeKid?.id == kidId) _activeKid = kid;
@@ -214,6 +216,16 @@ class AppState extends ChangeNotifier {
   bool get hasPin => settings.pin != null;
   bool checkPin(String pin) => settings.pin == pin;
   Future<void> setPin(String pin) => settings.setPin(pin);
+
+  /// Forget this device's parent PIN. The next gate asks for a new one.
+  ///
+  /// Only reachable from the parent app, which is behind the PIN on a child's
+  /// device — so this is a parent who is already past the gate choosing a new
+  /// number, never a child clearing their way out.
+  Future<void> clearPin() async {
+    await settings.clearPin();
+    notifyListeners();
+  }
 }
 
 /// HeyGilli could not be reached at startup.

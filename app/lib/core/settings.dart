@@ -67,6 +67,15 @@ class LocalSettings {
   String? get pin => _prefs.getString(_pinKey);
   Future<void> setPin(String pin) => _prefs.setString(_pinKey, pin);
 
+  /// Forget the PIN, so the next gate asks for a new one.
+  ///
+  /// There was no way to do this. The PIN is chosen once, kept only on this
+  /// device, and never sent anywhere, so a parent who mistyped it at setup or
+  /// simply forgot it could not leave kid mode again on that device — with no
+  /// reset, no recovery and nothing to email. The confirm step at setup was
+  /// the only thing standing between a household and that.
+  Future<void> clearPin() => _prefs.remove(_pinKey);
+
   String? get token => _prefs.getString(_tokenKey);
   Future<void> setToken(String? token) => token == null
       ? _prefs.remove(_tokenKey)

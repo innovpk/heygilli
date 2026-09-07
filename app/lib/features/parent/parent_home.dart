@@ -213,6 +213,30 @@ class _AccountMenu extends StatelessWidget {
     await state.setDeviceKid(kid);
   }
 
+  /// Choose a new parent PIN.
+  ///
+  /// Guarded by the old one. The PIN lives only on this device and is never
+  /// sent anywhere, so there is nothing to recover it with: a parent who
+  /// mistyped it at setup, or forgot it, previously could not leave kid mode
+  /// on that device again. Asking for the old one first keeps a child who
+  /// found the parent app from setting their own way out.
+  Future<void> _changePin(BuildContext context) async {
+    final state = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await showPinGate(context)) return;
+    await state.clearPin();
+    if (!context.mounted) return;
+    // The gate sets a new one whenever none is stored, so this is the same
+    // "Set a parent PIN" flow a household meets the first time, confirm step
+    // and all.
+    final set = await showPinGate(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(set ? 'New PIN saved.' : 'PIN cleared. The next one you type becomes the PIN.'),
+      ),
+    );
+  }
+
   Future<void> _signOut(BuildContext context) async {
     final state = context.read<AppState>();
     final navigator = Navigator.of(context);
@@ -285,6 +309,14 @@ class _AccountMenu extends StatelessWidget {
               ),
             ),
         const PopupMenuDivider(),
+        if (state.hasPin)
+          PopupMenuItem<VoidCallback>(
+            value: () => _changePin(context),
+            child: Text(
+              'Change parent PIN',
+              style: HgText.body(size: 15, color: HgColors.ink),
+            ),
+          ),
         PopupMenuItem<VoidCallback>(
           value: () => _signOut(context),
           child: Text(

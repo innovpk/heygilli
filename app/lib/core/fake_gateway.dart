@@ -800,6 +800,7 @@ class FakeGateway implements Gateway {
     String? nickname,
     int? age,
     List<String>? languages,
+    String? avatar,
   }) async {
     await _lag();
     final i = _kids.indexWhere((k) => k.id == kidId);
@@ -814,7 +815,7 @@ class FakeGateway implements Gateway {
       // edit exists to fix.
       band: AgeBand.forAge(newAge),
       languages: languages ?? old.languages,
-      avatar: old.avatar,
+      avatar: avatar ?? old.avatar,
       dailyMinutes: old.dailyMinutes,
       breakAfterMinutes: old.breakAfterMinutes,
       breakMinutes: old.breakMinutes,

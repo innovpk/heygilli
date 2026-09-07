@@ -268,8 +268,10 @@ class ApiClient implements Gateway {
     String? nickname,
     int? age,
     List<String>? languages,
+    String? avatar,
   }) async => Kid.fromJson(
     await _patch('/kids/$kidId', {
+      'avatar': ?avatar,
       // Only what the parent actually changed: the server treats an absent
       // field as "leave it alone", so sending nulls would blank them.
       'nickname': ?nickname,

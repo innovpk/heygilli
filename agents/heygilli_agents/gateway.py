@@ -284,6 +284,13 @@ def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
 
 
+@app.get("/avatars")
+def list_avatars() -> dict:
+    """The faces a child may choose from. Named here so the app cannot offer
+    one the server would reject, and so the list can grow without a release."""
+    return {"avatars": list(AVATAR_ICONS)}
+
+
 @app.get("/kids/{kid_id}/prompts")
 def get_prompts(kid_id: str, hid: str = Depends(household)) -> dict:
     """Every question written for this child's band, and whether it is on.
@@ -342,6 +349,17 @@ def set_prompts(kid_id: str, body: PromptsIn, hid: str = Depends(household)) -> 
     return get_prompts(kid_id, hid)
 
 
+#: Icons a child may wear. A subset of the icon library — creatures and things
+#: a child would pick, not colours, numbers or feelings, which are answers to
+#: questions and would read as a score rather than a face.
+AVATAR_ICONS: tuple[str, ...] = (
+    "cat", "dog", "duck", "frog", "lion", "monkey",
+    "elephant", "giraffe", "bird", "butterfly", "fish", "cow",
+    "squirrel", "rocket", "star", "sun", "moon", "flower",
+    "boat", "train", "tree", "mango",
+)
+
+
 class KidEditIn(BaseModel):
     """What a parent may correct about a child. Every field optional: this is a
     correction, not a re-registration."""
@@ -349,6 +367,11 @@ class KidEditIn(BaseModel):
     nickname: str | None = None
     age: int | None = Field(default=None, ge=3, le=12)
     languages: list[Language] | None = None
+    #: An icon id from `AVATAR_ICONS`, or "" to go back to their initial.
+    #: Checked against the list rather than taken as given: this string is
+    #: rendered as an asset path, and a child picking their own face is the one
+    #: place a client sends something a child chose.
+    avatar: str | None = None
 
 
 @app.patch("/kids/{kid_id}")
@@ -367,6 +390,9 @@ def edit_kid(kid_id: str, body: KidEditIn, hid: str = Depends(household)) -> dic
     """
     kid = _kid(hid, kid_id)
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    avatar = updates.get("avatar")
+    if avatar and avatar not in AVATAR_ICONS:
+        raise HTTPException(422, f"unknown avatar {avatar!r}")
     if "age" in updates and updates["age"] != kid.age:
         updates["age_band"] = None  # re-derived from the new age by Kid's validator
     kid = Kid(**{**kid.model_dump(), **updates})

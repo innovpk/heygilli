@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -12,6 +13,7 @@ import '../../core/theme.dart';
 import '../../main.dart';
 import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
+import 'avatar_picker.dart';
 import 'break_screen.dart';
 import 'gilli_widget.dart';
 import 'nothing_yet_screen.dart';
@@ -122,6 +124,14 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     if (mounted) _reload();
   }
 
+  /// The child changing their own picture.
+  ///
+  /// Not behind the PIN: it is cosmetic and it is theirs. `editKid` refreshes
+  /// the household, so the header redraws with the new face on its own.
+  Future<void> _pickAvatar(Kid kid) async {
+    await showAvatarPicker(context, kid);
+  }
+
   @override
   Widget build(BuildContext context) {
     final kid = context.select<AppState, Kid?>((s) => s.activeKid);
@@ -174,7 +184,11 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _Header(kid: kid, onExit: _tryExit),
+                      _Header(
+                        kid: kid,
+                        onExit: _tryExit,
+                        onPickAvatar: _pickAvatar,
+                      ),
                       // Only when the parent turned it on, and never for a
                       // pre-reader: a child who cannot read cannot type, and a
                       // box they cannot use is one more thing to poke at.
@@ -244,9 +258,17 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
 
 /// Kid avatar, small Gilli, and a quiet exit control for the parent.
 class _Header extends StatelessWidget {
-  const _Header({required this.kid, required this.onExit});
+  const _Header({
+    required this.kid,
+    required this.onExit,
+    required this.onPickAvatar,
+  });
   final Kid kid;
   final VoidCallback onExit;
+
+  /// Tapping their own picture. Passed in rather than done here so the screen
+  /// can reload after it changes.
+  final void Function(Kid kid) onPickAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -256,21 +278,37 @@ class _Header extends StatelessWidget {
       child: Row(
         spacing: 16,
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: const BoxDecoration(
-              color: HgColors.mango,
-              shape: BoxShape.circle,
+          // Tapping their own picture is how a child changes it. Theirs to
+          // choose, not the parent's to assign, and behind no PIN: it is
+          // cosmetic, it is the one thing in the app that belongs to them,
+          // and a gate on it would say otherwise.
+          Semantics(
+            label: 'Change your picture',
+            button: true,
+            child: InkWell(
+              onTap: () => onPickAvatar(kid),
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: HgColors.mango,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                padding: kid.avatar.isEmpty ? null : const EdgeInsets.all(12),
+                // Pre-readers get a star, not a letter: no glyphs to decode.
+                // A picture they chose replaces both.
+                child: kid.avatar.isNotEmpty
+                    ? SvgPicture.asset('assets/icons/${kid.avatar}.svg')
+                    : preReader
+                    ? const Icon(Icons.star_rounded, size: 44, color: HgColors.teal)
+                    : Text(
+                        kid.nickname.isEmpty ? '?' : kid.nickname[0].toUpperCase(),
+                        style: HgText.display(size: 34, color: HgColors.teal),
+                      ),
+              ),
             ),
-            alignment: Alignment.center,
-            // Pre-readers get a star, not a letter: no glyphs to decode.
-            child: preReader
-                ? const Icon(Icons.star_rounded, size: 44, color: HgColors.teal)
-                : Text(
-                    kid.nickname.isEmpty ? '?' : kid.nickname[0].toUpperCase(),
-                    style: HgText.display(size: 34, color: HgColors.teal),
-                  ),
           ),
           const GilliWidget(size: 72),
           if (!preReader)

@@ -408,3 +408,27 @@ def test_a_parent_turning_a_prompt_off_is_remembered(client, auth) -> None:
     # Turning everything back on is a real instruction, not an empty request.
     client.put(f"/kids/{kid['id']}/prompts", json={"disabled": []}, headers=hdr(auth))
     assert all(p["enabled"] for p in client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()["prompts"])
+
+
+def test_a_child_may_wear_only_a_face_the_server_knows(client, auth) -> None:
+    """The avatar is rendered as an asset path, and this is the one field a
+    *child* chooses rather than the parent, so it is checked against the list
+    rather than taken as given."""
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    assert kid["avatar"] in ("", "gilli")
+
+    ok = client.patch(f"/kids/{kid['id']}", json={"avatar": "frog"}, headers=hdr(auth))
+    assert ok.status_code == 200 and ok.json()["avatar"] == "frog"
+
+    bad = client.patch(f"/kids/{kid['id']}", json={"avatar": "../../etc/passwd"}, headers=hdr(auth))
+    assert bad.status_code == 422
+    assert client.get("/kids", headers=hdr(auth)).json()[0]["avatar"] == "frog", "the rejected value must not have landed"
+
+    # Every offered face is one the server will actually accept.
+    for name in client.get("/avatars").json()["avatars"]:
+        assert client.patch(f"/kids/{kid['id']}", json={"avatar": name},
+                            headers=hdr(auth)).status_code == 200
+
+    # And going back to their initial is allowed.
+    assert client.patch(f"/kids/{kid['id']}", json={"avatar": ""},
+                        headers=hdr(auth)).status_code == 200

@@ -109,6 +109,7 @@ abstract class Gateway {
     String? nickname,
     int? age,
     List<String>? languages,
+    String? avatar,
   });
 
   /// `GET /kids/{id}/prompts`. The questions written for this child's band,

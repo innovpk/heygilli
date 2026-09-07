@@ -293,10 +293,19 @@ class KidAvatar extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: HgText.display(size: size * 0.5, color: HgColors.teal),
-      ),
+      // A face the child picked, or their initial when they have not picked
+      // one. The name is checked by the server against a fixed list before it
+      // is stored, so it is safe to build an asset path from.
+      child: kid.avatar.isEmpty
+          ? Text(
+              initial,
+              style: HgText.display(size: size * 0.5, color: HgColors.teal),
+            )
+          : SvgPicture.asset(
+              'assets/icons/${kid.avatar}.svg',
+              width: size * 0.66,
+              height: size * 0.66,
+            ),
     );
   }
 }
