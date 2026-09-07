@@ -13,6 +13,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// A phone gets one column. A browser window gets the pitch beside the card
 /// rather than a phone screen stranded in the middle of it.
+///
+/// Google sign-in is built but not offered — it fetched only the parent's own
+/// subscriptions, while the children's profiles need a Takeout export either
+/// way, so it bought convenience at the price of OAuth verification and a
+/// warning screen on every sign-in.
 void main() {
   late LocalSettings settings;
   late FakeGateway gateway;
@@ -50,18 +55,22 @@ void main() {
     expect(find.byType(SignInScreen), findsOneWidget);
   });
 
-  testWidgets('both doors are offered on a wide window', (tester) async {
+  testWidgets('one way in, and it asks for nothing', (tester) async {
     await sized(tester, 1200);
     await tester.pumpWidget(
       host(AppState(gateway: gateway, settings: settings)),
     );
 
-    expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Set up without Google'), findsOneWidget);
-    // Both doors exist in either layout; the tight "Sign in" card heading
-    // exists only in the wide split panel, so this is what actually tells
-    // the two layouts apart rather than just checking the buttons are there.
-    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Set up your household'), findsOneWidget);
+    expect(
+      find.text('Continue with Google'),
+      findsNothing,
+      reason: 'not offered while OAuth verification is not being pursued',
+    );
+    // The tight card heading exists only in the wide split panel, so this is
+    // what actually tells the two layouts apart rather than the button, which
+    // is in both.
+    expect(find.text('Start'), findsOneWidget);
     expect(find.text('A buddy who watches YouTube with your kid'), findsNothing);
     expect(
       find.text('A buddy who watches YouTube with your kid.'),
@@ -77,10 +86,11 @@ void main() {
 
     expect(find.byType(SignInScreen), findsOneWidget);
     expect(
-      find.text('Sign in'),
+      find.text('Start'),
       findsNothing,
       reason: 'the tight card heading is wide-only',
     );
+    expect(find.text('Set up your household'), findsOneWidget);
     expect(
       find.text('A buddy who watches YouTube with your kid'),
       findsOneWidget,
