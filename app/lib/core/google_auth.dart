@@ -84,30 +84,47 @@ class GoogleAuth {
   /// requiring one is exactly the second tap this avoids. With no `userId` the
   /// SDK prompts for the account as part of the flow, which is what makes it a
   /// single window.
+  /// How long to wait on the popup before saying something.
+  ///
+  /// Long, because this is a person reading: the account chooser, then the
+  /// unverified-app warning while the project is in review, then consent.
+  /// Bounded, because a popup the browser blocked never returns at all, and
+  /// waiting on it forever left the button spinning with nothing said — which
+  /// is what it did, silently, for the whole of one screen recording.
+  static const popupWait = Duration(minutes: 3);
+
   Future<GoogleAuthResult> _webSignIn() async {
-    final tokens = await GoogleSignInPlatform.instance
-        .serverAuthorizationTokensForScopes(
-          const ServerAuthorizationTokensForScopesParameters(
-            request: AuthorizationRequestDetails(
-              scopes: webScopes,
-              userId: null,
-              email: null,
-              promptIfUnauthorized: true,
+    try {
+      final tokens = await GoogleSignInPlatform.instance
+          .serverAuthorizationTokensForScopes(
+            const ServerAuthorizationTokensForScopesParameters(
+              request: AuthorizationRequestDetails(
+                scopes: webScopes,
+                userId: null,
+                email: null,
+                promptIfUnauthorized: true,
+              ),
             ),
-          ),
-        );
-    // Null is the parent closing the window, which is a decision, not a fault.
-    if (tokens == null || tokens.serverAuthCode.isEmpty) {
-      return const GoogleAuthCancelled();
+          )
+          .timeout(popupWait);
+      // Null is the parent closing the window, which is a decision, not a fault.
+      if (tokens == null || tokens.serverAuthCode.isEmpty) {
+        return const GoogleAuthCancelled();
+      }
+      // Name and email are left to the gateway: they come out of the same
+      // token exchange, so asking Google for them twice would be a second
+      // round trip for something the next response already carries.
+      return GoogleAuthSuccess(
+        serverAuthCode: tokens.serverAuthCode,
+        email: '',
+        redirectUri: popupRedirect,
+      );
+    } on TimeoutException {
+      return const GoogleAuthFailed(
+        'Google never answered. If no window opened, your browser probably '
+        'blocked the pop-up — allow pop-ups for this site and try again.',
+      );
     }
-    // Name and email are left to the gateway: they come out of the same token
-    // exchange, so asking Google for them twice would be a second round trip
-    // for something the next response already carries.
-    return GoogleAuthSuccess(
-      serverAuthCode: tokens.serverAuthCode,
-      email: '',
-      redirectUri: popupRedirect,
-    );
   }
 
   /// The half of the flow after Google knows who the parent is: ask for the
