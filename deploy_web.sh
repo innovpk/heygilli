@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Assemble and deploy heygilli.innovpk.com.
+#
+# The site is two things on one origin:
+#
+#   /              the public page — what HeyGilli is, plus privacy and terms.
+#                  Static HTML, readable without JavaScript. Google's OAuth
+#                  verification fetches this and has to find real prose; a
+#                  Flutter shell renders as an empty page to a crawler, which
+#                  reads as "homepage is behind a login page".
+#   /app/          the Flutter app itself, built with a matching --base-href.
+#
+# Same origin either way, so the OAuth JavaScript origin covers both.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+CID="$(sed -n 's/^GOOGLE_CLIENT_ID=//p' agents/.env | tail -1 | tr -d '"'"'"' \r')"
+[ -n "$CID" ] || { echo "no GOOGLE_CLIENT_ID in agents/.env"; exit 1; }
+
+echo "==> building Flutter web for /app/"
+(cd app && flutter build web --release \
+  --base-href=/app/ \
+  --dart-define=HEYGILLI_API_URL=https://heygilli-gateway.onrender.com \
+  --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID="$CID")
+
+DIST=build/site
+rm -rf "$DIST"
+mkdir -p "$DIST/app" "$DIST/assets/assets"
+
+echo "==> assembling $DIST"
+cp app/web/about.html   "$DIST/index.html"     # root is the public page
+cp app/web/about.html   "$DIST/about.html"     # and reachable by name too
+cp app/web/privacy.html "$DIST/"
+cp app/web/terms.html   "$DIST/"
+cp app/assets/gilli.svg "$DIST/assets/assets/gilli.svg"
+cp -R app/build/web/.   "$DIST/app/"
+
+# Cache headers, rewritten for the /app/ prefix: Flutter reuses the same
+# filenames every build, so without this a browser can sit on a stale bundle.
+cat > "$DIST/_headers" << 'HDR'
+/index.html
+  Cache-Control: no-cache
+/app/index.html
+  Cache-Control: no-cache
+/app/main.dart.js
+  Cache-Control: no-cache
+/app/flutter.js
+  Cache-Control: no-cache
+/app/flutter_bootstrap.js
+  Cache-Control: no-cache
+/app/flutter_service_worker.js
+  Cache-Control: no-cache
+/app/version.json
+  Cache-Control: no-cache
+HDR
+rm -f "$DIST/app/_headers"
+
+echo "==> deploying"
+wrangler pages deploy "$DIST" --project-name heygilli-site --branch main --commit-dirty=true

@@ -26,3 +26,4 @@ design/heygilli-mockups.html
 .DS_Store
 .vercel
 public/
+build/site/
