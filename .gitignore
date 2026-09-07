@@ -24,3 +24,5 @@ app/.idea/
 design/heygilli-mockups.html
 # os
 .DS_Store
+.vercel
+public/
