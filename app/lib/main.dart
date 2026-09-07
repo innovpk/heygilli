@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -126,8 +128,34 @@ class ParentRoot extends StatelessWidget {
   }
 }
 
-class _Splash extends StatelessWidget {
+class _Splash extends StatefulWidget {
   const _Splash();
+
+  @override
+  State<_Splash> createState() => _SplashState();
+}
+
+class _SplashState extends State<_Splash> {
+  /// The gateway sleeps when nobody has used it, and the first request wakes
+  /// it — around ten seconds of nothing. A spinner alone reads as a hang, and
+  /// the person most likely to see it is the one opening the app for the first
+  /// time. Said only after a few seconds, so a warm start never mentions it.
+  bool _slow = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _slow = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +178,16 @@ class _Splash extends StatelessWidget {
                 color: HgColors.mango,
               ),
             ),
+            if (_slow)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'Waking Gilli up. This takes a few seconds when nobody '
+                  'has visited for a while.',
+                  textAlign: TextAlign.center,
+                  style: HgText.body(size: 14, color: HgColors.brown),
+                ),
+              ),
           ],
         ),
       ),

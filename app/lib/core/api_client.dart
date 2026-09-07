@@ -41,7 +41,13 @@ class ApiClient implements Gateway {
           // wifi can take several seconds. Two seconds turned a working
           // gateway into "Gilli can't connect" on an emulator; on a phone in
           // a back bedroom it would do the same.
-          .timeout(const Duration(seconds: 8));
+          //
+          // Forty-five, not eight, because the gateway sleeps when nobody has
+          // used it and the first request wakes it: a measured cold start was
+          // 11 s, so eight seconds meant the first person to open the app —
+          // exactly the person being shown it — got the dead end while the
+          // gateway was busy coming up.
+          .timeout(const Duration(seconds: 45));
       // 401 still means "a gateway is there".
       return r.statusCode < 500;
     } catch (_) {
