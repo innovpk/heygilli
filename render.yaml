@@ -23,14 +23,15 @@ services:
         value: dynamo
       - key: HEYGILLI_DYNAMO_TABLE
         value: heygilli
-      # Prompted in the Render dashboard, never stored in git.
+      # Token-signing key: Render generates it. The code default is
+      # "dev-secret-change-me", which would let anyone forge a household token.
       - key: HEYGILLI_SECRET
         generateValue: true
+      # Prompted at blueprint creation, never stored in git.
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
+      # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are set in the Render dashboard
+      # after the service exists. Without them the gateway still boots and
+      # /auth/dev works; /auth/google returns 503 and subscription import is off.
