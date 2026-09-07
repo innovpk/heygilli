@@ -137,6 +137,31 @@ class AppState extends ChangeNotifier {
     return kid;
   }
 
+  /// Remove one child and everything about them.
+  ///
+  /// The nickname goes back to the server, which refuses without it. If this
+  /// was the device's own child, the device stops being theirs — otherwise it
+  /// would boot for ever into a profile that no longer exists.
+  Future<void> deleteKid(Kid kid) async {
+    await gateway.deleteKid(kid.id, kid.nickname);
+    if (_deviceKidId == kid.id) await setDeviceKid(null);
+    if (_activeKid?.id == kid.id) {
+      _activeKid = null;
+      _kidMode = false;
+    }
+    await refreshKids();
+  }
+
+  /// Remove this household and everything in it, then end the session: what
+  /// is left on this device would otherwise be a token for an account that no
+  /// longer exists.
+  Future<void> deleteHousehold() async {
+    await gateway.deleteHousehold();
+    await settings.setKidDeviceId(null);
+    _deviceKidId = null;
+    await signOut();
+  }
+
   void enterKidMode(Kid kid) {
     _activeKid = kid;
     _kidMode = true;

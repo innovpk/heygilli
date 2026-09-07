@@ -10,6 +10,7 @@ import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'history_screen.dart';
+import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
@@ -85,6 +86,83 @@ class _KidDetailScreenState extends State<KidDetailScreen>
       });
     } finally {
       if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  /// Remove this child and everything about them.
+  ///
+  /// Behind the PIN, then behind typing their name. Two gates because it is
+  /// irreversible and there is nowhere to undo it: the PIN says a parent is
+  /// holding the device, and the name says they meant this child rather than
+  /// the row above.
+  Future<void> _deleteKid() async {
+    final kid = _edited ?? widget.kid;
+    if (!await showPinGate(context)) return;
+    if (!mounted) return;
+
+    final typed = TextEditingController();
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: HgColors.white,
+        title: Text(
+          'Delete ${kid.nickname}?',
+          style: HgText.display(size: 22, color: HgColors.ink),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Their channels, what they have watched, their answers and '
+              'their limits all go. This cannot be undone, and nothing is '
+              'kept behind.',
+              style: HgText.body(size: 15, color: HgColors.brown),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: typed,
+              autofocus: true,
+              decoration: InputDecoration(hintText: 'Type ${kid.nickname}'),
+              style: HgText.body(size: 16, color: HgColors.ink),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep them'),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: typed,
+            builder: (context, value, _) => FilledButton(
+              // Enabled only once the name matches, so the destructive button
+              // cannot be the one a thumb lands on by accident.
+              onPressed:
+                  value.text.trim().toLowerCase() ==
+                      kid.nickname.trim().toLowerCase()
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              style: FilledButton.styleFrom(backgroundColor: HgColors.coral),
+              child: const Text('Delete'),
+            ),
+          ),
+        ],
+      ),
+    );
+    typed.dispose();
+    if (yes != true || !mounted) return;
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AppState>().deleteKid(kid);
+      navigator.pop();
+      messenger.showSnackBar(
+        SnackBar(content: Text('${kid.nickname} was deleted.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
     }
   }
 
@@ -427,6 +505,21 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                         BreakMessagesCard(kid: kid),
                         PromptsCard(kid: kid),
                       ],
+                    ),
+                    const SizedBox(height: 28),
+                    // Last, and quiet. A destructive action belongs at the end
+                    // of the settings a parent came here for, not beside them.
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _deleteKid,
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        label: Text('Delete ${kid.nickname}'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: HgColors.coral,
+                          textStyle: HgText.body(size: 15),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                   ],

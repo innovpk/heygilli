@@ -140,6 +140,15 @@ abstract class Gateway {
   /// unticking the last one has to be distinguishable from sending nothing.
   Future<List<KidPrompt>> savePrompts(String kidId, List<String> disabled);
 
+  /// `DELETE /kids/{id}`. This child and everything about them.
+  ///
+  /// Irreversible, and the server asks for their nickname back before it will
+  /// do it — a stray call cannot take a child's history with it.
+  Future<void> deleteKid(String kidId, String confirmNickname);
+
+  /// `DELETE /me`. This household and everything in it.
+  Future<void> deleteHousehold();
+
   Future<List<Channel>> channels(String kidId);
   Future<Channel> addChannel(String kidId, String url);
 

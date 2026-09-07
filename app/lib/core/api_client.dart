@@ -242,6 +242,13 @@ class ApiClient implements Gateway {
       );
 
   @override
+  Future<void> deleteKid(String kidId, String confirmNickname) async =>
+      _delete('/kids/$kidId?confirm=${Uri.encodeQueryComponent(confirmNickname)}');
+
+  @override
+  Future<void> deleteHousehold() async => _delete('/me?confirm=DELETE');
+
+  @override
   Future<StarterChannels> starterChannels({
     required String band,
     List<String> topics = const [],

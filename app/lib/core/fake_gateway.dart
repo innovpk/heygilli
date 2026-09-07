@@ -816,6 +816,30 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<void> deleteKid(String kidId, String confirmNickname) async {
+    await _lag();
+    final kid = _kids.firstWhere((k) => k.id == kidId);
+    // The server refuses unless the nickname comes back with the request; the
+    // demo refuses too, or the confirmation would look optional here.
+    if (confirmNickname.trim().toLowerCase() !=
+        kid.nickname.trim().toLowerCase()) {
+      throw StateError('name does not match');
+    }
+    _kids.removeWhere((k) => k.id == kidId);
+    _channels.remove(kidId);
+    _inbox.removeWhere((p) => p.kidId == kidId);
+  }
+
+  @override
+  Future<void> deleteHousehold() async {
+    await _lag();
+    _kids.clear();
+    _channels.clear();
+    _inbox.clear();
+    _signedIn = false;
+  }
+
+  @override
   Future<StarterChannels> starterChannels({
     required String band,
     List<String> topics = const [],

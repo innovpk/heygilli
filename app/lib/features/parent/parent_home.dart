@@ -237,6 +237,81 @@ class _AccountMenu extends StatelessWidget {
     );
   }
 
+  /// Remove the household and everything in it.
+  ///
+  /// The end of "you can have your data back" — a parent asking to be
+  /// forgotten should not have to email anyone. Behind the PIN and behind
+  /// typing DELETE, because it takes every child at once and there is no
+  /// undo anywhere.
+  Future<void> _deleteHousehold(BuildContext context) async {
+    final state = context.read<AppState>();
+    if (!await showPinGate(context)) return;
+    if (!context.mounted) return;
+
+    final typed = TextEditingController();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final kids = state.kids.length;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: HgColors.white,
+        title: Text(
+          'Delete everything?',
+          style: HgText.display(size: 22, color: HgColors.ink),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              kids == 1
+                  ? 'Your child, their channels, everything they have watched '
+                        'and every answer they gave. Nothing is kept behind, '
+                        'and this cannot be undone.'
+                  : 'All $kids children, their channels, everything they have '
+                        'watched and every answer they gave. Nothing is kept '
+                        'behind, and this cannot be undone.',
+              style: HgText.body(size: 15, color: HgColors.brown),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: typed,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'Type DELETE'),
+              style: HgText.body(size: 16, color: HgColors.ink),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: typed,
+            builder: (context, value, _) => FilledButton(
+              onPressed: value.text.trim() == 'DELETE'
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              style: FilledButton.styleFrom(backgroundColor: HgColors.coral),
+              child: const Text('Delete everything'),
+            ),
+          ),
+        ],
+      ),
+    );
+    typed.dispose();
+    if (yes != true) return;
+
+    try {
+      await state.deleteHousehold();
+      navigator.pushNamedAndRemoveUntil(Routes.parent, (_) => false);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
+    }
+  }
+
   Future<void> _signOut(BuildContext context) async {
     final state = context.read<AppState>();
     final navigator = Navigator.of(context);
@@ -317,6 +392,13 @@ class _AccountMenu extends StatelessWidget {
               style: HgText.body(size: 15, color: HgColors.ink),
             ),
           ),
+        PopupMenuItem<VoidCallback>(
+          value: () => _deleteHousehold(context),
+          child: Text(
+            'Delete everything',
+            style: HgText.body(size: 15, color: HgColors.coral),
+          ),
+        ),
         PopupMenuItem<VoidCallback>(
           value: () => _signOut(context),
           child: Text(
