@@ -178,6 +178,33 @@
   .why { font-size: 14.5px; color: var(--brown); margin: 0; }
   @media (max-width: 940px) { .two-up { grid-template-columns: 1fr; } }
 
+
+  .policy-grid { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 16px; align-items: start; }
+  .asks { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; }
+  .ask { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .ask:last-child { border-bottom: none; padding-bottom: 2px; }
+  .ask-q { font-size: 14.5px; color: var(--ink); margin-bottom: 9px; }
+  .seg { display: inline-flex; background: var(--cream); border-radius: 999px; padding: 3px; gap: 3px; }
+  .seg button {
+    border: none; background: transparent; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 700; color: var(--brown);
+    padding: 6px 15px; border-radius: 999px; transition: all .14s ease;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+
+  .feed { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; }
+  .feed-label { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+  .vids { display: grid; gap: 10px; transition: opacity .16s ease; }
+  .vids.busy { opacity: .2; }
+  .vid { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .vid-top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+  .vid-title { font-size: 14.5px; font-weight: 600; color: var(--ink); flex: 1; min-width: 190px; }
+  .vid-chan { font-size: 12.5px; color: var(--muted); }
+  .vid-why { font-size: 13.5px; color: var(--brown); margin: 0; }
+  .vid.ask_parent { background: #fff9f0; border-color: #f3ddc0; }
+  .vid.hide { background: #fff4f0; border-color: #f5cfc2; }
+  @media (max-width: 940px) { .policy-grid { grid-template-columns: 1fr; } }
+
   .screen {
     background: var(--white); border: 1px solid var(--line);
     border-radius: 22px; padding: 26px 28px; min-height: 232px;
@@ -368,39 +395,25 @@
   <section id="how">
     <div class="demo-head">
       <div>
-        <h2>There is no general answer. So it asks you.</h2>
+        <h2>Tell it what you're fine with. Watch it re-screen.</h2>
         <p class="lede">
-          The same video, screened for two households who answered differently.
-          Real output — nothing here was written by hand.
+          Your answers, not ours. Every combination below was screened in
+          advance by the real thing — nothing here was written by hand.
         </p>
       </div>
-      <div class="chips" id="chips"></div>
     </div>
 
-    <div class="video-row" id="videoRow"></div>
-
-    <div class="two-up">
-      <div class="house" id="houseA">
-        <div class="house-head">
-          <span class="house-name">Household A</span>
-          <span class="answer ok">unboxing: fine</span>
-          <span class="answer ok">mild peril: fine</span>
-        </div>
-        <div class="outcome" id="outA"></div>
-      </div>
-      <div class="house" id="houseB">
-        <div class="house-head">
-          <span class="house-name">Household B</span>
-          <span class="answer no">unboxing: rather not</span>
-          <span class="answer no">mild peril: rather not</span>
-        </div>
-        <div class="outcome" id="outB"></div>
+    <div class="policy-grid">
+      <div class="asks" id="asks"></div>
+      <div class="feed">
+        <div class="feed-label">Their feed, screened against your answers</div>
+        <div class="vids" id="vids"></div>
+        <p class="audit">
+          Screened by us.amazon.nova-pro-v1:0. A preference never hides a
+          video outright — it comes to you to decide.
+        </p>
       </div>
     </div>
-    <p class="audit">
-      Screened by us.amazon.nova-pro-v1:0 against each household's own answers.
-      A preference never hides a video — it sends it to you to decide.
-    </p>
   </section>
 
   <div class="band">
@@ -436,43 +449,53 @@
 
 
 
+
 <script>
-const CASES = [{"channel": "Ryan's World", "title": "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "a": {"decision": "approve", "reason": "The video appears to be an unboxing or toy-haul, which is allowed by the household's policy."}, "b": {"decision": "ask_parent", "reason": "The video appears to be an unboxing or toy-haul, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}}, {"channel": "Cocomelon", "title": "Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "a": {"decision": "approve", "reason": "The video is a gentle, educational read-along story, suitable for the age band."}, "b": {"decision": "ask_parent", "reason": "The video is a gentle, educational read-along story, but the household prefers to avoid certain types of content."}}, {"channel": "Mark Rober", "title": "Why Do People Pass Out On Roller Coasters?", "a": {"decision": "hide", "reason": "The video may discuss an intense or scary topic, which is not suitable for the age band."}, "b": {"decision": "ask_parent", "reason": "The video may discuss an intense or scary topic, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}}];
-const LABEL = { approve: "approved", ask_parent: "asks you", hide: "held back" };
-const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const chips = document.getElementById("chips");
-const row = document.getElementById("videoRow");
-const A = document.getElementById("houseA"), B = document.getElementById("houseB");
-const outA = document.getElementById("outA"), outB = document.getElementById("outB");
+const M = {"questions": [{"key": "unboxing", "text": "Are unboxing and toy-haul videos all right?"}, {"key": "merch", "text": "Are videos that push merchandise or a sponsor all right?"}, {"key": "peril", "text": "Is cartoon peril — chases, monsters, mild scares — all right?"}], "videos": [{"channel": "Ryan's World", "title": "What SMUSHY Will Emma & Kate Get? We Want the Secret!"}, {"channel": "Mark Rober", "title": "Why Do People Pass Out On Roller Coasters?"}, {"channel": "Cocomelon", "title": "Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts"}], "cells": {"111": [{"decision": "approve", "reason": "This unboxing video is suitable as per the household's policy."}, {"decision": "ask_parent", "reason": "This video discusses a potentially intense topic and may need parental review."}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "110": [{"decision": "ask_parent", "reason": "This unboxing video may contain elements of surprise that the household prefers to avoid."}, {"decision": "ask_parent", "reason": "This video discusses intense experiences, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "101": [{"decision": "ask_parent", "reason": "This unboxing video may contain elements of excitement and secrecy, and it's important to check for any sponsorship elements."}, {"decision": "approve", "reason": "This video discusses a suitable topic without any indications of sponsorship."}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "100": [{"decision": "ask_parent", "reason": "This unboxing video may contain elements of excitement and secrecy, which the household prefers to avoid, and it may also push merchandise. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}, {"decision": "ask_parent", "reason": "This video discusses intense experiences, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "011": [{"decision": "ask_parent", "reason": "This unboxing video is not suitable as per the household's policy. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "approve", "reason": "This video discusses a suitable topic without any indications of sponsorship."}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "010": [{"decision": "ask_parent", "reason": "This unboxing video is not suitable as per the household's policy, and it may contain elements of excitement and secrecy. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "This video discusses intense experiences, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "001": [{"decision": "ask_parent", "reason": "This unboxing video is not suitable as per the household's policy, and it may also push merchandise. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "approve", "reason": "This video discusses a suitable topic without any indications of sponsorship."}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}], "000": [{"decision": "ask_parent", "reason": "This unboxing video is not suitable as per the household's policy, and it may contain elements of excitement and secrecy. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "This video discusses intense experiences, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}, {"decision": "approve", "reason": "This read-along story video is suitable and educational for the child."}]}};
+const LABEL = { approve: "shown", ask_parent: "asks you", hide: "held back" };
+const esc = t => t.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const state = M.questions.map(() => 1);   // starts at "fine" for everything
+const asks = document.getElementById("asks"), vids = document.getElementById("vids");
 let timer;
 
-const paint = (el, d) =>
-  el.innerHTML = `<span class="decision ${d.decision}">${LABEL[d.decision] || d.decision}</span>` +
-                 `<p class="why">${esc(d.reason)}</p>`;
+M.questions.forEach((q, i) => {
+  const row = document.createElement("div");
+  row.className = "ask";
+  row.innerHTML = `<div class="ask-q">${esc(q.text)}</div>` +
+    `<span class="seg"><button type="button" aria-pressed="true">Fine</button>` +
+    `<button type="button" aria-pressed="false">Rather not</button></span>`;
+  const [fine, no] = row.querySelectorAll("button");
+  fine.onclick = () => set(i, 1); no.onclick = () => set(i, 0);
+  asks.appendChild(row);
+});
 
-function pick(i) {
-  const c = CASES[i];
-  [...chips.children].forEach((b, n) => b.setAttribute("aria-selected", n === i));
-  row.innerHTML = '<span class="lbl">Video</span>' +
-    `<span class="vtitle">${esc(c.title)}</span>` +
-    `<span class="vchan">· ${esc(c.channel)}</span>`;
-  clearTimeout(timer);
-  A.classList.add("busy"); B.classList.add("busy");
-  const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  timer = setTimeout(() => {
-    paint(outA, c.a); paint(outB, c.b);
-    A.classList.remove("busy"); B.classList.remove("busy");
-  }, quick ? 0 : 600);
+function set(i, v) {
+  if (state[i] === v) return;
+  state[i] = v;
+  [...asks.children[i].querySelectorAll("button")]
+    .forEach((b, n) => b.setAttribute("aria-pressed", (n === 0) === (v === 1)));
+  rescreen();
 }
 
-CASES.forEach((c, i) => {
-  const b = document.createElement("button");
-  b.className = "chip"; b.type = "button"; b.textContent = c.channel;
-  b.setAttribute("aria-selected", "false");
-  b.onclick = () => pick(i);
-  chips.appendChild(b);
-});
-pick(0);
+function paint() {
+  const row = M.cells[state.join("")];
+  vids.innerHTML = M.videos.map((v, i) => {
+    const d = row[i];
+    return `<div class="vid ${d.decision}"><div class="vid-top">` +
+      `<span class="vid-title">${esc(v.title)}</span>` +
+      `<span class="vid-chan">${esc(v.channel)}</span>` +
+      `<span class="decision ${d.decision}" style="margin:0">${LABEL[d.decision]}</span>` +
+      `</div><p class="vid-why">${esc(d.reason)}</p></div>`;
+  }).join("");
+}
+
+function rescreen() {
+  clearTimeout(timer);
+  vids.classList.add("busy");
+  const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  timer = setTimeout(() => { paint(); vids.classList.remove("busy"); }, quick ? 0 : 520);
+}
+paint();
 </script>
 </body>
 </html>
