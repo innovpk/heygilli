@@ -28688,7 +28688,7 @@ case 3:m=b
 l=A.ac(m.a.a.h(0,"auth_token"))
 k=A.bp8()
 if(k==null)k=new A.Dc(A.b([],t.O))
-p=new A.abH("http://localhost:8080",k,l)
+p=new A.abH("https://heygilli-gateway.onrender.com",k,l)
 p.d=m.gabA()
 s=4
 return A.l(p.I5(),$async$CS)
@@ -29400,7 +29400,7 @@ return A.p($async$azH,r)},
 ZN:function ZN(a,b){this.a=a
 this.b=b},
 azG:function azG(){},
-bal(){return"http://localhost:8080"},
+bal(){return"https://heygilli-gateway.onrender.com"},
 alW(){var s=0,r=A.q(t.EH),q,p
 var $async$alW=A.m(function(a,b){if(a===1)return A.n(b,r)
 for(;;)switch(s){case 0:p=A
