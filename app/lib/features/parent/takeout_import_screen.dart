@@ -499,6 +499,13 @@ class _ProfileCardState extends State<_ProfileCard> {
   bool _busy = false;
   String? _error;
   String? _done;
+  String? _progress;
+
+  /// What a failed run did not get to, so trying again resumes rather than
+  /// starting over.
+  List<String>? _remaining;
+  int _added = 0;
+  int _already = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -595,10 +602,23 @@ class _ProfileCardState extends State<_ProfileCard> {
                   disabledForegroundColor: HgColors.muted,
                 ),
                 child: _busy
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 3),
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 10,
+                        children: [
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 3),
+                          ),
+                          // 148 channels is not instant. Silence for that long
+                          // reads as a hang, and a parent taps again.
+                          if (_progress != null)
+                            Text(
+                              _progress!,
+                              style: HgText.body(size: 15, color: HgColors.ink),
+                            ),
+                        ],
                       )
                     : Text(
                         _importLabel(kids.isEmpty, target, count),
@@ -619,6 +639,12 @@ class _ProfileCardState extends State<_ProfileCard> {
 
   /// What the button offers, for each of the three states this card has.
   String _importLabel(bool noKidsYet, Kid? target, int count) {
+    // A run that stopped part way resumes: the button offers the rest, not
+    // the whole profile over again.
+    final left = _remaining;
+    if (left != null && left.isNotEmpty) {
+      return 'Try again for the last ${left.length}';
+    }
     if (noKidsYet) {
       final who = widget.profile.name.isEmpty
           ? 'this profile'
@@ -642,37 +668,81 @@ class _ProfileCardState extends State<_ProfileCard> {
     await _import(kid);
   }
 
+  /// Bring a profile's channels across, a chunk at a time.
+  ///
+  /// Not one request: a household with 148 subscriptions made a single call
+  /// that ran for the better part of a minute, and when it died the parent got
+  /// "Failed to fetch" and nothing at all to show for it. Chunks are small
+  /// enough to finish, and what has already landed stays landed.
+  ///
+  /// The profile name rides on the last chunk only. Attaching the watch-history
+  /// aggregate reads the channels the child follows, so it has to happen once,
+  /// after they are all approved.
+  static const _chunk = 25;
+
   Future<void> _import(Kid kid) async {
+    final pending = _remaining ?? widget.profile.channelIds;
     setState(() {
       _busy = true;
       _error = null;
+      _progress = null;
     });
-    try {
-      final result = await context.read<AppState>().gateway.importChannels(
-        kid.id,
-        widget.profile.channelIds,
-        // This is the parent saying which child the profile belongs to, and
-        // the only point at which a watch-history aggregate can be attached
-        // to one. Takeout itself carries no identity.
-        profile: widget.profile.name,
-      );
+    // Captured before the first await: reaching through context after one is
+    // a use across an async gap.
+    final gateway = context.read<AppState>().gateway;
+
+    var added = _added;
+    var already = _already;
+    final left = [...pending];
+
+    while (left.isNotEmpty) {
+      final batch = left.take(_chunk).toList();
+      final isLast = batch.length == left.length;
+      try {
+        final result = await gateway.importChannels(
+          kid.id,
+          batch,
+          profile: isLast ? widget.profile.name : '',
+        );
+        added += result.added.length;
+        already += result.already.length;
+        left.removeRange(0, batch.length);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _added = added;
+          _already = already;
+          _remaining = left;
+          _error = added + already == 0
+              ? 'Could not import: $e'
+              : '${added + already} of ${widget.profile.channelIds.length} '
+                    'brought across, then it stopped: $e';
+        });
+        // Whatever landed is real, and the kid list should show it even
+        // though the run did not finish.
+        if (added > 0) widget.onImported();
+        return;
+      }
       if (!mounted) return;
-      final added = result.added.length;
-      final already = result.already.length;
       setState(() {
-        _busy = false;
-        _done =
-            '$added added to ${kid.nickname}'
-            '${already == 0 ? '.' : ', $already ${already == 1 ? 'was' : 'were'} already there.'}';
-      });
-      widget.onImported();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = 'Could not import: $e';
+        _added = added;
+        _already = already;
+        _progress =
+            '${added + already} of ${widget.profile.channelIds.length}...';
       });
     }
+
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _progress = null;
+      _remaining = null;
+      _done =
+          '$added added to ${kid.nickname}'
+          '${already == 0 ? '.' : ', $already ${already == 1 ? 'was' : 'were'} already there.'}';
+    });
+    widget.onImported();
   }
 }
 
