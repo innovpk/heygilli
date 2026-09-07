@@ -816,6 +816,54 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<StarterChannels> starterChannels({
+    required String band,
+    List<String> topics = const [],
+  }) async {
+    await _lag();
+    // A handful of the real list, enough to show the screen working. The
+    // catalogue itself lives in agents/heygilli_agents/starter_channels.py.
+    const all = <List<String>>[
+      ['UC3wCAOfSB0W9iuKDDtNJeGw', 'Danny Go!',
+       'Songs that get them up and moving between videos.', 'songs', '4_6|7_8'],
+      ['UCnBdzaRy-Ky9Vh54XJlFz1Q', 'Storyline Online',
+       'Picture books read aloud by actors, one book per video.', 'stories', '4_6|7_8'],
+      ['UCRFIPG2u1DxKLNuE3y2SjHA', 'SciShow Kids',
+       'One question answered per video, gently and with props.', 'science', '4_6|7_8'],
+      ['UCXVCgDuD_QCkI7gTKU7-tpg', 'Nat Geo Kids',
+       "Animal facts and footage from the magazine's children's arm.", 'animals', '4_6|7_8|9_11'],
+      ['UC5XMF3Inoi8R9nSI8ChOsdQ', 'Art for Kids Hub',
+       'Draw-along videos a child can follow with paper and a pen.', 'making', '4_6|7_8|9_11'],
+      ['UCPlwvN0w4qFSP1FllALB92w', 'Numberblocks',
+       'Numbers as characters. Counting without it feeling like counting.', 'school', '4_6'],
+      ['UCONtPx56PSebXJOxbFv-2jQ', 'Crash Course Kids',
+       'Primary-school science, one idea at a time.', 'science', '7_8|9_11'],
+    ];
+    final wanted = topics.where((t) => t.isNotEmpty).toSet();
+    return StarterChannels(
+      topics: const [
+        StarterTopic(id: 'songs', label: 'Songs and moving about'),
+        StarterTopic(id: 'stories', label: 'Stories and picture books'),
+        StarterTopic(id: 'science', label: 'Science and how things work'),
+        StarterTopic(id: 'animals', label: 'Animals and nature'),
+        StarterTopic(id: 'making', label: 'Drawing and making things'),
+        StarterTopic(id: 'school', label: 'Letters, numbers and school subjects'),
+      ],
+      channels: [
+        for (final row in all)
+          if (row[4].split('|').contains(band) &&
+              (wanted.isEmpty || wanted.contains(row[3])))
+            StarterChannel(
+              channelId: row[0],
+              title: row[1],
+              blurb: row[2],
+              topics: [row[3]],
+            ),
+      ],
+    );
+  }
+
+  @override
   Future<List<KidPrompt>> prompts(String kidId) async {
     await _lag();
     return _promptsFor(kidId);

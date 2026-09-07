@@ -14,6 +14,7 @@ import 'import_subscriptions_screen.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
+import 'starter_channels_screen.dart';
 import 'policy_screen.dart';
 import 'progress_screen.dart';
 import 'takeout_import_screen.dart';
@@ -86,6 +87,19 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  /// Channels to start with, for a household that has none.
+  ///
+  /// Reloads the list on the way back: the point of the screen is that the
+  /// Channels tab is no longer empty afterwards.
+  Future<void> _startFromSuggestions() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => StarterChannelsScreen(kid: _edited ?? widget.kid),
+      ),
+    );
+    if (added == true && mounted) setState(() => _channels = _load());
   }
 
   /// Correct this child's nickname, age or languages.
@@ -436,9 +450,9 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     const SizedBox(height: 8),
                     Text(
                       'Only videos from these channels ever reach ${kid.nickname}. '
-                      'A Google Takeout export is the only way to read a YouTube Kids '
-                      'profile, so start there. You can also paste a channel, @handle '
-                      'or video URL.',
+                      'Start from suggestions if you are not sure, bring across a '
+                      'YouTube Kids profile from a Takeout export, or paste a '
+                      'channel, @handle or video URL.',
                       style: HgText.body(size: 14, color: HgColors.brown),
                     ),
                     const SizedBox(height: 12),
@@ -446,15 +460,34 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     // subscriptions. Importing the parent's own account only helps the
                     // households where the kids watch on a shared login, so it sits
                     // underneath as the secondary path.
+                    // First, because it is the only one that asks nothing of
+                    // the parent. Takeout means requesting an export from
+                    // Google and waiting for it, and importing an account
+                    // means handing one over before they know they want this
+                    // — strange things to ask of somebody who has just
+                    // arrived, and the reason an empty app stayed empty.
                     SizedBox(
                       height: 52,
                       child: FilledButton.icon(
+                        onPressed: _startFromSuggestions,
+                        icon: const Icon(Icons.auto_awesome, size: 22),
+                        label: Text(
+                          'Suggest channels for ${kid.nickname}',
+                          style: HgText.body(size: 15, color: HgColors.ink),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
                         onPressed: _importFromTakeout,
                         icon: const Icon(Icons.folder_zip_outlined, size: 22),
                         label: Text(
                           "Import ${kid.nickname}'s YouTube Kids channels",
                           style: HgText.body(size: 15, color: HgColors.ink),
                         ),
+                        style: _importButtonStyle,
                       ),
                     ),
                     const SizedBox(height: 10),

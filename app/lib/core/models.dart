@@ -196,6 +196,62 @@ class Kid {
 /// The bank is graded by band, so the list a parent sees changes when they
 /// correct the child's age — that is the point of it being graded rather than
 /// labelled. Everything is on until the parent turns it off.
+/// A channel HeyGilli offers a household that has none yet, and the topics a
+/// parent picks from to narrow them.
+///
+/// Suggestions only. Approving is still the parent's own act, and being on
+/// this list buys a channel nothing at screening time.
+class StarterChannel {
+  const StarterChannel({
+    required this.channelId,
+    required this.title,
+    required this.blurb,
+    this.topics = const [],
+  });
+
+  final String channelId;
+  final String title;
+
+  /// Why a parent might want it, in their words.
+  final String blurb;
+  final List<String> topics;
+
+  factory StarterChannel.fromJson(Map<String, dynamic> j) => StarterChannel(
+    channelId: '${j['channel_id'] ?? ''}',
+    title: '${j['title'] ?? ''}',
+    blurb: '${j['blurb'] ?? ''}',
+    topics: [for (final t in (j['topics'] as List? ?? const [])) '$t'],
+  );
+}
+
+class StarterTopic {
+  const StarterTopic({required this.id, required this.label});
+  final String id;
+  final String label;
+
+  factory StarterTopic.fromJson(Map<String, dynamic> j) =>
+      StarterTopic(id: '${j['id'] ?? ''}', label: '${j['label'] ?? ''}');
+}
+
+/// What the setup screen needs in one call: the topics to offer and the
+/// channels matching what has been picked so far.
+class StarterChannels {
+  const StarterChannels({this.topics = const [], this.channels = const []});
+  final List<StarterTopic> topics;
+  final List<StarterChannel> channels;
+
+  factory StarterChannels.fromJson(Map<String, dynamic> j) => StarterChannels(
+    topics: [
+      for (final t in (j['topics'] as List? ?? const []))
+        StarterTopic.fromJson((t as Map).cast<String, dynamic>()),
+    ],
+    channels: [
+      for (final c in (j['channels'] as List? ?? const []))
+        StarterChannel.fromJson((c as Map).cast<String, dynamic>()),
+    ],
+  );
+}
+
 class KidPrompt {
   const KidPrompt({
     required this.id,

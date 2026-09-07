@@ -242,6 +242,16 @@ class ApiClient implements Gateway {
       );
 
   @override
+  Future<StarterChannels> starterChannels({
+    required String band,
+    List<String> topics = const [],
+  }) async => StarterChannels.fromJson(
+    await _get(
+      '/starter-channels?band=$band&topics=${topics.join(',')}',
+    ) as Map<String, dynamic>,
+  );
+
+  @override
   Future<List<KidPrompt>> prompts(String kidId) async =>
       _readPrompts(await _get('/kids/$kidId/prompts'));
 

@@ -112,6 +112,16 @@ abstract class Gateway {
     String? avatar,
   });
 
+  /// `GET /starter-channels`. Channels to offer a household that has none.
+  ///
+  /// The alternative was asking a parent who has just arrived to request a
+  /// Takeout export from Google and wait for it. Suggestions only: nothing is
+  /// approved until the parent says so.
+  Future<StarterChannels> starterChannels({
+    required String band,
+    List<String> topics,
+  });
+
   /// `GET /kids/{id}/prompts`. The questions written for this child's band,
   /// each with whether they are asked it.
   Future<List<KidPrompt>> prompts(String kidId);
