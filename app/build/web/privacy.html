@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — HeyGilli</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2b2320;
+    --brown: #6b5c4f;
+    --muted: #8a7c70;
+    --cream: #fdf6ec;
+    --white: #ffffff;
+    --line: #e8ddd0;
+    --mango: #eea23b;
+    --green: #6a9955;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  header img { width: 48px; height: 48px; }
+  header h1 { font-size: 28px; margin: 0; }
+  .meta {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .lede {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    font-size: 16px;
+    color: var(--brown);
+    margin-bottom: 36px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: 44px;
+    margin-bottom: 12px;
+    padding-top: 4px;
+  }
+  h3 {
+    font-size: 16px;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: var(--ink);
+  }
+  p, li { font-size: 15.5px; color: var(--brown); }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--mango); text-decoration: none; border-bottom: 1px solid currentColor; }
+  a:hover { opacity: 0.8; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th { color: var(--ink); font-weight: 600; background: #f7f0e4; }
+  td { color: var(--brown); }
+  .badge {
+    display: inline-block;
+    background: #f2f7ee;
+    color: var(--green);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .callout {
+    background: #f2f7ee;
+    border: 1px solid #dcebd2;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 16px 0;
+  }
+  .callout p { color: #3f5a34; margin: 0; }
+  .not-built {
+    background: #fdf1e6;
+    border: 1px solid #f3ddc0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 16px 0;
+  }
+  .not-built p { color: #7a5a2e; margin: 0; }
+  footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  code {
+    background: #f2ece0;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.92em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="assets/gilli.svg" alt="">
+    <h1>HeyGilli — Privacy Policy</h1>
+  </header>
+  <div class="meta">
+    Effective: 7 September 2026 &nbsp;·&nbsp; Last updated: 7 September 2026<br>
+    Contact: <a href="mailto:mujahid.mms@gmail.com">mujahid.mms@gmail.com</a>
+  </div>
+
+  <div class="lede">
+    HeyGilli is an app for parents that screens YouTube channels for a child and
+    keeps a buddy character alongside them while they watch. This page explains,
+    in full, what information the app collects, why, who it is shared with, how
+    long it is kept, and how to have it deleted. It is written for a parent to
+    actually read — where something is not built yet, it says so, rather than
+    describing a promise instead of the product.
+  </div>
+
+  <h2>1. Who this covers</h2>
+  <p>
+    HeyGilli is operated as an independent project, not a company. Throughout
+    this policy, "we," "us," and "HeyGilli" refer to that project, reachable at
+    <a href="mailto:mujahid.mms@gmail.com">mujahid.mms@gmail.com</a>.
+  </p>
+  <p>
+    Only a parent or guardian creates a HeyGilli account and signs in. A child
+    never signs in to anything, is never asked to enter information, and is
+    never shown a way to leave their own screen without the parent's PIN.
+    Everything in this policy about "you" refers to the parent.
+  </p>
+
+  <h2>2. Information we collect</h2>
+
+  <h3>2.1 Account identity</h3>
+  <p>HeyGilli offers two ways to start a household, and what is collected differs between them.</p>
+  <table>
+    <tr><th>Sign-in method</th><th>What is collected</th></tr>
+    <tr>
+      <td><strong>Continue with Google</strong></td>
+      <td>
+        Your Google account's basic profile (name, email address, profile
+        photo — the standard <code>openid</code>, <code>email</code>, and
+        <code>profile</code> scopes), and, with your consent, a read-only
+        OAuth token for your YouTube subscriptions
+        (<code>youtube.readonly</code>). The token is exchanged and stored on
+        our server; it is never sent to or stored on your device.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Set up without Google</strong></td>
+      <td>
+        A random identifier generated on your device (for example
+        <code>trial-3c994baf52eab4ec…</code>). No name, email, or Google
+        account is collected. This identifier is stored only on your device
+        and sent to our server to find your household on later visits.
+      </td>
+    </tr>
+  </table>
+
+  <h3>2.2 Your child's profile</h3>
+  <p>You create this; your child does not enter any of it themselves.</p>
+  <ul>
+    <li><strong>Nickname</strong> — whatever you choose to call them in the app. We do not ask for a legal name.</li>
+    <li><strong>Age</strong> (3–12), which we convert into a fixed age band (4–6, 7–8, 9–11) used to decide what Gilli says and whether text is shown at all.</li>
+    <li><strong>Language preference(s)</strong> for the videos and for Gilli's speech.</li>
+    <li>An avatar choice (a small set of built-in options — no photo of your child is ever collected).</li>
+    <li>Settings you choose: which channels are approved, daily time limits, break timing, and whether the search box is shown to them.</li>
+  </ul>
+
+  <h3>2.3 YouTube subscriptions and viewing history</h3>
+  <p>
+    Neither YouTube nor YouTube Kids exposes an API that reads a child's
+    profile directly, so HeyGilli reaches your household's subscriptions in
+    one of two ways, both initiated by you:
+  </p>
+  <ul>
+    <li>
+      <strong>Live, via Google sign-in</strong> — reading the subscription
+      list of the Google account you connect (typically the account your
+      household already watches on).
+    </li>
+    <li>
+      <strong>A Google Takeout export you upload</strong> — the standard
+      export Google itself produces from
+      <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>,
+      which can include separate YouTube Kids profiles a live sign-in cannot
+      see. Before anything leaves your device, the app strips this export
+      down to just the subscription lists (channel IDs and names) — watch
+      history, search history, comments, and everything else in the export is
+      discarded on your device and never uploaded, unless you separately opt in below.
+    </li>
+  </ul>
+
+  <div class="callout">
+    <p>
+      <strong>Watch history is opt-in, every single time, and is never stored
+      as a list.</strong> If you tick the history option during an import, we
+      read the exported "watch-history.json" only long enough to compute a
+      small aggregate — total videos, the date range, a per-hour-of-day
+      pattern, and the channels most and least watched — and then discard the
+      underlying list of individual videos entirely. We do not retain a
+      video-by-video watch history for any child, on our servers or otherwise.
+    </p>
+  </div>
+
+  <h3>2.4 What happens while your child is watching</h3>
+  <ul>
+    <li>
+      <strong>Session records</strong> — which video was shown, for how long,
+      on what date, and on which type of device (phone, tablet, web). This is
+      how time limits and the parent digest are built.
+    </li>
+    <li>
+      <strong>Spoken answers, as text — never as audio.</strong> When Gilli
+      asks a question and your child answers out loud, speech recognition
+      happens on the device itself. Only the recognized text (for example,
+      "giraffe") is sent to our server to check understanding; the audio
+      recording itself is not sent anywhere and is not retained by the app.
+    </li>
+    <li>
+      <strong>Words said and heard</strong> — short word lists (for example,
+      words a pre-reader successfully echoed back) used to build the daily
+      summary you see as a parent.
+    </li>
+    <li>
+      Gilli's own spoken lines are synthesized as audio by Amazon Polly (see
+      §4) each time they're needed — this is generated speech, not a
+      recording of anyone.
+    </li>
+  </ul>
+
+  <h3>2.5 What never leaves your device</h3>
+  <ul>
+    <li>Your parent PIN, used only to leave a child's device — it is never transmitted to our servers in any form.</li>
+    <li>Which physical device belongs to which child (so a tablet handed to a child opens straight into their videos).</li>
+    <li>Whether you've already seen the intro screens.</li>
+  </ul>
+
+  <h2>3. How we use this information</h2>
+  <ul>
+    <li>To screen new uploads from approved channels before they can ever appear to your child (age-appropriateness and language screening).</li>
+    <li>To run Gilli's spoken questions and check understanding during and after a video.</li>
+    <li>To enforce the daily time limits and breaks you set.</li>
+    <li>To build the digest and progress views shown only to you, the parent.</li>
+    <li>To operate basic account functions — signing you in, remembering your household, keeping your children's settings.</li>
+  </ul>
+  <p>
+    We do not use your or your child's information to build advertising
+    profiles, and we do not run any advertising or third-party analytics or
+    tracking SDKs of any kind in the app.
+  </p>
+
+  <h2>4. Who we share information with</h2>
+  <p>
+    We do not sell personal information, and we do not share it with anyone
+    for their own marketing purposes. Information passes through the
+    following service providers, strictly to run the app:
+  </p>
+  <table>
+    <tr><th>Provider</th><th>What it handles</th></tr>
+    <tr>
+      <td>Google (Sign-In &amp; YouTube Data API)</td>
+      <td>Authenticates the parent; supplies the subscription list you've granted access to.</td>
+    </tr>
+    <tr>
+      <td>Amazon Web Services — Bedrock</td>
+      <td>The AI model that screens videos and drafts Gilli's questions. It sees video metadata and transcripts, not your account identity.</td>
+    </tr>
+    <tr>
+      <td>Amazon Web Services — Polly</td>
+      <td>Converts Gilli's scripted lines to speech audio.</td>
+    </tr>
+    <tr>
+      <td>Amazon Web Services — DynamoDB</td>
+      <td>Stores household, child, and session records described above.</td>
+    </tr>
+    <tr>
+      <td>Render &amp; Vercel</td>
+      <td>Host the server and the app itself. Standard web server logs (IP address, timestamp, requested address) are generated at this layer, as with any web service.</td>
+    </tr>
+  </table>
+  <p>
+    We may disclose information if required to by law, or to protect the
+    safety of a child, ourselves, or others — this is a standard reservation,
+    not something we expect to need.
+  </p>
+
+  <h2>5. Children's privacy</h2>
+  <p>
+    HeyGilli is built around the requirement that a child never creates an
+    account, never signs in, and never provides information directly — every
+    child profile is created and configured by a parent, and every consent to
+    connect a Google account or upload an export is given by that parent. We
+    do not knowingly collect personal information directly from a child.
+  </p>
+  <p>
+    If you believe a child has provided us with personal information other
+    than through a parent's own account setup, contact us at
+    <a href="mailto:mujahid.mms@gmail.com">mujahid.mms@gmail.com</a> and we
+    will investigate and delete it.
+  </p>
+
+  <h2>6. How long we keep information, and how to delete it</h2>
+  <p>
+    We keep household and child records for as long as the account exists, so
+    the app can keep working the way you left it. Some things you can remove
+    yourself right now inside the app:
+  </p>
+  <ul>
+    <li>Removing a channel from a child (<em>Channels → remove</em>) deletes that approval immediately.</li>
+    <li>Removing an imported watch-history aggregate for a child, from that child's history screen.</li>
+  </ul>
+
+  <div class="not-built">
+    <p>
+      <strong>Full account deletion is not yet self-serve.</strong> HeyGilli
+      does not currently have an in-app "delete my account" button. To
+      request deletion of a household, a child's profile, or your connected
+      Google token, email
+      <a href="mailto:mujahid.mms@gmail.com">mujahid.mms@gmail.com</a> from
+      the address associated with the account (or describe the household so
+      we can locate it) and we will delete the underlying records. We aim to
+      complete this within 30 days of a verified request.
+    </p>
+  </div>
+
+  <p>
+    You can also revoke HeyGilli's access to your Google account at any time,
+    independently of us, from
+    <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">
+      myaccount.google.com/permissions
+    </a>. This immediately stops the app from being able to read your
+    subscriptions; existing app data is removed only once we act on a
+    deletion request as above.
+  </p>
+
+  <h2>7. Security</h2>
+  <p>
+    Data is transmitted over encrypted connections (HTTPS/TLS). This project
+    is at an early, actively developed stage — as with any software at this
+    stage, our security practices continue to evolve, and we do not claim a
+    specific certification or guarantee against every possible failure. We
+    ask that you use a household-specific Google account and PIN you don't
+    reuse for anything sensitive elsewhere.
+  </p>
+
+  <h2>8. Your choices</h2>
+  <ul>
+    <li>Decide per import whether to include watch history at all — it is off by default, every time.</li>
+    <li>Decide per child whether they see a search box.</li>
+    <li>Remove any channel or the history aggregate at any time.</li>
+    <li>Revoke Google access at any time from your Google account settings.</li>
+    <li>Request full deletion by email at any time (§6).</li>
+  </ul>
+
+  <h2>9. International use</h2>
+  <p>
+    Our infrastructure runs on servers located in the United States (AWS
+    <code>us-east-1</code>). If you use HeyGilli from outside the United
+    States, your information is transferred to and processed there.
+  </p>
+
+  <h2>10. Changes to this policy</h2>
+  <p>
+    If this policy changes in a way that meaningfully affects what we
+    collect or how we use it, we will update the date at the top of this
+    page. Continuing to use HeyGilli after a change means you accept the
+    updated policy.
+  </p>
+
+  <h2>11. Contact</h2>
+  <p>
+    Questions, deletion requests, or concerns about a child's information:
+    <a href="mailto:mujahid.mms@gmail.com">mujahid.mms@gmail.com</a>.
+  </p>
+
+  <footer>
+    HeyGilli — a buddy who watches YouTube with your kid.
+  </footer>
+
+</div>
+</body>
+</html>
