@@ -242,6 +242,10 @@ class ApiClient implements Gateway {
       );
 
   @override
+  Future<void> curateNow(String kidId) async =>
+      _post('/kids/$kidId/curate', const {});
+
+  @override
   Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     final q = query.trim();
     final j =

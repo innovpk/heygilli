@@ -45,6 +45,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   late Future<List<Channel>> _channels = _load();
   final _url = TextEditingController();
   bool _adding = false;
+  bool _curating = false;
   String? _error;
 
   void _reload() => setState(() {
@@ -80,6 +81,37 @@ class _KidDetailScreenState extends State<KidDetailScreen>
       });
     } finally {
       if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  /// Ask the server to screen this kid's channels again.
+  ///
+  /// Screening used to be kicked off only by an import, so a household whose
+  /// first run came back with nothing — the server could not read a
+  /// transcript, the model was briefly down — had an empty home for their
+  /// child and nothing at all they could press. The work happens on the
+  /// server and takes minutes, so this says it started and no more: claiming
+  /// it had finished would be a lie, and a spinner held for minutes is worse.
+  Future<void> _curateNow() async {
+    setState(() {
+      _curating = true;
+      _error = null;
+    });
+    try {
+      await context.read<AppState>().gateway.curateNow(widget.kid.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Looking through these channels for new videos. It takes a few '
+            'minutes; ${widget.kid.nickname}\'s videos appear as they pass.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not start: $e');
+    } finally {
+      if (mounted) setState(() => _curating = false);
     }
   }
 
@@ -430,6 +462,27 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                       const SizedBox(height: 8),
                       Text(_error!, style: HgText.body(color: HgColors.coral)),
                     ],
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: _curating ? null : _curateNow,
+                        icon: const Icon(Icons.refresh, size: 20),
+                        label: Text(
+                          _curating
+                              ? 'Starting...'
+                              : 'Look for new videos now',
+                          style: HgText.body(size: 15, color: HgColors.ink),
+                        ),
+                        style: _importButtonStyle,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'HeyGilli checks these channels on its own. Use this when '
+                      "${kid.nickname}'s videos have not appeared yet.",
+                      style: HgText.body(size: 13, color: HgColors.muted),
+                    ),
                     const SizedBox(height: 14),
                     FutureBuilder<List<Channel>>(
                       future: _channels,

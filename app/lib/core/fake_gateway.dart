@@ -735,6 +735,14 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<void> curateNow(String kidId) async {
+    // The demo's videos are canned, so there is nothing to screen: the button
+    // must still work, and must still take a moment, or the demo would show a
+    // spinner that never appears on a real gateway.
+    await _lag();
+  }
+
+  @override
   Future<Channel> addChannel(String kidId, String url) async {
     await _lag();
     // The live gateway resolves handles and video URLs; the demo just names

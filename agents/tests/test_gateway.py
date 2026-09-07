@@ -290,3 +290,33 @@ def test_healthz_reports_which_transcript_sources_exist(client, monkeypatch) -> 
     body = client.get("/healthz").json()
     assert body["transcripts"]["proxy"] is True
     assert "pass" not in str(body), "a proxy password must never leave the server"
+
+
+def test_adding_one_channel_screens_it_like_an_import_does(client, auth, monkeypatch) -> None:
+    """A pasted channel used to be added and then never looked at: only the
+    bulk import triggered the Curator, so a parent who added channels one at a
+    time was told it worked and got an empty home for ever."""
+    curated: list[str] = []
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: curated.append(kid.id))
+    monkeypatch.setattr(
+        gateway, "resolve_channel_url",
+        lambda url: {"channel_id": "UCpasted", "title": "SciShow Kids", "thumb_url": ""},
+    )
+    kid = client.post("/kids", json={"nickname": "Zara", "age": 8}, headers=hdr(auth)).json()
+
+    r = client.post(f"/kids/{kid['id']}/channels", json={"url": "@SciShowKids"}, headers=hdr(auth))
+    assert r.status_code == 200 and r.json()["id"] == "UCpasted"
+    assert curated == [kid["id"]], "the channel was added but never screened"
+
+
+def test_a_household_can_ask_for_screening_again(client, auth, monkeypatch) -> None:
+    """Curation ran only on import, so a run that came back with nothing —
+    transcripts unreadable, the model briefly down — left the home empty with
+    nothing the parent could press."""
+    curated: list[str] = []
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: curated.append(kid.id))
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+
+    assert client.post(f"/kids/{kid['id']}/curate", headers=hdr(auth)).json() == {"started": True}
+    assert curated == [kid["id"]]
+    assert client.post("/kids/kid_nosuch/curate", headers=hdr(auth)).status_code == 404

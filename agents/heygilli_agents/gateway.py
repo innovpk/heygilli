@@ -513,13 +513,37 @@ def _approve_channel(hid: str, kid_id: str, info: dict) -> Channel:
 
 
 @app.post("/kids/{kid_id}/channels")
-def add_channel(kid_id: str, body: ChannelIn, hid: str = Depends(household)) -> dict:
-    _kid(hid, kid_id)
+def add_channel(
+    kid_id: str, body: ChannelIn, tasks: BackgroundTasks, hid: str = Depends(household)
+) -> dict:
+    """Approve one pasted channel for one kid, and screen its uploads.
+
+    The screening is the point: without it a parent pastes a channel, is told
+    it was added, and the child's home stays empty for ever. The bulk import
+    next door has always curated; a channel added one at a time did not.
+    """
+    kid = _kid(hid, kid_id)
     try:
         info = resolve_channel_url(body.url)
     except Exception as e:
         raise HTTPException(400, f"could not resolve channel: {e}") from e
-    return _approve_channel(hid, kid_id, info).model_dump()
+    channel = _approve_channel(hid, kid_id, info)
+    tasks.add_task(_curate_in_background, kid)
+    return channel.model_dump()
+
+
+@app.post("/kids/{kid_id}/curate")
+def curate_now(kid_id: str, tasks: BackgroundTasks, hid: str = Depends(household)) -> dict:
+    """Screen this kid's approved channels again, in the background.
+
+    Curation used to happen only when channels were imported, so a run that
+    found nothing — the machine could not read a transcript, the model was
+    briefly down — left the household with an empty home and no way at all to
+    ask again. This is that way.
+    """
+    kid = _kid(hid, kid_id)
+    tasks.add_task(_curate_in_background, kid)
+    return {"started": True}
 
 
 class ImportChannelsIn(BaseModel):

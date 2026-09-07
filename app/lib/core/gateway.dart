@@ -102,6 +102,14 @@ abstract class Gateway {
   Future<List<Channel>> channels(String kidId);
   Future<Channel> addChannel(String kidId, String url);
 
+  /// `POST /kids/{id}/curate`. Screen this kid's approved channels again.
+  ///
+  /// Curation used to run only when channels were imported, so a run that came
+  /// back with nothing — the server could not read a transcript, the model was
+  /// briefly down — left the child's home empty with nothing a parent could
+  /// press. Returns as soon as the run is queued, not when it finishes.
+  Future<void> curateNow(String kidId);
+
   /// `GET /kids/{id}/home`. [query] filters the child's *approved* videos
   /// and nothing else; the gateway ignores it unless the parent enabled
   /// search for this kid.
