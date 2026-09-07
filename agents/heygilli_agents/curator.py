@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, Field
 from strands import Agent
 
+from .google_auth import GoogleAuthError, google_access_token
 from .llm import LLMError, make_agent, structured
 from .planner import SAFETY_RULES, ensure_plan, planner_agent
 from .schemas import CuratorDecision, Kid, Policy, Video
@@ -24,7 +25,7 @@ from .store import Store
 from .tools.notify import notify_parent
 from .tools.screening import prescreen, screen_video
 from .tools.transcript import TranscriptsBlocked, fetch_transcript, transcript_text
-from .tools.youtube import fetch_uploads, fetch_video_meta
+from .tools.youtube import fetch_durations, fetch_uploads, fetch_video_meta
 
 log = logging.getLogger(__name__)
 
@@ -186,6 +187,21 @@ def decide(
         return CuratorDecision(decision="ask_parent", reason="Could not review automatically.")
 
 
+def _durations(household_id: str, video_ids: Sequence[str], store: Store) -> dict[str, int]:
+    """Lengths for these videos, or `{}` when this household cannot ask.
+
+    Needs the household's own Google grant: there is no key, and the parent's
+    `youtube.readonly` already covers `videos.list`. A household that signed in
+    without Google simply has no way to learn a length, and every caller must
+    treat a missing id as unknown rather than as zero.
+    """
+    try:
+        token = google_access_token(household_id, store)
+    except GoogleAuthError:
+        return {}
+    return fetch_durations(video_ids, token)
+
+
 def run_curator(
     kid: Kid,
     store: Store,
@@ -210,13 +226,21 @@ def run_curator(
         except Exception as e:  # noqa: BLE001 - one bad channel must not stop the run
             log.warning("uploads failed for %s: %s", channel.id, e)
             continue
+        # One Data API call for the whole channel rather than a watch page per
+        # video: the watch page is refused to this machine, which left every
+        # duration at 0 — and a duration of 0 turns the parent's "longest
+        # video" limit into no limit and schedules the end-of-video question at
+        # the moment it starts.
+        durations = _durations(kid.household_id, [u["id"] for u in uploads], store)
         for up in uploads:
             if up["id"] in seen:
                 continue
             video = store.get_video(up["id"]) or Video(**up)
             if not video.duration_s:
+                video.duration_s = durations.get(video.id, 0)
+            if not video.duration_s or not video.thumb_url:
                 meta = fetch_video_meta(video.id)
-                video.duration_s = meta.get("duration_s", 0)
+                video.duration_s = video.duration_s or meta.get("duration_s", 0)
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")
             if no_transcripts:
                 tr = _NO_TRANSCRIPT  # already established; asking again earns the same refusal

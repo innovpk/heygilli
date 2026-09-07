@@ -10,6 +10,7 @@ import html
 import logging
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 
 import httpx
 from strands import tool
@@ -244,6 +245,55 @@ def list_subscriptions(access_token: str, max_pages: int = MAX_SUBSCRIPTION_PAGE
         log.warning("subscription list truncated at %d pages", max_pages)
 
     out.sort(key=lambda s: (s["title"].casefold(), s["channel_id"]))
+    return out
+
+
+VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+DURATION_BATCH = 50  # the API's cap on ids per call, and 1 quota unit per call
+
+
+def _iso8601_seconds(text: str) -> int:
+    """"PT1H2M3S" -> 3723. 0 for anything unparseable, which means "unknown"."""
+    m = re.fullmatch(r"P(?:\d+D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", text or "")
+    if not m:
+        return 0
+    h, mi, sec = (int(g) if g else 0 for g in m.groups())
+    return h * 3600 + mi * 60 + sec
+
+
+def fetch_durations(video_ids: Sequence[str], access_token: str) -> dict[str, int]:
+    """`{video_id: seconds}` for as many as the API answered for.
+
+    The watch page carries this too and is where it used to come from, but
+    YouTube serves that page only to addresses it likes and refuses it from
+    every datacenter — so in production every video had duration 0. That is not
+    a cosmetic gap: a parent's "longest video" limit is applied by comparing
+    against it, so the limit silently allowed everything, and an end-of-video
+    question is scheduled at `duration - 3`, which became "the moment it
+    starts".
+
+    `videos.list(part=contentDetails)` is inside the youtube.readonly grant the
+    parent has already given, is one quota unit per 50 ids, and answers from
+    anywhere. A household with no Google link has no token and gets `{}`; the
+    caller must treat a missing id as unknown, not as zero-length.
+    """
+    ids = [v for v in dict.fromkeys(video_ids) if v]
+    out: dict[str, int] = {}
+    for i in range(0, len(ids), DURATION_BATCH):
+        batch = ids[i:i + DURATION_BATCH]
+        try:
+            body = _api_get(
+                VIDEOS_URL,
+                {"part": "contentDetails", "id": ",".join(batch)},
+                access_token,
+            )
+        except Exception as e:  # noqa: BLE001 - unknown duration is a supported state
+            log.warning("duration lookup failed for %d ids: %s", len(batch), e)
+            continue
+        for item in body.get("items") or []:
+            seconds = _iso8601_seconds((item.get("contentDetails") or {}).get("duration") or "")
+            if seconds:
+                out[str(item.get("id") or "")] = seconds
     return out
 
 

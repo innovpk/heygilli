@@ -1015,7 +1015,14 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
         if entry.get("status") != "approve":
             continue
         v = store.get_video(vid)
-        if v is None or (cap_s and v.duration_s > cap_s):
+        if v is None:
+            continue
+        # A length of 0 means "we could not find out", never "instant". It was
+        # read as a number and compared, so every unknown video passed a limit
+        # it was never measured against — a parent who set twenty minutes was
+        # offered thirty. When the parent has asked for a limit and we cannot
+        # show the video is inside it, we do not offer it.
+        if cap_s and (not v.duration_s or v.duration_s > cap_s):
             continue
         v.plan_ready = store.get_plan(v.id, kid.age_band or "7_8", kid.languages[0]) is not None
         approved.append(v)

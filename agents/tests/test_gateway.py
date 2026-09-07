@@ -345,3 +345,30 @@ def test_a_kid_s_age_can_be_corrected_and_the_band_follows(client, auth) -> None
 
     assert client.patch("/kids/kid_nosuch", json={"age": 7}, headers=hdr(auth)).status_code == 404
     assert client.patch(f"/kids/{kid['id']}", json={"age": 99}, headers=hdr(auth)).status_code == 422
+
+
+def test_a_length_limit_is_not_passed_by_a_video_of_unknown_length(client, auth, store) -> None:
+    """A parent set "longest video: 20 minutes" and was offered thirty.
+
+    Duration used to come only from the YouTube watch page, which is refused to
+    datacenter addresses, so in production every video was stored with 0. Zero
+    was then compared as a number — 0 > 1200 is false — so an unmeasured video
+    passed a limit it had never been measured against.
+    """
+    kid = client.post("/kids", json={"nickname": "Abeeha", "age": 5}, headers=hdr(auth)).json()
+    hid = auth["_hid"]
+    for vid, secs in (("shortvideo1", 600), ("longvideo01", 1800), ("unknownvid1", 0)):
+        store.put_video(Video(id=vid, title=vid, duration_s=secs))
+        store.set_kid_video(hid, kid["id"], vid, "approve", "test")
+
+    # No limit set: length is not a reason to withhold anything.
+    ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
+           for v in r["videos"]}
+    assert ids == {"shortvideo1", "longvideo01", "unknownvid1"}
+
+    client.patch(f"/kids/{kid['id']}/limits", json={"max_video_minutes": 20}, headers=hdr(auth))
+    ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
+           for v in r["videos"]}
+    assert "longvideo01" not in ids, "thirty minutes was offered under a twenty minute limit"
+    assert "unknownvid1" not in ids, "an unmeasured video is not a video shown to be short enough"
+    assert ids == {"shortvideo1"}
