@@ -184,7 +184,10 @@ def _from_gemini(video_id: str) -> list[dict] | None:
         "picture changes."
     )
     resp = client.models.generate_content(
-        model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-2.5-flash"),
+        # 2.5-flash is closed to keys made after it was retired, and answers a
+        # 404 rather than falling back, so a fresh deployment got no transcript
+        # at all. Overridable because this name will retire too.
+        model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash"),
         contents=types.Content(
             parts=[
                 types.Part(file_data=types.FileData(file_uri=f"https://www.youtube.com/watch?v={video_id}")),
