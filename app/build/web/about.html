@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HeyGilli — A buddy who watches YouTube with your kid</title>
+<meta name="description" content="HeyGilli is an app for parents that screens YouTube channels for a child and keeps a buddy character alongside them while they watch.">
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2b2320;
+    --brown: #6b5c4f;
+    --muted: #8a7c70;
+    --cream: #fdf6ec;
+    --white: #ffffff;
+    --line: #e8ddd0;
+    --mango: #eea23b;
+    --green: #6a9955;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+  .hero {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 6px;
+  }
+  .hero img { width: 64px; height: 64px; }
+  .hero h1 { font-size: 32px; margin: 0; }
+  .tagline {
+    color: var(--brown);
+    font-size: 18px;
+    margin: 4px 0 36px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: 40px;
+    margin-bottom: 12px;
+  }
+  p, li { font-size: 15.5px; color: var(--brown); }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--mango); text-decoration: none; border-bottom: 1px solid currentColor; }
+  a:hover { opacity: 0.8; }
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin: 16px 0;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  @media (max-width: 560px) {
+    .cards { grid-template-columns: 1fr; }
+  }
+  .cards .card h3 {
+    font-size: 15.5px;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .cards .card p { margin: 0; font-size: 14.5px; }
+  .cta {
+    display: inline-block;
+    background: var(--mango);
+    color: var(--ink);
+    font-weight: 600;
+    padding: 13px 24px;
+    border-radius: 26px;
+    border-bottom: none;
+    margin-top: 8px;
+  }
+  .cta:hover { opacity: 0.9; }
+  footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <img src="assets/assets/gilli.svg" alt="Gilli, the HeyGilli mascot">
+    <h1>HeyGilli</h1>
+  </div>
+  <p class="tagline">A buddy who watches YouTube with your kid.</p>
+
+  <div class="card">
+    <p style="margin:0;">
+      HeyGilli is an app for parents. You pick the YouTube channels your
+      child is allowed to watch; every new upload from those channels is
+      screened automatically before it can ever appear to your child.
+      While they watch, a buddy character named Gilli sits alongside them —
+      asking a question or two about what just happened, in your child's own
+      language — and afterwards tells you what they understood and what they
+      found hard.
+    </p>
+  </div>
+
+  <h2>What it does</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>You choose the channels</h3>
+      <p>Nothing reaches your child from a channel you haven't approved. No open-ended search unless you turn it on.</p>
+    </div>
+    <div class="card">
+      <h3>Every upload is screened</h3>
+      <p>New videos from approved channels are checked automatically, using rules and limits you set, before they can appear.</p>
+    </div>
+    <div class="card">
+      <h3>Gilli watches along</h3>
+      <p>A spoken buddy asks a question or two during and after a video, suited to your child's age and language.</p>
+    </div>
+    <div class="card">
+      <h3>You get the digest</h3>
+      <p>What they watched, what they understood, and what they found hard — shown only to you, never to your child.</p>
+    </div>
+  </div>
+
+  <h2>Why it needs your YouTube subscriptions</h2>
+  <p>
+    Neither YouTube nor YouTube Kids has a way to read a child's profile
+    directly. HeyGilli asks to read your Google account's YouTube
+    subscriptions (read-only — it never posts, uploads, or changes anything)
+    so it can build the list of channels you already trust, which you then
+    approve for your child one by one. You can also bring channels across
+    from a Google Takeout export instead, and you can always add channels
+    yourself without connecting Google at all.
+  </p>
+
+  <h2>Get started</h2>
+  <p>Open the app and sign in as a parent — your child never signs in to anything.</p>
+  <a class="cta" href="https://heygilli.vercel.app" target="_blank" rel="noopener">Open HeyGilli →</a>
+
+  <h2>More</h2>
+  <ul>
+    <li><a href="privacy.html">Privacy Policy</a> — exactly what is collected, why, and how to have it deleted.</li>
+    <li><a href="terms.html">Terms of Service</a></li>
+  </ul>
+
+  <footer>
+    HeyGilli is a project by <a href="https://innovpk.com" target="_blank" rel="noopener">innovpk</a>.
+    Contact: <a href="mailto:info@innovpk.com">info@innovpk.com</a>
+  </footer>
+
+</div>
+</body>
+</html>
