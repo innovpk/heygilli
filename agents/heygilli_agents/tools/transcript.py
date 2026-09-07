@@ -331,3 +331,24 @@ def get_transcript(video_id: str) -> dict:
          "segments": [{"start_s": int, "text": str}]}
     """
     return fetch_transcript(video_id)
+
+
+def gemini_available() -> bool:
+    """Whether the Gemini path could run: a key is set and the SDK is installed.
+
+    Reported by /healthz. It answers "is this deployment able to read a
+    transcript at all", which is otherwise indistinguishable from "the deploy
+    has not landed yet" — both look like an empty home.
+    """
+    if not os.getenv("GOOGLE_API_KEY"):
+        return False
+    try:
+        from google import genai  # type: ignore # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def proxy_configured() -> bool:
+    """Whether a caption proxy is set. The address itself is never reported."""
+    return _proxy_config() is not None

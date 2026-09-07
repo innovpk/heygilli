@@ -83,6 +83,7 @@ from .takeout import (
     parse_takeout_zip,
     parse_takeout_zip_with_history,
 )
+from .tools import transcript as transcript_sources
 from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
 
@@ -1358,4 +1359,20 @@ async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswe
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True, "id": new_id("gw")}
+    """Alive, and which transcript sources this deployment actually has.
+
+    The commit and the two booleans are here because a deploy that had not
+    landed and a deploy that had landed but could not read a transcript
+    produced exactly the same symptom — an empty home and one log line — and
+    telling them apart meant guessing. Names only: no key or proxy address is
+    ever reported.
+    """
+    return {
+        "ok": True,
+        "id": new_id("gw"),
+        "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
+        "transcripts": {
+            "gemini": transcript_sources.gemini_available(),
+            "proxy": transcript_sources.proxy_configured(),
+        },
+    }

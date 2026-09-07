@@ -274,3 +274,19 @@ def test_a_wall_of_text_is_refused_before_it_reaches_polly(
 
 def test_speech_needs_a_household(client: TestClient) -> None:
     assert client.post("/tts", json={"text": "hello"}).status_code == 401
+
+
+def test_healthz_reports_which_transcript_sources_exist(client, monkeypatch) -> None:
+    """An undeployed build and a deployed one that cannot read a transcript both
+    show up as an empty kid home. This is what tells them apart."""
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("HEYGILLI_PROXY_URL", raising=False)
+    monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
+    body = client.get("/healthz").json()
+    assert body["ok"] is True
+    assert body["transcripts"] == {"gemini": False, "proxy": False}
+
+    monkeypatch.setenv("HEYGILLI_PROXY_URL", "http://user:pass@proxy:8080")
+    body = client.get("/healthz").json()
+    assert body["transcripts"]["proxy"] is True
+    assert "pass" not in str(body), "a proxy password must never leave the server"
