@@ -1,5 +1,13 @@
 {
-  "public": "app/build/web",
+  "buildCommand": "echo 'Build already complete'",
+  "outputDirectory": "app/build/web",
+  "routes": [
+    {
+      "src": "^/(.*)$",
+      "dest": "/index.html",
+      "status": 200
+    }
+  ],
   "env": {
     "HEYGILLI_API_URL": "@heygilli-api-url"
   }
