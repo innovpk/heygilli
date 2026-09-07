@@ -85,6 +85,15 @@ class Kid(BaseModel):
         default_factory=list,
         description="What Gilli says during a break. Parent-authored; empty is a valid, quiet break.",
     )
+    #: Prompt ids from `question_bank` this household has turned off for this
+    #: child. Opt-out: empty means every prompt written for their band is
+    #: allowed, so a parent who never opens the screen still gets a working
+    #: app. Ids are kept even when they name a prompt that no longer exists —
+    #: a household outlives any one release.
+    disabled_prompts: list[str] = Field(
+        default_factory=list,
+        description="question_bank prompt ids this child is not asked",
+    )
     search_enabled: bool = Field(
         default=False,
         description=(

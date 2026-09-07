@@ -372,3 +372,39 @@ def test_a_length_limit_is_not_passed_by_a_video_of_unknown_length(client, auth,
     assert "longvideo01" not in ids, "thirty minutes was offered under a twenty minute limit"
     assert "unknownvid1" not in ids, "an unmeasured video is not a video shown to be short enough"
     assert ids == {"shortvideo1"}
+
+
+def test_the_prompt_list_follows_the_child_s_age(client, auth) -> None:
+    """The bank is graded, not labelled: correcting a child's age must change
+    what they are asked, or the grading is decoration."""
+    kid = client.post("/kids", json={"nickname": "Abeeha", "age": 5}, headers=hdr(auth)).json()
+
+    young = client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()
+    assert young["age_band"] == "4_6"
+    assert all(p["enabled"] for p in young["prompts"]), "on by default, or setup is a chore"
+    assert all(p["input"] in ("voice", "copy") for p in young["prompts"])
+
+    client.patch(f"/kids/{kid['id']}", json={"age": 10}, headers=hdr(auth))
+    older = client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()
+    assert older["age_band"] == "9_11"
+    assert {p["id"] for p in older["prompts"]}.isdisjoint({p["id"] for p in young["prompts"]})
+
+
+def test_a_parent_turning_a_prompt_off_is_remembered(client, auth) -> None:
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+
+    r = client.put(f"/kids/{kid['id']}/prompts", json={"disabled": ["p46_clap"]}, headers=hdr(auth))
+    assert r.status_code == 200
+    off = {p["id"] for p in r.json()["prompts"] if not p["enabled"]}
+    assert off == {"p46_clap"}
+
+    # It survives a reread, and an unknown id is kept rather than rejected:
+    # a household outlives any one release of the bank.
+    client.put(f"/kids/{kid['id']}/prompts",
+               json={"disabled": ["p46_clap", "p46_from_a_future_release"]}, headers=hdr(auth))
+    again = client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()
+    assert {p["id"] for p in again["prompts"] if not p["enabled"]} == {"p46_clap"}
+
+    # Turning everything back on is a real instruction, not an empty request.
+    client.put(f"/kids/{kid['id']}/prompts", json={"disabled": []}, headers=hdr(auth))
+    assert all(p["enabled"] for p in client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()["prompts"])

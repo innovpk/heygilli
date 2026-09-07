@@ -290,7 +290,8 @@ def run_curator(
                     video.screening.age_ok.append(kid.age_band)
                 store.put_video(video)
                 for language in kid.languages:
-                    ensure_plan(video, kid.age_band or "7_8", language, store, planner, kid.question_freq)
+                    ensure_plan(video, kid.age_band or "7_8", language, store, planner,
+                                kid.question_freq, kid.disabled_prompts)
                 video = store.get_video(video.id) or video
                 entry["plan_ready"] = video.plan_ready
                 report.approved.append(entry)

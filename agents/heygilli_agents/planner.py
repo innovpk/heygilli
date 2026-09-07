@@ -7,10 +7,11 @@ correct on any provider. Plans are cached per (video, band, language).
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from strands import Agent
 
-from . import rules
+from . import question_bank, rules
 from .llm import LLMError, make_agent, structured
 from .schemas import (
     TYPES_FOR_BAND,
@@ -107,21 +108,22 @@ def build_plan(
     language: Language,
     freq: QuestionFreq | None = None,
     agent: Agent | None = None,
+    disabled_prompts: Sequence[str] = (),
 ) -> QuestionPlan:
     """Ask the model, then enforce the band contract in code."""
     if not segments:
-        return fallback_plan(video, band, language)
+        return fallback_plan(video, band, language, disabled_prompts)
     agent = agent or planner_agent()
     try:
         draft = structured(agent, plan_prompt(video, segments, band, language, freq), PlanDraft)
     except LLMError as e:
         log.warning("planner failed for %s/%s/%s: %s", video.id, band, language, e)
-        return fallback_plan(video, band, language)
+        return fallback_plan(video, band, language, disabled_prompts)
     questions = [repair_pick(q, language) for q in draft.questions]
     kept = rules.enforce(questions, band, video.duration_s, language, freq, icon_ids())
     if not kept:
         log.info("no question survived the rules for %s/%s; using fallback", video.id, band)
-        return fallback_plan(video, band, language)
+        return fallback_plan(video, band, language, disabled_prompts)
     return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=kept)
 
 
@@ -147,19 +149,28 @@ def repair_pick(q: Question, language: Language) -> Question:
     return q.model_copy(update={"options": fixed[:3]})
 
 
-def fallback_plan(video: Video, band: AgeBand, language: Language) -> QuestionPlan:
-    """No usable transcript (SPEC §9.4): one generic end-of-video question."""
+def fallback_plan(
+    video: Video,
+    band: AgeBand,
+    language: Language,
+    disabled_prompts: Sequence[str] = (),
+) -> QuestionPlan:
+    """No usable transcript (SPEC §9.4): one end-of-video question from the bank.
+
+    This used to be a single hardcoded line per band, so every video a
+    five-year-old watched ended with "can you clap for the video?" — and with
+    no transcripts reachable from the deployed gateway, that was every video
+    they ever saw. `question_bank.pick` gives a different one per video and the
+    same one each time that video comes back, and the parent may turn any of
+    them off.
+
+    No prompts left is a real setting, not a failure: the video plays and
+    nothing is asked.
+    """
     t_sec = max(video.duration_s - rules.END_MARGIN_S, 0)
-    if band == "4_6":
-        text = "Can you clap for the video?" if language == "en" else "کیا تم ویڈیو کے لیے تالی بجا سکتے ہو؟"
-        q = Question(t_sec=t_sec, type="copy_it", input="copy", text=text, expected="clap", gesture="cheer",
-                     model_line="Clap clap! Great clapping!" if language == "en" else "واہ! تالی!")
-    else:
-        text = "What was your favourite part?" if language == "en" else "تمہارا پسندیدہ حصہ کون سا تھا؟"
-        qtype = "recall" if band == "7_8" else "opinion"
-        q = Question(t_sec=t_sec, type=qtype, input="voice", text=text, expected="any part of the video",
-                     gesture="think", followup="")
-    return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=[q])
+    prompt = question_bank.pick(band, video.id, disabled_prompts)
+    questions = [question_bank.as_question(prompt, t_sec, language)] if prompt else []
+    return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=questions)
 
 
 def ensure_plan(
@@ -169,6 +180,7 @@ def ensure_plan(
     store: Store | None = None,
     agent: Agent | None = None,
     freq: QuestionFreq | None = None,
+    disabled_prompts: Sequence[str] = (),
 ) -> QuestionPlan:
     """Cached plan or a fresh one (fetching the transcript if needed)."""
     store = store or get_store()
@@ -185,7 +197,7 @@ def ensure_plan(
         # "none" so the app still says it was read on its title alone.
         log.info("no transcript for %s, planning from the title: %s", video.id, e)
         tr = {"source": "none", "segments": []}
-    plan = build_plan(video, tr["segments"], band, language, freq, agent)
+    plan = build_plan(video, tr["segments"], band, language, freq, agent, disabled_prompts)
     store.put_plan(plan)
     stored = store.get_video(video.id) or video
     stored.transcript_source = tr["source"]

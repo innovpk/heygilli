@@ -64,12 +64,15 @@ def test_repair_pick_maps_labels_to_icons_and_fills_distractors() -> None:
 
 
 def test_fallback_when_nothing_survives_or_no_transcript() -> None:
+    from heygilli_agents.schemas import TYPES_FOR_BAND
+
     plan = planner.build_plan(VIDEO, [], "9_11", "en")
-    assert len(plan.questions) == 1 and plan.questions[0].type == "opinion"
+    assert len(plan.questions) == 1
+    assert plan.questions[0].type in TYPES_FOR_BAND["9_11"]
     assert plan.questions[0].t_sec == 1200 - planner.rules.END_MARGIN_S
     only_why = [{"t_sec": 130, "type": "why", "input": "voice", "text": "Why?", "expected": "x"}]
     plan = planner.build_plan(VIDEO, SEGMENTS, "4_6", "ur", agent=agent_with(only_why))
-    assert plan.questions[0].type == "copy_it" and plan.language == "ur"
+    assert plan.questions[0].type in TYPES_FOR_BAND["4_6"] and plan.language == "ur"
 
 
 def test_ensure_plan_caches_and_marks_video(store: LocalStore, monkeypatch) -> None:

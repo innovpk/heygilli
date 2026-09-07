@@ -36,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach, drift, history, revisit, words
+from . import breaks, coach, drift, history, question_bank, revisit, words
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -282,6 +282,64 @@ def create_kid(body: KidIn, hid: str = Depends(household)) -> dict:
 @app.get("/kids")
 def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
+
+
+@app.get("/kids/{kid_id}/prompts")
+def get_prompts(kid_id: str, hid: str = Depends(household)) -> dict:
+    """Every question written for this child's band, and whether it is on.
+
+    The band decides the list: a four-year-old is asked to make a sound or name
+    something they can see, an eleven-year-old what they would tell a friend.
+    Change the child's age and this list changes with it, which is the point.
+
+    On by default. A parent who has never opened this screen still gets a
+    working app, and turning one off is a fact stored about their household
+    rather than an edit to the bank.
+    """
+    kid = _kid(hid, kid_id)
+    band = kid.age_band or "7_8"
+    off = set(kid.disabled_prompts)
+    return {
+        "age_band": band,
+        "prompts": [
+            {
+                "id": p.id,
+                "label": p.label or p.text["en"],
+                "text": p.text,
+                "type": p.type,
+                "input": p.input,
+                "enabled": p.id not in off,
+            }
+            for p in question_bank.for_band(band)
+        ],
+    }
+
+
+class PromptsIn(BaseModel):
+    """The ids the parent turned OFF. Sent whole, so unticking the last one is
+    telling us something rather than sending nothing."""
+
+    disabled: list[str] = Field(default_factory=list)
+
+
+@app.put("/kids/{kid_id}/prompts")
+def set_prompts(kid_id: str, body: PromptsIn, hid: str = Depends(household)) -> dict:
+    """Replace what this child is not asked.
+
+    Ids that name nothing in the bank are kept rather than rejected: a
+    household outlives a release, and a prompt that comes back later must come
+    back still switched off.
+
+    Existing plans are left alone. They were built for the old list and are
+    cached per video; the next video screened uses the new one, and a parent
+    who wants the old ones gone can say so by other means rather than having
+    this quietly rewrite what their child has already been asked.
+    """
+    kid = _kid(hid, kid_id)
+    kid = kid.model_copy(update={"disabled_prompts": list(dict.fromkeys(body.disabled))})
+    get_store().put_kid(kid)
+    log.info("kid %s has %d prompts turned off", kid_id, len(kid.disabled_prompts))
+    return get_prompts(kid_id, hid)
 
 
 class KidEditIn(BaseModel):
