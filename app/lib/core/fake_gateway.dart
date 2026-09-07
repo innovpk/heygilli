@@ -1510,15 +1510,18 @@ class FakeGateway implements Gateway {
     await _lag();
     // Attach the sample prompt to the oldest kid the parent has actually
     // added; with no kids there is nothing to decide.
-    final oldest = _kids.isEmpty
-        ? null
-        : _kids.reduce((a, b) => a.age >= b.age ? a : b);
-    if (oldest == null) return const [];
+    if (_kids.isEmpty) return const [];
+    final oldest = _kids.reduce((a, b) => a.age >= b.age ? a : b);
+    final youngest = _kids.reduce((a, b) => a.age <= b.age ? a : b);
+    var i = 0;
     return List.unmodifiable([
       for (final p in _inbox)
         ParentPrompt(
+          // Spread across the household's children when there is more than
+          // one: the inbox is tabbed by child, and a demo where every card
+          // belongs to the same kid cannot show that.
+          kidId: (i++).isEven ? oldest.id : youngest.id,
           id: p.id,
-          kidId: oldest.id,
           video: p.video,
           // Carried through: the inbox groups by it, and a rebuild that drops
           // it silently piles every channel under one nameless heading.

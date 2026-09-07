@@ -19,6 +19,14 @@ class _InboxScreenState extends State<InboxScreen> {
   late Future<List<ParentPrompt>> _inbox = _load();
   final _busy = <String>{};
 
+  /// Whose questions are being shown, or null for everyone's.
+  ///
+  /// A household with two children had both their questions in one list, and
+  /// a parent deciding about one child had to read past the other's. Deciding
+  /// is per child — the same video can be right for one and not the other —
+  /// so the list is too.
+  String? _onlyKid;
+
   void _reload() => setState(() {
     _inbox = _load();
   });
@@ -92,8 +100,19 @@ class _InboxScreenState extends State<InboxScreen> {
         // rather than about videos one at a time: four borderline uploads in
         // a row are usually one channel, and the answer to all four is the
         // same answer. Ungrouped, they were four unrelated-looking cards.
-        final groups = <String, List<ParentPrompt>>{};
+        // Whose questions these are. Only worth the space when the household
+        // has more than one child; with one, every card is theirs already.
+        final counts = <String, int>{};
         for (final p in list) {
+          counts[p.kidId] = (counts[p.kidId] ?? 0) + 1;
+        }
+        final tabbed = kids.length > 1;
+        final shown = tabbed && _onlyKid != null
+            ? [for (final p in list) if (p.kidId == _onlyKid) p]
+            : list;
+
+        final groups = <String, List<ParentPrompt>>{};
+        for (final p in shown) {
           groups.putIfAbsent(p.channelTitle, () => []).add(p);
         }
         final rows = <Widget>[];
@@ -125,10 +144,13 @@ class _InboxScreenState extends State<InboxScreen> {
             final kid = kids.where((k) => k.id == p.kidId).firstOrNull;
             rows.add(
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: _PromptCard(
                   prompt: p,
-                  kidName: kid?.nickname ?? 'a kid',
+                  // Only when it is not already the tab they are standing in.
+                  kidName: tabbed && _onlyKid == null
+                      ? (kid?.nickname ?? 'a kid')
+                      : '',
                   busy: _busy.contains(p.id),
                   onApprove: () => _decide(p, 'approve'),
                   onHide: () => _decide(p, 'hide'),
@@ -139,7 +161,34 @@ class _InboxScreenState extends State<InboxScreen> {
         }
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          children: rows,
+          children: [
+            if (tabbed) ...[
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    _KidTab(
+                      label: 'Everyone',
+                      count: list.length,
+                      selected: _onlyKid == null,
+                      onTap: () => setState(() => _onlyKid = null),
+                    ),
+                    for (final kid in kids)
+                      if ((counts[kid.id] ?? 0) > 0)
+                        _KidTab(
+                          label: kid.nickname,
+                          count: counts[kid.id] ?? 0,
+                          selected: _onlyKid == kid.id,
+                          onTap: () => setState(() => _onlyKid = kid.id),
+                        ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            ...rows,
+          ],
         );
       },
     );
@@ -156,6 +205,9 @@ class _PromptCard extends StatelessWidget {
   });
 
   final ParentPrompt prompt;
+
+  /// Empty when the list is already filtered to one child: repeating their
+  /// name on every card is a line of text per card that says nothing new.
   final String kidName;
   final bool busy;
   final VoidCallback onApprove;
@@ -164,121 +216,192 @@ class _PromptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = prompt.video;
+    // One row rather than four stacked blocks. A parent with a dozen of these
+    // was scrolling past a heading, a thumbnail, a boxed sentence and a pair
+    // of full-width buttons for every single one — most of a screen each, to
+    // answer a yes/no question. Everything that says *what* this is sits on
+    // the left, the two answers on the right, and the card ends.
     return PCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
-          Text('FOR $kidName'.toUpperCase(), style: HgText.label()),
-          Row(
-            spacing: 12,
-            children: [
-              // A channel drift raises an inbox entry too, and a drift has no
-              // video in it (PROTOCOL "Channel drift"). An entry with nothing
-              // to show a thumbnail of still has to reach the parent, so it
-              // renders as its name and its reason.
-              if (v == null && prompt.drift != null)
-                const Icon(
-                  Icons.change_circle_outlined,
-                  size: 32,
-                  color: HgColors.brown,
-                )
-              else if (v != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 112,
-                    height: 63,
-                    child: Image.network(
-                      v.thumb,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          const ColoredBox(color: HgColors.line),
-                    ),
-                  ),
-                )
-              else
-                const Icon(Icons.tv_rounded, size: 32, color: HgColors.brown),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 2,
-                  children: [
-                    Text(
-                      prompt.subject,
-                      style: HgText.body(size: 16, color: HgColors.ink),
-                    ),
-                    if (v != null)
-                      Text(
-                        '${(v.durationS / 60).round()} min',
-                        style: HgText.body(size: 13, color: HgColors.muted),
-                      ),
-                  ],
+          // A channel drift raises an inbox entry too, and a drift has no
+          // video in it (PROTOCOL "Channel drift"). An entry with nothing to
+          // show a thumbnail of still has to reach the parent.
+          if (v != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 92,
+                height: 52,
+                child: Image.network(
+                  v.thumb,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      const ColoredBox(color: HgColors.line),
                 ),
               ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: HgColors.cream,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
+            )
+          else
+            Icon(
               prompt.drift != null
-                  ? 'What changed: ${prompt.drift!.whatChanged.isNotEmpty ? prompt.drift!.whatChanged : prompt.reason}'
-                  : 'Curator: ${prompt.reason}',
-              style: HgText.body(
-                size: 14,
-                color: HgColors.brown,
-                weight: FontWeight.w600,
-              ),
+                  ? Icons.change_circle_outlined
+                  : Icons.tv_rounded,
+              size: 28,
+              color: HgColors.brown,
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 3,
+              children: [
+                Text(
+                  prompt.subject,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.body(size: 15, color: HgColors.ink),
+                ),
+                Text(
+                  [
+                    if (kidName.isNotEmpty) 'For $kidName',
+                    if (v != null) '${(v.durationS / 60).round()} min',
+                  ].join('  ·  '),
+                  style: HgText.body(size: 12, color: HgColors.muted),
+                ),
+                Text(
+                  prompt.drift != null
+                      ? (prompt.drift!.whatChanged.isNotEmpty
+                            ? prompt.drift!.whatChanged
+                            : prompt.reason)
+                      : prompt.reason,
+                  // Two lines is enough to say why and short enough that a
+                  // dozen of these still fit on a screen. The whole reason is
+                  // one sentence by design (CuratorDecision), so this rarely
+                  // cuts anything off.
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.body(size: 13, color: HgColors.brown),
+                ),
+              ],
             ),
           ),
-          // Approve and Hide are about one video. A drift is not a video and
-          // is not a decision: nothing has been done to the channel, and the
-          // only action is one the parent takes on the channel itself. An
-          // entry this build does not recognise gets no buttons either,
-          // rather than two whose meaning it is guessing at.
           if (prompt.isDecidable)
-            Row(
-              spacing: 10,
+            Column(
+              spacing: 6,
               children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: busy ? null : onApprove,
-                      child: const Text('Approve'),
-                    ),
-                  ),
+                _Answer(
+                  label: 'Approve',
+                  icon: Icons.check_rounded,
+                  filled: true,
+                  onPressed: busy ? null : onApprove,
                 ),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton(
-                      onPressed: busy ? null : onHide,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: HgColors.coral,
-                        side: const BorderSide(color: HgColors.coral, width: 2),
-                        shape: const StadiumBorder(),
-                        textStyle: HgText.body(size: 16),
-                      ),
-                      child: const Text('Hide'),
-                    ),
-                  ),
+                _Answer(
+                  label: 'Hide',
+                  icon: Icons.close_rounded,
+                  filled: false,
+                  onPressed: busy ? null : onHide,
                 ),
               ],
             )
           else
-            Text(
-              'Nothing has been done. ${prompt.subject} is still approved — '
-              'open Channels to look at it and decide.',
-              style: HgText.body(size: 14, color: HgColors.brown),
+            SizedBox(
+              width: 120,
+              child: Text(
+                'Nothing has been done — open Channels to decide.',
+                style: HgText.body(size: 12, color: HgColors.brown),
+              ),
             ),
         ],
       ),
     );
   }
+}
+
+/// One of the two answers. Icon and word together: the word alone made the
+/// buttons as wide as the card, and the icon alone would leave a parent
+/// guessing which cross means what.
+class _Answer extends StatelessWidget {
+  const _Answer({
+    required this.label,
+    required this.icon,
+    required this.filled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool filled;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 116,
+    height: 38,
+    child: filled
+        ? FilledButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(label, style: HgText.body(size: 14)),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          )
+        : OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(label, style: HgText.body(size: 14)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: HgColors.coral,
+              side: const BorderSide(color: HgColors.coral, width: 1.5),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+  );
+}
+
+/// Whose questions to show. A count on each, so a parent can see at a glance
+/// which child has a queue building up.
+class _KidTab extends StatelessWidget {
+  const _KidTab({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? HgColors.mango : HgColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? HgColors.mango : HgColors.line,
+          ),
+        ),
+        child: Text(
+          '$label  $count',
+          style: HgText.body(
+            size: 14,
+            color: HgColors.ink,
+            weight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    ),
+  );
 }
