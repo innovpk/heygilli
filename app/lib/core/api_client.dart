@@ -252,6 +252,17 @@ class ApiClient implements Gateway {
   );
 
   @override
+  Future<List<StarterChannel>> searchChannels(String query) async {
+    final body =
+        await _get('/channels/search?q=${Uri.encodeQueryComponent(query)}')
+            as Map<String, dynamic>;
+    return [
+      for (final c in body['channels'] as List)
+        StarterChannel.fromJson((c as Map).cast<String, dynamic>()),
+    ];
+  }
+
+  @override
   Future<List<KidPrompt>> prompts(String kidId) async =>
       _readPrompts(await _get('/kids/$kidId/prompts'));
 

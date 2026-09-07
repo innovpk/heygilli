@@ -15,15 +15,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A parent who did neither had an empty app.
 class _CountingGateway extends FakeGateway {
   final List<String> added = [];
+  final List<String> searches = [];
+  bool searchFails = false;
 
   @override
   Future<Channel> addChannel(String kidId, String url) {
     added.add(url);
     return super.addChannel(kidId, url);
   }
+
+  @override
+  Future<List<StarterChannel>> searchChannels(String query) async {
+    searches.add(query);
+    if (searchFails) throw StateError('the daily search limit');
+    return super.searchChannels(query);
+  }
 }
 
 void main() {
+  _search();
+
   _existingHousehold();
 
   late AppState app;
@@ -203,5 +214,104 @@ void _existingHousehold() {
       reason: 'a channel they already had must not be re-added',
     );
     expect(gateway.added.length, total - 1);
+  });
+}
+
+/// Searching YouTube for a channel.
+///
+/// Adding one meant knowing its URL already, or finding it in the suggested
+/// list. A parent who just wants "that dinosaur channel my nephew watches"
+/// had nowhere to type it.
+void _search() {
+  late AppState app;
+  late _CountingGateway gateway;
+  late Kid kid;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    gateway = _CountingGateway();
+    await gateway.signInDev('parent');
+    app = AppState(gateway: gateway, settings: await LocalSettings.load());
+    kid = await gateway.createKid(
+      nickname: 'Abeeha',
+      age: 5,
+      languages: const ['en'],
+    );
+    await app.refreshKids();
+  });
+
+  Future<void> show(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: MaterialApp(home: StarterChannelsScreen(kid: kid)),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+  }
+
+  testWidgets('a channel found only by search can still be added', (
+    tester,
+  ) async {
+    await show(tester);
+    // Crash Course Kids is written for older bands, so it is NOT among the
+    // suggestions for a five-year-old. Adding it proves the Add button counts
+    // what the search returned and not just what was suggested — searching
+    // for something already on the page would have proved nothing.
+    expect(find.text('Crash Course Kids'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).first, 'primary-school');
+    await tester.tap(find.text('Search'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('Crash Course Kids'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Crash Course Kids'));
+    await tester.pump();
+    await tester.tap(find.text('Add 1 channel'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(gateway.added, ['https://www.youtube.com/channel/UCONtPx56PSebXJOxbFv-2jQ']);
+  });
+
+  testWidgets('nothing is searched until the parent asks', (tester) async {
+    await show(tester);
+    // search.list costs a shared daily allowance — a hundred a day for every
+    // household together — so it must not fire on every keystroke.
+    await tester.enterText(find.byType(TextField).first, 'science');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(gateway.searches, isEmpty, reason: 'searched while they were typing');
+
+    await tester.tap(find.text('Search'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(gateway.searches, ['science']);
+  });
+
+  testWidgets('a search that cannot run says so, not "nothing matched"', (
+    tester,
+  ) async {
+    await show(tester);
+    gateway.searchFails = true;
+
+    await tester.enterText(find.byType(TextField).first, 'peppa');
+    await tester.tap(find.text('Search'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    // A parent retyping their query would never fix a daily limit.
+    expect(find.textContaining('Could not search'), findsOneWidget);
+    expect(find.text('Nothing on YouTube matched that.'), findsNothing);
   });
 }

@@ -41,6 +41,44 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
   bool _adding = false;
   String? _error;
 
+  final _query = TextEditingController();
+
+  /// What a search came back with, or null when the parent has not searched.
+  /// Empty is a real answer — "nothing on YouTube matched" — and reads
+  /// differently from "you have not looked yet".
+  List<StarterChannel>? _results;
+  bool _searching = false;
+  String? _searchError;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  /// Search YouTube for a channel.
+  ///
+  /// The one place HeyGilli asks YouTube a question. It costs a shared daily
+  /// allowance, so it runs when the parent asks and never as they type.
+  Future<void> _search() async {
+    final q = _query.text.trim();
+    if (q.isEmpty || _searching) return;
+    setState(() {
+      _searching = true;
+      _searchError = null;
+    });
+    try {
+      final found = await context.read<AppState>().gateway.searchChannels(q);
+      if (mounted) setState(() => _results = found);
+    } catch (e) {
+      // A search that cannot run at all is not an empty result: a parent
+      // retyping their query would never fix a daily limit.
+      if (mounted) setState(() => _searchError = '$e');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
   Future<StarterChannels> _load() async {
     final gateway = context.read<AppState>().gateway;
     final have = await gateway.channels(widget.kid.id);
@@ -137,6 +175,55 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
               style: HgText.body(size: 15, color: HgColors.brown),
             ),
             const SizedBox(height: 16),
+            Text('SEARCH YOUTUBE', style: HgText.label()),
+            const SizedBox(height: 8),
+            Row(
+              spacing: 10,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _query,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _search(),
+                    style: HgText.body(size: 15, color: HgColors.ink),
+                    decoration: const InputDecoration(
+                      hintText: 'A channel your child already likes',
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: _searching ? null : _search,
+                    child: Text(_searching ? '…' : 'Search'),
+                  ),
+                ),
+              ],
+            ),
+            if (_searchError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Could not search: $_searchError',
+                style: HgText.body(size: 13, color: HgColors.coral),
+              ),
+            ],
+            if (_results != null) ...[
+              const SizedBox(height: 12),
+              if (_results!.isEmpty)
+                Text(
+                  'Nothing on YouTube matched that.',
+                  style: HgText.body(size: 14, color: HgColors.brown),
+                )
+              else
+                for (final c in _results!) _channelTile(c),
+              const SizedBox(height: 6),
+              Text(
+                'Adding one screens its videos the same way as any other '
+                'channel — nothing reaches ${widget.kid.nickname} unread.',
+                style: HgText.body(size: 13, color: HgColors.muted),
+              ),
+            ],
+            const SizedBox(height: 22),
             Text('WHAT THEY LIKE', style: HgText.label()),
             const SizedBox(height: 8),
             Wrap(
@@ -210,42 +297,7 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
                 ),
               )
             else
-              for (final c in data.channels)
-                CheckboxListTile(
-                  value: _already.contains(c.channelId)
-                      ? true
-                      : _chosen.contains(c.channelId),
-                  // Already theirs: shown ticked and left alone, so the list
-                  // reads as "here is everything, and here is what you have"
-                  // rather than hiding channels they would recognise.
-                  onChanged: _adding || _already.contains(c.channelId)
-                      ? null
-                      : (on) => setState(() {
-                          if (on == true) {
-                            _chosen.add(c.channelId);
-                          } else {
-                            _chosen.remove(c.channelId);
-                          }
-                        }),
-                  activeColor: HgColors.mango,
-                  checkColor: HgColors.ink,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    c.title,
-                    style: HgText.body(size: 16, color: HgColors.ink),
-                  ),
-                  subtitle: Text(
-                    _already.contains(c.channelId)
-                        ? 'Already added for ${widget.kid.nickname}'
-                        : c.blurb,
-                    style: HgText.body(
-                      size: 13.5,
-                      color: _already.contains(c.channelId)
-                          ? HgColors.green
-                          : HgColors.muted,
-                    ),
-                  ),
-                ),
+              for (final c in data.channels) _channelTile(c),
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!, style: HgText.body(color: HgColors.coral)),
@@ -256,7 +308,7 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
               child: FilledButton(
                 onPressed: _adding || _chosen.isEmpty
                     ? null
-                    : () => _add(data.channels),
+                    : () => _add([...data.channels, ...?_results]),
                 child: Text(
                   _chosen.isEmpty
                       ? 'Choose at least one'
@@ -278,4 +330,39 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
       },
     ),
   );
+
+  /// One channel, offered the same way whether it came from the suggested
+  /// list or from a search: a parent should not have to learn two shapes for
+  /// the same decision.
+  Widget _channelTile(StarterChannel c) {
+    final have = _already.contains(c.channelId);
+    return CheckboxListTile(
+      // Already theirs: shown ticked and left alone, so the list reads as
+      // "here is everything, and here is what you have" rather than hiding
+      // channels they would recognise.
+      value: have || _chosen.contains(c.channelId),
+      onChanged: _adding || have
+          ? null
+          : (on) => setState(() {
+              if (on == true) {
+                _chosen.add(c.channelId);
+              } else {
+                _chosen.remove(c.channelId);
+              }
+            }),
+      activeColor: HgColors.mango,
+      checkColor: HgColors.ink,
+      contentPadding: EdgeInsets.zero,
+      title: Text(c.title, style: HgText.body(size: 16, color: HgColors.ink)),
+      subtitle: Text(
+        have ? 'Already added for ${widget.kid.nickname}' : c.blurb,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: HgText.body(
+          size: 13.5,
+          color: have ? HgColors.green : HgColors.muted,
+        ),
+      ),
+    );
+  }
 }

@@ -864,6 +864,22 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<List<StarterChannel>> searchChannels(String query) async {
+    await _lag();
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    // The demo has no YouTube behind it, so it searches the same small
+    // catalogue the suggestions come from.
+    final all = await starterChannels(band: '4_6');
+    final more = await starterChannels(band: '9_11');
+    return [
+      for (final c in {...all.channels, ...more.channels})
+        if (c.title.toLowerCase().contains(q) || c.blurb.toLowerCase().contains(q))
+          c,
+    ];
+  }
+
+  @override
   Future<List<KidPrompt>> prompts(String kidId) async {
     await _lag();
     return _promptsFor(kidId);

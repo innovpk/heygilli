@@ -122,6 +122,16 @@ abstract class Gateway {
     List<String> topics,
   });
 
+  /// `GET /channels/search`. Channels on YouTube matching what the parent
+  /// typed.
+  ///
+  /// A parent searching is not a child searching: what comes back is a
+  /// suggestion they then approve, and every upload from an approved channel
+  /// is still screened. Throws when the search cannot run at all — a daily
+  /// limit or a key that may not search — because a parent would retype their
+  /// query for ever against an empty list.
+  Future<List<StarterChannel>> searchChannels(String query);
+
   /// `GET /kids/{id}/prompts`. The questions written for this child's band,
   /// each with whether they are asked it.
   Future<List<KidPrompt>> prompts(String kidId);
