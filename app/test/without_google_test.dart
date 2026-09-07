@@ -7,11 +7,11 @@ import 'package:heygilli/features/parent/sign_in_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// How a household is identified when nobody signs in to anything.
+/// The second door.
 ///
-/// There is no account: the household is a name generated on the device and
-/// remembered there. The server hashes it into the household id, so the
-/// properties below are what stand between one family and another.
+/// youtube.readonly is a Google *restricted* scope, so until the OAuth app is
+/// verified only test-list accounts get past the Google button. With one door
+/// that is the end of the app for everyone else.
 void main() {
   late LocalSettings settings;
 
@@ -68,8 +68,8 @@ void main() {
     expect(app.signedIn, isFalse);
 
     await tester.pumpWidget(host(app));
-    final door = find.text('Set up your household');
-    expect(door, findsOneWidget, reason: 'no way into the app at all');
+    final door = find.text('Set up without Google');
+    expect(door, findsOneWidget, reason: 'no way in without Google');
 
     await tester.ensureVisible(door);
     await tester.tap(door);
@@ -86,14 +86,19 @@ void main() {
     );
   });
 
-  testWidgets('the only way in is never disabled', (tester) async {
-    // Nothing gates it — no client id, no network check, no account. If this
-    // is ever disabled the app has no entrance at all.
+  testWidgets('it stays reachable when Google is not configured at all', (
+    tester,
+  ) async {
+    // The build that has no client id is exactly the build that most needs it.
     final app = AppState(gateway: FakeGateway(), settings: settings);
     await tester.pumpWidget(host(app));
 
-    final door = find.widgetWithText(FilledButton, 'Set up your household');
+    final door = find.widgetWithText(OutlinedButton, 'Set up without Google');
     expect(door, findsOneWidget);
-    expect(tester.widget<FilledButton>(door).onPressed, isNotNull);
+    expect(
+      tester.widget<OutlinedButton>(door).onPressed,
+      isNotNull,
+      reason: 'the fallback door must not be disabled with the Google one',
+    );
   });
 }

@@ -153,33 +153,39 @@
     <a href="mailto:hello@heygilli.com">hello@heygilli.com</a>.
   </p>
   <p>
-    Only a parent or guardian sets HeyGilli up — though there is no account to
-    create and nothing to sign in to. A child never signs in to anything, is
-    never asked to enter information, and is never shown a way to leave their
-    own screen without the parent's PIN. Everything in this policy about "you"
-    refers to the parent.
+    Only a parent or guardian creates a HeyGilli account and signs in. A child
+    never signs in to anything, is never asked to enter information, and is
+    never shown a way to leave their own screen without the parent's PIN.
+    Everything in this policy about "you" refers to the parent.
   </p>
 
   <h2>2. Information we collect</h2>
 
   <h3>2.1 Account identity</h3>
-  <p>
-    There is no account. Starting a household generates a random identifier
-    on your device — something like <code>trial-3c994baf52eab4ec…</code> —
-    which is stored there and sent to our server so the same device finds the
-    same household next time. No name, no email, no password, and no Google
-    account is collected.
-  </p>
-  <div class="callout">
-    <p>
-      <strong>Sign in with Google is not currently offered.</strong> The app
-      contains the code for it, but it is switched off: it only ever read the
-      parent's own subscriptions, and a Takeout export reaches more —
-      including the children's own profiles — without asking for access to
-      anyone's Google account. Nothing on this page describes data we take
-      from Google, because at present we take none.
-    </p>
-  </div>
+  <p>HeyGilli offers two ways to start a household, and what is collected differs between them.</p>
+  <table>
+    <tr><th>Sign-in method</th><th>What is collected</th></tr>
+    <tr>
+      <td><strong>Continue with Google</strong></td>
+      <td>
+        Your Google account's basic profile (name, email address, profile
+        photo — the standard <code>openid</code>, <code>email</code>, and
+        <code>profile</code> scopes), and, with your consent, a read-only
+        OAuth token for your YouTube subscriptions
+        (<code>youtube.readonly</code>). The token is exchanged and stored on
+        our server; it is never sent to or stored on your device.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Set up without Google</strong></td>
+      <td>
+        A random identifier generated on your device (for example
+        <code>trial-3c994baf52eab4ec…</code>). No name, email, or Google
+        account is collected. This identifier is stored only on your device
+        and sent to our server to find your household on later visits.
+      </td>
+    </tr>
+  </table>
 
   <h3>2.2 Your child's profile</h3>
   <p>You create this; your child does not enter any of it themselves.</p>
@@ -194,18 +200,26 @@
   <h3>2.3 YouTube subscriptions and viewing history</h3>
   <p>
     Neither YouTube nor YouTube Kids exposes an API that reads a child's
-    profile, so the only route to what your children actually follow is the
-    standard export Google itself produces at
-    <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>.
-    You download it and choose it here.
+    profile directly, so HeyGilli reaches your household's subscriptions in
+    one of two ways, both initiated by you:
   </p>
-  <p>
-    Before anything leaves your device, the app strips that export down to
-    just the subscription lists — channel ids and names. Watch history, search
-    history, comments and everything else in it are discarded on your device
-    and never uploaded, unless you separately opt in below. You can also skip
-    the export entirely and paste in channels one at a time.
-  </p>
+  <ul>
+    <li>
+      <strong>Live, via Google sign-in</strong> — reading the subscription
+      list of the Google account you connect (typically the account your
+      household already watches on).
+    </li>
+    <li>
+      <strong>A Google Takeout export you upload</strong> — the standard
+      export Google itself produces from
+      <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>,
+      which can include separate YouTube Kids profiles a live sign-in cannot
+      see. Before anything leaves your device, the app strips this export
+      down to just the subscription lists (channel IDs and names) — watch
+      history, search history, comments, and everything else in the export is
+      discarded on your device and never uploaded, unless you separately opt in below.
+    </li>
+  </ul>
 
   <div class="callout">
     <p>
@@ -258,7 +272,7 @@
     <li>To run Gilli's spoken questions and check understanding during and after a video.</li>
     <li>To enforce the daily time limits and breaks you set.</li>
     <li>To build the digest and progress views shown only to you, the parent.</li>
-    <li>To keep the app working — remembering your household on this device and keeping your children's settings.</li>
+    <li>To operate basic account functions — signing you in, remembering your household, keeping your children's settings.</li>
   </ul>
   <p>
     We do not use your or your child's information to build advertising
@@ -274,6 +288,10 @@
   </p>
   <table>
     <tr><th>Provider</th><th>What it handles</th></tr>
+    <tr>
+      <td>Google (Sign-In &amp; YouTube Data API)</td>
+      <td>Authenticates the parent; supplies the subscription list you've granted access to.</td>
+    </tr>
     <tr>
       <td>Amazon Web Services — Bedrock</td>
       <td>The AI model that screens videos and drafts Gilli's questions. It sees video metadata and transcripts, not your account identity.</td>
@@ -298,35 +316,35 @@
   </p>
   <div class="callout">
     <p>
-      <strong>We receive nothing from Google's APIs.</strong> With Google
-      sign-in switched off, no Google account data reaches HeyGilli at all.
-      Your channels come from an export you download and upload yourself, or
-      from channels you type in. If that ever changes, this policy will say so
-      before it does, and use of any Google data would follow the
+      <strong>Google API Services User Data Policy.</strong> HeyGilli's use
+      and transfer of information received from Google APIs adheres to the
       <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>,
-      including its Limited Use requirements.
+      including the Limited Use requirements. Your YouTube subscription data
+      is used only to run the features described in this policy — never for
+      advertising, never to train general-purpose AI or machine-learning
+      models, and never read by a person except where the law requires it.
     </p>
   </div>
 
   <h2>5. Children's privacy</h2>
   <p>
     HeyGilli is built around the requirement that a child never creates an
-    household, never signs in, and never provides information directly — every
+    account, never signs in, and never provides information directly — every
     child profile is created and configured by a parent, and every consent to
-    upload an export is given by that parent. We
+    connect a Google account or upload an export is given by that parent. We
     do not knowingly collect personal information directly from a child.
   </p>
   <p>
     If you believe a child has provided us with personal information other
-    than through a parent setting up their own household, contact us at
+    than through a parent's own account setup, contact us at
     <a href="mailto:hello@heygilli.com">hello@heygilli.com</a> and we
     will investigate and delete it.
   </p>
 
   <h2>6. How long we keep information, and how to delete it</h2>
   <p>
-    We keep household and child records for as long as the household exists,
-    so the app can keep working the way you left it. Some things you can remove
+    We keep household and child records for as long as the account exists, so
+    the app can keep working the way you left it. Some things you can remove
     yourself right now inside the app:
   </p>
   <ul>
@@ -336,15 +354,26 @@
 
   <div class="not-built">
     <p>
-      <strong>Deleting everything is not yet self-serve.</strong> HeyGilli
-      does not currently have an in-app delete button. To
-      request deletion of a household, a child's profile, or anything else we
-      hold, email <a href="mailto:hello@heygilli.com">hello@heygilli.com</a>
-      and describe the household so we can locate it — there is no account
-      name to quote, so tell us the nicknames and roughly when you set it up.
-      We aim to complete this within 30 days.
+      <strong>Full account deletion is not yet self-serve.</strong> HeyGilli
+      does not currently have an in-app "delete my account" button. To
+      request deletion of a household, a child's profile, or your connected
+      Google token, email
+      <a href="mailto:hello@heygilli.com">hello@heygilli.com</a> from
+      the address associated with the account (or describe the household so
+      we can locate it) and we will delete the underlying records. We aim to
+      complete this within 30 days of a verified request.
     </p>
   </div>
+
+  <p>
+    You can also revoke HeyGilli's access to your Google account at any time,
+    independently of us, from
+    <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">
+      myaccount.google.com/permissions
+    </a>. This immediately stops the app from being able to read your
+    subscriptions; existing app data is removed only once we act on a
+    deletion request as above.
+  </p>
 
   <h2>7. Security</h2>
   <p>
@@ -352,7 +381,8 @@
     is at an early, actively developed stage — as with any software at this
     stage, our security practices continue to evolve, and we do not claim a
     specific certification or guarantee against every possible failure. We
-    ask that you pick a PIN you don't reuse for anything sensitive elsewhere.
+    ask that you use a household-specific Google account and PIN you don't
+    reuse for anything sensitive elsewhere.
   </p>
 
   <h2>8. Your choices</h2>
@@ -360,6 +390,7 @@
     <li>Decide per import whether to include watch history at all — it is off by default, every time.</li>
     <li>Decide per child whether they see a search box.</li>
     <li>Remove any channel or the history aggregate at any time.</li>
+    <li>Revoke Google access at any time from your Google account settings.</li>
     <li>Request full deletion by email at any time (§6).</li>
   </ul>
 
