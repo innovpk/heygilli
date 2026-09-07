@@ -205,6 +205,34 @@
   .vid.hide { background: #fff4f0; border-color: #f5cfc2; }
   @media (max-width: 940px) { .policy-grid { grid-template-columns: 1fr; } }
 
+
+  /* ---------- the screening, played out ---------- */
+  .vid { position: relative; overflow: hidden; }
+  .vid.queued { opacity: .35; }
+  .vid.working { border-color: var(--mango); box-shadow: 0 0 0 3px rgba(245,165,36,.13); }
+  /* A light sweeping across the card while that video is the one being read. */
+  .vid.working::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 20%, rgba(245,165,36,.16) 50%, transparent 80%);
+    animation: sweep 1s linear infinite;
+  }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--mango-deep); font-weight: 600; }
+  .step .spin {
+    width: 13px; height: 13px; border-radius: 50%; flex: none;
+    border: 2px solid rgba(196,128,15,.28); border-top-color: var(--mango-deep);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .landed { animation: land .42s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes land { from { transform: scale(.72); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .vid.flagged { animation: nudge .5s ease both; }
+  @keyframes nudge { 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); } }
+
+  .feed-count { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
   .screen {
     background: var(--white); border: 1px solid var(--line);
     border-radius: 22px; padding: 26px 28px; min-height: 232px;
@@ -406,7 +434,7 @@
     <div class="policy-grid">
       <div class="asks" id="asks"></div>
       <div class="feed">
-        <div class="feed-label">Their feed, screened against your answers</div>
+        <div class="feed-label">Their feed, screened against your answers <span class="feed-count" id="feedCount"></span></div>
         <div class="vids" id="vids"></div>
         <p class="audit">
           Screened by us.amazon.nova-pro-v1:0. A preference never hides a
@@ -456,7 +484,6 @@ const LABEL = { approve: "shown", ask_parent: "asks you", hide: "held back" };
 const esc = t => t.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const state = M.questions.map(() => 1);   // starts at "fine" for everything
 const asks = document.getElementById("asks"), vids = document.getElementById("vids");
-let timer;
 
 M.questions.forEach((q, i) => {
   const row = document.createElement("div");
@@ -477,25 +504,60 @@ function set(i, v) {
   rescreen();
 }
 
-function paint() {
-  const row = M.cells[state.join("")];
-  vids.innerHTML = M.videos.map((v, i) => {
-    const d = row[i];
-    return `<div class="vid ${d.decision}"><div class="vid-top">` +
-      `<span class="vid-title">${esc(v.title)}</span>` +
-      `<span class="vid-chan">${esc(v.channel)}</span>` +
-      `<span class="decision ${d.decision}" style="margin:0">${LABEL[d.decision]}</span>` +
-      `</div><p class="vid-why">${esc(d.reason)}</p></div>`;
-  }).join("");
+const STEPS = ["Reading title and description", "Comparing with your answers", "Deciding"];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let run = 0;                       // invalidates a sequence the parent interrupted
+
+function card(v, i) {
+  return `<div class="vid queued" data-i="${i}"><div class="vid-top">` +
+    `<span class="vid-title">${esc(v.title)}</span>` +
+    `<span class="vid-chan">${esc(v.channel)}</span>` +
+    `<span class="slot"></span></div>` +
+    `<p class="vid-why"></p></div>`;
 }
 
-function rescreen() {
-  clearTimeout(timer);
-  vids.classList.add("busy");
-  const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  timer = setTimeout(() => { paint(); vids.classList.remove("busy"); }, quick ? 0 : 520);
+function settle(el, d) {
+  el.className = `vid ${d.decision}` + (d.decision === "approve" ? "" : " flagged");
+  el.querySelector(".slot").innerHTML =
+    `<span class="decision landed ${d.decision}" style="margin:0">${LABEL[d.decision]}</span>`;
+  el.querySelector(".vid-why").textContent = d.reason;
 }
-paint();
+
+async function screenAll(instant) {
+  const mine = ++run;
+  const row = M.cells[state.join("")];
+  const count = document.getElementById("feedCount");
+
+  if (instant) {
+    vids.innerHTML = M.videos.map(card).join("");
+    [...vids.children].forEach((el, i) => settle(el, row[i]));
+    if (count) count.textContent = "";
+    return;
+  }
+
+  vids.innerHTML = M.videos.map(card).join("");
+  for (let i = 0; i < M.videos.length; i++) {
+    if (mine !== run) return;                       // a newer answer took over
+    const el = vids.children[i];
+    el.classList.remove("queued");
+    el.classList.add("working");
+    if (count) count.textContent = `screening ${i + 1} of ${M.videos.length}`;
+    for (const step of STEPS) {
+      if (mine !== run) return;
+      el.querySelector(".slot").innerHTML = `<span class="step"><span class="spin"></span>${step}</span>`;
+      await sleep(230);
+    }
+    if (mine !== run) return;
+    el.classList.remove("working");
+    settle(el, row[i]);
+    await sleep(120);
+  }
+  if (mine === run && count) count.textContent = "";
+}
+
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function rescreen() { screenAll(reduced()); }
+screenAll(true);
 </script>
 </body>
 </html>
