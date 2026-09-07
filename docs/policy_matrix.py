@@ -5,6 +5,7 @@ os.environ.setdefault("HEYGILLI_DATA_DIR", "/tmp/hgmatrix")
 from heygilli_agents.curator import decide, curator_agent
 from heygilli_agents.schemas import Policy, PolicyAnswer, Video
 from heygilli_agents.tools.youtube import fetch_channel_feed
+from heygilli_agents.tools.transcript import fetch_transcript, transcript_text
 from heygilli_agents.coach import question_id
 
 QS = [
@@ -26,14 +27,18 @@ for cid, frags in WANT.items():
     feed = fetch_channel_feed(cid, 12)
     for up in feed["uploads"]:
         if any(f.lower() in (up.get("title") or "").lower() for f in frags):
-            videos.append((NAMES[cid], Video(id=up["id"], channel_id=cid,
-                title=up.get("title",""), description=(up.get("description") or "")[:600])))
+            v = Video(id=up["id"], channel_id=cid,
+                      title=up.get("title",""), description=(up.get("description") or "")[:600])
+            tr = fetch_transcript(v.id)
+            ex = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
+            videos.append((NAMES[cid], v, ex, tr["source"]))
             break
-print("videos:", [v[1].title[:50] for v in videos])
+print("videos:", [(v[1].title[:38], v[3], len(v[2])) for v in videos])
 
 agent = curator_agent()
 out = {"questions": [{"key": k, "text": t} for k, t in QS],
-       "videos": [{"channel": c, "title": v.title} for c, v in videos], "cells": {}}
+       "videos": [{"channel": c, "title": v.title, "id": v.id, "thumb": f"https://i.ytimg.com/vi/{v.id}/hqdefault.jpg",
+                     "transcript": src} for c, v, _, src in videos], "cells": {}}
 
 for combo in itertools.product(["fine", "rather_not"], repeat=len(QS)):
     key = "".join("1" if c == "fine" else "0" for c in combo)
@@ -41,8 +46,9 @@ for combo in itertools.product(["fine", "rather_not"], repeat=len(QS)):
         PolicyAnswer(id=question_id(t), question=t, choice=c)
         for (_, t), c in zip(QS, combo)])
     row = []
-    for chan, v in videos:
-        d = decide(v, "7_8", agent, excerpt="", policy=pol)
+    for chan, v, excerpt, src in videos:
+        d = decide(v, "7_8", agent, excerpt, policy=pol,
+                   languages=["en"], transcript_source=src)
         row.append({"decision": d.decision, "reason": d.reason})
     out["cells"][key] = row
     print(key, [r["decision"] for r in row])
