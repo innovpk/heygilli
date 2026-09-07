@@ -82,6 +82,7 @@ from .takeout import (
     parse_takeout_zip_with_history,
 )
 from .tools import transcript as transcript_sources
+from .tools.screening import prescreen
 from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import (
     SearchUnavailable,
@@ -1125,6 +1126,18 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
             continue
         v = store.get_video(vid)
         if v is None:
+            continue
+        # The safety rules as they are now, not as they were the day this was
+        # screened. Screening happens once per video, so a rule added later
+        # never reached anything already approved — a live football match
+        # stayed on an eight-year-old's shelf because it was let through
+        # before live streams were understood.
+        #
+        # Only the `hide` rules, and deliberately not `ask_parent`: those are
+        # the judgement calls, and this video being here means the parent
+        # already made one. Re-applying them would quietly overrule a person
+        # who said yes. A `hide` was never theirs to make.
+        if prescreen(v).verdict == "hide":
             continue
         # A length of 0 means "we could not find out", never "instant".
         #

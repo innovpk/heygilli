@@ -571,3 +571,39 @@ def test_search_that_cannot_run_says_so_rather_than_finding_nothing(
 def test_searching_needs_a_household(client) -> None:
     """It spends a shared allowance, so it is not open to anyone who finds it."""
     assert client.get("/channels/search?q=peppa").status_code == 401
+
+
+def test_a_rule_added_today_protects_a_shelf_approved_yesterday(
+    client, auth, store
+) -> None:
+    """Screening happens once per video, so a rule added later never reached
+    anything already approved: a live football match sat on an eight-year-old's
+    shelf because it was let through before live streams were understood."""
+    hid = auth["_hid"]
+    kid = client.post("/kids", json={"nickname": "Abdul", "age": 8}, headers=hdr(auth)).json()
+    for vid, title in (
+        ("goodvideo01", "Why Do Giraffes Have Long Necks?"),
+        ("livevideo01", "🔴 BARÇA LIVE | FC Barcelona vs Feyenoord"),
+    ):
+        store.put_video(Video(id=vid, title=title, duration_s=600))
+        # Approved before the rule existed, exactly as the real ones were.
+        store.set_kid_video(hid, kid["id"], vid, "approve", "screened before the rule")
+
+    ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
+           for v in r["videos"]}
+    assert ids == {"goodvideo01"}, "the stream is still being offered to the child"
+
+
+def test_re_screening_a_shelf_never_overrules_the_parent(client, auth, store) -> None:
+    """Only the `hide` rules are re-applied. `ask_parent` rules are judgement
+    calls, and a video sitting on a shelf means the parent already made one —
+    re-applying those would quietly overrule somebody who said yes."""
+    hid = auth["_hid"]
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
+    # Over 45 minutes: prescreen says ask_parent, and the parent said yes.
+    store.put_video(Video(id="longvideo01", title="A Very Long Story", duration_s=50 * 60))
+    store.set_kid_video(hid, kid["id"], "longvideo01", "approve", "parent decided")
+
+    ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
+           for v in r["videos"]}
+    assert ids == {"longvideo01"}
