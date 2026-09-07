@@ -447,3 +447,30 @@ def test_a_child_may_wear_only_a_face_the_server_knows(client, auth) -> None:
     # And going back to their initial is allowed.
     assert client.patch(f"/kids/{kid['id']}", json={"avatar": ""},
                         headers=hdr(auth)).status_code == 200
+
+
+def test_the_inbox_names_the_channel_each_video_came_from(client, auth, store) -> None:
+    """A parent working through the inbox is mostly deciding about a channel,
+    not about videos one at a time: several borderline uploads in a row are
+    usually the same channel and get the same answer. The video carries a
+    channel id and nothing a person can read."""
+    from heygilli_agents.schemas import Channel, ParentPrompt
+
+    hid = auth["_hid"]
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    store.put_channel(hid, kid["id"], Channel(id="UCnamed", title="SciShow Kids", approved=True))
+    store.put_channel(hid, kid["id"], Channel(id="UCnameless", title="", approved=True))
+
+    for vid, channel in (("v_named___", "UCnamed"), ("v_nameless_", "UCnameless")):
+        store.put_video(Video(id=vid, title=vid, channel_id=channel, duration_s=600))
+        store.put_parent_prompt(ParentPrompt(
+            household_id=hid, kid_id=kid["id"],
+            video=store.get_video(vid), reason="borderline",
+        ))
+
+    by_video = {p["video"]["id"]: p["channel_title"]
+                for p in client.get("/parent/inbox", headers=hdr(auth)).json()}
+    assert by_video["v_named___"] == "SciShow Kids"
+    # An unnamed group is still a group, so it falls back to the id rather
+    # than to an empty heading everything unrelated would pile into.
+    assert by_video["v_nameless_"] == "UCnameless"

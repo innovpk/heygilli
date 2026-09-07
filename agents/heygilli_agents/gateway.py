@@ -1274,7 +1274,31 @@ def curator_run(body: CuratorIn, hid: str = Depends(household)) -> dict:
 
 @app.get("/parent/inbox")
 def parent_inbox(hid: str = Depends(household)) -> list[dict]:
-    return [p.public() for p in get_store().list_parent_prompts(hid)]
+    """What is waiting, each entry naming the channel it came from.
+
+    A parent working through this is not deciding about videos one at a time
+    so much as about a channel: five borderline uploads in a row are usually
+    five from the same place, and the answer to all five is the same answer.
+    The video carries a channel id and nothing a person can read, so the title
+    is attached here — the server already knows it and the client would
+    otherwise have to fetch every kid's channel list to find out.
+    """
+    store = get_store()
+    titles: dict[str, str] = {}
+    for kid in store.list_kids(hid):
+        for channel in store.list_channels(hid, kid.id):
+            if channel.title:
+                titles.setdefault(channel.id, channel.title)
+
+    out: list[dict] = []
+    for prompt in store.list_parent_prompts(hid):
+        entry = prompt.public()
+        channel_id = (entry.get("video") or {}).get("channel_id") or ""
+        # Falls back to the id rather than to nothing: an unnamed group is
+        # still a group, and a channel added by id has no title yet.
+        entry["channel_title"] = titles.get(channel_id, "") or channel_id
+        out.append(entry)
+    return out
 
 
 class DecisionIn(BaseModel):

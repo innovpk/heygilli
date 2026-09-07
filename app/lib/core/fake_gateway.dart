@@ -222,10 +222,13 @@ class FakeGateway implements Gateway {
     ],
   };
 
+  // Two channels, one of them twice: the inbox groups by channel, and a demo
+  // with one entry cannot show that a parent is mostly answering per channel.
   final _inbox = <ParentPrompt>[
     const ParentPrompt(
       id: 'prompt_1',
       kidId: '',
+      channelTitle: 'SciShow Kids',
       video: Video(
         id: 'WX_E1CAZjaQ',
         channelId: 'ch_scishowkids',
@@ -238,6 +241,40 @@ class FakeGateway implements Gateway {
           'A 26-minute compilation: longer than their usual videos and it '
           'shows a real eruption. Fine for 9 to 11 in my view, but you decide.',
       createdAt: '2026-09-05T07:30:00Z',
+    ),
+    const ParentPrompt(
+      id: 'prompt_2',
+      kidId: '',
+      channelTitle: 'SciShow Kids',
+      video: Video(
+        id: 'aB3dEfGhIjK',
+        channelId: 'ch_scishowkids',
+        title: 'Why Do We Get Goosebumps?',
+        durationS: 400,
+        ageOk: true,
+        planReady: false,
+      ),
+      reason:
+          'Body topic, gently handled. Some households would rather introduce '
+          'that themselves, so it comes to you.',
+      createdAt: '2026-09-05T08:10:00Z',
+    ),
+    const ParentPrompt(
+      id: 'prompt_3',
+      kidId: '',
+      channelTitle: 'Danny Go!',
+      video: Video(
+        id: 'zZyYxXwWvVu',
+        channelId: 'ch_dannygo',
+        title: 'The Floor Is Lava Song',
+        durationS: 240,
+        ageOk: true,
+        planReady: false,
+      ),
+      reason:
+          'Ends by pointing at their merchandise shop. You said you would '
+          'rather not have videos that push merchandise.',
+      createdAt: '2026-09-05T09:02:00Z',
     ),
   ];
 
@@ -1427,6 +1464,9 @@ class FakeGateway implements Gateway {
           id: p.id,
           kidId: oldest.id,
           video: p.video,
+          // Carried through: the inbox groups by it, and a rebuild that drops
+          // it silently piles every channel under one nameless heading.
+          channelTitle: p.channelTitle,
           reason: p.reason,
           createdAt: p.createdAt,
         ),

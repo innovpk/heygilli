@@ -87,21 +87,59 @@ class _InboxScreenState extends State<InboxScreen> {
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          itemCount: list.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, i) {
-            final p = list[i];
+        // Grouped by channel, in the order the channels first appear. A
+        // parent working through this is mostly deciding about a channel
+        // rather than about videos one at a time: four borderline uploads in
+        // a row are usually one channel, and the answer to all four is the
+        // same answer. Ungrouped, they were four unrelated-looking cards.
+        final groups = <String, List<ParentPrompt>>{};
+        for (final p in list) {
+          groups.putIfAbsent(p.channelTitle, () => []).add(p);
+        }
+        final rows = <Widget>[];
+        for (final entry in groups.entries) {
+          rows.add(
+            Padding(
+              padding: EdgeInsets.only(top: rows.isEmpty ? 0 : 22, bottom: 8),
+              child: Row(
+                spacing: 8,
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.key.isEmpty ? 'From your channels' : entry.key,
+                      style: HgText.label(),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    entry.value.length == 1
+                        ? '1 waiting'
+                        : '${entry.value.length} waiting',
+                    style: HgText.body(size: 13, color: HgColors.muted),
+                  ),
+                ],
+              ),
+            ),
+          );
+          for (final p in entry.value) {
             final kid = kids.where((k) => k.id == p.kidId).firstOrNull;
-            return _PromptCard(
-              prompt: p,
-              kidName: kid?.nickname ?? 'a kid',
-              busy: _busy.contains(p.id),
-              onApprove: () => _decide(p, 'approve'),
-              onHide: () => _decide(p, 'hide'),
+            rows.add(
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _PromptCard(
+                  prompt: p,
+                  kidName: kid?.nickname ?? 'a kid',
+                  busy: _busy.contains(p.id),
+                  onApprove: () => _decide(p, 'approve'),
+                  onHide: () => _decide(p, 'hide'),
+                ),
+              ),
             );
-          },
+          }
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: rows,
         );
       },
     );

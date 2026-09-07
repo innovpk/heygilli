@@ -1430,12 +1430,18 @@ class ParentPrompt {
     this.video,
     this.drift,
     this.title = '',
+    this.channelTitle = '',
     required this.reason,
     required this.createdAt,
   });
 
   final String id;
   final String kidId;
+
+  /// The channel this came from, named. The video carries a channel id and
+  /// nothing a person can read, and the inbox groups by this: several
+  /// borderline uploads in a row are usually one channel with one answer.
+  final String channelTitle;
 
   /// Which of the two things this is. PROTOCOL sends `video` and `drift` both,
   /// one of them null, so this is read rather than inferred from which key
@@ -1480,6 +1486,7 @@ class ParentPrompt {
         ? null
         : Video.fromJson((j['video'] as Map).cast<String, dynamic>()),
     title: j['title'] as String? ?? '${j['channel_title'] ?? ''}',
+    channelTitle: '${j['channel_title'] ?? ''}',
     reason: j['reason'] as String? ?? '',
     createdAt: j['created_at'] as String? ?? '',
   );
