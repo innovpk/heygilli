@@ -10,7 +10,6 @@ import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'history_screen.dart';
-import 'import_subscriptions_screen.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
@@ -144,19 +143,8 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     }
   }
 
-  /// The second way to add channels: pick from what the parent already
-  /// follows on YouTube, instead of pasting one URL at a time.
-  Future<void> _importFromYouTube() async {
-    final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => ImportSubscriptionsScreen(kid: widget.kid),
-      ),
-    );
-    if (added ?? false) _reload();
-  }
-
-  /// The third way, and the only one that reaches a child's own YouTube Kids
-  /// profile: a Google Takeout export (PROTOCOL "Takeout import").
+  /// The other way to reach a child's own YouTube Kids profile: a Google
+  /// Takeout export (PROTOCOL "Takeout import").
   Future<void> _importFromTakeout() async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const TakeoutImportScreen()),
@@ -456,10 +444,6 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                       style: HgText.body(size: 14, color: HgColors.brown),
                     ),
                     const SizedBox(height: 12),
-                    // Takeout first: it is the only route to a YouTube Kids profile's
-                    // subscriptions. Importing the parent's own account only helps the
-                    // households where the kids watch on a shared login, so it sits
-                    // underneath as the secondary path.
                     // First, because it is the only one that asks nothing of
                     // the parent. Takeout means requesting an export from
                     // Google and waiting for it, and importing an account
@@ -487,19 +471,6 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                           "Import ${kid.nickname}'s YouTube Kids channels",
                           style: HgText.body(size: 15, color: HgColors.ink),
                         ),
-                        style: _importButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: _importFromYouTube,
-                        icon: const Icon(
-                          Icons.subscriptions_outlined,
-                          size: 22,
-                        ),
-                        label: const Text('Import from my own account'),
                         style: _importButtonStyle,
                       ),
                     ),

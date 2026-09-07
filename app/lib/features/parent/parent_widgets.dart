@@ -544,8 +544,13 @@ Future<String?> handleGoogleResult(
     case GoogleAuthNotConfigured(:final reason):
       return reason;
     case GoogleAuthScopeDenied():
-      return 'Without YouTube access there are no subscriptions to import. '
-          'You can still paste channel links.';
+      // Refusing YouTube access no longer costs a way in — channels come from
+      // suggestions, a Takeout export, or a pasted link. What it costs is
+      // video lengths, which is what a "longest video" limit is checked
+      // against, so say that rather than naming a feature that is gone.
+      return 'Without YouTube access HeyGilli cannot look up how long a video '
+          'is, so a longest-video limit cannot be applied. Everything else '
+          'works.';
     case GoogleAuthUnavailable(:final message):
       return message;
     case GoogleAuthFailed(:final message):
