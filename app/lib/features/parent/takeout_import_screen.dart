@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -197,13 +196,40 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
               style: HgText.display(size: 22, color: HgColors.ink),
             ),
             Text(
-              'YouTube has no way to read a YouTube Kids profile, so the '
-              'export is the only route to it. Go to takeout.google.com, '
-              'pick YouTube and YouTube Music, and inside it tick '
-              '"children" and "subscriptions". Google emails you a zip, '
-              'usually within an hour. Choose that zip here.',
+              'YouTube has no way to read a YouTube Kids profile, so an '
+              'export is the only route to it. It takes about two minutes to '
+              'ask for, and Google emails it to you.',
               style: HgText.body(size: 15, color: HgColors.brown),
             ),
+            // Numbered, because this is done on a different device from the
+            // one holding the phone, and a parent has to be able to look back
+            // and see which step they were on.
+            const _Step(
+              1,
+              'Open takeout.google.com and sign in with the '
+              'account your children watch on.',
+            ),
+            const _Step(
+              2,
+              'Choose "Deselect all", then tick only '
+              '"YouTube and YouTube Music".',
+            ),
+            const _Step(
+              3,
+              'Open "All YouTube data included" on that row and '
+              'tick just "subscriptions" and "children".',
+            ),
+            const _Step(
+              4,
+              'Ask for the export. Google emails a link, usually '
+              'within an hour but it can take longer.',
+            ),
+            const _Step(
+              5,
+              'Download the zip, then choose it below. It does '
+              'not need unzipping.',
+            ),
+            const _TakeoutLink(),
           ],
         ),
       ),
@@ -695,4 +721,76 @@ class _Choice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One numbered step of the Takeout walkthrough.
+class _Step extends StatelessWidget {
+  const _Step(this.n, this.text);
+
+  final int n;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: 24,
+        height: 24,
+        margin: const EdgeInsets.only(right: 10, top: 1),
+        decoration: const BoxDecoration(
+          color: HgColors.mango,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text('$n', style: HgText.body(size: 13, color: HgColors.ink)),
+      ),
+      Expanded(
+        child: Text(text, style: HgText.body(size: 15, color: HgColors.brown)),
+      ),
+    ],
+  );
+}
+
+/// The address, copyable.
+///
+/// The export is asked for on a computer while this screen is on a phone, so
+/// the useful action is putting the address on the clipboard rather than
+/// opening it here — and it keeps a whole url_launcher dependency out of a
+/// build that ships to three platforms.
+class _TakeoutLink extends StatefulWidget {
+  const _TakeoutLink();
+
+  @override
+  State<_TakeoutLink> createState() => _TakeoutLinkState();
+}
+
+class _TakeoutLinkState extends State<_TakeoutLink> {
+  static const _url = 'https://takeout.google.com';
+  bool _copied = false;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: OutlinedButton.icon(
+      onPressed: () async {
+        await Clipboard.setData(const ClipboardData(text: _url));
+        if (!mounted) return;
+        setState(() => _copied = true);
+      },
+      icon: Icon(
+        _copied ? Icons.check_rounded : Icons.copy_rounded,
+        size: 18,
+        color: _copied ? HgColors.green : HgColors.brown,
+      ),
+      label: Text(
+        _copied ? 'Address copied' : 'Copy takeout.google.com',
+        style: HgText.body(size: 14, color: HgColors.ink),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: HgColors.line),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      ),
+    ),
+  );
 }

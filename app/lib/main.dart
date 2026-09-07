@@ -8,6 +8,7 @@ import 'core/icon_library.dart';
 import 'core/speech.dart';
 import 'core/theme.dart';
 import 'features/kid/home_screen.dart';
+import 'features/parent/intro_screen.dart';
 import 'features/parent/parent_home.dart';
 import 'features/parent/sign_in_screen.dart';
 
@@ -115,7 +116,13 @@ class ParentRoot extends StatelessWidget {
     if (state.isKidDevice && !state.parentVisiting) {
       return const KidHomeScreen();
     }
-    return state.signedIn ? const ParentHome() : const SignInScreen();
+    if (state.signedIn) return const ParentHome();
+    // Before the sign-in screen, not after: it asks a parent to hand over
+    // their child's YouTube, and until now nothing had answered why.
+    if (!state.introSeen) {
+      return IntroScreen(onDone: state.markIntroSeen);
+    }
+    return const SignInScreen();
   }
 }
 

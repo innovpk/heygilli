@@ -52,6 +52,20 @@ class AppState extends ChangeNotifier {
   bool get isDemo => gateway.isDemo;
   bool get signedIn => gateway.signedIn;
 
+  /// Whether the "what is this" panels have been shown.
+  ///
+  /// Mirrored here rather than read from settings at build time: persisting is
+  /// async, and a screen that waits for the write to land before it will move
+  /// on shows the parent a dead button.
+  late bool _introSeen = settings.introSeen;
+  bool get introSeen => _introSeen;
+
+  Future<void> markIntroSeen() async {
+    _introSeen = true;
+    notifyListeners();
+    await settings.setIntroSeen();
+  }
+
   List<Kid> _kids = const [];
   List<Kid> get kids => _kids;
 
