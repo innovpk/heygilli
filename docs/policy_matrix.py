@@ -26,7 +26,7 @@ for cid, frags in WANT.items():
     feed = fetch_channel_feed(cid, 12)
     for up in feed["uploads"]:
         if any(f.lower() in (up.get("title") or "").lower() for f in frags):
-            videos.append((NAMES[cid], Video(id=up.get("video_id",""), channel_id=cid,
+            videos.append((NAMES[cid], Video(id=up["id"], channel_id=cid,
                 title=up.get("title",""), description=(up.get("description") or "")[:600])))
             break
 print("videos:", [v[1].title[:50] for v in videos])
