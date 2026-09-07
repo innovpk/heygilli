@@ -79,6 +79,11 @@ void main() {
 
     expect(app.signedIn, isTrue);
     expect(settings.trialHousehold, isNotNull);
+    expect(
+      settings.parentName,
+      isNull,
+      reason: 'the parent home would greet "Hi trial-3c994baf52eab4ec..."',
+    );
   });
 
   testWidgets('it stays reachable when Google is not configured at all', (

@@ -77,6 +77,11 @@ class LocalSettings {
   Future<void> setParentName(String name) =>
       _prefs.setString(_parentNameKey, name);
 
+  /// Used by the without-Google door, whose household name is 32 random hex
+  /// characters. It is an identifier, not a person, and the parent home greets
+  /// whatever is stored here by name.
+  Future<void> clearParentName() => _prefs.remove(_parentNameKey);
+
   /// The child this device belongs to, or null when it is a parent's device.
   ///
   /// The parent app is not behind the PIN — the PIN guards *leaving* kid mode,

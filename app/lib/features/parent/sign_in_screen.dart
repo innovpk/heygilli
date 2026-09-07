@@ -44,6 +44,9 @@ class _SignInScreenState extends State<SignInScreen> {
     final state = context.read<AppState>();
     try {
       await state.signIn(await state.settings.ensureTrialHousehold());
+      // The household name is an identifier, not a person: without this the
+      // parent home opens with "Hi trial-3c994baf52eab4ec...".
+      await state.settings.clearParentName();
     } catch (e) {
       if (!mounted) return;
       setState(() {
