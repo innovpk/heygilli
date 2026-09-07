@@ -11,6 +11,12 @@ import '../../core/theme.dart';
 
 /// Cream phone surface for every parent screen (design/Phone*.dc.html).
 /// The kid side stays deep teal; the parent side is a normal light app.
+///
+/// Above [wideBreakpoint] this stops being a phone screen stretched into a
+/// browser window and becomes an actual desktop layout: a wider column and,
+/// when the caller supplies one, [sidebar] in place of [bottom] — a phone's
+/// tab bar sits at the bottom because a thumb rests there; a desktop nav sits
+/// on the left because a mouse does not.
 class ParentScaffold extends StatelessWidget {
   const ParentScaffold({
     super.key,
@@ -19,6 +25,7 @@ class ParentScaffold extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.bottom,
+    this.sidebar,
     this.floating,
     this.leading,
   });
@@ -27,9 +34,23 @@ class ParentScaffold extends StatelessWidget {
   final String? subtitle;
   final Widget body;
   final List<Widget> actions;
+
+  /// Phone-width navigation (e.g. a bottom [NavigationBar]). Ignored once
+  /// [sidebar] is supplied and the viewport is wide — the two are
+  /// alternatives, not a stack.
   final Widget? bottom;
+
+  /// Desktop-width navigation, shown at [wideBreakpoint] and above instead of
+  /// [bottom]. A screen pushed on top of the tab root (kid detail, digest,
+  /// policy, ...) passes neither and gets the same wide column with no rail.
+  final Widget? sidebar;
   final Widget? floating;
   final Widget? leading;
+
+  /// Below this, still the phone layout this was designed as. Above it, wide
+  /// enough that a single 560px column reads as a phone app abandoned in the
+  /// middle of a browser tab rather than as a page.
+  static const wideBreakpoint = 900.0;
 
   @override
   Widget build(BuildContext context) {
@@ -37,70 +58,182 @@ class ParentScaffold extends StatelessWidget {
     final canPop = Navigator.of(context).canPop();
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
-      // This is a phone layout that is now also opened in a browser window.
-      // Unconstrained, one kid's row stretches across 1400 px of cream and the
-      // page reads as broken rather than as an app. The constraint wraps the
-      // whole Scaffold rather than its body, so the bottom bar and the add
-      // button stay with the content instead of hugging the window's edges;
-      // the cream behind it is the same ground, so no seam shows.
       child: ColoredBox(
         color: HgColors.cream,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Scaffold(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide =
+                constraints.maxWidth >= wideBreakpoint && sidebar != null;
+            final header = Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: Row(
+                spacing: 12,
+                children: [
+                  if (leading != null)
+                    leading!
+                  else if (canPop)
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: HgColors.ink,
+                      tooltip: 'Back',
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (subtitle != null)
+                          Text(subtitle!, style: HgText.label()),
+                        Text(
+                          title,
+                          style: HgText.display(size: 32, color: HgColors.ink),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isDemo) const DemoBadge(),
+                  ...actions,
+                ],
+              ),
+            );
+            final page = Scaffold(
               backgroundColor: HgColors.cream,
               floatingActionButton: floating,
-              bottomNavigationBar: bottom,
+              bottomNavigationBar: wide ? null : bottom,
               body: SafeArea(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                      child: Row(
-                        spacing: 12,
-                        children: [
-                          if (leading != null)
-                            leading!
-                          else if (canPop)
-                            IconButton(
-                              onPressed: () => Navigator.of(context).maybePop(),
-                              icon: const Icon(Icons.arrow_back_rounded),
-                              color: HgColors.ink,
-                              tooltip: 'Back',
-                            ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (subtitle != null)
-                                  Text(subtitle!, style: HgText.label()),
-                                Text(
-                                  title,
-                                  style: HgText.display(
-                                    size: 32,
-                                    color: HgColors.ink,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isDemo) const DemoBadge(),
-                          ...actions,
-                        ],
-                      ),
-                    ),
-                    Expanded(child: body),
-                  ],
+                  children: [header, Expanded(child: body)],
                 ),
               ),
-            ),
-          ),
+            );
+            // This is a phone layout that is now also opened in a browser
+            // window. Unconstrained, one kid's row stretches across 1400 px
+            // of cream and the page reads as broken rather than as an app.
+            // The constraint wraps the whole Scaffold rather than its body,
+            // so the bottom bar and the add button stay with the content
+            // instead of hugging the window's edges; the cream behind it is
+            // the same ground, so no seam shows.
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 1160 : 560),
+                child: wide
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [sidebar!, Expanded(child: page)],
+                          ),
+                        ),
+                      )
+                    : page,
+              ),
+            );
+          },
         ),
       ),
     );
   }
+}
+
+/// The left rail shown by [ParentScaffold] once the window is wide enough.
+/// A destination list plus, optionally, whatever the phone build would have
+/// put in the header actions — the sign-out and device menu need a home on
+/// the rail too, or they exist on phone only.
+class ParentSidebar extends StatelessWidget {
+  const ParentSidebar({
+    super.key,
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelect,
+    this.footer,
+  });
+
+  final List<({IconData icon, String label})> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 232,
+    color: HgColors.white,
+    padding: const EdgeInsets.fromLTRB(20, 28, 12, 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          spacing: 10,
+          children: [
+            SvgPicture.asset('assets/gilli.svg', width: 32, height: 32),
+            Flexible(
+              child: Text(
+                'HeyGilli',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HgText.display(size: 20, color: HgColors.ink),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        for (var i = 0; i < destinations.length; i++)
+          _SidebarItem(
+            icon: destinations[i].icon,
+            label: destinations[i].label,
+            selected: i == selectedIndex,
+            onTap: () => onSelect(i),
+          ),
+        const Spacer(),
+        ?footer,
+      ],
+    ),
+  );
+}
+
+class _SidebarItem extends StatelessWidget {
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Material(
+      color: selected ? HgColors.mango.withValues(alpha: 0.35) : Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Row(
+            spacing: 12,
+            children: [
+              Icon(icon, color: HgColors.ink, size: 22),
+              Text(
+                label,
+                style: HgText.body(
+                  size: 15,
+                  color: HgColors.ink,
+                ).copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// White rounded card, matching `.card` in the mockups.

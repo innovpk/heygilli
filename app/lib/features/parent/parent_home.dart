@@ -62,6 +62,14 @@ class _ParentHomeState extends State<ParentHome> {
           ),
         ],
       ),
+      sidebar: ParentSidebar(
+        selectedIndex: _tab,
+        onSelect: (i) => setState(() => _tab = i),
+        destinations: const [
+          (icon: Icons.face_outlined, label: 'Kids'),
+          (icon: Icons.inbox_outlined, label: 'Inbox'),
+        ],
+      ),
     );
   }
 }
@@ -109,11 +117,32 @@ class _KidsTab extends StatelessWidget {
         ),
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-      itemCount: kids.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _KidCard(kid: kids[i]),
+    return LayoutBuilder(
+      builder: (context, box) {
+        // A stack of full-width rows is the phone layout; once there is room
+        // for two of them side by side, a single column of half-empty cards
+        // reads as unfinished rather than as a choice.
+        final columns = box.maxWidth >= 720 ? 2 : 1;
+        if (columns == 1) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+            itemCount: kids.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (context, i) => _KidCard(kid: kids[i]),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 3.4,
+          ),
+          itemCount: kids.length,
+          itemBuilder: (context, i) => _KidCard(kid: kids[i]),
+        );
+      },
     );
   }
 }
