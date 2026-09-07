@@ -37,6 +37,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from . import breaks, coach, drift, history, question_bank, revisit, words
+from . import starter_channels as starter_channels_data
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
 from .curator import run_curator
@@ -282,6 +283,40 @@ def create_kid(body: KidIn, hid: str = Depends(household)) -> dict:
 @app.get("/kids")
 def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
+
+
+@app.get("/starter-channels")
+def starter_channels(band: str = "7_8", topics: str = "") -> dict:
+    """Channels to offer a household with none yet, for this band and these
+    topics.
+
+    Setting up used to require bringing channels from elsewhere — a Google
+    account to read subscriptions from, or a Takeout export the parent had to
+    request and wait for. A parent with neither had an empty app.
+
+    `topics` is a comma-separated subset of `TOPICS`; empty means "no
+    preference" and returns everything written for the band, because "I do not
+    know yet" is the commonest answer during setup.
+
+    Suggestions only. Nothing here is approved until the parent says so, and
+    being on this list buys a channel nothing at screening time: the Curator
+    still reads every upload against this household's own answers.
+    """
+    if band not in ("4_6", "7_8", "9_11"):
+        raise HTTPException(422, f"unknown band {band!r}")
+    wanted = [t.strip() for t in topics.split(",") if t.strip()]
+    return {
+        "topics": [{"id": t, "label": label} for t, label in starter_channels_data.TOPICS],
+        "channels": [
+            {
+                "channel_id": c.channel_id,
+                "title": c.title,
+                "blurb": c.blurb,
+                "topics": list(c.topics),
+            }
+            for c in starter_channels_data.suggest(band, wanted)
+        ],
+    }
 
 
 @app.get("/avatars")

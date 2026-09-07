@@ -474,3 +474,31 @@ def test_the_inbox_names_the_channel_each_video_came_from(client, auth, store) -
     # An unnamed group is still a group, so it falls back to the id rather
     # than to an empty heading everything unrelated would pile into.
     assert by_video["v_nameless_"] == "UCnameless"
+
+
+def test_starter_channels_are_offered_but_never_approved(client, auth) -> None:
+    """A parent with no Google account and no Takeout export had an empty app.
+    These are somewhere to start — and nothing more: being on the list buys a
+    channel nothing, and approving is still the parent's own act."""
+    r = client.get("/starter-channels?band=4_6&topics=songs")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["channels"], "a household with nothing has nothing to start from"
+    assert {t["id"] for t in body["topics"]}, "the parent needs the topic list to choose from"
+
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    # Merely asking for suggestions approves nothing.
+    assert client.get(f"/kids/{kid['id']}/channels", headers=hdr(auth)).json() == []
+
+    assert client.get("/starter-channels?band=nonsense").status_code == 422
+
+
+def test_suggestions_follow_the_band_and_the_topics(client) -> None:
+    young = client.get("/starter-channels?band=4_6").json()["channels"]
+    older = client.get("/starter-channels?band=9_11").json()["channels"]
+    assert {c["channel_id"] for c in young} != {c["channel_id"] for c in older}
+
+    # No topics is "no preference", not "nothing".
+    songs = client.get("/starter-channels?band=4_6&topics=songs").json()["channels"]
+    assert 0 < len(songs) <= len(young)
+    assert all("songs" in c["topics"] for c in songs)
