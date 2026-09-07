@@ -56,6 +56,87 @@ class _InboxScreenState extends State<InboxScreen> {
     }
   }
 
+  /// Approve everything waiting from one channel.
+  ///
+  /// A household that has just added channels arrives with a queue in the
+  /// hundreds, and most of a channel's queue gets the same answer — that is
+  /// what grouping by channel showed in the first place. Tapping Approve two
+  /// hundred times is not a decision, it is a chore that ends in the parent
+  /// approving without reading.
+  ///
+  /// Confirmed first, because it is bulk and it changes what a child is shown.
+  /// The dialog names the channel and the count, so "approve all" cannot mean
+  /// something bigger than the parent thought.
+  Future<void> _approveGroup(String channel, List<ParentPrompt> prompts) async {
+    final decidable = [for (final p in prompts) if (p.isDecidable) p];
+    if (decidable.isEmpty) return;
+
+    final where = channel.isEmpty ? 'these channels' : channel;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: HgColors.white,
+        title: Text(
+          'Approve all ${decidable.length}?',
+          style: HgText.display(size: 22, color: HgColors.ink),
+        ),
+        content: Text(
+          'Every video waiting from $where goes to the child it was screened '
+          'for. You can still take any of them away later from that '
+          "child's Channels.",
+          style: HgText.body(size: 15, color: HgColors.brown),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Approve ${decidable.length}'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+
+    setState(() => _busy.addAll(decidable.map((p) => p.id)));
+    final messenger = ScaffoldMessenger.of(context);
+    final gateway = context.read<AppState>().gateway;
+    var done = 0;
+    String? failed;
+    try {
+      for (final p in decidable) {
+        try {
+          await gateway.decide(p.id, 'approve');
+          done++;
+        } catch (e) {
+          // One that will not go through must not swallow the ones that did:
+          // the parent is told how far it got rather than being left unsure
+          // whether any of it happened.
+          failed = '$e';
+          break;
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy.removeAll(decidable.map((p) => p.id));
+          _inbox = _load();
+        });
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              failed == null
+                  ? '$done approved from $where.'
+                  : '$done of ${decidable.length} approved, then it stopped: $failed',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kids = context.select<AppState, List<Kid>>((s) => s.kids);
@@ -136,6 +217,21 @@ class _InboxScreenState extends State<InboxScreen> {
                         : '${entry.value.length} waiting',
                     style: HgText.body(size: 13, color: HgColors.muted),
                   ),
+                  // Only when there is more than one: "approve all 1" is the
+                  // card's own button with extra words and an extra tap.
+                  if (entry.value.where((p) => p.isDecidable).length > 1)
+                    TextButton.icon(
+                      onPressed: _busy.isNotEmpty
+                          ? null
+                          : () => _approveGroup(entry.key, entry.value),
+                      icon: const Icon(Icons.done_all_rounded, size: 18),
+                      label: const Text('Approve all'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: HgColors.mangoDeep,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        textStyle: HgText.body(size: 14),
+                      ),
+                    ),
                 ],
               ),
             ),
