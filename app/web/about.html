@@ -152,6 +152,32 @@
   .chip:hover { color: var(--ink); border-color: var(--mango); }
   .chip[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
+
+  .video-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--white); border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px 18px; margin-bottom: 14px;
+  }
+  .video-row .lbl { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .video-row .vtitle { font-size: 15.5px; font-weight: 600; color: var(--ink); }
+  .video-row .vchan { font-size: 13.5px; color: var(--muted); }
+
+  .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .house { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+  .house-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .house-name { font-size: 14px; font-weight: 800; color: var(--ink); margin-right: 2px; }
+  .answer { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+  .answer.ok { background: #e2f0da; color: var(--green); }
+  .answer.no { background: #ffe0d6; color: #a5321a; }
+  .outcome { transition: opacity .18s ease; min-height: 84px; }
+  .busy .outcome { opacity: .15; }
+  .decision { font-size: 13px; font-weight: 800; padding: 5px 13px; border-radius: 999px; display: inline-block; margin-bottom: 8px; }
+  .decision.approve    { background: #e2f0da; color: var(--green); }
+  .decision.ask_parent { background: #ffe9c2; color: #8a5a06; }
+  .decision.hide       { background: #ffe0d6; color: #a5321a; }
+  .why { font-size: 14.5px; color: var(--brown); margin: 0; }
+  @media (max-width: 940px) { .two-up { grid-template-columns: 1fr; } }
+
   .screen {
     background: var(--white); border: 1px solid var(--line);
     border-radius: 22px; padding: 26px 28px; min-height: 232px;
@@ -342,17 +368,39 @@
   <section id="how">
     <div class="demo-head">
       <div>
-        <h2>Watch it screen a real channel</h2>
-        <p class="lede">Pick one. This is the actual output — nothing here was written by hand.</p>
+        <h2>There is no general answer. So it asks you.</h2>
+        <p class="lede">
+          The same video, screened for two households who answered differently.
+          Real output — nothing here was written by hand.
+        </p>
       </div>
       <div class="chips" id="chips"></div>
     </div>
 
-    <div class="screen" id="screen">
-      <div class="scan" id="scan"><span></span><span></span><span></span></div>
-      <div class="result" id="result"></div>
+    <div class="video-row" id="videoRow"></div>
+
+    <div class="two-up">
+      <div class="house" id="houseA">
+        <div class="house-head">
+          <span class="house-name">Household A</span>
+          <span class="answer ok">unboxing: fine</span>
+          <span class="answer ok">mild peril: fine</span>
+        </div>
+        <div class="outcome" id="outA"></div>
+      </div>
+      <div class="house" id="houseB">
+        <div class="house-head">
+          <span class="house-name">Household B</span>
+          <span class="answer no">unboxing: rather not</span>
+          <span class="answer no">mild peril: rather not</span>
+        </div>
+        <div class="outcome" id="outB"></div>
+      </div>
     </div>
-    <p class="audit" id="audit"></p>
+    <p class="audit">
+      Screened by us.amazon.nova-pro-v1:0 against each household's own answers.
+      A preference never hides a video — it sends it to you to decide.
+    </p>
   </section>
 
   <div class="band">
@@ -387,56 +435,44 @@
 </div>
 
 
+
 <script>
-const REVIEWS = [{"name": "SciShow Kids", "verdict": "good", "summary": "SciShow Kids publishes educational content for children, covering a variety of science topics such as animals, volcanoes, problem-solving, and world adventures.", "flags": [], "bands": ["4_6", "7_8", "9_11"], "samples": ["The Yuckiest Animals | SciShow Kids Compilation", "KABOOM! All About Volcanoes! | SciShow Kids Compilation", "Every Kind of Volcano | SciShow Kids", "Thank You Teachers! | SciShow Kids"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Peppa Pig", "verdict": "good", "summary": "The channel publishes Peppa Pig full episodes, shorts, and special collaborations featuring fun, educational, and entertaining themes aimed at young children.", "flags": [], "bands": ["4_6", "7_8"], "samples": ["🔴 LIVE: Peppa Pig 2026 NEWEST Episodes 🐷 Best of Season 10 & 11! 🤩 Summer Adventures | Full Episodes", "🔴 LIVE: Elmo & Peppa’s Muddy Puddles DANCE REMIX ON REPEAT! 🎵🐽 | 4K 24 Hour Livestream", "Peppa Pig Tales 2026 🫣 Peppa Plays CAMOUFLAGE HIDE AND SEEK! 👀 BRAND NEW Peppa Pig Episodes", "Peppa Pig Tales 2026 😱 Peppa's LATE Morning Routine with BABY EVIE! 🎒 BRAND NEW Peppa Pig Episodes"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Cocomelon", "verdict": "good", "summary": "The channel publishes educational and entertaining content for young children, including read-along stories, nursery rhymes, songs about emotions, and interactive learning activities.", "flags": [], "bands": ["4_6", "7_8"], "samples": ["Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "I Love My Bed + More Bedtime Routine Songs for Babies | CoComelon Nursery Rhymes & Kids Songs", "Let's Learn About Emotions & Feelings! 😊😢😡 Happy, Sad & Angry! #cocomelon #kids #shorts", "Nina Builds a New Best Friend! 🎨 Pin Pon Paper Doll Song | CoComelon Nursery Rhymes & Kids Songs"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Ryan's World", "verdict": "mixed", "summary": "The channel publishes a mix of family-friendly challenges, unboxings, and gameplay videos.", "flags": [{"kind": "scary", "note": "We Played SCARY ROBLOX Games in REAL LIFE!"}, {"kind": "consumerism", "note": "Opening SMUSHIES Until We Get the Secret!"}], "bands": ["7_8", "9_11"], "samples": ["Match the VERITY 😀", "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "This was actually HARD", "Melting GIANT ICE BALLOONS to Save the SQUISHIES with Emma and Kate!"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}, {"name": "Mark Rober", "verdict": "mixed", "summary": "The channel publishes a mix of educational and entertaining content, often involving experiments, challenges, and real-world problem-solving. It frequently promotes CrunchLabs merchandise and collaborations with other YouTubers.", "flags": [{"kind": "ads_or_merch", "note": "Frequent promotion of CrunchLabs merchandise in the uploads."}, {"kind": "consumerism", "note": "Encourages purchasing CrunchLabs products."}], "bands": ["9_11"], "samples": ["Why Do People Pass Out On Roller Coasters?", "Why the Moon Never Changes", "$100 Slime Challenge", "Lowest Heart Rate Wins!"], "model": "us.amazon.nova-pro-v1:0", "reviewed": "2026-09-07"}];
-const BANDS = { "4_6": "4–6", "7_8": "7–8", "9_11": "9–11" };
-const KIND = {
-  ads_or_merch: "ads / merch", consumerism: "consumerism", scary: "scary",
-  mature_language: "language", low_quality: "low quality", off_topic: "off topic",
-  not_for_kids: "not for kids", unclear: "unclear"
-};
+const CASES = [{"channel": "Ryan's World", "title": "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "a": {"decision": "approve", "reason": "The video appears to be an unboxing or toy-haul, which is allowed by the household's policy."}, "b": {"decision": "ask_parent", "reason": "The video appears to be an unboxing or toy-haul, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}}, {"channel": "Cocomelon", "title": "Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "a": {"decision": "approve", "reason": "The video is a gentle, educational read-along story, suitable for the age band."}, "b": {"decision": "ask_parent", "reason": "The video is a gentle, educational read-along story, but the household prefers to avoid certain types of content."}}, {"channel": "Mark Rober", "title": "Why Do People Pass Out On Roller Coasters?", "a": {"decision": "hide", "reason": "The video may discuss an intense or scary topic, which is not suitable for the age band."}, "b": {"decision": "ask_parent", "reason": "The video may discuss an intense or scary topic, which the household prefers to avoid. You said you would rather not: Is cartoon peril — chases, monsters, mild scares — all right?"}}];
+const LABEL = { approve: "approved", ask_parent: "asks you", hide: "held back" };
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const chips = document.getElementById("chips");
-const screenEl = document.getElementById("screen");
-const resultEl = document.getElementById("result");
-const auditEl = document.getElementById("audit");
+const row = document.getElementById("videoRow");
+const A = document.getElementById("houseA"), B = document.getElementById("houseB");
+const outA = document.getElementById("outA"), outB = document.getElementById("outB");
 let timer;
 
-function render(r) {
-  const flags = r.flags.length
-    ? '<div class="flags">' + r.flags.map(f =>
-        `<div class="flag"><span class="flag-kind">${esc(KIND[f.kind] || f.kind)}</span>` +
-        `<span class="flag-note">${esc(f.note)}</span></div>`).join("") + "</div>"
-    : '<p class="clear-note">Nothing flagged in the uploads it read.</p>';
-  resultEl.innerHTML =
-    '<div class="verdict-row">' +
-      `<span class="pill ${r.verdict}">${r.verdict}</span>` +
-      `<span class="bands">suits ages ${r.bands.map(b => BANDS[b] || b).join(", ") || "—"}</span>` +
-    "</div>" +
-    `<p class="summary">${esc(r.summary)}</p>` + flags +
-    '<div class="evidence"><div class="evidence-label">What it read</div><ul>' +
-      r.samples.map(t => `<li>${esc(t)}</li>`).join("") +
-    "</ul></div>";
-  auditEl.textContent = `Screened ${r.reviewed} by ${r.model}. Every flag cites an upload it actually read — the parent still decides.`;
-}
+const paint = (el, d) =>
+  el.innerHTML = `<span class="decision ${d.decision}">${LABEL[d.decision] || d.decision}</span>` +
+                 `<p class="why">${esc(d.reason)}</p>`;
 
 function pick(i) {
-  [...chips.children].forEach((c, n) => c.setAttribute("aria-selected", n === i));
+  const c = CASES[i];
+  [...chips.children].forEach((b, n) => b.setAttribute("aria-selected", n === i));
+  row.innerHTML = '<span class="lbl">Video</span>' +
+    `<span class="vtitle">${esc(c.title)}</span>` +
+    `<span class="vchan">· ${esc(c.channel)}</span>`;
   clearTimeout(timer);
-  screenEl.classList.add("busy");
+  A.classList.add("busy"); B.classList.add("busy");
   const quick = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  timer = setTimeout(() => { render(REVIEWS[i]); screenEl.classList.remove("busy"); }, quick ? 0 : 750);
+  timer = setTimeout(() => {
+    paint(outA, c.a); paint(outB, c.b);
+    A.classList.remove("busy"); B.classList.remove("busy");
+  }, quick ? 0 : 600);
 }
 
-REVIEWS.forEach((r, i) => {
+CASES.forEach((c, i) => {
   const b = document.createElement("button");
-  b.className = "chip"; b.type = "button"; b.textContent = r.name;
+  b.className = "chip"; b.type = "button"; b.textContent = c.channel;
   b.setAttribute("aria-selected", "false");
   b.onclick = () => pick(i);
   chips.appendChild(b);
 });
-// Opens on a channel with something to say, so the point lands without a click.
-pick(REVIEWS.findIndex(r => r.flags.length) );
+pick(0);
 </script>
 </body>
 </html>

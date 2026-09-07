@@ -170,6 +170,28 @@ class TestThePolicySteersTheCuratorWithoutDecidingForTheParent:
             decision.model_copy(update={"policy_id": "pq_invented"}), policy_with("rather_not")
         ).decision == "hide"
 
+    def test_several_offended_preferences_still_reach_the_parent(self) -> None:
+        """The field is documented as one id, but a toy-haul that also pushes
+        merchandise offends two at once and the model answers with both. That
+        string matched no single key, so the video was hidden outright — the
+        one outcome this function exists to prevent."""
+        unboxing = coach.question_id("Are unboxing videos all right?")
+        decision = CuratorDecision(
+            decision="hide", reason="A toy haul that also pushes merchandise.",
+            policy_id=f"{unboxing},pq_something_else",
+        )
+        out = curator.apply_policy(decision, policy_with("rather_not"))
+
+        assert out.decision == "ask_parent"
+        assert "unboxing" in out.reason
+
+    def test_an_invented_id_beside_a_real_one_still_cannot_launder_a_hide(self) -> None:
+        """Reading a list must not become a way in: every id in it is checked
+        against what the parent actually answered."""
+        decision = CuratorDecision(decision="hide", reason="Jump scares throughout.",
+                                   policy_id="pq_invented,pq_also_invented")
+        assert curator.apply_policy(decision, policy_with("rather_not")).decision == "hide"
+
     def test_a_decision_the_policy_had_nothing_to_do_with_passes_through(self) -> None:
         decision = CuratorDecision(decision="hide", reason="Gore in the thumbnail.")
         assert curator.apply_policy(decision, policy_with("rather_not")) == decision

@@ -27,3 +27,4 @@ design/heygilli-mockups.html
 .vercel
 public/
 build/site/
+.wrangler/

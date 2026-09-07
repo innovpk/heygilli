@@ -89,10 +89,23 @@ def apply_policy(decision: CuratorDecision, policy: Policy | None) -> CuratorDec
     untouched: a decision the model did not attribute to a policy answer, and an
     id that is not in fact answered `rather_not`, both pass through unchanged, so
     the model cannot launder a `hide` into an `ask_parent` by naming an id.
+
+    The field is documented as one id, but a video can offend several
+    preferences at once and the model then answers with all of them, comma
+    separated. Looking the whole string up as a single key found nothing, so
+    the protection above silently did not apply and taste hid a video that
+    should have gone to the inbox. Every id offered is checked instead, and
+    the first that really is answered `rather_not` decides — an unanswered id
+    alongside a real one still cannot launder anything.
     """
     if not decision.policy_id or decision.decision == "ask_parent":
         return decision
-    answer = (policy.rather_not() if policy else {}).get(decision.policy_id)
+    rather_not = policy.rather_not() if policy else {}
+    answer = next(
+        (rather_not[i] for i in
+         (part.strip() for part in decision.policy_id.split(",")) if i in rather_not),
+        None,
+    )
     if answer is None:
         return decision
     preference = answer.question or answer.id
