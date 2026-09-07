@@ -9,7 +9,9 @@ Global entities (videos, plans, transcript cache) live under the pseudo-househol
 from __future__ import annotations
 
 import json
+import logging
 import os
+import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -51,7 +53,64 @@ class Store(ABC):
     @abstractmethod
     def delete(self, household: str, entity: str, item_id: str) -> None: ...
 
+    @abstractmethod
+    def entities(self, household: str) -> list[str]:
+        """Every entity name this household has anything stored under.
+
+        Deleting needs this because a child's data is spread across entities
+        named after them — `channel@kid_x`, `break@kid_x` — so there is no
+        fixed list to walk.
+        """
+
+    @abstractmethod
+    def delete_household(self, household: str) -> None:
+        """Everything stored under this household, and nothing else.
+
+        Never touches `GLOBAL`: video metadata, question plans and channel
+        reviews are keyed by video or channel and shared by every household,
+        so removing them with one family would take them from all of them.
+        """
+
     # -- kids
+    def delete_kid(self, household: str, kid_id: str) -> None:
+        """One child and everything about them, leaving their siblings alone.
+
+        A child's data is scattered across entities named after them and
+        entities shared with the household, so this walks what is actually
+        stored rather than a list written here — a list would silently rot the
+        first time anything new was saved against a kid.
+
+        What it must not take: the global video, plan and channel-review
+        caches, which are keyed by video or channel and shared by every
+        household. Deleting a child must not cost another family their
+        screening.
+        """
+        # Answers hang off sessions, so the sessions have to be read before
+        # they are deleted.
+        sessions = [s for s in self.list_sessions(household, kid_id)]
+        for entity in self.entities(household):
+            # Entities named after this child: the whole thing goes.
+            if entity.endswith(f"@{kid_id}"):
+                for item in self.list(household, entity):
+                    self.delete(household, entity, item["_id"])
+                continue
+            # Entities the household shares, holding rows about this child.
+            if entity in ("kid", "policy", "history"):
+                self.delete(household, entity, kid_id)
+            elif entity == "digest":
+                for item in self.list(household, entity):
+                    if str(item.get("_id", "")).startswith(f"{kid_id}#"):
+                        self.delete(household, entity, item["_id"])
+            elif entity in ("session", "parent_prompt", "analytics_note"):
+                for item in self.list(household, entity):
+                    if item.get("kid_id") == kid_id or str(
+                        item.get("_id", "")
+                    ).startswith(f"{kid_id}#"):
+                        self.delete(household, entity, item["_id"])
+        for session in sessions:
+            for answer in self.list(household, f"answer@{session.id}"):
+                self.delete(household, f"answer@{session.id}", answer["_id"])
+
     def put_kid(self, kid: Kid) -> None:
         self.put(kid.household_id, "kid", kid.id, kid.model_dump())
 
@@ -270,6 +329,15 @@ class LocalStore(Store):
         if p.exists():
             p.unlink()
 
+    def entities(self, household: str) -> list[str]:
+        d = self.root / household
+        return sorted(p.name for p in d.iterdir() if p.is_dir()) if d.exists() else []
+
+    def delete_household(self, household: str) -> None:
+        d = self.root / household
+        if d.exists():
+            shutil.rmtree(d)
+
 
 class DynamoStore(Store):
     """Single-table design on DynamoDB: PK=household, SK=<entity>#<id>."""
@@ -336,6 +404,40 @@ class DynamoStore(Store):
 
     def delete(self, household: str, entity: str, item_id: str) -> None:
         self.table.delete_item(Key={"pk": household, "sk": self._sk(entity, item_id)})
+
+    def _all_keys(self, household: str) -> list[dict[str, str]]:
+        """Every sort key under this household, paged to the end.
+
+        Paged rather than taking the first response: a household with a year
+        of sessions runs past 1 MB, and stopping at the first page would leave
+        a "deleted" account with data still in the table.
+        """
+        from boto3.dynamodb.conditions import Key
+
+        keys: list[dict[str, str]] = []
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("pk").eq(household),
+            "ProjectionExpression": "pk, sk",
+        }
+        while True:
+            r = self.table.query(**kwargs)
+            keys.extend({"pk": i["pk"], "sk": i["sk"]} for i in r.get("Items", []))
+            start = r.get("LastEvaluatedKey")
+            if not start:
+                return keys
+            kwargs["ExclusiveStartKey"] = start
+
+    def entities(self, household: str) -> list[str]:
+        return sorted({k["sk"].split("#", 1)[0] for k in self._all_keys(household)})
+
+    def delete_household(self, household: str) -> None:
+        keys = self._all_keys(household)
+        with self.table.batch_writer() as batch:
+            for key in keys:
+                batch.delete_item(Key=key)
+        logging.getLogger(__name__).info(
+            "deleted %d rows for household %s", len(keys), household
+        )
 
 
 _store: Store | None = None

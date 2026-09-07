@@ -311,6 +311,55 @@ def search_channels_endpoint(
     }
 
 
+@app.delete("/kids/{kid_id}")
+def delete_kid(kid_id: str, confirm: str = "", hid: str = Depends(household)) -> dict:
+    """Remove one child and everything about them.
+
+    Irreversible and not undoable anywhere, so the client has to name the
+    child back: `?confirm=<nickname>`. A stray DELETE, a retried request or a
+    mis-tapped row cannot take a child's history with it.
+
+    Their siblings are untouched, and so are the shared video, plan and
+    channel-review caches — those are keyed by video and belong to every
+    household, not to this one.
+    """
+    kid = _kid(hid, kid_id)
+    if confirm.strip().casefold() != kid.nickname.strip().casefold():
+        raise HTTPException(
+            400,
+            f"To delete {kid.nickname}, send ?confirm={kid.nickname}. "
+            "This removes everything about them and cannot be undone.",
+        )
+    get_store().delete_kid(hid, kid_id)
+    log.info("deleted kid %s and everything about them", kid_id)
+    return {"deleted": kid_id}
+
+
+@app.delete("/me")
+def delete_household(confirm: str = "", hid: str = Depends(household)) -> dict:
+    """Remove this household: every child, every channel, every session.
+
+    The account and everything in it, with nothing kept behind — the promise
+    a parent is owed when they ask to be forgotten. `?confirm=DELETE` is
+    required, so this cannot happen by a mistyped URL.
+
+    The shared caches survive: video metadata, question plans and channel
+    reviews are keyed by video or channel and belong to every household. What
+    goes is everything that says anything about *this* family.
+    """
+    if confirm != "DELETE":
+        raise HTTPException(
+            400,
+            "To delete this household and everything in it, send "
+            "?confirm=DELETE. This cannot be undone.",
+        )
+    store = get_store()
+    kids = len(store.list_kids(hid))
+    store.delete_household(hid)
+    log.info("deleted household %s (%d kids)", hid, kids)
+    return {"deleted": hid, "kids": kids}
+
+
 @app.get("/avatars")
 def list_avatars() -> dict:
     """The faces a child may choose from. Named here so the app cannot offer
