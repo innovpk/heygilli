@@ -1630,6 +1630,50 @@ async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswe
         # position ticks while paused, "resumed", or a stale answer: ignore and keep listening
 
 
+@app.get("/debug/transcript")
+def debug_transcript(video_id: str, hid: str = Depends(household)) -> dict:
+    """Run the transcript chain for one video and report what each source said.
+
+    The Curator swallows a failed transcript on purpose — one unreadable video
+    must not sink a run — so from outside, "screened on title alone" and
+    "screened on the spoken words" look identical, and the only account of why
+    is a log line on a host whose logs are not in front of whoever is asking.
+    This runs the same chain and hands back the reason.
+
+    Behind household auth: it costs a model call and names which sources this
+    deployment has.
+    """
+    out: dict = {"video_id": video_id}
+    try:
+        got = transcript_sources.fetch_transcript(video_id)
+        out["source"] = got.get("source")
+        segments = got.get("segments") or []
+        out["segments"] = len(segments)
+        out["first"] = segments[0] if segments else None
+    except Exception as e:  # noqa: BLE001 - reporting the failure IS the endpoint
+        out["source"] = "none"
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+@app.get("/debug/gemini-models")
+def debug_gemini_models(hid: str = Depends(household)) -> dict:
+    """Model names this key can actually call, and the one we ask for.
+
+    A retired or misspelled model answers 404, which reads exactly like a dead
+    key. This says which it is without anyone pasting a key anywhere.
+    """
+    want = os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash")
+    try:
+        from google import genai  # type: ignore
+
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        names = [m.name for m in client.models.list()]
+    except Exception as e:  # noqa: BLE001 - reporting the failure IS the endpoint
+        return {"want": want, "error": f"{type(e).__name__}: {e}"}
+    return {"want": want, "usable": [n for n in names if "flash" in n or "pro" in n]}
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     """Alive, and which transcript sources this deployment actually has.
