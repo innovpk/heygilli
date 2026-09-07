@@ -56,6 +56,8 @@ def test_kids_channels_home(client: TestClient, auth: dict, store: LocalStore, m
         "rows": [{"title": "New for you", "videos": []}],
         # Off unless a parent turned it on for this child.
         "searchable": False,
+        # Nothing is being let past a limit this household has not set.
+        "unknown_length": 0,
         "watching_allowed": True, "blocked_reason": None, "active_break": None,
     }
     store.put_video(VIDEO)
@@ -367,11 +369,24 @@ def test_a_length_limit_is_not_passed_by_a_video_of_unknown_length(client, auth,
     assert ids == {"shortvideo1", "longvideo01", "unknownvid1"}
 
     client.patch(f"/kids/{kid['id']}/limits", json={"max_video_minutes": 20}, headers=hdr(auth))
-    ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
-           for v in r["videos"]}
+    home = client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()
+    ids = {v["id"] for r in home["rows"] for v in r["videos"]}
     assert "longvideo01" not in ids, "thirty minutes was offered under a twenty minute limit"
-    assert "unknownvid1" not in ids, "an unmeasured video is not a video shown to be short enough"
-    assert ids == {"shortvideo1"}
+
+    # An unmeasured video is still offered. Withholding it emptied the shelf
+    # entirely: a household with no Google grant cannot learn a single length,
+    # so the child was left with nothing — a worse answer to "this might be
+    # long" than showing it. It is counted instead, so the parent can be told
+    # the limit is not being kept rather than finding out from a blank screen.
+    assert "unknownvid1" in ids
+    assert home["unknown_length"] == 1
+    assert ids == {"shortvideo1", "unknownvid1"}
+
+    # With no limit set nothing is being let past, so there is nothing to warn
+    # about: the count is about a promise that cannot be kept, not about
+    # missing metadata.
+    client.patch(f"/kids/{kid['id']}/limits", json={"max_video_minutes": 0}, headers=hdr(auth))
+    assert client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["unknown_length"] == 0
 
 
 def test_the_prompt_list_follows_the_child_s_age(client, auth) -> None:

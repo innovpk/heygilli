@@ -202,6 +202,30 @@ def _durations(household_id: str, video_ids: Sequence[str], store: Store) -> dic
     return fetch_durations(video_ids, token)
 
 
+def _backfill_durations(store: Store, uploads: list[dict], durations: dict[str, int]) -> None:
+    """Write lengths onto videos that were stored without one.
+
+    Screening happens once per video and stores what was known at the time.
+    Everything decided before a household could look a length up therefore sits
+    at 0 for ever, and a length of 0 is the thing that makes the parent's limit
+    unenforceable — so a later run that *can* find out fills it in rather than
+    leaving the whole back catalogue unmeasured.
+    """
+    filled = 0
+    for up in uploads:
+        seconds = durations.get(up["id"], 0)
+        if not seconds:
+            continue
+        stored = store.get_video(up["id"])
+        if stored is None or stored.duration_s:
+            continue
+        stored.duration_s = seconds
+        store.put_video(stored)
+        filled += 1
+    if filled:
+        log.info("filled in the length of %d videos screened before it was known", filled)
+
+
 def run_curator(
     kid: Kid,
     store: Store,
@@ -231,7 +255,12 @@ def run_curator(
         # duration at 0 — and a duration of 0 turns the parent's "longest
         # video" limit into no limit and schedules the end-of-video question at
         # the moment it starts.
+        # Every upload, not only the unseen ones: a video screened before this
+        # household could look a length up is stored with 0, and 0 is what
+        # makes a parent's "longest video" limit unkeepable. One call per
+        # channel either way, so the ones already decided ride along free.
         durations = _durations(kid.household_id, [u["id"] for u in uploads], store)
+        _backfill_durations(store, uploads, durations)
         for up in uploads:
             if up["id"] in seen:
                 continue

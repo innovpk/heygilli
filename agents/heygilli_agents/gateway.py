@@ -1094,6 +1094,7 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
     kid = _kid(hid, kid_id)
     store = get_store()
     cap_s = kid.max_video_minutes * 60
+    unknown_length = 0
     approved: list[Video] = []
     for vid, entry in store.list_kid_videos(hid, kid_id).items():
         if entry.get("status") != "approve":
@@ -1101,13 +1102,24 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
         v = store.get_video(vid)
         if v is None:
             continue
-        # A length of 0 means "we could not find out", never "instant". It was
-        # read as a number and compared, so every unknown video passed a limit
-        # it was never measured against — a parent who set twenty minutes was
-        # offered thirty. When the parent has asked for a limit and we cannot
-        # show the video is inside it, we do not offer it.
-        if cap_s and (not v.duration_s or v.duration_s > cap_s):
+        # A length of 0 means "we could not find out", never "instant".
+        #
+        # Both readings of that have been wrong. Comparing it as a number let
+        # every unmeasured video through a limit it had never been measured
+        # against — twenty minutes set, thirty offered. Withholding it instead
+        # emptied the shelf completely, because the only source of a length is
+        # the parent's own Google grant and a household without one can never
+        # learn a single one: the child was left with nothing at all, which is
+        # a worse answer to "this video might be long" than showing it.
+        #
+        # So it is offered, and `unknown_length` says how many were offered
+        # that way. The limit is a real setting where lengths are known and an
+        # unkeepable promise where they are not, and the parent is told which
+        # they have rather than left to find out from an empty screen.
+        if cap_s and v.duration_s and v.duration_s > cap_s:
             continue
+        if cap_s and not v.duration_s:
+            unknown_length += 1
         v.plan_ready = store.get_plan(v.id, kid.age_band or "7_8", kid.languages[0]) is not None
         approved.append(v)
     approved.sort(key=lambda v: v.published_at or "", reverse=True)
@@ -1124,6 +1136,9 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
     state = _watch_state(hid, kid)
     return {
         "rows": rows,
+        #: How many of these are offered without a known length, while a length
+        #: limit is set. Zero when no limit is set: nothing is being let past.
+        "unknown_length": unknown_length,
         "searchable": kid.search_enabled,
         "watching_allowed": state.watching_allowed,
         "blocked_reason": state.blocked_reason,
