@@ -10,6 +10,7 @@ import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'history_screen.dart';
 import 'import_subscriptions_screen.dart';
+import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'policy_screen.dart';
 import 'progress_screen.dart';
@@ -46,6 +47,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   final _url = TextEditingController();
   bool _adding = false;
   bool _curating = false;
+  Kid? _edited;
   String? _error;
 
   void _reload() => setState(() {
@@ -82,6 +84,17 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  /// Correct this child's nickname, age or languages.
+  ///
+  /// Changing the age changes the band, which is what the Curator screens
+  /// against and what decides whether the child is read to or shown text, so
+  /// the screen is rebuilt from the returned kid rather than the stale one.
+  Future<void> _editKid() async {
+    final updated = await showEditKidSheet(context, _edited ?? widget.kid);
+    if (updated == null || !mounted) return;
+    setState(() => _edited = updated);
   }
 
   /// Ask the server to screen this kid's channels again.
@@ -152,11 +165,24 @@ class _KidDetailScreenState extends State<KidDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final kid = widget.kid;
+    // The edit sheet returns the corrected child; until this screen is popped
+    // and rebuilt, widget.kid still holds the old age and band.
+    final kid = _edited ?? widget.kid;
     return ParentScaffold(
       title: kid.nickname,
       subtitle: 'Age ${kid.age}  |  band ${kid.band.label}',
-      actions: [KidAvatar(kid: kid, size: 48)],
+      actions: [
+        // The age is right there in the subtitle and used to be unchangeable:
+        // no edit anywhere, and no delete either, so a child entered wrong
+        // stayed wrong. It belongs next to the thing it corrects.
+        IconButton(
+          onPressed: _editKid,
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: 'Edit ${kid.nickname}',
+          color: HgColors.brown,
+        ),
+        KidAvatar(kid: kid, size: 48),
+      ],
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

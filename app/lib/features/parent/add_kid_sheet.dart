@@ -25,22 +25,45 @@ Future<Kid?> showAddKidSheet(
   );
 }
 
+/// The same sheet, correcting a child who already exists.
+///
+/// There was no way to do this: an age typed wrong stayed wrong, and there is
+/// no delete either, so the child could not even be made again. Age is not
+/// cosmetic — it sets the band, which decides what the Curator screens for and
+/// whether the child is read to or shown text.
+Future<Kid?> showEditKidSheet(BuildContext context, Kid kid) {
+  return showModalBottomSheet<Kid>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: HgColors.cream,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => _AddKidSheet(editing: kid),
+  );
+}
+
 class _AddKidSheet extends StatefulWidget {
-  const _AddKidSheet({this.initialNickname = ''});
+  const _AddKidSheet({this.initialNickname = '', this.editing});
 
   /// Prefilled from the Takeout profile name, which is the only thing the
   /// export knows about the child.
   final String initialNickname;
+
+  /// The child being corrected, or null when this is a new one.
+  final Kid? editing;
 
   @override
   State<_AddKidSheet> createState() => _AddKidSheetState();
 }
 
 class _AddKidSheetState extends State<_AddKidSheet> {
-  late final _nickname = TextEditingController(text: widget.initialNickname);
-  int _age = 5;
-  bool _en = true;
-  bool _ur = false;
+  late final _nickname = TextEditingController(
+    text: widget.editing?.nickname ?? widget.initialNickname,
+  );
+  late int _age = widget.editing?.age ?? 5;
+  late bool _en = widget.editing?.languages.contains('en') ?? true;
+  late bool _ur = widget.editing?.languages.contains('ur') ?? false;
   bool _busy = false;
   String? _error;
 
@@ -65,11 +88,21 @@ class _AddKidSheetState extends State<_AddKidSheet> {
       _error = null;
     });
     try {
-      final kid = await context.read<AppState>().addKid(
-        nickname: name,
-        age: _age,
-        languages: [if (_en) 'en', if (_ur) 'ur'],
-      );
+      final existing = widget.editing;
+      final languages = [if (_en) 'en', if (_ur) 'ur'];
+      final state = context.read<AppState>();
+      final kid = existing == null
+          ? await state.addKid(
+              nickname: name,
+              age: _age,
+              languages: languages,
+            )
+          : await state.editKid(
+              existing.id,
+              nickname: name,
+              age: _age,
+              languages: languages,
+            );
       if (mounted) Navigator.of(context).pop(kid);
     } catch (e) {
       setState(() {
@@ -95,7 +128,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
         spacing: 14,
         children: [
           Text(
-            'Add a kid',
+            widget.editing == null ? 'Add a kid' : 'Edit ${widget.editing!.nickname}',
             style: HgText.display(size: 28, color: HgColors.ink),
           ),
           Text('NICKNAME (NO REAL NAMES NEEDED)', style: HgText.label()),
@@ -165,7 +198,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
             height: 56,
             child: FilledButton(
               onPressed: _busy ? null : _save,
-              child: const Text('Save kid'),
+              child: Text(widget.editing == null ? 'Save kid' : 'Save changes'),
             ),
           ),
         ],

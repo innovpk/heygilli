@@ -735,6 +735,39 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<Kid> editKid(
+    String kidId, {
+    String? nickname,
+    int? age,
+    List<String>? languages,
+  }) async {
+    await _lag();
+    final i = _kids.indexWhere((k) => k.id == kidId);
+    if (i < 0) throw StateError('no such kid: $kidId');
+    final old = _kids[i];
+    final newAge = age ?? old.age;
+    final updated = Kid(
+      id: old.id,
+      nickname: nickname ?? old.nickname,
+      age: newAge,
+      // Re-derived, like the server does: keeping the old band is the bug the
+      // edit exists to fix.
+      band: AgeBand.forAge(newAge),
+      languages: languages ?? old.languages,
+      avatar: old.avatar,
+      dailyMinutes: old.dailyMinutes,
+      breakAfterMinutes: old.breakAfterMinutes,
+      breakMinutes: old.breakMinutes,
+      maxVideoMinutes: old.maxVideoMinutes,
+      breakIsFirm: old.breakIsFirm,
+      breakMessages: old.breakMessages,
+      searchEnabled: old.searchEnabled,
+    );
+    _kids[i] = updated;
+    return updated;
+  }
+
+  @override
   Future<void> curateNow(String kidId) async {
     // The demo's videos are canned, so there is nothing to screen: the button
     // must still work, and must still take a moment, or the demo would show a

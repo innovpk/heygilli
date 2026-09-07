@@ -99,6 +99,18 @@ abstract class Gateway {
     required List<String> languages,
   });
 
+  /// `PATCH /kids/{id}`. Correct a child's nickname, age or languages.
+  ///
+  /// Changing the age re-derives the band on the server, which is the point of
+  /// the edit: the band decides what the Curator screens for and whether the
+  /// child is read to or shown text.
+  Future<Kid> editKid(
+    String kidId, {
+    String? nickname,
+    int? age,
+    List<String>? languages,
+  });
+
   Future<List<Channel>> channels(String kidId);
   Future<Channel> addChannel(String kidId, String url);
 

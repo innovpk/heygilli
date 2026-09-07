@@ -284,6 +284,39 @@ def list_kids(hid: str = Depends(household)) -> list[dict]:
     return [k.model_dump() for k in get_store().list_kids(hid)]
 
 
+class KidEditIn(BaseModel):
+    """What a parent may correct about a child. Every field optional: this is a
+    correction, not a re-registration."""
+
+    nickname: str | None = None
+    age: int | None = Field(default=None, ge=3, le=12)
+    languages: list[Language] | None = None
+
+
+@app.patch("/kids/{kid_id}")
+def edit_kid(kid_id: str, body: KidEditIn, hid: str = Depends(household)) -> dict:
+    """Correct a child's name, age or languages.
+
+    There was no way to do this at all: a child entered with the wrong age was
+    stuck with it, and age is not cosmetic — it sets the age band, which is
+    what the Curator screens against and what decides whether the child is
+    read to or shown text.
+
+    Changing the age re-derives the band rather than keeping the old one, which
+    is the whole point of the edit. Nothing already screened is re-screened
+    here: those decisions were made for the old band and the parent can ask for
+    a fresh run themselves, which is a slow job and their choice to start.
+    """
+    kid = _kid(hid, kid_id)
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "age" in updates and updates["age"] != kid.age:
+        updates["age_band"] = None  # re-derived from the new age by Kid's validator
+    kid = Kid(**{**kid.model_dump(), **updates})
+    get_store().put_kid(kid)
+    log.info("kid %s edited: %s", kid_id, updates or "unchanged")
+    return kid.model_dump()
+
+
 # --- household policy (PROTOCOL.md "Household policy: what this family actually wants") ----------
 
 

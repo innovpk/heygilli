@@ -320,3 +320,28 @@ def test_a_household_can_ask_for_screening_again(client, auth, monkeypatch) -> N
     assert client.post(f"/kids/{kid['id']}/curate", headers=hdr(auth)).json() == {"started": True}
     assert curated == [kid["id"]]
     assert client.post("/kids/kid_nosuch/curate", headers=hdr(auth)).status_code == 404
+
+
+def test_a_kid_s_age_can_be_corrected_and_the_band_follows(client, auth) -> None:
+    """There was no way to change a child's age at all — no endpoint, no
+    delete, so one typed wrong was wrong for ever. Age is not cosmetic: it
+    picks the band the Curator screens against and decides whether the child
+    is read to or shown text."""
+    kid = client.post("/kids", json={"nickname": "Abeeha", "age": 5}, headers=hdr(auth)).json()
+    assert kid["age_band"] == "4_6"
+
+    r = client.patch(f"/kids/{kid['id']}", json={"age": 9}, headers=hdr(auth))
+    assert r.status_code == 200
+    assert r.json()["age"] == 9
+    assert r.json()["age_band"] == "9_11", "the old band would screen a 9-year-old as a pre-reader"
+    assert r.json()["nickname"] == "Abeeha", "an edit is a correction, not a re-registration"
+
+    # Limits and everything else a parent set survive the correction.
+    client.patch(f"/kids/{kid['id']}/limits", json={"max_video_minutes": 20}, headers=hdr(auth))
+    client.patch(f"/kids/{kid['id']}", json={"nickname": "Abee"}, headers=hdr(auth))
+    after = client.get("/kids", headers=hdr(auth)).json()[0]
+    assert after["nickname"] == "Abee" and after["max_video_minutes"] == 20
+    assert after["age"] == 9, "a name change must not reset the age"
+
+    assert client.patch("/kids/kid_nosuch", json={"age": 7}, headers=hdr(auth)).status_code == 404
+    assert client.patch(f"/kids/{kid['id']}", json={"age": 99}, headers=hdr(auth)).status_code == 422

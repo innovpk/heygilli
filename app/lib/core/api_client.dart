@@ -246,6 +246,22 @@ class ApiClient implements Gateway {
       _post('/kids/$kidId/curate', const {});
 
   @override
+  Future<Kid> editKid(
+    String kidId, {
+    String? nickname,
+    int? age,
+    List<String>? languages,
+  }) async => Kid.fromJson(
+    await _patch('/kids/$kidId', {
+      // Only what the parent actually changed: the server treats an absent
+      // field as "leave it alone", so sending nulls would blank them.
+      'nickname': ?nickname,
+      'age': ?age,
+      'languages': ?languages,
+    }) as Map<String, dynamic>,
+  );
+
+  @override
   Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     final q = query.trim();
     final j =

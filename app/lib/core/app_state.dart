@@ -115,6 +115,26 @@ class AppState extends ChangeNotifier {
     return kid;
   }
 
+  /// Correct a child who already exists. The list is refreshed so every screen
+  /// holding the old age — the band drives what the child is even shown — sees
+  /// the new one.
+  Future<Kid> editKid(
+    String kidId, {
+    String? nickname,
+    int? age,
+    List<String>? languages,
+  }) async {
+    final kid = await gateway.editKid(
+      kidId,
+      nickname: nickname,
+      age: age,
+      languages: languages,
+    );
+    await refreshKids();
+    if (_activeKid?.id == kidId) _activeKid = kid;
+    return kid;
+  }
+
   void enterKidMode(Kid kid) {
     _activeKid = kid;
     _kidMode = true;
