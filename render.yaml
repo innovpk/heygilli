@@ -35,3 +35,16 @@ services:
       # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are set in the Render dashboard
       # after the service exists. Without them the gateway still boots and
       # /auth/dev works; /auth/google returns 503 and subscription import is off.
+      #
+      # Transcripts. YouTube refuses caption requests from this address — it is
+      # a datacenter — so the Curator has nothing to screen on unless one of
+      # these is set (tools/transcript.py explains the order).
+      #   GOOGLE_API_KEY          an AI Studio key; free tier, tried first
+      #   HEYGILLI_PROXY_URL      http://user:pass@host:port, used once Gemini's
+      #                           quota is gone. Or WEBSHARE_PROXY_USERNAME and
+      #                           WEBSHARE_PROXY_PASSWORD for a Webshare pool.
+      # Both are set in the dashboard, never in git. With neither, the gateway
+      # still boots and every other screen works; only new-upload screening is
+      # off, and it says so rather than approving unread videos.
+      - key: GOOGLE_API_KEY
+        sync: false

@@ -316,6 +316,9 @@ def test_the_caption_path_actually_waits_its_turn(monkeypatch) -> None:
             return iter([_Transcript()])
 
     class _Api:
+        def __init__(self, proxy_config=None):
+            self.proxy_config = proxy_config
+
         def list(self, video_id: str):
             waits.append("list")
             return _Listing()

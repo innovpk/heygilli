@@ -128,6 +128,9 @@ def test_transcript_from_captions_and_cache(monkeypatch, store) -> None:
     import youtube_transcript_api
 
     class FakeApi:
+        def __init__(self, proxy_config=None):
+            assert proxy_config is None, "the free, direct path must not go through a paid proxy"
+
         def list(self, video_id):
             return _List()
 
@@ -152,3 +155,117 @@ def test_tts_off_and_urdu_return_empty_url() -> None:
     assert synthesize("Hello", "en") == ""  # HEYGILLI_TTS=off in tests
     assert synthesize("سلام", "ur") == ""
     assert synthesize("   ", "en") == ""
+
+
+# --- the three transcript sources, and the order they are tried in -----------------
+#
+# The chain exists because the cheap path fails in exactly one place: YouTube
+# refuses captions to datacenter addresses, which is where this runs in
+# production. These pin that the expensive paths stay asleep until they are
+# needed, and that a run is never quietly left with nothing.
+
+
+@pytest.fixture(autouse=True)
+def _fresh_transcript_state(monkeypatch):
+    """Both switches are process-wide by design; a test must not inherit them."""
+    monkeypatch.setattr(transcript, "_captions_blocked", False)
+    monkeypatch.setattr(transcript, "_gemini_until", 0.0)
+    monkeypatch.delenv("HEYGILLI_PROXY_URL", raising=False)
+    monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
+
+
+def _blocked(*_args, **_kwargs):
+    raise transcript.TranscriptsBlocked("IpBlocked")
+
+
+def test_captions_win_and_gemini_is_never_called(monkeypatch) -> None:
+    """Gemini costs quota; captions cost nothing. Asking Gemini anyway would
+    spend a free tier on words YouTube was already giving us."""
+    monkeypatch.setattr(transcript, "_from_captions",
+                        lambda vid, proxy=None: ([{"start_s": 0, "text": "hi"}], "captions:en:auto"))
+    monkeypatch.setattr(transcript, "_from_gemini",
+                        lambda vid: pytest.fail("Gemini asked while captions were working"))
+    assert transcript.fetch_transcript("vid_caps_ok")["source"] == "captions:en:auto"
+
+
+def test_gemini_takes_over_when_youtube_blocks_captions(monkeypatch) -> None:
+    monkeypatch.setattr(transcript, "_from_captions", _blocked)
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: [{"start_s": 0, "text": "from gemini"}])
+    out = transcript.fetch_transcript("vid_blocked")
+    assert out["source"] == "gemini"
+    assert out["segments"] == [{"start_s": 0, "text": "from gemini"}]
+
+
+def test_a_block_stops_us_asking_youtube_again(monkeypatch) -> None:
+    """The refusal is about this machine, not this video. Asking once per video
+    would spend the whole run collecting the same refusal."""
+    asked = []
+
+    def counting(vid, proxy=None):
+        asked.append(vid)
+        raise transcript.TranscriptsBlocked("IpBlocked")
+
+    monkeypatch.setattr(transcript, "_from_captions", counting)
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: [{"start_s": 0, "text": "g"}])
+    transcript.fetch_transcript("vid_one")
+    transcript.fetch_transcript("vid_two")
+    assert asked == ["vid_one"], "YouTube was asked again after it had already refused"
+
+
+def test_proxy_runs_only_after_gemini_is_out_of_quota(monkeypatch) -> None:
+    """The proxy is the one path that costs money per request, so it must not
+    run while a free one is still answering."""
+    used_proxy = []
+
+    def captions(vid, proxy=None):
+        if proxy is None:
+            raise transcript.TranscriptsBlocked("IpBlocked")
+        used_proxy.append(proxy)
+        return [{"start_s": 0, "text": "via proxy"}], "captions:en:auto"
+
+    monkeypatch.setenv("HEYGILLI_PROXY_URL", "http://user:pass@proxy:8080")
+    monkeypatch.setattr(transcript, "_from_captions", captions)
+
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: [{"start_s": 0, "text": "g"}])
+    assert transcript.fetch_transcript("vid_gemini_ok")["source"] == "gemini"
+    assert used_proxy == [], "paid for a proxy while Gemini still had quota"
+
+    def out_of_quota(vid):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED: quota")
+
+    monkeypatch.setattr(transcript, "_from_gemini", out_of_quota)
+    assert transcript.fetch_transcript("vid_quota_gone")["source"] == "captions:en:auto"
+    assert len(used_proxy) == 1
+
+
+def test_quota_refusal_stands_gemini_down_but_a_bad_video_does_not(monkeypatch) -> None:
+    monkeypatch.setattr(transcript, "_from_captions", _blocked)
+
+    monkeypatch.setattr(transcript, "_from_gemini",
+                        lambda vid: (_ for _ in ()).throw(RuntimeError("400 INVALID_ARGUMENT")))
+    with pytest.raises(transcript.TranscriptsBlocked):
+        transcript.fetch_transcript("vid_bad")
+    assert transcript._gemini_ready(), "one unreadable video must not stand Gemini down"
+
+    monkeypatch.setattr(transcript, "_from_gemini",
+                        lambda vid: (_ for _ in ()).throw(RuntimeError("429 RESOURCE_EXHAUSTED")))
+    with pytest.raises(transcript.TranscriptsBlocked):
+        transcript.fetch_transcript("vid_quota")
+    assert not transcript._gemini_ready(), "quota was reached and Gemini was asked again anyway"
+
+
+def test_nothing_left_to_try_raises_rather_than_returning_empty(monkeypatch) -> None:
+    """`source: none` means "this video has no captions" and the Curator screens
+    on the title. A refusal means "no video will have any", and reporting it as
+    the former would screen a whole household on titles and call it a screening."""
+    monkeypatch.setattr(transcript, "_from_captions", _blocked)
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: None)
+    with pytest.raises(transcript.TranscriptsBlocked):
+        transcript.fetch_transcript("vid_nothing")
+
+
+def test_a_video_with_no_captions_is_still_just_none(monkeypatch) -> None:
+    """Absent is not refused: this one video has no track, the next may."""
+    monkeypatch.setattr(transcript, "_from_captions", lambda vid, proxy=None: None)
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: None)
+    assert transcript.fetch_transcript("vid_silent")["source"] == "none"

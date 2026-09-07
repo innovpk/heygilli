@@ -1,12 +1,22 @@
 """Transcripts (SPEC §9.4).
 
-Order of preference inside one tool, so the Planner never knows which path ran:
-  1. Gemini video understanding of the YouTube URL when GOOGLE_API_KEY is set
-     (the only fully official path; needs `pip install google-genai`).
-  2. Public caption tracks via youtube-transcript-api: English, then Urdu, then
-     whatever auto-generated track exists.
-  3. No transcript: return an empty list with source="none"; the Planner then
-     produces one generic end-of-video question.
+Order of preference inside one tool, so the Planner never knows which path ran.
+Cheapest first, because the three cost very different things:
+  1. Public caption tracks via youtube-transcript-api: English, then Urdu, then
+     whatever auto-generated track exists. Free, instant, and the only path
+     that tells us the spoken language. YouTube refuses these to datacenter
+     addresses, so in production this usually fails once and is then skipped.
+  2. Gemini video understanding of the YouTube URL when GOOGLE_API_KEY is set.
+     Reads the video from inside Google, so the block above does not apply
+     (needs `pip install google-genai`). A free key has a quota; when it runs
+     out this path stands down for a while instead of collecting 429s.
+  3. The same caption tracks through a proxy, when one is configured
+     (HEYGILLI_PROXY_URL, or WEBSHARE_PROXY_USERNAME/PASSWORD). Last because it
+     is the only one that costs money per request.
+  4. No transcript: return an empty list with source="none"; the Planner then
+     produces one generic end-of-video question. When captions were *refused*
+     rather than absent, `TranscriptsBlocked` is raised instead, so a caller
+     working through a list can stop rather than screen the rest on titles.
 """
 from __future__ import annotations
 
@@ -67,6 +77,70 @@ log = logging.getLogger(__name__)
 LANG_PREFERENCE = ["en", "en-US", "en-GB", "ur", "hi"]
 
 
+#: How long to leave Gemini alone after it says the quota is gone. The free
+#: tier limits both requests-per-minute and requests-per-day, and we cannot
+#: tell which one tripped from the error, so this is short enough that a
+#: per-minute limit costs one pause and long enough that a per-day one does not
+#: turn the run into a wall of 429s.
+GEMINI_COOLDOWN_S = float(os.getenv("HEYGILLI_GEMINI_COOLDOWN_S", "900"))
+
+#: YouTube has refused captions to this process. Not per video: once it starts
+#: refusing it refuses everything, so the first refusal stops us asking again.
+_captions_blocked = False
+
+#: Monotonic time before which Gemini is out of quota and must not be called.
+_gemini_until = 0.0
+
+
+def _note_captions_blocked(e: Exception) -> None:
+    global _captions_blocked
+    if not _captions_blocked:
+        log.warning("YouTube refused captions to this machine; not asking again: %s", e)
+    _captions_blocked = True
+
+
+def _gemini_ready() -> bool:
+    return time.monotonic() >= _gemini_until
+
+
+def _is_quota_error(e: Exception) -> bool:
+    """Whether Gemini turned us down for quota rather than for this video.
+
+    Matched on the message because google-genai raises one `ClientError` for
+    every 4xx and the distinction we need — "come back later" versus "this
+    video cannot be read" — lives only in its text.
+    """
+    text = f"{type(e).__name__} {e}".upper()
+    return "RESOURCE_EXHAUSTED" in text or "429" in text or "QUOTA" in text
+
+
+def _note_gemini_failure(video_id: str, e: Exception) -> None:
+    global _gemini_until
+    if _is_quota_error(e):
+        _gemini_until = time.monotonic() + GEMINI_COOLDOWN_S
+        log.warning("gemini quota reached; standing down for %ds", int(GEMINI_COOLDOWN_S))
+    else:
+        log.warning("gemini transcript failed for %s: %s", video_id, e)
+
+
+def _proxy_config():
+    """The proxy for caption requests, or None when none is configured.
+
+    Two shapes because the two ways people buy this differ: Webshare hands out
+    a rotating pool behind one username, everyone else hands out a URL.
+    """
+    from youtube_transcript_api.proxies import GenericProxyConfig, WebshareProxyConfig
+
+    username = os.getenv("WEBSHARE_PROXY_USERNAME", "").strip()
+    if username:
+        return WebshareProxyConfig(
+            proxy_username=username,
+            proxy_password=os.getenv("WEBSHARE_PROXY_PASSWORD", "").strip(),
+        )
+    url = os.getenv("HEYGILLI_PROXY_URL", "").strip()
+    return GenericProxyConfig(http_url=url, https_url=url) if url else None
+
+
 def _from_gemini(video_id: str) -> list[dict] | None:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -98,7 +172,13 @@ def _from_gemini(video_id: str) -> list[dict] | None:
     return [{"start_s": int(r["start_s"]), "text": str(r["text"])} for r in rows]
 
 
-def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
+def _from_captions(video_id: str, proxy=None) -> tuple[list[dict], str] | None:
+    """YouTube's own caption track, optionally through a proxy.
+
+    `proxy` is a `ProxyConfig` from `_proxy_config`. Passing one changes only
+    the address the request leaves from; every outcome below means the same
+    thing either way.
+    """
     import requests
     from youtube_transcript_api import YouTubeTranscriptApi
     from youtube_transcript_api._errors import (
@@ -108,7 +188,7 @@ def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
     )
 
     _wait_turn()
-    api = YouTubeTranscriptApi()
+    api = YouTubeTranscriptApi(proxy_config=proxy)
     try:
         tl = api.list(video_id)
     except IpBlocked as e:
@@ -151,7 +231,27 @@ def _from_captions(video_id: str) -> tuple[list[dict], str] | None:
 
 
 def fetch_transcript(video_id: str) -> dict:
-    """{"video_id", "source", "segments": [{"start_s", "text"}]} — cached forever."""
+    """{"video_id", "source", "segments": [{"start_s", "text"}]} — cached forever.
+
+    Three places the words can come from, cheapest first, because they cost
+    very different things and only the first is free everywhere:
+
+      1. YouTube's own captions, fetched directly. Free and instant, and the
+         only path that reports the spoken language. From a home connection it
+         answers every time; from a datacenter YouTube refuses, and once it has
+         refused it refuses for the rest of the process, so the attempt is made
+         once and then skipped rather than 95 times.
+      2. Gemini, which reads the video from inside Google and so is not subject
+         to that block. A free key has a quota; when it runs out we stand down
+         for `GEMINI_COOLDOWN_S` rather than spending the run on 429s.
+      3. The same captions through a proxy. Last because it is the only one
+         that costs money per request.
+
+    `TranscriptsBlocked` is raised only when captions were refused *and*
+    nothing else could stand in. That is the caller's signal that the words are
+    unavailable for this machine, not for this video, so it can stop rather
+    than screen a whole run on titles and call it a screening.
+    """
     store = get_store()
     cached = store.cache_get("transcript", video_id)
     if cached and cached.get("source") != "none":
@@ -159,17 +259,50 @@ def fetch_transcript(video_id: str) -> dict:
 
     segments: list[dict] = []
     source = "none"
-    try:
-        gem = _from_gemini(video_id)
-    except Exception as e:  # noqa: BLE001 - third-party SDK errors; captions are the fallback
-        log.warning("gemini transcript failed for %s: %s", video_id, e)
-        gem = None
-    if gem:
-        segments, source = gem, "gemini"
+    blocked: TranscriptsBlocked | None = None
+
+    if _captions_blocked:
+        # Already refused earlier in this process. Not asking again, but the
+        # refusal still stands and must still be reported if nothing else
+        # answers — a skipped attempt is not the same as an absent caption
+        # track, and returning "none" here would tell the Curator to screen
+        # every remaining video on its title as though that were normal.
+        blocked = TranscriptsBlocked("YouTube is refusing captions to this machine")
     else:
-        cap = _from_captions(video_id)
-        if cap:
-            segments, source = cap
+        try:
+            cap = _from_captions(video_id)
+        except TranscriptsBlocked as e:
+            _note_captions_blocked(e)
+            blocked = e
+        else:
+            if cap:
+                segments, source = cap
+
+    if source == "none" and _gemini_ready():
+        try:
+            gem = _from_gemini(video_id)
+        except Exception as e:  # noqa: BLE001 - third-party SDK errors; the proxy is the fallback
+            _note_gemini_failure(video_id, e)
+            gem = None
+        if gem:
+            segments, source = gem, "gemini"
+
+    if source == "none":
+        proxy = _proxy_config()
+        if proxy is not None:
+            try:
+                cap = _from_captions(video_id, proxy)
+            except TranscriptsBlocked as e:
+                # The proxy's address is refused too. Nothing is left to try.
+                log.warning("captions blocked through the proxy for %s: %s", video_id, e)
+                blocked = e
+            else:
+                if cap:
+                    segments, source = cap
+                    blocked = None
+
+    if source == "none" and blocked is not None:
+        raise blocked
 
     out = {"video_id": video_id, "source": source, "segments": segments}
     store.cache_put("transcript", video_id, out)

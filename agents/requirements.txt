@@ -9,3 +9,6 @@ python-dotenv>=1.0
 httpx>=0.27
 requests>=2.31
 youtube-transcript-api>=1.0
+# Transcript fallback for hosts YouTube blocks captions from (tools/transcript.py).
+# Inert without GOOGLE_API_KEY: _from_gemini returns None and the caption paths run.
+google-genai>=1.0
