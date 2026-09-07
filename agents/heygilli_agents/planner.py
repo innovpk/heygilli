@@ -167,7 +167,23 @@ def fallback_plan(
     No prompts left is a real setting, not a failure: the video plays and
     nothing is asked.
     """
-    t_sec = max(video.duration_s - rules.END_MARGIN_S, 0)
+    # An end-of-video question is scheduled relative to the end, and a video
+    # whose length nobody could look up has no known end: `duration_s - 3` came
+    # out as 3 below zero and then clamped to 0, so Gilli asked "what was your
+    # favourite bit?" the instant the video started, before there was anything
+    # to have a favourite bit of. Every household without a Google grant hits
+    # that, because a length can only be looked up with one.
+    #
+    # With no end to aim at, the earliest moment the band's own rules allow an
+    # interruption is the honest answer: late enough that the child has watched
+    # something, and the same threshold every other question obeys. A video
+    # shorter than that ends with nothing asked, which is a question missed
+    # rather than a question asked at the wrong moment.
+    t_sec = (
+        max(video.duration_s - rules.END_MARGIN_S, 0)
+        if video.duration_s
+        else rules.TIMING[band].first_question_s
+    )
     prompt = question_bank.pick(band, video.id, disabled_prompts)
     questions = [question_bank.as_question(prompt, t_sec, language)] if prompt else []
     return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=questions)

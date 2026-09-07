@@ -118,3 +118,49 @@ def test_a_refused_transcript_plans_from_the_title_instead_of_raising(store, mon
     assert (store.get_video("vidblocked1")).transcript_source == "none", (
         "planned without a transcript, so it must not claim to have had one"
     )
+
+
+def test_a_video_of_unknown_length_is_not_asked_about_at_second_zero() -> None:
+    """The end-of-video question is scheduled relative to the end. A video
+    whose length nobody could look up has no known end, so `duration - 3` came
+    out below zero and clamped to 0: Gilli asked "what was your favourite bit?"
+    the instant the video started, before there was anything to have a
+    favourite bit of.
+
+    Every household without a Google grant hits this, because a length can only
+    be looked up with one.
+    """
+    from heygilli_agents import rules
+
+    for band in ("4_6", "7_8", "9_11"):
+        unknown = planner.fallback_plan(
+            Video(id=f"vid{band}", title="Giraffes", duration_s=0), band, "en"
+        )
+        asked_at = unknown.questions[0].t_sec
+        assert asked_at > 0, f"{band} asks before the video has played"
+        # The same threshold every other question in that band obeys, rather
+        # than a number invented here.
+        assert asked_at == rules.TIMING[band].first_question_s
+
+    # A known length still puts it at the end, which is where it belongs.
+    known = planner.fallback_plan(
+        Video(id="known", title="Giraffes", duration_s=600), "7_8", "en"
+    )
+    assert known.questions[0].t_sec == 600 - rules.END_MARGIN_S
+
+
+def test_the_question_never_lands_before_the_band_would_allow_one() -> None:
+    """A question asked earlier than the band's own rules permit is one the
+    rules would have thrown out had the model proposed it."""
+    from heygilli_agents import rules
+
+    for band in ("4_6", "7_8", "9_11"):
+        for duration in (0, 30, 200, 1800):
+            plan = planner.fallback_plan(
+                Video(id=f"v{band}{duration}", title="T", duration_s=duration), band, "en"
+            )
+            t = plan.questions[0].t_sec
+            if duration == 0:
+                assert t == rules.TIMING[band].first_question_s
+            else:
+                assert t == max(duration - rules.END_MARGIN_S, 0)
