@@ -4,7 +4,7 @@ from __future__ import annotations
 from heygilli_agents import curator, digest
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
-from heygilli_agents.schemas import Answer, Channel, Kid, Session
+from heygilli_agents.schemas import Answer, Channel, Kid, Session, Video
 from heygilli_agents.store import LocalStore
 from heygilli_agents.tools.transcript import TranscriptsBlocked
 
@@ -50,7 +50,7 @@ def test_run_curator_approves_hides_and_asks(store: LocalStore, monkeypatch) -> 
 def test_run_digest_counts_in_code_and_words_from_model(store: LocalStore) -> None:
     kid = Kid(household_id="hh", nickname="Ayaan", age=5)
     store.put_kid(kid)
-    from heygilli_agents.schemas import Question, QuestionPlan, Video
+    from heygilli_agents.schemas import Question, QuestionPlan
 
     store.put_video(Video(id="v1", title="Giraffes", duration_s=600))
     store.put_plan(QuestionPlan(video_id="v1", age_band="4_6", language="en", questions=[
@@ -88,17 +88,21 @@ def _blocking_after(n: int):
     return fetch
 
 
-def test_a_blocked_ip_stops_the_run_instead_of_screening_on_titles(
+def test_a_blocked_ip_falls_back_to_titles_and_says_so(
     store: LocalStore, monkeypatch
 ) -> None:
-    """YouTube rate-limits a machine that fetches many captions in a row, and it
-    happened on the first real run over a household's own channels.
+    """YouTube rate-limits a machine that fetches many captions in a row, and
+    refuses datacenter addresses outright — which is where this runs.
 
-    Two things must not happen. The endpoint must not 500 — it did, after three
-    and a half minutes of real work that was already saved. And the run must not
-    carry on: `excerpt` falls back to "(no transcript)", so every remaining
-    video would be screened on its title alone and the decisions would be
-    indistinguishable from ones made with the transcript.
+    This used to end the run, so that a screening done on titles could not pass
+    for one done on transcripts. That protected the wrong thing: the refusal is
+    permanent in production, so it did not mean "screen fewer videos", it meant
+    a child with an empty screen for ever.
+
+    So the run carries on from the title and description. What must still hold
+    is the honesty the old guard was really after: the endpoint must not 500,
+    every video read that way is stored as `transcript_source: "none"` — which
+    the app shows as "read: title only" — and the report says how many and why.
     """
     kid = Kid(household_id="hh", nickname="Abu", age=5, languages=["en"])
     store.put_kid(kid)
@@ -118,16 +122,19 @@ def test_a_blocked_ip_stops_the_run_instead_of_screening_on_titles(
         planner=make_agent("planner", "s", model=model),
     )
 
-    # It came back rather than raising, and the first video's real decision kept.
-    assert report.stopped_early, "a partial run that reports itself as whole is the worst outcome"
-    assert "unscreened" in report.stopped_early
-    # Carrying the cause matters as much as reporting the stop: "nothing was
-    # screened" without it sends whoever reads it to check the wrong thing.
-    assert "the request was blocked" in report.stopped_early, report.stopped_early
+    # It came back rather than raising, and every upload was judged — the one
+    # that had a transcript and the two that had to be read on their titles.
+    assert report.stopped_early == "", "the run finished; saying it stopped would be a lie"
     decided = len(report.approved) + len(report.hidden) + len(report.ask_parent)
-    assert decided == 1, "only the video that had a transcript was judged"
-    # And nothing was invented for the two it never got to.
-    assert len(store.list_kid_videos("hh", kid.id)) == 1
+    assert decided == len(UPLOADS), "a child was left with nothing rather than with less"
+    assert len(store.list_kid_videos("hh", kid.id)) == len(UPLOADS)
+
+    # And it says so, rather than passing the weaker reads off as full ones.
+    assert report.read_titles_only == len(UPLOADS) - 1
+    assert "the request was blocked" in report.no_transcripts, report.no_transcripts
+    sources = {vid: (store.get_video(vid) or Video(id=vid)).transcript_source
+               for vid in store.list_kid_videos("hh", kid.id)}
+    assert sorted(sources.values()) == ["captions:en:auto", "none", "none"], sources
 
 
 def test_a_complete_run_does_not_claim_it_stopped(store: LocalStore, monkeypatch) -> None:

@@ -59,6 +59,16 @@ class CuratorReport(BaseModel):
     #: A partial screening that reports itself as a whole one is the worst
     #: outcome here: a parent would believe every upload had been looked at.
     stopped_early: str = ""
+    #: How many videos in this run were judged on their title and description
+    #: because no transcript could be read, and why. Not a footnote: it is the
+    #: difference between "we watched these" and "we read their titles", and
+    #: the parent is shown the same fact per video as "read: title only".
+    read_titles_only: int = 0
+    no_transcripts: str = ""
+
+
+#: What a video with no readable transcript looks like to the rest of the run.
+_NO_TRANSCRIPT: dict = {"source": "none", "segments": []}
 
 
 def curator_agent(model=None) -> Agent:
@@ -190,6 +200,7 @@ def run_curator(
     # Read once for the whole run: what this family wants does not change
     # halfway through a batch of uploads.
     policy = store.get_policy(kid.household_id, kid.id)
+    no_transcripts = False
 
     for channel in store.list_channels(kid.household_id, kid.id):
         if not channel.approved:
@@ -207,19 +218,33 @@ def run_curator(
                 meta = fetch_video_meta(video.id)
                 video.duration_s = meta.get("duration_s", 0)
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")
-            try:
-                tr = fetch_transcript(video.id)
-            except TranscriptsBlocked as e:
-                # Every remaining video would be screened on its title alone,
-                # and the decisions would look exactly like the real ones. Stop
-                # and say so; what has been decided so far is already stored.
-                log.warning("stopping curation for kid %s: %s", kid.id, e)
-                report.stopped_early = (
-                    "No transcript could be read, so the rest was left "
-                    "unscreened rather than judged on titles alone. "
-                    f"({e})"
-                )
-                return report
+            if no_transcripts:
+                tr = _NO_TRANSCRIPT  # already established; asking again earns the same refusal
+            else:
+                try:
+                    tr = fetch_transcript(video.id)
+                except TranscriptsBlocked as e:
+                    # This used to end the run. The reasoning was that a
+                    # screening done on titles must not pass for one done on
+                    # transcripts — right in itself, but it assumed the refusal
+                    # was temporary. From a datacenter it is not: it is every
+                    # video, every run, forever, and the guard turned "weaker
+                    # screening" into a child with an empty screen and a parent
+                    # with no idea why.
+                    #
+                    # So carry on with the title and description, which the RSS
+                    # feed gives us and which the Curator prompt already knows
+                    # to be cautious with. What must not happen is the part the
+                    # old guard was actually protecting: passing this off as a
+                    # full screening. Every such video is stored with
+                    # `transcript_source: "none"`, which the app shows as
+                    # "read: title only", and the report says how many.
+                    log.warning("no transcripts for kid %s, reading titles: %s", kid.id, e)
+                    no_transcripts = True
+                    report.no_transcripts = str(e)
+                    tr = _NO_TRANSCRIPT
+            if tr["source"] == "none":
+                report.read_titles_only += 1
             excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
             decision = decide(
                 video,
