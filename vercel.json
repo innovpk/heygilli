@@ -1,7 +1,3 @@
 {
-  "outputDirectory": "app/build/web",
-  "buildCommand": "echo 'Flutter build already complete'",
-  "env": {
-    "HEYGILLI_API_URL": "@heygilli-api-url"
-  }
+  "outputDirectory": "app/build/web"
 }
