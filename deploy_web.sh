@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble and deploy heygilli.innovpk.com.
+# Assemble and deploy heygilli.com.
 #
 # The site is two things on one origin:
 #
