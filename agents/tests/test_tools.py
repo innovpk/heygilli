@@ -307,3 +307,59 @@ def test_gemini_retries_a_busy_server_but_not_a_bad_model(monkeypatch) -> None:
     with pytest.raises(RuntimeError):
         transcript._with_retries(out_of_quota, "vid")
     assert spent == [1], "retrying a quota refusal only spends the cooldown early"
+
+
+def test_a_live_stream_is_hidden_rather_than_put_to_the_parent() -> None:
+    """There is no honest way to screen a stream. The promise is that every
+    upload is read against the household's answers before the child sees it,
+    and a stream's content has not happened yet — there is nothing to read.
+
+    The Curator handled them the only way it could, by asking, so one channel
+    running a 24/7 loop put five identical cards in an inbox and kept adding.
+    """
+    live = Video(id="a", title="🔴 LIVE! Ben and Holly's Little Kingdom 🔴", duration_s=0)
+    out = screening.prescreen(live)
+    assert out.verdict == "hide"
+    assert "live stream" in out.reason
+    # Said plainly enough that a parent reading it knows nothing was judged.
+    assert "has not happened yet" in out.reason
+
+
+def test_live_detection_reads_a_badge_not_the_english_word() -> None:
+    """A bare lower-case "live" is ordinary English. Hiding "Where Do Penguins
+    Live?" would take a real video off a child's shelf and tell the parent it
+    was a stream."""
+    for title in (
+        "🔴 LIVE! Peppa Pig Full Episodes 🔴",
+        "LIVE! Nursery Rhymes 24/7",
+        "Bluey live stream",
+        "Streaming Now: Number Songs",
+        "🟢 LIVE Puppy Cam",
+    ):
+        assert screening.looks_live(title), title
+
+    for title in (
+        "Why Do Giraffes Have Long Necks?",
+        "Where Do Penguins Live?",
+        "Olive the Other Reindeer",
+        "Our lively little puppy",
+        "The Alive Song for Kids",
+        "Live Action LEGO Adventure",   # a real phrase, and not a stream
+        # And shouted, which is how half of YouTube writes a title — this is
+        # the case the "live action" guard actually exists for.
+        "LIVE ACTION LEGO ADVENTURE",
+        "BEST LIVE-ACTION MOMENTS",
+        "Deliver the parcel!",
+    ):
+        assert not screening.looks_live(title), title
+
+
+def test_a_hidden_stream_never_reaches_the_inbox_or_the_child() -> None:
+    """prescreen runs before the model, so a stream costs no model call and
+    lands as `hide` — not in the parent's queue, not on the shelf."""
+    out = screening.prescreen(Video(id="b", title="LIVE! Kids Cartoons", duration_s=600))
+    assert out.verdict == "hide"
+    # A normal upload from the same channel is untouched.
+    assert screening.prescreen(
+        Video(id="c", title="Ben and Holly: The Lost Egg", duration_s=600)
+    ).verdict == "pass"

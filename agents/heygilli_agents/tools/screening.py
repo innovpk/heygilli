@@ -28,6 +28,40 @@ ASK_WORDS = (
 )
 
 
+#: A title claiming to be a live stream.
+#:
+#: There is no honest way to screen one. HeyGilli's promise is that every
+#: upload is read against what the household said *before* the child sees it,
+#: and a stream's content has not happened yet — there is nothing to read. The
+#: Curator handled them the only way it could, by asking the parent, so a
+#: channel running a 24/7 loop put five identical cards in the inbox and kept
+#: adding more.
+#:
+#: The title is the only signal available. The RSS feed carries no live marker
+#: — checked against a channel that streams constantly — and the watch page
+#: that would say so is refused to datacenter addresses. So this reads the
+#: title, and reads it strictly: a bare lower-case "live" is ordinary English
+#: ("live action", "where they live"), while a red circle, LIVE shouted in
+#: capitals, or "24/7" is a badge.
+LIVE_MARKERS = ("🔴", "🟢", "24/7", "24 / 7")
+LIVE_PHRASES = ("live stream", "livestream", "streaming now", "live now")
+#: Ordinary English that contains the word and means nothing of the sort.
+NOT_LIVE = ("live action", "live-action")
+
+
+def looks_live(title: str) -> bool:
+    """Whether this title is announcing a stream rather than a video."""
+    t = title.lower()
+    if any(phrase in t for phrase in NOT_LIVE):
+        return False
+    if any(marker in title for marker in LIVE_MARKERS):
+        return True
+    if any(phrase in t for phrase in LIVE_PHRASES):
+        return True
+    # Shouted, and a word of its own: "LIVE!" is a badge, "Olive" is not.
+    return bool(re.search(r"(?<![A-Za-z])LIVE(?![a-z])", title))
+
+
 class ScreenResult(BaseModel):
     verdict: Literal["pass", "hide", "ask_parent"]
     reason: str
@@ -42,6 +76,12 @@ def prescreen(video: Video) -> ScreenResult:
     text = f"{video.title} {video.description}"
     if hits := _hits(text, BLOCK_WORDS):
         return ScreenResult(verdict="hide", reason=f"title/description mentions: {', '.join(hits)}")
+    if looks_live(video.title):
+        return ScreenResult(
+            verdict="hide",
+            reason="a live stream, so what it will show has not happened yet and "
+                   "cannot be read against your answers",
+        )
     if video.duration_s > MAX_DURATION_S:
         return ScreenResult(verdict="ask_parent", reason="longer than 45 minutes")
     if 0 < video.duration_s < MIN_DURATION_S:
