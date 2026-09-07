@@ -141,7 +141,11 @@ class _KidsTab extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 3.4,
+            // A ratio ties height to width, so the same card got shorter as
+            // more columns fit — at three columns the name and meta line no
+            // longer fit and the card overflowed. The card's own content
+            // needs the same height regardless of how narrow the column is.
+            mainAxisExtent: 132,
           ),
           itemCount: kids.length,
           itemBuilder: (context, i) => _KidCard(kid: kids[i]),

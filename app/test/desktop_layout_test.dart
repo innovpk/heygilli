@@ -23,6 +23,7 @@ void main() {
     app = AppState(gateway: gateway, settings: await LocalSettings.load());
     await gateway.createKid(nickname: 'Abeeha', age: 6, languages: const ['en']);
     await gateway.createKid(nickname: 'Abu', age: 8, languages: const ['en']);
+    await gateway.createKid(nickname: 'Zara', age: 9, languages: const ['en']);
     await app.refreshKids();
   });
 
@@ -84,7 +85,11 @@ void main() {
   testWidgets('two kids sit side by side once the window is wide enough', (
     tester,
   ) async {
-    await resize(tester, 1200);
+    // Wide enough to activate the sidebar layout (>=900) but, after the
+    // sidebar and padding are subtracted, still short of the three-column
+    // threshold — this is what actually exercises the two-column tier
+    // specifically rather than the three-column one.
+    await resize(tester, 1000);
     await tester.pumpWidget(host());
     await tester.pump();
 
@@ -95,6 +100,31 @@ void main() {
       abeeha.dy,
       closeTo(abu.dy, 2),
       reason: 'two kids should be in the same row once there is room',
+    );
+  });
+
+  testWidgets('three kids sit in one row on a genuinely wide window', (
+    tester,
+  ) async {
+    // The regression this guards: ParentScaffold's own wide-mode cap left
+    // less room than the three-column breakpoint needed, so that tier could
+    // never be reached no matter how wide the browser window actually was.
+    // 2000, not 1200 — this has to exceed ParentScaffold's cap plus the
+    // sidebar plus the grid's own padding, not just clear the breakpoint
+    // number read in isolation.
+    await resize(tester, 2000);
+    await tester.pumpWidget(host());
+    await tester.pump();
+
+    final abeeha = tester.getTopLeft(find.text('Abeeha'));
+    final abu = tester.getTopLeft(find.text('Abu'));
+    final zara = tester.getTopLeft(find.text('Zara'));
+    expect(abeeha.dy, closeTo(abu.dy, 2));
+    expect(abeeha.dy, closeTo(zara.dy, 2));
+    expect(
+      zara.dx,
+      greaterThan(abu.dx),
+      reason: 'three kids in one row, left to right',
     );
   });
 

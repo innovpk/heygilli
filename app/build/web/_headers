@@ -1,0 +1,23 @@
+# Flutter never renames main.dart.js / the service worker between builds, so
+# Cloudflare's default 4h cache meant a browser could sit on a stale build for
+# hours after a deploy with no way to notice. These always revalidate against
+# the server's ETag instead — a fast 304 when nothing changed, the new file
+# immediately when it did. Long-lived hashed assets (fonts, canvaskit, icons)
+# are untouched and keep caching normally, since their filenames do change.
+/index.html
+  Cache-Control: no-cache
+
+/main.dart.js
+  Cache-Control: no-cache
+
+/flutter.js
+  Cache-Control: no-cache
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+
+/flutter_service_worker.js
+  Cache-Control: no-cache
+
+/version.json
+  Cache-Control: no-cache

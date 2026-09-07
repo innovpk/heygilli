@@ -113,7 +113,12 @@ class ParentScaffold extends StatelessWidget {
             // the same ground, so no seam shows.
             return Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: wide ? 1160 : 560),
+                // 1160 total left ~928px for content once the 232px sidebar
+                // was subtracted — under the 1080px a three-kid row needs, so
+                // that tier could never actually be reached. 1400 clears it
+                // with room, while still leaving real margin on an ultrawide
+                // monitor rather than stretching edge to edge.
+                constraints: BoxConstraints(maxWidth: wide ? 1400 : 560),
                 child: wide
                     ? Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
