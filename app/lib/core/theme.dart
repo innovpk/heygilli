@@ -132,3 +132,12 @@ ThemeData buildTheme() {
     ),
   );
 }
+
+/// Below this, every parent-facing screen is the phone layout it was
+/// designed as. Above it, wide enough that a single narrow column reads as a
+/// phone app abandoned in the middle of a browser tab rather than as a page.
+/// One constant so the sign-in, intro, and parent-home screens agree on when
+/// "wide" starts, rather than each guessing its own number.
+abstract final class HgLayout {
+  static const wideBreakpoint = 900.0;
+}

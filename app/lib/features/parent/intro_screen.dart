@@ -69,61 +69,86 @@ class _IntroScreenState extends State<IntroScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: HgColors.cream,
     body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: widget.onDone,
-                  child: Text(
-                    'Skip',
-                    style: HgText.body(size: 15, color: HgColors.brown),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: PageView(
-                  controller: _controller,
-                  onPageChanged: (i) => setState(() => _page = i),
-                  children: _pages,
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= HgLayout.wideBreakpoint;
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: wide ? 1120 : 460),
+              child: Column(
                 children: [
-                  for (var i = 0; i < _pages.length; i++)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: i == _page ? 22 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == _page ? HgColors.mango : HgColors.line,
-                        borderRadius: BorderRadius.circular(4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: widget.onDone,
+                      child: Text(
+                        'Skip',
+                        style: HgText.body(size: 15, color: HgColors.brown),
                       ),
                     ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(28, 20, 28, 24),
-                child: SizedBox(
-                  height: 52,
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _next,
-                    child: Text(
-                      _isLast ? 'Get started' : 'Next',
-                      style: HgText.body(size: 17, color: HgColors.ink),
+                  ),
+                  // On a phone there is room for one claim at a time, paged
+                  // by hand. A window this wide can just say all three at
+                  // once — there is no reason to make someone click through
+                  // a carousel a scan of the eye would cover in one look.
+                  if (wide)
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          for (final p in _pages) Expanded(child: p),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    Expanded(
+                      child: PageView(
+                        controller: _controller,
+                        onPageChanged: (i) => setState(() => _page = i),
+                        children: _pages,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < _pages.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: i == _page ? 22 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: i == _page
+                                  ? HgColors.mango
+                                  : HgColors.line,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 20, 28, 24),
+                    child: SizedBox(
+                      height: 52,
+                      width: wide ? 280 : double.infinity,
+                      child: FilledButton(
+                        // Every panel is already visible when wide, so
+                        // there is nothing left to page to — the button
+                        // only ever means "done."
+                        onPressed: wide ? widget.onDone : _next,
+                        child: Text(
+                          wide || _isLast ? 'Get started' : 'Next',
+                          style: HgText.body(size: 17, color: HgColors.ink),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     ),
   );

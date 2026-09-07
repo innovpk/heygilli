@@ -66,6 +66,14 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
+  /// Tall enough to render everything, but under the desktop breakpoint: the
+  /// phone-paged intro is what several tests here actually mean to exercise.
+  Future<void> narrow(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(500, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+  }
+
   testWidgets('a stranger is told what this is before being asked to sign in', (
     tester,
   ) async {
@@ -95,7 +103,7 @@ void main() {
   testWidgets('reading it through reaches sign-in on the last panel', (
     tester,
   ) async {
-    await wide(tester);
+    await narrow(tester);
     await tester.pumpWidget(host(AppState(gateway: gateway, settings: settings)));
 
     await tester.tap(find.text('Next'));
@@ -130,6 +138,74 @@ void main() {
 
     expect(find.byType(IntroScreen), findsNothing);
     expect(find.byType(KidHomeScreen), findsOneWidget);
+  });
+
+  testWidgets('on a wide window all three panels show at once, unpaged', (
+    tester,
+  ) async {
+    await wide(tester);
+    await tester.pumpWidget(host(AppState(gateway: gateway, settings: settings)));
+
+    // Nothing to page to when everything is already on screen.
+    expect(find.text('Next'), findsNothing);
+    expect(find.text('A buddy who watches along'), findsOneWidget);
+    expect(find.text('You decide what is allowed'), findsOneWidget);
+    expect(find.text('Watching becomes talking'), findsOneWidget);
+
+    await tester.tap(find.text('Get started'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SignInScreen), findsOneWidget);
+  });
+
+  testWidgets('a narrow window still pages one panel at a time', (
+    tester,
+  ) async {
+    await narrow(tester);
+    await tester.pumpWidget(host(AppState(gateway: gateway, settings: settings)));
+
+    expect(find.text('A buddy who watches along'), findsOneWidget);
+    expect(find.text('You decide what is allowed'), findsNothing);
+  });
+
+  testWidgets('sign-in offers both doors on a wide window too', (
+    tester,
+  ) async {
+    await wide(tester);
+    await settings.setIntroSeen();
+    await tester.pumpWidget(host(AppState(gateway: gateway, settings: settings)));
+
+    expect(find.byType(SignInScreen), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Set up without Google'), findsOneWidget);
+    // Both doors exist in either layout; the tight "Sign in" card heading
+    // exists only in the wide split panel, so this is what actually tells
+    // the two layouts apart rather than just checking the buttons are there.
+    expect(find.text('Sign in'), findsOneWidget);
+    // The pitch is long-form beside the card on wide, not repeated above it.
+    expect(find.text('A buddy who watches YouTube with your kid'), findsNothing);
+    expect(
+      find.text('A buddy who watches YouTube with your kid.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('sign-in stays a single phone column on a narrow window', (
+    tester,
+  ) async {
+    await narrow(tester);
+    await settings.setIntroSeen();
+    await tester.pumpWidget(host(AppState(gateway: gateway, settings: settings)));
+
+    expect(find.byType(SignInScreen), findsOneWidget);
+    expect(
+      find.text('Sign in'),
+      findsNothing,
+      reason: 'the tight card heading is wide-only',
+    );
+    expect(
+      find.text('A buddy who watches YouTube with your kid'),
+      findsOneWidget,
+    );
   });
 }
 

@@ -47,10 +47,7 @@ class ParentScaffold extends StatelessWidget {
   final Widget? floating;
   final Widget? leading;
 
-  /// Below this, still the phone layout this was designed as. Above it, wide
-  /// enough that a single 560px column reads as a phone app abandoned in the
-  /// middle of a browser tab rather than as a page.
-  static const wideBreakpoint = 900.0;
+  static const wideBreakpoint = HgLayout.wideBreakpoint;
 
   @override
   Widget build(BuildContext context) {
@@ -160,23 +157,29 @@ class ParentSidebar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 232,
     color: HgColors.white,
-    padding: const EdgeInsets.fromLTRB(20, 28, 12, 20),
+    // Even on both sides: the selected item's highlight pill is drawn by
+    // _SidebarItem right up to this padding, so an uneven inset here reads as
+    // the highlight sitting closer to one edge than the other.
+    padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          spacing: 10,
-          children: [
-            SvgPicture.asset('assets/gilli.svg', width: 32, height: 32),
-            Flexible(
-              child: Text(
-                'HeyGilli',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: HgText.display(size: 20, color: HgColors.ink),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            spacing: 10,
+            children: [
+              SvgPicture.asset('assets/gilli.svg', width: 32, height: 32),
+              Flexible(
+                child: Text(
+                  'HeyGilli',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.display(size: 20, color: HgColors.ink),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 28),
         for (var i = 0; i < destinations.length; i++)

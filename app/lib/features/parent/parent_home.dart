@@ -122,7 +122,11 @@ class _KidsTab extends StatelessWidget {
         // A stack of full-width rows is the phone layout; once there is room
         // for two of them side by side, a single column of half-empty cards
         // reads as unfinished rather than as a choice.
-        final columns = box.maxWidth >= 720 ? 2 : 1;
+        final columns = box.maxWidth >= 1080
+            ? 3
+            : box.maxWidth >= 720
+            ? 2
+            : 1;
         if (columns == 1) {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),

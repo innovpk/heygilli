@@ -85,95 +85,157 @@ class _SignInScreenState extends State<SignInScreen> {
       child: Scaffold(
         backgroundColor: HgColors.cream,
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 20,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: const BoxDecoration(
-                          color: HgColors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.bottomCenter,
-                        child: SvgPicture.asset(
-                          'assets/gilli.svg',
-                          width: 122,
-                          height: 122,
-                        ),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final wide = box.maxWidth >= HgLayout.wideBreakpoint;
+              if (!wide) {
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(28),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 20,
+                        children: [
+                          _Brand(isDemo: isDemo, gilliSize: 122),
+                          _card(canUseGoogle),
+                        ],
                       ),
                     ),
-                    Column(
-                      spacing: 6,
-                      children: [
-                        Text(
-                          'HeyGilli',
-                          style: HgText.display(size: 40, color: HgColors.ink),
-                        ),
-                        Text(
-                          'A buddy who watches YouTube with your kid',
-                          textAlign: TextAlign.center,
-                          style: HgText.body(size: 16, color: HgColors.brown),
-                        ),
-                        if (isDemo) const DemoBadge(),
-                      ],
-                    ),
-                    _signInControl(canUseGoogle),
-                    Text(
-                      'Use the account your kids already watch on, usually '
-                      'the one signed in on the TV. Its subscriptions become '
-                      'the channels you pick from. Only you sign in; your '
-                      'child never does.',
-                      textAlign: TextAlign.center,
-                      style: HgText.body(size: 14, color: HgColors.brown),
-                    ),
-                    const _OrDivider(),
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: _busy ? null : _withoutGoogle,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: HgColors.line),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
+                  ),
+                );
+              }
+              // A phone sign-in screen is one column because a phone only has
+              // one column to give it: logo, then pitch, then the button
+              // underneath. A window this wide has room to say what HeyGilli
+              // is on one side while the actual, much shorter, decision
+              // ("sign in with this or that") sits on the other — the shape
+              // an auth page on a real website takes, not a form stretched
+              // down the middle of empty cream.
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1040),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(48),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 20,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/gilli.svg',
+                                width: 96,
+                                height: 96,
+                              ),
+                              Text(
+                                'HeyGilli',
+                                style: HgText.display(
+                                  size: 44,
+                                  color: HgColors.ink,
+                                ),
+                              ),
+                              Text(
+                                'A buddy who watches YouTube with your kid.',
+                                style: HgText.body(
+                                  size: 19,
+                                  color: HgColors.brown,
+                                ),
+                              ),
+                              Text(
+                                'Use the account your kids already watch on, '
+                                'usually the one signed in on the TV. Its '
+                                'subscriptions become the channels you pick '
+                                'from. Only you sign in; your child never '
+                                'does.',
+                                style: HgText.body(
+                                  size: 15,
+                                  color: HgColors.muted,
+                                ),
+                              ),
+                              if (isDemo) const DemoBadge(),
+                            ],
                           ),
                         ),
-                        child: Text(
-                          'Set up without Google',
-                          style: HgText.body(size: 16, color: HgColors.ink),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: PCard(child: _card(canUseGoogle, tight: true)),
+                          ),
                         ),
                       ),
-                    ),
-                    Text(
-                      'Nothing to sign in to. You add channels yourself, or '
-                      'bring them across from a YouTube export — the next '
-                      'screen shows you how.',
-                      textAlign: TextAlign.center,
-                      style: HgText.body(size: 13, color: HgColors.muted),
-                    ),
-                    if (_error != null)
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: HgText.body(size: 14, color: HgColors.coral),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
+
+  /// The actual decision, shared by the phone column and the desktop card:
+  /// sign in with Google, or without it.
+  Widget _card(bool canUseGoogle, {bool tight = false}) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    spacing: 16,
+    children: [
+      if (tight)
+        Text(
+          'Sign in',
+          style: HgText.display(size: 22, color: HgColors.ink),
+        ),
+      _signInControl(canUseGoogle),
+      if (!tight)
+        Text(
+          'Use the account your kids already watch on, usually '
+          'the one signed in on the TV. Its subscriptions become '
+          'the channels you pick from. Only you sign in; your '
+          'child never does.',
+          textAlign: TextAlign.center,
+          style: HgText.body(size: 14, color: HgColors.brown),
+        ),
+      const _OrDivider(),
+      SizedBox(
+        height: 52,
+        child: OutlinedButton(
+          onPressed: _busy ? null : _withoutGoogle,
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: HgColors.line),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(26),
+            ),
+          ),
+          child: Text(
+            'Set up without Google',
+            style: HgText.body(size: 16, color: HgColors.ink),
+          ),
+        ),
+      ),
+      Text(
+        'Nothing to sign in to. You add channels yourself, or '
+        'bring them across from a YouTube export — the next '
+        'screen shows you how.',
+        textAlign: tight ? TextAlign.start : TextAlign.center,
+        style: HgText.body(size: 13, color: HgColors.muted),
+      ),
+      if (_error != null)
+        Text(
+          _error!,
+          textAlign: tight ? TextAlign.start : TextAlign.center,
+          style: HgText.body(size: 14, color: HgColors.coral),
+        ),
+    ],
+  );
 
   /// One button, every platform. A browser reaches Google's account chooser
   /// and its consent in the same window; a phone gets the native sheet.
@@ -184,6 +246,46 @@ class _SignInScreenState extends State<SignInScreen> {
     reason: canUseGoogle
         ? null
         : 'This build has no Google client id, so sign-in is unavailable.',
+  );
+}
+
+/// Logo, wordmark and tagline — the phone column's header, unchanged from
+/// before the desktop layout existed.
+class _Brand extends StatelessWidget {
+  const _Brand({required this.isDemo, required this.gilliSize});
+
+  final bool isDemo;
+  final double gilliSize;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    spacing: 6,
+    children: [
+      Center(
+        child: Container(
+          width: 140,
+          height: 140,
+          decoration: const BoxDecoration(
+            color: HgColors.white,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.bottomCenter,
+          child: SvgPicture.asset(
+            'assets/gilli.svg',
+            width: gilliSize,
+            height: gilliSize,
+          ),
+        ),
+      ),
+      const SizedBox(height: 14),
+      Text('HeyGilli', style: HgText.display(size: 40, color: HgColors.ink)),
+      Text(
+        'A buddy who watches YouTube with your kid',
+        textAlign: TextAlign.center,
+        style: HgText.body(size: 16, color: HgColors.brown),
+      ),
+      if (isDemo) const DemoBadge(),
+    ],
   );
 }
 
