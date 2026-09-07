@@ -1,8 +1,13 @@
-"""Google sign-in, subscription listing and channel import — all offline.
+"""Google sign-in and channel import — all offline.
 
-Every Google call is mocked: the token endpoint through a fake `httpx.Client`
-(so the posted form is asserted, not just the call count) and the Data API
-through `youtube._api_get`. `tests/conftest.py` makes any real socket fail.
+Every Google call is mocked: the token endpoint through a fake `httpx.Client`,
+so the posted form is asserted rather than just the call count.
+`tests/conftest.py` makes any real socket fail.
+
+Sign-in is identity only. HeyGilli asked for `youtube.readonly` until the
+subscriptions import was removed; a sensitive scope nobody needs is a consent
+screen that frightens a parent for nothing, and a Google verification review
+to keep it alive.
 """
 from __future__ import annotations
 
@@ -15,7 +20,6 @@ from fastapi.testclient import TestClient
 from heygilli_agents import gateway, google_auth
 from heygilli_agents.schemas import GoogleLink
 from heygilli_agents.store import LocalStore
-from heygilli_agents.tools import youtube
 
 CODE = "4/server-auth-code"
 SUB = "115551234567890"
@@ -72,7 +76,10 @@ def tokens_response(**over) -> _Resp:
         "expires_in": 3599,
         "refresh_token": "1//refresh-one",
         "id_token": id_token(),
-        "scope": google_auth.YOUTUBE_READONLY_SCOPE,
+        # What Google returns for an identity-only consent. HeyGilli no longer
+        # asks for a YouTube scope, so a token that carried one would be a
+        # fixture describing a grant the app never requests.
+        "scope": "openid email profile",
     }
     body.update(over)
     return _Resp(200, body)
@@ -211,50 +218,6 @@ def sub_item(channel_id: str, title: str, thumb: str = "http://img/m.jpg") -> di
 
 
 @pytest.fixture
-def api(monkeypatch: pytest.MonkeyPatch) -> dict:
-    """Queue `subscriptions.list` pages; record the params of every call."""
-    state: dict = {"pages": [], "params": []}
-
-    def _api_get(url: str, params: dict, access_token: str, timeout: float = 20.0) -> dict:
-        assert url == youtube.SUBSCRIPTIONS_URL and access_token
-        state["params"].append(dict(params))
-        return state["pages"].pop(0)
-
-    monkeypatch.setattr(youtube, "_api_get", _api_get)
-    return state
-
-
-def test_list_subscriptions_follows_next_page_token(api: dict) -> None:
-    api["pages"] = [
-        {"items": [sub_item("UC_zoo", "Zoo Time"), sub_item("UC_art", "Art Club")], "nextPageToken": "P2"},
-        {"items": [sub_item("UC_sci", "SciShow Kids"), sub_item("UC_zoo", "Zoo Time")]},  # dupe across pages
-    ]
-    subs = youtube.list_subscriptions("ya29.token")
-
-    assert [s["channel_id"] for s in subs] == ["UC_art", "UC_sci", "UC_zoo"]  # alphabetical, deduped
-    assert subs[0] == {"channel_id": "UC_art", "title": "Art Club", "thumb_url": "http://img/m.jpg"}
-    assert api["params"][0] == {"part": "snippet", "mine": "true", "maxResults": 50, "order": "alphabetical"}
-    assert api["params"][1]["pageToken"] == "P2"
-    assert len(api["params"]) == 2  # stopped when nextPageToken ran out
-
-
-def test_the_channel_id_is_the_subscribed_to_channel_not_the_subscriber(api: dict) -> None:
-    api["pages"] = [{"items": [sub_item("UC_scishowkids", "SciShow Kids")]}]
-    subs = youtube.list_subscriptions("ya29.token")
-    assert subs[0]["channel_id"] == "UC_scishowkids"  # snippet.resourceId.channelId
-    assert subs[0]["channel_id"] != "UCsubscriberOwnChannel00000"  # snippet.channelId is the subscriber
-
-
-def test_list_subscriptions_stops_at_the_page_cap(api: dict) -> None:
-    api["pages"] = [{"items": [sub_item(f"UC_{i}", f"Ch {i}")], "nextPageToken": "more"} for i in range(5)]
-    assert len(youtube.list_subscriptions("ya29.token", max_pages=3)) == 3
-    assert len(api["params"]) == 3
-
-
-# --- gateway endpoints ------------------------------------------------------------------------
-
-
-@pytest.fixture
 def client() -> TestClient:
     return TestClient(gateway.app)
 
@@ -299,47 +262,24 @@ def test_unlinked_household_reports_linked_false_and_an_empty_list(
     client: TestClient, auth: dict
 ) -> None:
     assert client.get("/me/youtube", headers=hdr(auth)).json() == {"linked": False, "email": None}
-    r = client.get("/me/youtube/subscriptions", headers=hdr(auth))
-    assert r.status_code == 200 and r.json() == {"linked": False, "subscriptions": []}
-
-
-def test_subscriptions_are_marked_with_the_kids_that_already_have_them(
-    client: TestClient, auth: dict, store: LocalStore, api: dict, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    kid = client.post("/kids", json={"nickname": "Zara", "age": 8}, headers=hdr(auth)).json()
-    monkeypatch.setattr(
-        gateway, "resolve_channel_url",
-        lambda url: {"channel_id": "UC_sci", "title": "SciShow Kids", "thumb_url": "th"},
-    )
-    client.post(f"/kids/{kid['id']}/channels", json={"url": "@SciShowKids"}, headers=hdr(auth))
-
-    store.put_google_link(
-        auth["_hid"],
-        GoogleLink(email=EMAIL, refresh_token="1//r", access_token="ya29.ok",
-                   access_expires_at=google_auth.expires_at(3600)),
-    )
-    api["pages"] = [{"items": [sub_item("UC_sci", "SciShow Kids"), sub_item("UC_zoo", "Zoo Time")]}]
-
-    body = client.get("/me/youtube/subscriptions", headers=hdr(auth)).json()
-    assert body["linked"] is True
-    assert body["subscriptions"] == [
-        {"channel_id": "UC_sci", "title": "SciShow Kids", "thumb_url": "http://img/m.jpg",
-         "approved_for": [kid["id"]]},
-        {"channel_id": "UC_zoo", "title": "Zoo Time", "thumb_url": "http://img/m.jpg", "approved_for": []},
-    ]
+    # There is no subscriptions endpoint any more: HeyGilli does not ask for
+    # access to a parent's YouTube account, so there is nothing to report.
+    assert client.get("/me/youtube/subscriptions", headers=hdr(auth)).status_code == 404
 
 
 def test_import_adds_only_new_channels_and_screens_them_in_the_background(
-    client: TestClient, auth: dict, store: LocalStore, api: dict, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """The bulk import a Takeout export goes through. It used to prefer titles
+    from a cached copy of the parent's subscriptions; that list is no longer
+    read, so every channel is resolved the same way whichever door it came in
+    through."""
     kid = client.post("/kids", json={"nickname": "Ayaan", "age": 5}, headers=hdr(auth)).json()
-    store.put_google_link(
-        auth["_hid"],
-        GoogleLink(email=EMAIL, refresh_token="1//r", access_token="ya29.ok",
-                   access_expires_at=google_auth.expires_at(3600)),
+    titles = {"UC_sci": "SciShow Kids", "UC_zoo": "Zoo Time"}
+    monkeypatch.setattr(
+        gateway, "resolve_channel_url",
+        lambda cid: {"channel_id": cid, "title": titles[cid], "thumb_url": "http://img/m.jpg"},
     )
-    api["pages"] = [{"items": [sub_item("UC_sci", "SciShow Kids"), sub_item("UC_zoo", "Zoo Time")]}]
-    client.get("/me/youtube/subscriptions", headers=hdr(auth))  # caches titles and thumbnails
 
     curated: list[str] = []
     monkeypatch.setattr(gateway, "run_curator", lambda kid, store: curated.append(kid.id))

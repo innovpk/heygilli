@@ -85,12 +85,18 @@ void main() {
       // A browser has no separate step, and without an id_token the gateway
       // cannot tell which Google account this is — it mints a fresh household
       // every time, so a parent never returns to their own children.
-      expect(GoogleAuth.webScopes, contains(GoogleAuth.youtubeReadonlyScope));
       expect(GoogleAuth.webScopes, containsAll(['openid', 'email', 'profile']));
     });
 
-    test('and asks for nothing beyond those four', () {
-      expect(GoogleAuth.webScopes, hasLength(4));
+    test('and asks for nothing beyond identity', () {
+      // A scope nobody needs is a consent screen that frightens a parent for
+      // nothing, and a Google verification review to keep it alive.
+      expect(GoogleAuth.webScopes, hasLength(3));
+      expect(
+        GoogleAuth.webScopes.any((s) => s.contains('youtube')),
+        isFalse,
+        reason: 'sign-in must not ask for access to their YouTube account',
+      );
     });
   });
 
@@ -283,10 +289,11 @@ void main() {
       );
     });
 
-    test('the scope asked for is exactly youtube.readonly', () {
+    test('sign-in asks who they are and nothing else', () {
+      expect(GoogleAuth.identityScopes, ['email', 'profile']);
       expect(
-        GoogleAuth.youtubeReadonlyScope,
-        'https://www.googleapis.com/auth/youtube.readonly',
+        GoogleAuth.identityScopes.any((s) => s.contains('youtube')),
+        isFalse,
       );
     });
   });

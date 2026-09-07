@@ -180,12 +180,11 @@
     <tr>
       <td><strong>Continue with Google</strong></td>
       <td>
-        Your Google account's basic profile (name, email address, profile
-        photo — the standard <code>openid</code>, <code>email</code>, and
-        <code>profile</code> scopes), and, with your consent, a read-only
-        OAuth token for your YouTube subscriptions
-        (<code>youtube.readonly</code>). The token is exchanged and stored on
-        our server; it is never sent to or stored on your device.
+        Your Google account's basic profile only (name, email address,
+        profile photo — the standard <code>openid</code>, <code>email</code>,
+        and <code>profile</code> scopes). HeyGilli does not ask for access to
+        your YouTube account: sign-in tells us which household you are, and
+        nothing more.
       </td>
     </tr>
     <tr>
@@ -209,17 +208,19 @@
     <li>Settings you choose: which channels are approved, daily time limits, break timing, and whether the search box is shown to them.</li>
   </ul>
 
-  <h3>2.3 YouTube subscriptions and viewing history</h3>
+  <h3>2.3 Channels and viewing history</h3>
   <p>
-    Neither YouTube nor YouTube Kids exposes an API that reads a child's
-    profile directly, so HeyGilli reaches your household's subscriptions in
-    one of two ways, both initiated by you:
+    HeyGilli never reads your YouTube account. Channels reach your household
+    in one of three ways, all initiated by you:
   </p>
   <ul>
     <li>
-      <strong>Live, via Google sign-in</strong> — reading the subscription
-      list of the Google account you connect (typically the account your
-      household already watches on).
+      <strong>Suggestions</strong> — a fixed list of children's channels that
+      ships with HeyGilli, filtered by your child's age and what you say they
+      like. Nothing is approved until you approve it.
+    </li>
+    <li>
+      <strong>A channel you paste</strong> — a link, an @handle or a video URL.
     </li>
     <li>
       <strong>A Google Takeout export you upload</strong> — the standard
@@ -301,8 +302,8 @@
   <table>
     <tr><th>Provider</th><th>What it handles</th></tr>
     <tr>
-      <td>Google (Sign-In &amp; YouTube Data API)</td>
-      <td>Authenticates the parent; supplies the subscription list you've granted access to.</td>
+      <td>Google (Sign-In)</td>
+      <td>Authenticates the parent, and nothing else. No access to your YouTube account is requested.</td>
     </tr>
     <tr>
       <td>Amazon Web Services — Bedrock</td>

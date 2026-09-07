@@ -12,8 +12,9 @@ import 'settings.dart';
 
 /// Parent-side Google sign-in (SPEC 12: a child never signs in to anything).
 ///
-/// One consent covers identity and `youtube.readonly`, which is what lets the
-/// parent import the channels they already follow. What leaves the device is
+/// One consent covers identity, and nothing more: it says which Google
+/// account this is, so the parent returns to their own household rather than
+/// a fresh one each time. What leaves the device is
 /// the **server auth code**, never an access or refresh token: the gateway
 /// exchanges the code and keeps the refresh token (docs/PROTOCOL.md).
 ///
@@ -43,9 +44,16 @@ class GoogleAuth {
   /// id is the `clientId`, because there the app *is* the web client.
   final String serverClientId;
 
-  /// PROTOCOL: the only scope we ask for. Read-only, the parent's own account.
-  static const youtubeReadonlyScope =
-      'https://www.googleapis.com/auth/youtube.readonly';
+  /// Who the parent is, and nothing else.
+  ///
+  /// HeyGilli used to also ask for `youtube.readonly`, to read the parent's
+  /// own subscriptions and to look up how long a video is. The subscriptions
+  /// import is gone — a household starts from suggestions now — and asking a
+  /// parent for access to their YouTube account to learn a running time was
+  /// never a fair trade. So sign-in asks only who they are: a sensitive scope
+  /// nobody needs is a consent screen that frightens people for nothing, and a
+  /// Google verification review to keep it alive.
+  static const identityScopes = ['email', 'profile'];
 
   /// Google's own reserved word for a code minted by a popup, which is the
   /// only flow a browser has. A phone sends nothing instead.
@@ -53,12 +61,11 @@ class GoogleAuth {
 
   /// What a browser's one popup asks for.
   ///
-  /// The YouTube scope is the same one a phone asks for. The three identity
-  /// scopes come with it because the browser has no separate sign-in step to
-  /// get them from, and without an `id_token` the gateway cannot tell which
-  /// Google account this is — it would mint a fresh household on every sign-in
-  /// rather than returning the parent to their own.
-  static const webScopes = ['openid', 'email', 'profile', youtubeReadonlyScope];
+  /// `openid` is here and not in [identityScopes] because the browser has no
+  /// separate sign-in step to get an `id_token` from: without one the gateway
+  /// cannot tell which Google account this is and would mint a fresh household
+  /// on every sign-in rather than returning the parent to their own.
+  static const webScopes = ['openid', 'email', 'profile'];
 
   /// False when the build carries no `HEYGILLI_GOOGLE_SERVER_CLIENT_ID`. The
   /// UI then hides the button instead of showing one that cannot work.
@@ -138,9 +145,12 @@ class GoogleAuth {
       // Can legitimately return null when the platform has no server auth code
       // to give. PROTOCOL requires one, so that is a failure for us, not a
       // silent success.
-      final server = await user.authorizationClient.authorizeServer(const [
-        youtubeReadonlyScope,
-      ]);
+      // Still a server auth code, still exchanged by the gateway: it is what
+      // says which Google account this is. It just no longer carries a YouTube
+      // grant with it.
+      final server = await user.authorizationClient.authorizeServer(
+        identityScopes,
+      );
       if (server == null || server.serverAuthCode.isEmpty) {
         return const GoogleAuthScopeDenied();
       }
@@ -191,7 +201,7 @@ class GoogleAuth {
 
       // Authentication first; authorization is a separate step in 7.x.
       final user = await GoogleSignIn.instance.authenticate(
-        scopeHint: const [youtubeReadonlyScope],
+        scopeHint: identityScopes,
       );
       return authorize(user);
     } catch (e) {

@@ -17,7 +17,6 @@ from collections.abc import Sequence
 from pydantic import BaseModel, Field
 from strands import Agent
 
-from .google_auth import GoogleAuthError, google_access_token
 from .llm import LLMError, make_agent, structured
 from .planner import SAFETY_RULES, ensure_plan, planner_agent
 from .schemas import CuratorDecision, Kid, Policy, Video
@@ -25,7 +24,7 @@ from .store import Store
 from .tools.notify import notify_parent
 from .tools.screening import prescreen, screen_video
 from .tools.transcript import TranscriptsBlocked, fetch_transcript, transcript_text
-from .tools.youtube import fetch_durations, fetch_uploads, fetch_video_meta
+from .tools.youtube import fetch_uploads, fetch_video_meta
 
 log = logging.getLogger(__name__)
 
@@ -187,45 +186,6 @@ def decide(
         return CuratorDecision(decision="ask_parent", reason="Could not review automatically.")
 
 
-def _durations(household_id: str, video_ids: Sequence[str], store: Store) -> dict[str, int]:
-    """Lengths for these videos, or `{}` when this household cannot ask.
-
-    Needs the household's own Google grant: there is no key, and the parent's
-    `youtube.readonly` already covers `videos.list`. A household that signed in
-    without Google simply has no way to learn a length, and every caller must
-    treat a missing id as unknown rather than as zero.
-    """
-    try:
-        token = google_access_token(household_id, store)
-    except GoogleAuthError:
-        return {}
-    return fetch_durations(video_ids, token)
-
-
-def _backfill_durations(store: Store, uploads: list[dict], durations: dict[str, int]) -> None:
-    """Write lengths onto videos that were stored without one.
-
-    Screening happens once per video and stores what was known at the time.
-    Everything decided before a household could look a length up therefore sits
-    at 0 for ever, and a length of 0 is the thing that makes the parent's limit
-    unenforceable — so a later run that *can* find out fills it in rather than
-    leaving the whole back catalogue unmeasured.
-    """
-    filled = 0
-    for up in uploads:
-        seconds = durations.get(up["id"], 0)
-        if not seconds:
-            continue
-        stored = store.get_video(up["id"])
-        if stored is None or stored.duration_s:
-            continue
-        stored.duration_s = seconds
-        store.put_video(stored)
-        filled += 1
-    if filled:
-        log.info("filled in the length of %d videos screened before it was known", filled)
-
-
 def run_curator(
     kid: Kid,
     store: Store,
@@ -255,19 +215,15 @@ def run_curator(
         # duration at 0 — and a duration of 0 turns the parent's "longest
         # video" limit into no limit and schedules the end-of-video question at
         # the moment it starts.
-        # Every upload, not only the unseen ones: a video screened before this
-        # household could look a length up is stored with 0, and 0 is what
-        # makes a parent's "longest video" limit unkeepable. One call per
-        # channel either way, so the ones already decided ride along free.
-        durations = _durations(kid.household_id, [u["id"] for u in uploads], store)
-        _backfill_durations(store, uploads, durations)
         for up in uploads:
             if up["id"] in seen:
                 continue
             video = store.get_video(up["id"]) or Video(**up)
-            if not video.duration_s:
-                video.duration_s = durations.get(video.id, 0)
             if not video.duration_s or not video.thumb_url:
+                # The watch page, which YouTube refuses to datacenter
+                # addresses: from a home connection this fills the length in,
+                # from the deployed gateway it does not, and an unknown length
+                # stays unknown rather than becoming zero seconds.
                 meta = fetch_video_meta(video.id)
                 video.duration_s = video.duration_s or meta.get("duration_s", 0)
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")

@@ -8,8 +8,9 @@ refresh token using the *web* OAuth client credentials, caches the short-lived
 access token beside it, and refreshes when it expires. The refresh token never
 leaves the server and never goes back to the device.
 
-One consent covers identity and `youtube.readonly` (a sensitive scope, not a
-restricted one). Only the parent's Google account is involved: a child never
+One consent covers identity and nothing else: no sensitive scope, so no Google
+verification review to keep alive. Only the parent's Google account is
+involved: a child never
 signs in to anything, and the parent's email is the single personal field
 stored (SPEC §12).
 
@@ -43,7 +44,6 @@ log = logging.getLogger(__name__)
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
-YOUTUBE_READONLY_SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 HTTP_TIMEOUT_S = 20.0
 
 NOT_CONFIGURED = (
@@ -218,7 +218,7 @@ def _userinfo(access_token: str) -> dict:
 def account_identity(tokens: GoogleTokens) -> tuple[str, str]:
     """`(google_sub, email)`. The id_token carries both when the client asked
     for the profile scopes; otherwise ask userinfo. Neither is fatal — the link
-    works with `youtube.readonly` alone, it just has no email to show."""
+    works without an email to show."""
     claims = _id_token_claims(tokens.id_token) if tokens.id_token else {}
     sub, email = str(claims.get("sub") or ""), str(claims.get("email") or "")
     if not sub and tokens.access_token:

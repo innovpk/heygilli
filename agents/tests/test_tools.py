@@ -307,33 +307,3 @@ def test_gemini_retries_a_busy_server_but_not_a_bad_model(monkeypatch) -> None:
     with pytest.raises(RuntimeError):
         transcript._with_retries(out_of_quota, "vid")
     assert spent == [1], "retrying a quota refusal only spends the cooldown early"
-
-
-def test_durations_come_from_the_data_api_not_the_watch_page(monkeypatch) -> None:
-    """The watch page is refused to datacenter addresses, so every video was
-    stored with duration 0 — which made a parent's length limit allow
-    everything and put the end-of-video question at second zero."""
-    seen = {}
-
-    def fake_get(url, params, access_token, timeout=20.0):
-        seen["url"], seen["params"] = url, params
-        return {"items": [
-            {"id": "vid_thirty", "contentDetails": {"duration": "PT30M"}},
-            {"id": "vid_short", "contentDetails": {"duration": "PT4M12S"}},
-            {"id": "vid_live", "contentDetails": {"duration": "P0D"}},  # a live stream: no length
-        ]}
-
-    monkeypatch.setattr(youtube, "_api_get", fake_get)
-    out = youtube.fetch_durations(["vid_thirty", "vid_short", "vid_live"], "tok")
-
-    assert out == {"vid_thirty": 1800, "vid_short": 252}
-    assert "vid_live" not in out, "unknown must stay unknown, not become zero"
-    assert seen["params"]["part"] == "contentDetails"
-
-
-def test_a_failed_duration_lookup_is_unknown_not_zero(monkeypatch) -> None:
-    def boom(url, params, access_token, timeout=20.0):
-        raise RuntimeError("403 quota")
-
-    monkeypatch.setattr(youtube, "_api_get", boom)
-    assert youtube.fetch_durations(["a", "b"], "tok") == {}

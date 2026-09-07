@@ -64,12 +64,13 @@
       "operatingSystem": "Web, Android, iOS",
       "description": "Tell HeyGilli what you are fine with your child watching. It reads every new YouTube upload from the channels you allow, shows what fits your answers, and brings you the rest to decide.",
       "featureList": [
+        "Suggests children's channels by age and interest; the parent approves them",
         "Screens every new upload from channels the parent approved",
         "Screening follows the parent's own stated preferences, not a generic rating",
         "Borderline videos go to the parent to decide rather than being hidden",
         "A buddy watches along and asks the child age-appropriate questions",
         "Daily time limits and movement breaks",
-        "Works without a Google account via a YouTube Takeout import"
+        "Works with no account at all, or from a YouTube Takeout export"
       ],
       "offers": {
         "@type": "Offer",
@@ -92,10 +93,10 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Why does it need my YouTube subscriptions?",
+          "name": "Where do the channels come from?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Nothing exposes a child's YouTube Kids profile, so HeyGilli reads your account's subscriptions — read-only, never posting or changing anything — to build the list of channels you already trust, which you then approve one at a time."
+            "text": "You choose them. HeyGilli suggests children's channels for your child's age and what you say they like, you can paste any channel yourself, and a Google Takeout export brings across a YouTube Kids profile. Nothing reaches your child from a channel you have not approved."
           }
         },
         {
@@ -103,7 +104,7 @@
           "name": "Can I use it without connecting Google?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Start without an account at all, then either import a Google Takeout export or add channels yourself. Nothing about the screening or the buddy depends on being signed in."
+            "text": "Yes, and signing in gives HeyGilli nothing but your name and email — it does not ask for access to your YouTube account and cannot read your subscriptions or your history. Nothing about the screening or the buddy depends on being signed in at all."
           }
         },
         {
@@ -573,21 +574,22 @@
     <div class="faq-grid">
 
     <details class="faq" open>
-      <summary>Why does it need my YouTube subscriptions?</summary>
+      <summary>Where do the channels come from?</summary>
       <div class="faq-a">
-        Nothing exposes a child's YouTube Kids profile, so HeyGilli reads your
-        account's subscriptions — read-only, never posting or changing
-        anything — to build the list of channels you already trust, which you
-        then approve one at a time.
+        You choose them. HeyGilli suggests children's channels for your child's
+        age and what you say they like, you can paste any channel yourself, and
+        a Google Takeout export brings across a YouTube Kids profile. Nothing
+        reaches your child from a channel you have not approved.
       </div>
     </details>
 
     <details class="faq">
       <summary>Can I use it without connecting Google?</summary>
       <div class="faq-a">
-        Yes. Start without an account at all, then either import a Google
-        Takeout export or add channels yourself. Nothing about the screening
-        or the buddy depends on being signed in.
+        Yes, and signing in gives HeyGilli nothing but your name and email —
+        it does not ask for access to your YouTube account and cannot read
+        your subscriptions or your history. Nothing about the screening or the
+        buddy depends on being signed in at all.
       </div>
     </details>
 

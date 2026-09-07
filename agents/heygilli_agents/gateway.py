@@ -18,7 +18,6 @@ import time
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import (
     BackgroundTasks,
@@ -47,7 +46,6 @@ from .google_auth import (
     GoogleNeedsRelink,
     GoogleNotConfigured,
     GoogleNotLinked,
-    google_access_token,
     link_household,
 )
 from .planner import ensure_plan, fallback_plan
@@ -71,7 +69,6 @@ from .schemas import (
     ServerPause,
     ServerResume,
     Session,
-    Subscription,
     Video,
     WatchState,
     new_id,
@@ -86,7 +83,7 @@ from .takeout import (
 )
 from .tools import transcript as transcript_sources
 from .tools.tts import TTS_DIR, synthesize
-from .tools.youtube import fetch_video_meta, list_subscriptions, resolve_channel_url
+from .tools.youtube import fetch_video_meta, resolve_channel_url
 
 load_dotenv()
 log = logging.getLogger("heygilli.gateway")
@@ -215,49 +212,6 @@ def _approved_by_channel(hid: str) -> dict[str, list[str]]:
             if ch.approved:
                 out.setdefault(ch.id, []).append(kid.id)
     return out
-
-
-@app.get("/me/youtube/subscriptions")
-def me_youtube_subscriptions(hid: str = Depends(household)) -> dict:
-    """The parent's own YouTube subscriptions, each marked with the kids that
-    already have it.
-
-    `linked: false` with an empty list is a normal state, not an error: the
-    household has no Google link yet, or the grant was just revoked. These are
-    the *parent's* subscriptions — a list to tick through, never an approved
-    catalogue (PROTOCOL.md).
-    """
-    store = get_store()
-    try:
-        access_token = google_access_token(hid, store)
-    except (GoogleNotLinked, GoogleNeedsRelink):
-        return {"linked": False, "subscriptions": []}  # a revoked link was just cleared
-    except GoogleAuthError as e:
-        raise _google_http(e) from e
-
-    try:
-        subs = list_subscriptions(access_token)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 401:  # the grant died between refresh and call
-            store.clear_google_link(hid)
-            log.info("youtube rejected the access token for household %s; link cleared", hid)
-            return {"linked": False, "subscriptions": []}
-        raise HTTPException(502, f"YouTube Data API returned {e.response.status_code}") from e
-    except httpx.HTTPError as e:
-        raise HTTPException(502, f"could not reach the YouTube Data API: {type(e).__name__}") from e
-
-    # Cache titles and thumbnails so an import needs no second API call.
-    store.cache_put("youtube_subs", hid, {"items": subs})
-    approved = _approved_by_channel(hid)
-    return {
-        "linked": True,
-        "subscriptions": [
-            Subscription(**s, approved_for=approved.get(s["channel_id"], [])).model_dump() for s in subs
-        ],
-    }
-
-
-# --- kids -----------------------------------------------------------------------------------------------
 
 
 class KidIn(BaseModel):
@@ -727,12 +681,15 @@ def _curate_in_background(kid: Kid) -> None:
         _curating.discard(kid.id)
 
 
-def _channel_info(channel_id: str, known: dict[str, dict]) -> dict:
-    """Title and thumbnail for one channel id: from the cached subscription list
-    when possible, else resolved like a pasted URL. An unresolvable channel is
-    still imported under its id rather than failing the whole import."""
-    if channel_id in known:
-        return known[channel_id]
+def _channel_info(channel_id: str) -> dict:
+    """Title and thumbnail for one channel id, resolved like a pasted URL.
+
+    It used to prefer a cached copy of the parent's own subscription list.
+    That list is no longer read — HeyGilli does not ask for access to a
+    parent's YouTube account — so every channel is resolved the same way,
+    whichever door it came in through. An unresolvable one is still imported
+    under its id rather than failing the whole batch.
+    """
     try:
         return resolve_channel_url(channel_id)
     except Exception as e:  # noqa: BLE001 - one odd channel must not sink the batch
@@ -759,16 +716,13 @@ def import_channels(
     kid = _kid(hid, kid_id)
     store = get_store()
     have = {c.id for c in store.list_channels(hid, kid_id) if c.approved}
-    cached = store.cache_get("youtube_subs", hid) or {}
-    known = {s["channel_id"]: s for s in cached.get("items", [])}
-
     added: list[dict] = []
     already: list[str] = []
     for channel_id in dict.fromkeys(c.strip() for c in body.channel_ids if c.strip()):
         if channel_id in have:
             already.append(channel_id)
             continue
-        added.append(_approve_channel(hid, kid_id, _channel_info(channel_id, known)).model_dump())
+        added.append(_approve_channel(hid, kid_id, _channel_info(channel_id)).model_dump())
         have.add(channel_id)
 
     if added:
@@ -921,12 +875,10 @@ _reviewing: set[str] = set()  # channel ids with a review in flight
 
 def _channel_hints(hid: str) -> dict[str, dict]:
     """Title and avatar per channel id, from what this household already has:
-    the kids' approved channels and the cached subscription list. Saves the
-    Reviewer a page fetch, and is the only source of an avatar (RSS has none)."""
+    the kids' approved channels. Saves the Reviewer a page fetch, and is the
+    only source of an avatar (RSS has none)."""
     store = get_store()
     hints: dict[str, dict] = {}
-    for s in (store.cache_get("youtube_subs", hid) or {}).get("items", []):
-        hints[s["channel_id"]] = {"title": s.get("title", ""), "thumb_url": s.get("thumb_url", "")}
     for kid in store.list_kids(hid):
         for ch in store.list_channels(hid, kid.id):
             hints.setdefault(ch.id, {"title": ch.title, "thumb_url": ch.thumb_url})

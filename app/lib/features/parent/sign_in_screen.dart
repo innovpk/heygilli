@@ -14,12 +14,10 @@ import 'parent_widgets.dart';
 /// Google is the front door: the same consent that identifies the parent also
 /// brings across the channels they already follow.
 ///
-/// It cannot be the only door. `youtube.readonly` is a Google *restricted*
-/// scope, so until the OAuth app passes verification only accounts on the
-/// test-user list may sign in — for everyone else the Google button leads to a
-/// blocked page, and with one door that is the end of the app. The second door
-/// asks for nothing, and the parent brings their channels across from a Takeout
-/// export instead.
+/// It is not the only door, and does not need to be. Sign-in asks only who
+/// the parent is, so a household that would rather not hand over an account at
+/// all loses nothing by using the second door: channels come from suggestions,
+/// a Takeout export, or a pasted link either way.
 ///
 /// SPEC 12: only the parent ever signs in. Nothing here is shown to a child.
 class SignInScreen extends StatefulWidget {
