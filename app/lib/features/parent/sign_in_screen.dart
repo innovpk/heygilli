@@ -9,9 +9,17 @@ import '../../core/google_auth.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
 
-/// Parent sign-in. Google is the only way in: the same consent that identifies
-/// the parent also brings across the channels they already follow, so there is
-/// no second path to keep working and no name to type.
+/// Parent sign-in, by either of two doors.
+///
+/// Google is the front door: the same consent that identifies the parent also
+/// brings across the channels they already follow.
+///
+/// It cannot be the only door. `youtube.readonly` is a Google *restricted*
+/// scope, so until the OAuth app passes verification only accounts on the
+/// test-user list may sign in — for everyone else the Google button leads to a
+/// blocked page, and with one door that is the end of the app. The second door
+/// asks for nothing, and the parent brings their channels across from a Takeout
+/// export instead.
 ///
 /// SPEC 12: only the parent ever signs in. Nothing here is shown to a child.
 class SignInScreen extends StatefulWidget {
@@ -24,6 +32,29 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   bool _busy = false;
   String? _error;
+
+  /// The without-Google door. The household name is generated and remembered,
+  /// never typed: the server hashes it into the household id, so a name a
+  /// person would pick is a household the next person who picks it walks into.
+  Future<void> _withoutGoogle() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final state = context.read<AppState>();
+    try {
+      await state.signIn(await state.settings.ensureTrialHousehold());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Could not start: $e';
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+  }
 
   Future<void> _google() async {
     setState(() {
@@ -101,6 +132,30 @@ class _SignInScreenState extends State<SignInScreen> {
                       textAlign: TextAlign.center,
                       style: HgText.body(size: 14, color: HgColors.brown),
                     ),
+                    const _OrDivider(),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : _withoutGoogle,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: HgColors.line),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(26),
+                          ),
+                        ),
+                        child: Text(
+                          'Set up without Google',
+                          style: HgText.body(size: 16, color: HgColors.ink),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Nothing to sign in to. You add channels yourself, or '
+                      'bring them across from a YouTube export — the next '
+                      'screen shows you how.',
+                      textAlign: TextAlign.center,
+                      style: HgText.body(size: 13, color: HgColors.muted),
+                    ),
                     if (_error != null)
                       Text(
                         _error!,
@@ -126,5 +181,22 @@ class _SignInScreenState extends State<SignInScreen> {
     reason: canUseGoogle
         ? null
         : 'This build has no Google client id, so sign-in is unavailable.',
+  );
+}
+
+/// A hairline with "or" set into it, separating the two doors.
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(child: Divider(color: HgColors.line, height: 1)),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text('or', style: HgText.body(size: 13, color: HgColors.muted)),
+      ),
+      const Expanded(child: Divider(color: HgColors.line, height: 1)),
+    ],
   );
 }

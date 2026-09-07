@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -60,6 +62,7 @@ class LocalSettings {
   static const _tokenKey = 'auth_token';
   static const _parentNameKey = 'parent_name';
   static const _kidDeviceKey = 'kid_device_kid_id';
+  static const _trialKey = 'trial_household';
 
   String? get pin => _prefs.getString(_pinKey);
   Future<void> setPin(String pin) => _prefs.setString(_pinKey, pin);
@@ -89,4 +92,25 @@ class LocalSettings {
   Future<void> setKidDeviceId(String? kidId) => kidId == null || kidId.isEmpty
       ? _prefs.remove(_kidDeviceKey)
       : _prefs.setString(_kidDeviceKey, kidId);
+
+  /// The household name used by the without-Google path, kept so that closing
+  /// the app and coming back lands in the same household rather than a new
+  /// empty one.
+  ///
+  /// Generated, never typed. The server derives the household id by hashing
+  /// this name, so a name a person would choose — "test", a first name — is a
+  /// household anyone else who picks it walks straight into. 128 bits from a
+  /// secure generator makes that collision unreachable.
+  String? get trialHousehold => _prefs.getString(_trialKey);
+
+  Future<String> ensureTrialHousehold() async {
+    final existing = _prefs.getString(_trialKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final rng = Random.secure();
+    final name =
+        'trial-'
+        '${List.generate(16, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+    await _prefs.setString(_trialKey, name);
+    return name;
+  }
 }

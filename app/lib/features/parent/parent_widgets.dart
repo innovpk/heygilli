@@ -283,13 +283,21 @@ class GoogleButton extends StatelessWidget {
                     spacing: 12,
                     children: [
                       const _GoogleG(),
-                      Text(
-                        label,
-                        style: HgText.body(
-                          size: 17,
-                          color: onPressed == null
-                              ? HgColors.muted
-                              : HgColors.ink,
+                      // Flexible, not bare: on a narrow phone the label plus
+                      // the G is wider than the button, and an unconstrained
+                      // Text in a Row paints the overflow stripes across the
+                      // first thing a parent ever sees.
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HgText.body(
+                            size: 17,
+                            color: onPressed == null
+                                ? HgColors.muted
+                                : HgColors.ink,
+                          ),
                         ),
                       ),
                     ],
