@@ -5,7 +5,6 @@ import 'package:heygilli/core/app_state.dart';
 import 'package:heygilli/core/fake_gateway.dart';
 import 'package:heygilli/core/models.dart';
 import 'package:heygilli/core/settings.dart';
-import 'package:heygilli/features/kid/avatar_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A child's own picture.
@@ -40,6 +39,35 @@ void main() {
     expect(stored.nickname, 'Abeeha');
     expect(stored.age, 5);
     expect(stored.band, AgeBand.b4to6);
+  });
+
+  test('a child who has not chosen shows their initial, not a blank circle', () {
+    // The server's default is "gilli", for which there is no icon. Every child
+    // who had never opened the picker therefore rendered as an empty coloured
+    // circle — a bug the earlier tests could not see, because they only ever
+    // checked names that were already in the offered list.
+    const notChosen = Kid(
+      id: 'k', nickname: 'Abeeha', age: 7,
+      band: AgeBand.b7to8, languages: ['en'], avatar: 'gilli',
+    );
+    expect(notChosen.hasDrawableAvatar, isFalse);
+
+    for (final name in kidAvatars) {
+      expect(
+        Kid(id: 'k', nickname: 'A', age: 7, band: AgeBand.b7to8,
+            languages: const ['en'], avatar: name).hasDrawableAvatar,
+        isTrue,
+        reason: '$name is offered, so it must be drawable',
+      );
+    }
+
+    // And a face this app has never heard of — one added on the server before
+    // the asset ships — falls back rather than drawing nothing.
+    expect(
+      const Kid(id: 'k', nickname: 'A', age: 7, band: AgeBand.b7to8,
+          languages: ['en'], avatar: 'unicorn').hasDrawableAvatar,
+      isFalse,
+    );
   });
 
   test('every offered face has an asset behind it', () {

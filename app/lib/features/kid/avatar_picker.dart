@@ -7,18 +7,6 @@ import '../../core/models.dart';
 import '../../core/responsive.dart';
 import '../../core/theme.dart';
 
-/// The faces a child may wear.
-///
-/// Kept here rather than fetched, so a child in kid mode never waits on the
-/// network to change their own picture. The server checks the same names
-/// before storing one — this list is what a child is *offered*, not what is
-/// trusted.
-const kidAvatars = <String>[
-  'cat', 'dog', 'duck', 'frog', 'lion', 'monkey',
-  'elephant', 'giraffe', 'bird', 'butterfly', 'fish', 'cow',
-  'squirrel', 'rocket', 'star', 'sun', 'moon', 'flower',
-  'boat', 'train', 'tree', 'mango',
-];
 
 /// Let the child choose their own picture.
 ///

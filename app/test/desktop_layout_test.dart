@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// kid grid instead of a stack of full-width rows.
 void main() {
   _pushedScreenTests();
+  _railGeometry();
 
   late AppState app;
 
@@ -195,5 +196,48 @@ void _pushedScreenTests() {
   testWidgets('a phone still gets one readable column', (tester) async {
     await pumpScaffold(tester, const Size(420, 900));
     expect(tester.getRect(find.text('content')).width, lessThan(500));
+  });
+}
+
+/// Where the navigation sits.
+///
+/// The rail used to live inside a rounded card floating in the middle of the
+/// cream, which made the navigation read as part of the page rather than the
+/// frame around it, and left a band of empty ground down both sides of a wide
+/// window.
+void _railGeometry() {
+  testWidgets('the rail owns the left edge, corner to corner', (tester) async {
+    late AppState app;
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      final gateway = FakeGateway();
+      await gateway.signInDev('parent');
+      app = AppState(gateway: gateway, settings: await LocalSettings.load());
+      await gateway.createKid(nickname: 'Abu', age: 8, languages: const ['en']);
+      await app.refreshKids();
+    });
+    const size = Size(1600, 1000);
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: const MaterialApp(home: ParentHome()),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    final rail = tester.getRect(find.byType(ParentSidebar));
+    expect(rail.left, 0, reason: 'the rail is inset from the window edge');
+    expect(rail.top, 0, reason: 'the rail does not start at the top');
+    expect(
+      rail.height,
+      size.height,
+      reason: 'the rail stops short of the bottom of the window: got \${rail.height}',
+    );
   });
 }

@@ -117,36 +117,40 @@ class ParentScaffold extends StatelessWidget {
             // so the bottom bar and the add button stay with the content
             // instead of hugging the window's edges; the cream behind it is
             // the same ground, so no seam shows.
+            // With a rail, the rail owns the left edge of the window: full
+            // height, corner to corner, the way every desktop app with a
+            // navigation column is built. It used to sit inside a rounded
+            // card floating in the middle of the cream, which made the
+            // navigation look like part of the page rather than the frame
+            // around it, and wasted a band of empty ground down both sides.
+            //
+            // The content keeps a maximum width of its own and centres in
+            // whatever space is left, so a wide monitor gives margins rather
+            // than a line of text a foot long.
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  sidebar!,
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1180),
+                        child: page,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
             return Center(
               child: ConstrainedBox(
-                // 1160 total left ~928px for content once the 232px sidebar
-                // was subtracted — under the 1080px a three-kid row needs, so
-                // that tier could never actually be reached. 1400 clears it
-                // with room, while still leaving real margin on an ultrawide
-                // monitor rather than stretching edge to edge.
                 // 560 is a readable single column and stays the answer on a
                 // phone. A pushed screen on a desktop gets 1120: wide enough
                 // for two columns of cards side by side, narrow enough that a
                 // paragraph in one of them is still a paragraph.
-                constraints: BoxConstraints(
-                  maxWidth: wide
-                      ? 1400
-                      : roomy
-                      ? 1120
-                      : 560,
-                ),
-                child: wide
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [sidebar!, Expanded(child: page)],
-                          ),
-                        ),
-                      )
-                    : page,
+                constraints: BoxConstraints(maxWidth: roomy ? 1120 : 560),
+                child: page,
               ),
             );
           },
@@ -177,7 +181,13 @@ class ParentSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: 232,
-    color: HgColors.white,
+    decoration: const BoxDecoration(
+      color: HgColors.white,
+      // The rail no longer has a card's edge to end it, so it draws its own
+      // hairline. Without it the white simply stops and the eye reads a gap
+      // rather than a boundary.
+      border: Border(right: BorderSide(color: HgColors.line)),
+    ),
     // Even on both sides: the selected item's highlight pill is drawn by
     // _SidebarItem right up to this padding, so an uneven inset here reads as
     // the highlight sitting closer to one edge than the other.
@@ -312,15 +322,15 @@ class KidAvatar extends StatelessWidget {
       // A face the child picked, or their initial when they have not picked
       // one. The name is checked by the server against a fixed list before it
       // is stored, so it is safe to build an asset path from.
-      child: kid.avatar.isEmpty
-          ? Text(
-              initial,
-              style: HgText.display(size: size * 0.5, color: HgColors.teal),
-            )
-          : SvgPicture.asset(
+      child: kid.hasDrawableAvatar
+          ? SvgPicture.asset(
               'assets/icons/${kid.avatar}.svg',
               width: size * 0.66,
               height: size * 0.66,
+            )
+          : Text(
+              initial,
+              style: HgText.display(size: size * 0.5, color: HgColors.teal),
             ),
     );
   }

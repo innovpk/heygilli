@@ -1,6 +1,22 @@
 /// REST objects from docs/PROTOCOL.md plus the age-band rules from SPEC.md 3.
 library;
 
+/// The faces a child may wear.
+///
+/// Here rather than beside the picker because [Kid] needs it: a value that
+/// names no face has to fall back to their initial, and the server's default
+/// ("gilli") is exactly that — there is no icon for it, so every child who had
+/// not chosen rendered as an empty coloured circle.
+///
+/// The server checks the same names before storing one; this list is what a
+/// child is *offered*, not what is trusted.
+const kidAvatars = <String>[
+  'cat', 'dog', 'duck', 'frog', 'lion', 'monkey',
+  'elephant', 'giraffe', 'bird', 'butterfly', 'fish', 'cow',
+  'squirrel', 'rocket', 'star', 'sun', 'moon', 'flower',
+  'boat', 'train', 'tree', 'mango',
+];
+
 /// The three bands drive everything downstream: question types, whether text
 /// is shown, listening window, buddy tone, digest shape.
 enum AgeBand {
@@ -84,6 +100,15 @@ class Kid {
   final AgeBand band;
   final List<String> languages;
   final String avatar;
+
+  /// Whether [avatar] names a face this build can actually draw.
+  ///
+  /// The server's default is "gilli", for which there is no icon — so every
+  /// child who had not picked a face rendered as an empty coloured circle.
+  /// Anything unrecognised falls back to their initial rather than to
+  /// nothing, which also covers a face added on the server before this app
+  /// has shipped the asset.
+  bool get hasDrawableAvatar => kidAvatars.contains(avatar);
 
   /// Total watching allowed per day. 0 = no limit.
   final int dailyMinutes;
