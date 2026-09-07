@@ -111,6 +111,14 @@ abstract class Gateway {
     List<String>? languages,
   });
 
+  /// `GET /kids/{id}/prompts`. The questions written for this child's band,
+  /// each with whether they are asked it.
+  Future<List<KidPrompt>> prompts(String kidId);
+
+  /// `PUT /kids/{id}/prompts`. Sends the ids the parent turned OFF, whole:
+  /// unticking the last one has to be distinguishable from sending nothing.
+  Future<List<KidPrompt>> savePrompts(String kidId, List<String> disabled);
+
   Future<List<Channel>> channels(String kidId);
   Future<Channel> addChannel(String kidId, String url);
 

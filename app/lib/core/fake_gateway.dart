@@ -734,6 +734,66 @@ class FakeGateway implements Gateway {
     return List.unmodifiable(_channels[kidId] ?? const []);
   }
 
+  /// The demo's copy of the server's bank, enough to show the screen working.
+  /// Real wording lives in agents/heygilli_agents/question_bank.py.
+  static const _bank = <String, List<List<String>>>{
+    '4_6': [
+      ['p46_favourite_part', 'What was your favourite bit?', 'name_it', 'voice'],
+      ['p46_who_was_in_it', 'Who was in it?', 'name_it', 'voice'],
+      ['p46_colour_seen', 'Name a colour you saw', 'name_it', 'voice'],
+      ['p46_clap', 'Clap for the video', 'copy_it', 'copy'],
+      ['p46_stretch_tall', 'Stretch up tall', 'copy_it', 'copy'],
+      ['p46_happy_sad', 'Happy or sad?', 'name_it', 'voice'],
+    ],
+    '7_8': [
+      ['p78_favourite_part', 'What was your favourite part?', 'recall', 'voice'],
+      ['p78_one_new_thing', 'One thing you learned', 'recall', 'voice'],
+      ['p78_what_happened_first', 'What happened first?', 'recall', 'voice'],
+      ['p78_why_liked', 'Why did you like it?', 'why', 'voice'],
+      ['p78_what_next', 'What might happen next?', 'predict', 'voice'],
+    ],
+    '9_11': [
+      ['p911_tell_a_friend', 'Explain it to a friend', 'explain', 'voice'],
+      ['p911_best_bit_why', 'Best part, and why', 'opinion', 'voice'],
+      ['p911_something_left_out', 'What was left out?', 'apply', 'voice'],
+      ['p911_compare_other', 'How did it compare?', 'compare', 'voice'],
+      ['p911_would_recommend', 'Would you recommend it?', 'opinion', 'voice'],
+    ],
+  };
+
+  final Map<String, Set<String>> _disabledPrompts = {};
+
+  List<KidPrompt> _promptsFor(String kidId) {
+    final kid = _kids.firstWhere((k) => k.id == kidId);
+    final off = _disabledPrompts[kidId] ?? const <String>{};
+    return [
+      for (final row in _bank[kid.band.wire] ?? const <List<String>>[])
+        KidPrompt(
+          id: row[0],
+          label: row[1],
+          type: row[2],
+          input: row[3],
+          enabled: !off.contains(row[0]),
+        ),
+    ];
+  }
+
+  @override
+  Future<List<KidPrompt>> prompts(String kidId) async {
+    await _lag();
+    return _promptsFor(kidId);
+  }
+
+  @override
+  Future<List<KidPrompt>> savePrompts(
+    String kidId,
+    List<String> disabled,
+  ) async {
+    await _lag();
+    _disabledPrompts[kidId] = disabled.toSet();
+    return _promptsFor(kidId);
+  }
+
   @override
   Future<Kid> editKid(
     String kidId, {

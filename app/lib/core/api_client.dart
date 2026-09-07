@@ -242,6 +242,23 @@ class ApiClient implements Gateway {
       );
 
   @override
+  Future<List<KidPrompt>> prompts(String kidId) async =>
+      _readPrompts(await _get('/kids/$kidId/prompts'));
+
+  @override
+  Future<List<KidPrompt>> savePrompts(
+    String kidId,
+    List<String> disabled,
+  ) async => _readPrompts(
+    await _put('/kids/$kidId/prompts', {'disabled': disabled}),
+  );
+
+  static List<KidPrompt> _readPrompts(dynamic body) => [
+    for (final p in (body as Map<String, dynamic>)['prompts'] as List)
+      KidPrompt.fromJson(p as Map<String, dynamic>),
+  ];
+
+  @override
   Future<void> curateNow(String kidId) async =>
       _post('/kids/$kidId/curate', const {});
 

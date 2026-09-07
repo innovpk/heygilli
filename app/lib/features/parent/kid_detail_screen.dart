@@ -12,6 +12,7 @@ import 'history_screen.dart';
 import 'import_subscriptions_screen.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
+import 'prompts_card.dart';
 import 'policy_screen.dart';
 import 'progress_screen.dart';
 import 'takeout_import_screen.dart';
@@ -416,6 +417,8 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     TimeLimitsCard(kid: kid),
                     const SizedBox(height: 16),
                     BreakMessagesCard(kid: kid),
+                    const SizedBox(height: 16),
+                    PromptsCard(kid: kid),
                     const SizedBox(height: 24),
                   ],
                 ),

@@ -190,6 +190,50 @@ class Kid {
 /// Parent-authored. A model may propose these in the parent app, but nothing
 /// reaches a child until the parent saves it, so every word Gilli says during
 /// a break was written or approved by a parent.
+/// One question from the server's written bank, and whether this child is
+/// asked it.
+///
+/// The bank is graded by band, so the list a parent sees changes when they
+/// correct the child's age — that is the point of it being graded rather than
+/// labelled. Everything is on until the parent turns it off.
+class KidPrompt {
+  const KidPrompt({
+    required this.id,
+    required this.label,
+    required this.enabled,
+    this.type = '',
+    this.input = '',
+  });
+
+  final String id;
+
+  /// A short line for the parent's list. Never spoken to the child.
+  final String label;
+  final bool enabled;
+  final String type;
+
+  /// "voice", "copy" or "pick" — what the child does to answer. Shown because
+  /// "make a sound" and "say a word" are different things to ask of a
+  /// four-year-old.
+  final String input;
+
+  KidPrompt copyWith({bool? enabled}) => KidPrompt(
+    id: id,
+    label: label,
+    enabled: enabled ?? this.enabled,
+    type: type,
+    input: input,
+  );
+
+  factory KidPrompt.fromJson(Map<String, dynamic> j) => KidPrompt(
+    id: '${j['id'] ?? ''}',
+    label: '${j['label'] ?? ''}',
+    enabled: j['enabled'] != false,
+    type: '${j['type'] ?? ''}',
+    input: '${j['input'] ?? ''}',
+  );
+}
+
 class BreakMessage {
   const BreakMessage({this.id = '', this.text = '', this.spoken = ''});
 
