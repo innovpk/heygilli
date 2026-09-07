@@ -302,12 +302,40 @@ class _AccountMenu extends StatelessWidget {
       ),
     );
     typed.dispose();
-    if (yes != true) return;
+    if (yes != true || !context.mounted) return;
 
+    // Removing a household is a row at a time over a gateway that may be
+    // asleep, so it can take seconds. A barrier rather than a quiet wait: the
+    // parent can see it is happening, and cannot start it twice or navigate
+    // away into an account that is halfway gone.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: HgColors.white,
+          content: Row(
+            spacing: 16,
+            children: [
+              const CircularProgressIndicator(color: HgColors.mango),
+              Expanded(
+                child: Text(
+                  'Deleting everything...',
+                  style: HgText.body(size: 16, color: HgColors.brown),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
     try {
       await state.deleteHousehold();
+      navigator.pop(); // the progress barrier
       navigator.pushNamedAndRemoveUntil(Routes.parent, (_) => false);
     } catch (e) {
+      navigator.pop();
       messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
     }
   }

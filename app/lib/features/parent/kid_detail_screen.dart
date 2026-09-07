@@ -51,6 +51,17 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   bool _adding = false;
   bool _curating = false;
   Kid? _edited;
+
+  /// Deleting is several server calls over a sleeping free-tier gateway, so it
+  /// can take seconds with nothing to show for it. Without this the parent
+  /// taps Delete, the dialog closes, and the page sits there looking as
+  /// though nothing happened — so they tap it again.
+  bool _deleting = false;
+
+  // Owned here rather than made inside _deleteKid: the dialog's TextField is
+  // still built while the route animates out, so disposing it the moment
+  // showDialog returns is a use-after-dispose.
+  final TextEditingController _confirmName = TextEditingController();
   String? _error;
 
   void _reload() => setState(() {
@@ -64,6 +75,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   void dispose() {
     _tabs.dispose();
     _url.dispose();
+    _confirmName.dispose();
     super.dispose();
   }
 
@@ -100,7 +112,8 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     if (!await showPinGate(context)) return;
     if (!mounted) return;
 
-    final typed = TextEditingController();
+    _confirmName.clear();
+    final typed = _confirmName;
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -150,11 +163,11 @@ class _KidDetailScreenState extends State<KidDetailScreen>
         ],
       ),
     );
-    typed.dispose();
     if (yes != true || !mounted) return;
 
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    setState(() => _deleting = true);
     try {
       await context.read<AppState>().deleteKid(kid);
       navigator.pop();
@@ -162,6 +175,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
         SnackBar(content: Text('${kid.nickname} was deleted.')),
       );
     } catch (e) {
+      if (mounted) setState(() => _deleting = false);
       messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
     }
   }
@@ -250,7 +264,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     // The edit sheet returns the corrected child; until this screen is popped
     // and rebuilt, widget.kid still holds the old age and band.
     final kid = _edited ?? widget.kid;
-    return ParentScaffold(
+    final page = ParentScaffold(
       title: kid.nickname,
       subtitle: 'Age ${kid.age}  |  band ${kid.band.label}',
       actions: [
@@ -258,10 +272,20 @@ class _KidDetailScreenState extends State<KidDetailScreen>
         // no edit anywhere, and no delete either, so a child entered wrong
         // stayed wrong. It belongs next to the thing it corrects.
         IconButton(
-          onPressed: _editKid,
+          onPressed: _deleting ? null : _editKid,
           icon: const Icon(Icons.edit_outlined),
           tooltip: 'Edit ${kid.nickname}',
           color: HgColors.brown,
+        ),
+        // In the header, so it is reachable from any tab rather than only
+        // from the bottom of one of them. It was at the end of Rules, where
+        // nobody looked for it — and "Delete Abdul" was never a rule about
+        // what Abdul may watch.
+        IconButton(
+          onPressed: _deleting ? null : _deleteKid,
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Delete ${kid.nickname}',
+          color: HgColors.coral,
         ),
         KidAvatar(kid: kid, size: 48),
       ],
@@ -506,21 +530,10 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                         PromptsCard(kid: kid),
                       ],
                     ),
-                    const SizedBox(height: 28),
-                    // Last, and quiet. A destructive action belongs at the end
-                    // of the settings a parent came here for, not beside them.
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: _deleteKid,
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        label: Text('Delete ${kid.nickname}'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: HgColors.coral,
-                          textStyle: HgText.body(size: 15),
-                        ),
-                      ),
-                    ),
+                    // Deleting used to live down here, at the end of Rules.
+                    // It is in the header now, on every tab, because a parent
+                    // who wants a child gone should not have to guess which
+                    // tab hides the button.
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -718,6 +731,36 @@ class _KidDetailScreenState extends State<KidDetailScreen>
           ),
         ],
       ),
+    );
+
+    // While a delete runs the page is dimmed and the whole thing is
+    // uninteractable, so a parent cannot start it twice and can see that
+    // something is happening. Deleting is several server calls over a
+    // free-tier gateway that may be asleep; without this it looks like
+    // nothing happened.
+    return Stack(
+      children: [
+        page,
+        if (_deleting)
+          Positioned.fill(
+            child: ColoredBox(
+              color: HgColors.cream.withValues(alpha: 0.82),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 16,
+                  children: [
+                    const CircularProgressIndicator(color: HgColors.mango),
+                    Text(
+                      'Deleting ${kid.nickname}...',
+                      style: HgText.body(size: 16, color: HgColors.brown),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
