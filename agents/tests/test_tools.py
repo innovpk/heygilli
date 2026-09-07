@@ -369,6 +369,7 @@ def test_channel_search_needs_a_key_and_says_which_problem_it_hit(monkeypatch) -
     """A setup problem and an empty result look identical to a parent, who
     would retype their query for ever. They are told apart here."""
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("HEYGILLI_YOUTUBE_API_KEY", raising=False)
     with pytest.raises(youtube.SearchUnavailable, match="not set up"):
         youtube.search_channels("peppa pig")
 
@@ -378,7 +379,10 @@ def test_channel_search_needs_a_key_and_says_which_problem_it_hit(monkeypatch) -
 
 
 def test_channel_search_reads_channels_out_of_the_response(monkeypatch) -> None:
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    # Its own key, preferred over the Gemini one: an AI Studio key is bound to
+    # a service account and the YouTube Data API refuses that shape entirely.
+    monkeypatch.setenv("GOOGLE_API_KEY", "gemini-key")
+    monkeypatch.setenv("HEYGILLI_YOUTUBE_API_KEY", "yt-key")
     seen = {}
 
     class _Resp:
@@ -409,7 +413,7 @@ def test_channel_search_reads_channels_out_of_the_response(monkeypatch) -> None:
     assert out == [{"channel_id": "UCabc", "title": "SciShow & Kids",
                     "blurb": "science", "thumb_url": "http://img/m.jpg"}]
     assert seen["params"]["type"] == "channel", "videos are not what a parent approves"
-    assert seen["params"]["key"] == "test-key"
+    assert seen["params"]["key"] == "yt-key", "the Gemini key cannot search"
 
 
 def test_a_refused_search_is_raised_not_returned_empty(monkeypatch) -> None:

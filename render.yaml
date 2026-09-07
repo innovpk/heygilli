@@ -48,3 +48,11 @@ services:
       # off, and it says so rather than approving unread videos.
       - key: GOOGLE_API_KEY
         sync: false
+      # Searching YouTube for a channel needs a *plain* API key, not the AI
+      # Studio one above: that is bound to a service account, and the YouTube
+      # Data API refuses that shape outright — "API keys are not supported by
+      # this API" — however its restrictions are set. Create one under
+      # Credentials, restrict it to YouTube Data API v3, and set it here.
+      # Without it the app still works; parent search says it is not set up.
+      - key: HEYGILLI_YOUTUBE_API_KEY
+        sync: false

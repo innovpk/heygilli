@@ -204,10 +204,20 @@ def search_channels(query: str, limit: int = 10) -> list[dict]:
     q = query.strip()
     if not q:
         return []
-    key = os.getenv("GOOGLE_API_KEY", "").strip()
+    # Its own variable, and not GOOGLE_API_KEY, because the two are different
+    # kinds of credential. An AI Studio key is bound to a service account, and
+    # the YouTube Data API refuses that shape outright — "API keys are not
+    # supported by this API" — however its restrictions are set. Searching
+    # needs a plain API key, so it gets its own; GOOGLE_API_KEY falls back
+    # only for a deployment where one plain key does both.
+    key = (
+        os.getenv("HEYGILLI_YOUTUBE_API_KEY", "").strip()
+        or os.getenv("GOOGLE_API_KEY", "").strip()
+    )
     if not key:
         raise SearchUnavailable(
-            "Searching YouTube is not set up on this server."
+            "Searching YouTube is not set up on this server: it needs a plain "
+            "YouTube Data API key in HEYGILLI_YOUTUBE_API_KEY."
         )
     params = {
         "part": "snippet",
