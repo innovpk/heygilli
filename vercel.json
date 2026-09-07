@@ -1,13 +1,6 @@
 {
-  "buildCommand": "echo 'Build already complete'",
   "outputDirectory": "app/build/web",
-  "routes": [
-    {
-      "src": "^/(.*)$",
-      "dest": "/index.html",
-      "status": 200
-    }
-  ],
+  "buildCommand": "echo 'Flutter build already complete'",
   "env": {
     "HEYGILLI_API_URL": "@heygilli-api-url"
   }
