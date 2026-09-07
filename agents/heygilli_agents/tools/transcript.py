@@ -166,6 +166,41 @@ def _proxy_config():
     return GenericProxyConfig(http_url=url, https_url=url) if url else None
 
 
+#: Attempts for one video before giving up on Gemini for it. The free tier
+#: answers 503 "high demand" often enough that a single try lost whole runs,
+#: and the retry costs a pause where the alternative costs the screening.
+GEMINI_ATTEMPTS = int(os.getenv("HEYGILLI_GEMINI_ATTEMPTS", "3"))
+
+
+def _is_transient(e: Exception) -> bool:
+    """A "come back in a moment", as opposed to a wrong model or a dead key.
+
+    Matched on the message for the same reason as `_is_quota_error`: one
+    exception type covers every server-side refusal.
+    """
+    text = f"{type(e).__name__} {e}".upper()
+    return "503" in text or "UNAVAILABLE" in text or "500" in text or "INTERNAL" in text
+
+
+def _with_retries(call, video_id: str):
+    """Run `call`, retrying only what is worth retrying.
+
+    `_is_transient` is the only thing that decides. A quota refusal is not in
+    it on purpose: the caller stands the whole path down for one, and trying
+    again immediately would spend that cooldown early for nothing.
+    """
+    for attempt in range(1, GEMINI_ATTEMPTS + 1):
+        try:
+            return call()
+        except Exception as e:
+            if attempt == GEMINI_ATTEMPTS or not _is_transient(e):
+                raise
+            wait = 2.0 * attempt
+            log.info("gemini busy for %s (attempt %d), retrying in %.0fs", video_id, attempt, wait)
+            time.sleep(wait)
+    return None  # unreachable: the loop returns or raises
+
+
 def _from_gemini(video_id: str) -> list[dict] | None:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -183,18 +218,21 @@ def _from_gemini(video_id: str) -> list[dict] | None:
         "sentence or scene change. Include a short [scene: ...] note in text when the "
         "picture changes."
     )
-    resp = client.models.generate_content(
-        # 2.5-flash is closed to keys made after it was retired, and answers a
-        # 404 rather than falling back, so a fresh deployment got no transcript
-        # at all. Overridable because this name will retire too.
-        model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash"),
-        contents=types.Content(
-            parts=[
-                types.Part(file_data=types.FileData(file_uri=f"https://www.youtube.com/watch?v={video_id}")),
-                types.Part(text=prompt),
-            ]
-        ),
-    )
+    def call():
+        return client.models.generate_content(
+            # 2.5-flash is closed to keys made after it was retired, and answers
+            # a 404 rather than falling back, so a fresh deployment got no
+            # transcript at all. Overridable because this name will retire too.
+            model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash"),
+            contents=types.Content(
+                parts=[
+                    types.Part(file_data=types.FileData(file_uri=f"https://www.youtube.com/watch?v={video_id}")),
+                    types.Part(text=prompt),
+                ]
+            ),
+        )
+
+    resp = _with_retries(call, video_id)
     text = re.sub(r"^```(?:json)?|```$", "", resp.text.strip(), flags=re.MULTILINE).strip()
     rows = json.loads(text)
     return [{"start_s": int(r["start_s"]), "text": str(r["text"])} for r in rows]

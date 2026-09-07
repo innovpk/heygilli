@@ -269,3 +269,41 @@ def test_a_video_with_no_captions_is_still_just_none(monkeypatch) -> None:
     monkeypatch.setattr(transcript, "_from_captions", lambda vid, proxy=None: None)
     monkeypatch.setattr(transcript, "_from_gemini", lambda vid: None)
     assert transcript.fetch_transcript("vid_silent")["source"] == "none"
+
+
+def test_gemini_retries_a_busy_server_but_not_a_bad_model(monkeypatch) -> None:
+    """503 "high demand" is the free tier's normal weather and cost whole runs
+    when one was enough to give up. A 404 is not weather and must not be sat on."""
+    monkeypatch.setattr(transcript, "GEMINI_ATTEMPTS", 3)
+    monkeypatch.setattr(transcript.time, "sleep", lambda s: None)
+
+    calls = []
+
+    def busy_then_fine():
+        calls.append(1)
+        if len(calls) < 3:
+            raise RuntimeError("503 UNAVAILABLE: high demand")
+        return "ok"
+
+    assert transcript._with_retries(busy_then_fine, "vid") == "ok"
+    assert len(calls) == 3
+
+    tried = []
+
+    def wrong_model():
+        tried.append(1)
+        raise RuntimeError("404 NOT_FOUND: model is no longer available")
+
+    with pytest.raises(RuntimeError):
+        transcript._with_retries(wrong_model, "vid")
+    assert tried == [1], "retried a failure that will fail identically every time"
+
+    spent = []
+
+    def out_of_quota():
+        spent.append(1)
+        raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+    with pytest.raises(RuntimeError):
+        transcript._with_retries(out_of_quota, "vid")
+    assert spent == [1], "retrying a quota refusal only spends the cooldown early"
