@@ -142,7 +142,7 @@
   }
 
   /* ---------- live screening demo ---------- */
-  .demo-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
+  .demo-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
   .decision { font-size: 13px; font-weight: 800; padding: 5px 13px; border-radius: 999px; display: inline-block; margin-bottom: 8px; }
   .decision.approve    { background: #e2f0da; color: var(--green); }
   .decision.ask_parent { background: #ffe9c2; color: #8a5a06; }
@@ -150,8 +150,8 @@
   @media (max-width: 940px) { .two-up { grid-template-columns: 1fr; } }
 
   .policy-grid { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 16px; align-items: start; }
-  .asks { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; }
-  .ask { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .asks { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 24px 26px; }
+  .ask { padding: 15px 0; border-bottom: 1px solid var(--line); }
   .ask:last-child { border-bottom: none; padding-bottom: 2px; }
   .ask-q { font-size: 14.5px; color: var(--ink); margin-bottom: 9px; }
   .seg { display: inline-flex; background: var(--cream); border-radius: 999px; padding: 3px; gap: 3px; }
@@ -162,9 +162,9 @@
   }
   .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 
-  .feed { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; }
+  .feed { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 24px 26px; }
   .feed-label { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
-  .vids { display: grid; gap: 10px; transition: opacity .16s ease; }
+  .vids { display: grid; gap: 12px; transition: opacity .16s ease; }
   .vids.busy { opacity: .2; }
   .vid { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
   .vid-top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
@@ -310,9 +310,9 @@
       <div>
         <h1>You decide what's all right. <em>Every video</em> gets checked against it.</h1>
         <p class="sub">
-          Tell HeyGilli what you're fine with — unboxing, sponsors, mild
-          scares. It reads every new upload from the channels you allow,
-          shows your child what fits, and brings you the rest to decide.
+          Tell it what you're fine with — unboxing, sponsors, mild scares.
+          Every new upload from the channels you allow is read against that
+          before your child sees it.
         </p>
         <p class="sub-2">
           A buddy watches along too, asking your child about what they saw —
@@ -378,11 +378,10 @@
   <section id="how">
     <div class="demo-head">
       <div>
-        <h2>Your answers. Its reading of every upload.</h2>
+        <h2>Try it yourself</h2>
         <p class="lede">
-          Change an answer and watch the same uploads get read again. Every
-          combination below was screened in advance by the real thing —
-          nothing here was written by hand.
+          Every combination below was screened in advance by the real thing.
+          Nothing here was written by hand.
         </p>
       </div>
     </div>
@@ -404,18 +403,17 @@
           <div>
             <div class="panel-title">New YouTube uploads get screened</div>
             <div class="panel-sub">
-              From the channels you approved — before your child sees them.
+              From the channels you approved.
               <span class="feed-count" id="feedCount"></span>
             </div>
           </div>
         </div>
         <div class="vids" id="vids"></div>
         <p class="audit">
-          Screened by us.amazon.nova-pro-v1:0 against the answers above. These
-          are one model's readings for one set of preferences — not a rating of
-          these channels, which publish plenty this household would be glad of.
-          Your answers give your result, and a preference never hides a video
-          outright: it comes to you to decide.
+          Screened by us.amazon.nova-pro-v1:0 — one model's readings for one
+          set of answers, not a rating of these channels, which publish plenty
+          this household would be glad of. A preference never hides a video
+          outright; it comes to you.
         </p>
       </div>
     </div>
