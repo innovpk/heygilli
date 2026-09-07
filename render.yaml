@@ -2,13 +2,35 @@ services:
   - type: web
     name: heygilli-gateway
     runtime: python
+    plan: free
     rootDir: agents
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn heygilli_agents.gateway:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
       - key: HEYGILLI_MODEL_DEFAULT
         value: bedrock:us.amazon.nova-pro-v1:0
       - key: HEYGILLI_CAPTION_INTERVAL_S
         value: "1.5"
-      - key: PORT
-        value: "8080"
+      - key: AWS_REGION
+        value: us-east-1
+      # Render's free disk is wiped on every deploy and every wake from sleep,
+      # so the default local JSON store would lose every household. DynamoDB
+      # table self-provisions on first boot (store.get_store).
+      - key: HEYGILLI_STORE
+        value: dynamo
+      - key: HEYGILLI_DYNAMO_TABLE
+        value: heygilli
+      # Prompted in the Render dashboard, never stored in git.
+      - key: HEYGILLI_SECRET
+        generateValue: true
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
