@@ -25,7 +25,7 @@ from .schemas import (
 )
 from .store import Store, get_store
 from .tools.icons import find_icon, icon_ids, icon_lookup, list_icons
-from .tools.transcript import fetch_transcript, transcript_text
+from .tools.transcript import TranscriptsBlocked, fetch_transcript, transcript_text
 
 log = logging.getLogger(__name__)
 
@@ -175,7 +175,16 @@ def ensure_plan(
     cached = store.get_plan(video.id, band, language)
     if cached:
         return cached
-    tr = fetch_transcript(video.id)
+    try:
+        tr = fetch_transcript(video.id)
+    except TranscriptsBlocked as e:
+        # The Curator screens without a transcript when it has to; the Planner
+        # must be able to as well, or the first video it approves that way
+        # takes the whole run down with it. `build_plan` already handles no
+        # segments — one general question at the end — and the video is marked
+        # "none" so the app still says it was read on its title alone.
+        log.info("no transcript for %s, planning from the title: %s", video.id, e)
+        tr = {"source": "none", "segments": []}
     plan = build_plan(video, tr["segments"], band, language, freq, agent)
     store.put_plan(plan)
     stored = store.get_video(video.id) or video

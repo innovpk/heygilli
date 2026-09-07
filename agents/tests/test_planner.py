@@ -93,3 +93,25 @@ def test_prompt_states_the_band_contract() -> None:
     assert "Never \"why\"" in p
     for banned in ("mock", "personal information", "scary"):
         assert banned in planner.PLANNER_SYSTEM_PROMPT
+
+
+def test_a_refused_transcript_plans_from_the_title_instead_of_raising(store, monkeypatch) -> None:
+    """The Curator now screens without a transcript where it must, so the
+    Planner meets videos it never used to. Raising here took down the whole
+    run — a 500 after minutes of work that was already saved — because the
+    first video approved that way went straight into planning."""
+    from heygilli_agents.tools.transcript import TranscriptsBlocked
+
+    def refused(video_id):
+        raise TranscriptsBlocked("YouTube is refusing captions to this machine")
+
+    monkeypatch.setattr(planner, "fetch_transcript", refused)
+    video = Video(id="vidblocked1", title="Why Do Giraffes Have Long Necks?", duration_s=600)
+    store.put_video(video)
+
+    plan = planner.ensure_plan(video, "4_6", "en", store,
+                               agent=make_agent("planner", "s", model=FakeModel()))
+    assert plan.questions, "a video with no transcript still gets something to ask"
+    assert (store.get_video("vidblocked1")).transcript_source == "none", (
+        "planned without a transcript, so it must not claim to have had one"
+    )
