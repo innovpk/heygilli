@@ -141,44 +141,13 @@
     .bubble { opacity: 1; }
   }
 
-
   /* ---------- live screening demo ---------- */
   .demo-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
-  .chip {
-    border: 1px solid var(--line); background: var(--white); color: var(--brown);
-    font-size: 13.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
-    cursor: pointer; transition: all .15s ease; font-family: inherit;
-  }
-  .chip:hover { color: var(--ink); border-color: var(--mango); }
-  .chip[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
-
-
-  .video-row {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    background: var(--white); border: 1px solid var(--line);
-    border-radius: 16px; padding: 14px 18px; margin-bottom: 14px;
-  }
-  .video-row .lbl { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
-  .video-row .vtitle { font-size: 15.5px; font-weight: 600; color: var(--ink); }
-  .video-row .vchan { font-size: 13.5px; color: var(--muted); }
-
-  .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .house { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
-  .house-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  .house-name { font-size: 14px; font-weight: 800; color: var(--ink); margin-right: 2px; }
-  .answer { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
-  .answer.ok { background: #e2f0da; color: var(--green); }
-  .answer.no { background: #ffe0d6; color: #a5321a; }
-  .outcome { transition: opacity .18s ease; min-height: 84px; }
-  .busy .outcome { opacity: .15; }
   .decision { font-size: 13px; font-weight: 800; padding: 5px 13px; border-radius: 999px; display: inline-block; margin-bottom: 8px; }
   .decision.approve    { background: #e2f0da; color: var(--green); }
   .decision.ask_parent { background: #ffe9c2; color: #8a5a06; }
   .decision.hide       { background: #ffe0d6; color: #a5321a; }
-  .why { font-size: 14.5px; color: var(--brown); margin: 0; }
   @media (max-width: 940px) { .two-up { grid-template-columns: 1fr; } }
-
 
   .policy-grid { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 16px; align-items: start; }
   .asks { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; }
@@ -206,7 +175,6 @@
   .vid.hide { background: #fff4f0; border-color: #f5cfc2; }
   @media (max-width: 940px) { .policy-grid { grid-template-columns: 1fr; } }
 
-
   /* ---------- the screening, played out ---------- */
   .vid { position: relative; overflow: hidden; }
   .vid.queued { opacity: .35; }
@@ -233,7 +201,6 @@
   @keyframes nudge { 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); } }
 
   .feed-count { font-size: 12.5px; color: var(--muted); font-weight: 600; }
-
 
   .panel-head { display: flex; gap: 12px; align-items: flex-start; padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
   .num {
@@ -263,45 +230,6 @@
     border-left: 5px solid #fff; border-top: 2.5px solid transparent; border-bottom: 2.5px solid transparent;
   }
   @media (max-width: 560px) { .vid { grid-template-columns: 78px 1fr; } }
-
-  .screen {
-    background: var(--white); border: 1px solid var(--line);
-    border-radius: 22px; padding: 26px 28px; min-height: 232px;
-    position: relative; overflow: hidden;
-  }
-  .scan { display: none; gap: 8px; align-items: center; padding: 26px 0; }
-  .screen.busy .scan { display: flex; }
-  .screen.busy .result { opacity: .15; }
-  .scan span {
-    width: 9px; height: 9px; border-radius: 50%; background: var(--mango);
-    animation: bounce 1s ease-in-out infinite;
-  }
-  .scan span:nth-child(2) { animation-delay: .13s; background: var(--sky); }
-  .scan span:nth-child(3) { animation-delay: .26s; background: var(--coral); }
-  @keyframes bounce { 50% { transform: translateY(-9px); } }
-
-  .result { transition: opacity .18s ease; }
-  .verdict-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-  .pill { font-size: 13px; font-weight: 800; padding: 5px 13px; border-radius: 999px; letter-spacing: .01em; }
-  .pill.good  { background: #e2f0da; color: var(--green); }
-  .pill.mixed { background: #ffe9c2; color: #8a5a06; }
-  .pill.concern { background: #ffe0d6; color: #a5321a; }
-  .bands { font-size: 13.5px; color: var(--muted); }
-  .summary { font-size: 16px; color: var(--ink); margin: 0 0 16px; }
-
-  .flags { display: grid; gap: 8px; margin-bottom: 16px; }
-  .flag {
-    display: flex; gap: 10px; align-items: flex-start;
-    background: #fff7ef; border: 1px solid #f3ddc0; border-radius: 12px; padding: 10px 13px;
-  }
-  .flag-kind { font-size: 12px; font-weight: 800; color: #a5641a; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-  .flag-note { font-size: 14px; color: #7a5a2e; }
-  .clear-note { font-size: 14.5px; color: var(--green); margin: 0 0 16px; }
-
-  .evidence { border-top: 1px solid var(--line); padding-top: 12px; }
-  .evidence-label { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-  .evidence li { font-size: 13.5px; color: var(--brown); margin-bottom: 2px; }
-  .evidence ul { margin: 0; padding-left: 18px; }
   .audit { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; }
 
   /* ---------- cards ---------- */
@@ -310,35 +238,30 @@
   .lede { color: var(--brown); margin: 0 0 22px; }
   p { font-size: 15.5px; color: var(--brown); }
 
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .card {
-    background: var(--white); border: 1px solid var(--line);
-    border-radius: 18px; padding: 20px;
-    transition: transform .16s ease, box-shadow .16s ease;
-  }
-  .card:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(122,58,20,0.1); }
-  .dot {
-    width: 34px; height: 34px; border-radius: 11px;
-    display: grid; place-items: center; margin-bottom: 12px;
-    font-size: 17px;
-  }
-  .c1 .dot { background: #ffe9c2; }
-  .c2 .dot { background: #dff0f8; }
-  .c3 .dot { background: #ffe0d6; }
-  .c4 .dot { background: #e2f0da; }
-  .card h3 { margin: 0 0 6px; font-size: 15.5px; color: var(--ink); }
-  .card p { margin: 0; font-size: 14px; line-height: 1.5; }
-
   /* ---------- dark trust band ---------- */
+
+  .faq-h { color: var(--sky); font-size: 20px; margin: 0 0 10px; }
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 36px; align-items: start; }
+  @media (max-width: 940px) { .faq-grid { grid-template-columns: 1fr; } }
+  .faq { border-top: 1px solid rgba(143,211,238,.18); }
+  .faq:nth-of-type(1), .faq:nth-of-type(5) { border-top: none; }
+  .faq summary {
+    cursor: pointer; list-style: none; padding: 13px 30px 13px 0; position: relative;
+    font-size: 15.5px; font-weight: 600; color: #eaf6fa;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after {
+    content: ""; position: absolute; right: 6px; top: 50%;
+    width: 8px; height: 8px; margin-top: -6px;
+    border-right: 2px solid var(--sky); border-bottom: 2px solid var(--sky);
+    transform: rotate(45deg); transition: transform .18s ease;
+  }
+  .faq[open] summary::after { transform: rotate(-135deg); margin-top: -2px; }
+  .faq summary:hover { color: var(--sky); }
+  .faq-a { color: #c9dee6; font-size: 14.5px; padding: 0 30px 15px 0; margin-top: -2px; }
+  .faq-a a { color: var(--sky); }
+
   .band { background: var(--teal); color: #eaf6fa; border-radius: 26px; padding: 24px 30px; }
-  .band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-  .band h3 { margin: 0 0 8px; font-size: 17px; color: var(--sky); }
-  .band p { color: #c9dee6; margin: 0 0 8px; font-size: 14.5px; }
-  .band p:last-child { margin: 0; }
-  .band a { color: var(--sky); }
-  .never { list-style: none; margin: 0; padding: 0; }
-  .never li { font-size: 14.5px; color: #c9dee6; padding-left: 22px; position: relative; margin-bottom: 4px; }
-  .never li::before { content: "✕"; position: absolute; left: 0; color: var(--coral); font-weight: 700; }
 
   footer {
     padding: 22px 0 40px; color: var(--muted); font-size: 13.5px;
@@ -351,11 +274,8 @@
     .hero h1 { font-size: 34px; }
     .stage { width: 240px; height: 240px; }
     .stage svg { width: 180px; height: 180px; }
-    .cards { grid-template-columns: repeat(2, 1fr); }
-    .band-grid { grid-template-columns: 1fr; gap: 22px; }
   }
   @media (max-width: 560px) {
-    .cards { grid-template-columns: 1fr; }
     .hero h1 { font-size: 29px; }
     .bar-link { display: none; }
   }
@@ -502,24 +422,83 @@
   </section>
 
   <div class="band">
-    <div class="band-grid">
-      <div>
-        <h3>Why it asks for your YouTube subscriptions</h3>
-        <p>
-          Nothing exposes a child's YouTube Kids profile, so HeyGilli reads
-          your account's subscriptions — read-only, never posting or changing
-          anything — to build the list of channels you already trust. Or skip
-          it: import a Takeout export, or add channels yourself.
-        </p>
+    <h2 class="faq-h">Questions parents ask</h2>
+    <div class="faq-grid">
+
+    <details class="faq" open>
+      <summary>Why does it need my YouTube subscriptions?</summary>
+      <div class="faq-a">
+        Nothing exposes a child's YouTube Kids profile, so HeyGilli reads your
+        account's subscriptions — read-only, never posting or changing
+        anything — to build the list of channels you already trust, which you
+        then approve one at a time.
       </div>
-      <div>
-        <h3>What your child never does</h3>
-        <ul class="never">
-          <li>Sign in, or enter their name</li>
-          <li>Reach a channel you haven't allowed</li>
-          <li>Have their voice uploaded — speech is recognised on the device</li>
-        </ul>
+    </details>
+
+    <details class="faq">
+      <summary>Can I use it without connecting Google?</summary>
+      <div class="faq-a">
+        Yes. Start without an account at all, then either import a Google
+        Takeout export or add channels yourself. Nothing about the screening
+        or the buddy depends on being signed in.
       </div>
+    </details>
+
+    <details class="faq">
+      <summary>Does my child sign in, or give any details?</summary>
+      <div class="faq-a">
+        Never. You create their profile — a nickname you choose and an age,
+        no legal name, no photo. They never sign in, never type anything to
+        us, and never see the parent side without your PIN.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Is my child's voice recorded?</summary>
+      <div class="faq-a">
+        No. When they answer Gilli out loud, the speech is recognised on the
+        device itself and only the recognised words are sent — the audio never
+        leaves the device and is not stored.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Can they search, or wander off into other channels?</summary>
+      <div class="faq-a">
+        Only if you switch search on, and it is off to begin with. Otherwise
+        nothing reaches them from a channel you have not approved.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>What happens to their watch history?</summary>
+      <div class="faq-a">
+        History is off by default and opt-in per import. When you do include
+        it, only an aggregate is kept — how much, when, which channels — and
+        the video-by-video list is discarded on your device. The
+        <a href="privacy.html">privacy policy</a> sets out exactly what is
+        kept.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Can the screening get it wrong?</summary>
+      <div class="faq-a">
+        Yes, and it is built expecting to. A model reads each upload against
+        your answers; it can misjudge in either direction, which is why a
+        preference never hides a video outright but sends it to you. Use it
+        alongside knowing what your child watches, not instead of it.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Does it cost anything?</summary>
+      <div class="faq-a">
+        No, and there is nothing to pay for — no subscription and no payment
+        details taken. If that ever changes you will be told before it applies
+        to you.
+      </div>
+    </details>
     </div>
   </div>
 
@@ -529,9 +508,6 @@
     <a href="/app/">Open the app</a>
   </footer>
 </div>
-
-
-
 
 <script>
 const M = {"questions": [{"key": "unboxing", "text": "Are unboxing and toy-haul videos all right?"}, {"key": "merch", "text": "Are videos that push merchandise or a sponsor all right?"}, {"key": "peril", "text": "Is cartoon peril — chases, monsters, mild scares — all right?"}], "videos": [{"channel": "Ryan's World", "title": "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "id": "z_C29eXmo7k", "thumb": "https://i.ytimg.com/vi/z_C29eXmo7k/hqdefault.jpg", "transcript": "captions:en:auto"}, {"channel": "Mark Rober", "title": "Why Do People Pass Out On Roller Coasters?", "id": "67LFeTgFv3Y", "thumb": "https://i.ytimg.com/vi/67LFeTgFv3Y/hqdefault.jpg", "transcript": "captions:en-US:manual"}, {"channel": "Cocomelon", "title": "Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "id": "Sk2XlM_uP7A", "thumb": "https://i.ytimg.com/vi/Sk2XlM_uP7A/hqdefault.jpg", "transcript": "none"}], "cells": {"111": [{"decision": "approve", "reason": "The video is a fun unboxing session with a playful tone, suitable for the child."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and introduces a breathing technique to prevent it."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "110": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be mildly intense. The household prefers to avoid mild scares."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and introduces a breathing technique to prevent it. The household prefers to avoid mild scares."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "101": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be interpreted as subtly pushing a product. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}], "100": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be interpreted as subtly pushing a product. Additionally, the playful and somewhat mysterious tone might be mildly intense. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}], "011": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "010": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "001": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}], "000": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}]}};
