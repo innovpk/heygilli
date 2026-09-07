@@ -24,6 +24,8 @@ class _CountingGateway extends FakeGateway {
 }
 
 void main() {
+  _existingHousehold();
+
   late AppState app;
   late _CountingGateway gateway;
   late Kid kid;
@@ -117,5 +119,89 @@ void main() {
     await tester.pump();
     expect(find.text('Choose at least one'), findsOneWidget);
     expect(gateway.added, isEmpty);
+  });
+}
+
+/// A household that already has channels.
+///
+/// The screen was written for a household with none. One that arrives with
+/// nineteen would otherwise be offered channels it approved months ago, with
+/// nothing to say so: the parent ticks one, nothing changes, and the screen
+/// looks broken.
+void _existingHousehold() {
+  late AppState app;
+  late _CountingGateway gateway;
+  late Kid kid;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    gateway = _CountingGateway();
+    await gateway.signInDev('parent');
+    app = AppState(gateway: gateway, settings: await LocalSettings.load());
+    kid = await gateway.createKid(
+      nickname: 'Abeeha',
+      age: 5,
+      languages: const ['en'],
+    );
+    // Already approved, before ever opening the suggestions screen.
+    await gateway.addChannel(
+      kid.id,
+      'https://www.youtube.com/channel/UC3wCAOfSB0W9iuKDDtNJeGw',
+    );
+    gateway.added.clear();
+    await app.refreshKids();
+  });
+
+  Future<void> show(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1000, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: MaterialApp(home: StarterChannelsScreen(kid: kid)),
+      ),
+    );
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+  }
+
+  testWidgets('a channel they already have says so and cannot be re-ticked', (
+    tester,
+  ) async {
+    await show(tester);
+
+    expect(find.text('Already added for Abeeha'), findsOneWidget);
+    final row = tester.widget<CheckboxListTile>(
+      find.widgetWithText(CheckboxListTile, 'Danny Go!'),
+    );
+    expect(row.value, isTrue, reason: 'they have it; showing it unticked is a lie');
+    expect(row.onChanged, isNull, reason: 'nothing useful happens on tapping it');
+  });
+
+  testWidgets('select all means only what they do not already have', (
+    tester,
+  ) async {
+    await show(tester);
+    final total = tester.widgetList(find.byType(CheckboxListTile)).length;
+
+    await tester.tap(find.text('Select all'));
+    await tester.pump();
+
+    // One of the listed channels is already theirs, so the button offers to
+    // add one fewer than is on screen.
+    expect(find.text('Add ${total - 1} channels'), findsOneWidget);
+
+    await tester.tap(find.text('Add ${total - 1} channels'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(
+      gateway.added.any((u) => u.contains('UC3wCAOfSB0W9iuKDDtNJeGw')),
+      isFalse,
+      reason: 'a channel they already had must not be re-added',
+    );
+    expect(gateway.added.length, total - 1);
   });
 }

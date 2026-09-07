@@ -927,13 +927,21 @@ class FakeGateway implements Gateway {
     // The live gateway resolves handles and video URLs; the demo just names
     // the channel after the URL's last path segment.
     final handle = Uri.tryParse(url)?.pathSegments.lastOrNull ?? url;
+    // A /channel/UC... URL already carries the id, and the real gateway
+    // returns exactly that. Hashing it instead meant a channel added from
+    // the suggestions could never be recognised as one the household has,
+    // which is only wrong in the fake and looked like a bug in the screen.
+    final isChannelId = RegExp(r'^UC[A-Za-z0-9_-]{22}$').hasMatch(handle);
     final ch = Channel(
-      id: 'ch_${handle.hashCode.abs()}',
+      id: isChannelId ? handle : 'ch_${handle.hashCode.abs()}',
       title: handle.replaceFirst('@', ''),
       thumbUrl: '',
       approved: true,
     );
-    (_channels[kidId] ??= []).add(ch);
+    // Adding one already there is a no-op on the server; the demo must not
+    // grow a second copy of it either.
+    final list = _channels[kidId] ??= [];
+    if (!list.any((c) => c.id == ch.id)) list.add(ch);
     return ch;
   }
 

@@ -29,14 +29,29 @@ class StarterChannelsScreen extends StatefulWidget {
 class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
   final _topics = <String>{};
   final _chosen = <String>{};
+
+  /// What this child already has. A household that arrived here with nineteen
+  /// channels would otherwise be offered ones it approved months ago, with
+  /// nothing to say so — the parent ticks it, nothing changes, and the screen
+  /// looks broken. Adding again is harmless on the server; being told is the
+  /// point.
+  Set<String> _already = const {};
+
   late Future<StarterChannels> _suggestions = _load();
   bool _adding = false;
   String? _error;
 
-  Future<StarterChannels> _load() => context
-      .read<AppState>()
-      .gateway
-      .starterChannels(band: widget.kid.band.wire, topics: _topics.toList());
+  Future<StarterChannels> _load() async {
+    final gateway = context.read<AppState>().gateway;
+    final have = await gateway.channels(widget.kid.id);
+    if (mounted) {
+      _already = {for (final c in have) if (c.approved) c.id};
+    }
+    return gateway.starterChannels(
+      band: widget.kid.band.wire,
+      topics: _topics.toList(),
+    );
+  }
 
   void _toggleTopic(String id, bool on) {
     setState(() {
@@ -152,19 +167,31 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
                 if (data.channels.isNotEmpty)
                   TextButton(
                     onPressed: () => setState(() {
-                      final all = data.channels.map((c) => c.channelId).toSet();
+                      // Only what they do not already have: "select all"
+                      // must not mean "tick the nineteen you approved
+                      // months ago".
+                      final all = data.channels
+                          .map((c) => c.channelId)
+                          .where((id) => !_already.contains(id))
+                          .toSet();
                       // Toggles: a parent who ticked everything by accident
                       // needs one tap back, not twenty.
-                      if (_chosen.containsAll(all)) {
+                      if (all.isEmpty || _chosen.containsAll(all)) {
                         _chosen.clear();
                       } else {
-                        _chosen.addAll(all);
+                        _chosen
+                          ..clear()
+                          ..addAll(all);
                       }
                     }),
                     child: Text(
-                      _chosen.containsAll(
-                            data.channels.map((c) => c.channelId).toSet(),
-                          )
+                      _chosen.isNotEmpty &&
+                              _chosen.containsAll(
+                                data.channels
+                                    .map((c) => c.channelId)
+                                    .where((id) => !_already.contains(id))
+                                    .toSet(),
+                              )
                           ? 'Clear all'
                           : 'Select all',
                       style: HgText.body(size: 14, color: HgColors.mangoDeep),
@@ -185,8 +212,13 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
             else
               for (final c in data.channels)
                 CheckboxListTile(
-                  value: _chosen.contains(c.channelId),
-                  onChanged: _adding
+                  value: _already.contains(c.channelId)
+                      ? true
+                      : _chosen.contains(c.channelId),
+                  // Already theirs: shown ticked and left alone, so the list
+                  // reads as "here is everything, and here is what you have"
+                  // rather than hiding channels they would recognise.
+                  onChanged: _adding || _already.contains(c.channelId)
                       ? null
                       : (on) => setState(() {
                           if (on == true) {
@@ -203,8 +235,15 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
                     style: HgText.body(size: 16, color: HgColors.ink),
                   ),
                   subtitle: Text(
-                    c.blurb,
-                    style: HgText.body(size: 13.5, color: HgColors.muted),
+                    _already.contains(c.channelId)
+                        ? 'Already added for ${widget.kid.nickname}'
+                        : c.blurb,
+                    style: HgText.body(
+                      size: 13.5,
+                      color: _already.contains(c.channelId)
+                          ? HgColors.green
+                          : HgColors.muted,
+                    ),
                   ),
                 ),
             if (_error != null) ...[
