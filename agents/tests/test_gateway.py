@@ -294,6 +294,25 @@ def test_healthz_reports_which_transcript_sources_exist(client, monkeypatch) -> 
     assert "pass" not in str(body), "a proxy password must never leave the server"
 
 
+def test_healthz_says_which_key_search_would_use(client, monkeypatch) -> None:
+    """A missing dedicated key and a rejected one both come back from YouTube
+    as the same 401, because the fallback quietly reaches for the Gemini key —
+    which cannot search. From outside the server they are indistinguishable."""
+    monkeypatch.delenv("HEYGILLI_YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    assert client.get("/healthz").json()["search_key"] == "none"
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "gemini-secret-value")
+    body = client.get("/healthz").json()
+    assert body["search_key"] == "google-fallback"
+
+    monkeypatch.setenv("HEYGILLI_YOUTUBE_API_KEY", "youtube-secret-value")
+    body = client.get("/healthz").json()
+    assert body["search_key"] == "youtube"
+    # Names only, never a key.
+    assert "secret-value" not in str(body)
+
+
 def test_adding_one_channel_screens_it_like_an_import_does(client, auth, monkeypatch) -> None:
     """A pasted channel used to be added and then never looked at: only the
     bulk import triggered the Curator, so a parent who added channels one at a

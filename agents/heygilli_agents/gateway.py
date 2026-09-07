@@ -89,6 +89,7 @@ from .tools.youtube import (
     resolve_channel_url,
 )
 from .tools.youtube import search_channels as search_youtube_channels
+from .tools.youtube import search_key_source as youtube_search_key_source
 
 load_dotenv()
 log = logging.getLogger("heygilli.gateway")
@@ -1585,4 +1586,9 @@ def healthz() -> dict:
             "gemini": transcript_sources.gemini_available(),
             "proxy": transcript_sources.proxy_configured(),
         },
+        # Which key searching would reach for. "google-fallback" means the
+        # dedicated variable never arrived and it is about to try the Gemini
+        # key, which the YouTube Data API refuses — indistinguishable from a
+        # bad key when read from outside.
+        "search_key": youtube_search_key_source(),
     }

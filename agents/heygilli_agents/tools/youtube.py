@@ -189,6 +189,22 @@ SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 SEARCH_COST_UNITS = 100
 
 
+def search_key_source() -> str:
+    """Which key searching would use: its own, the Gemini one, or none.
+
+    Reported by /healthz. A missing dedicated key and a rejected one produce
+    the same 401 from YouTube — the fallback quietly reaches for the Gemini
+    key, which cannot search — and from outside the server there is no way to
+    tell "the variable never arrived" from "the key is wrong". Names only; no
+    key is ever reported.
+    """
+    if os.getenv("HEYGILLI_YOUTUBE_API_KEY", "").strip():
+        return "youtube"
+    if os.getenv("GOOGLE_API_KEY", "").strip():
+        return "google-fallback"
+    return "none"
+
+
 class SearchUnavailable(Exception):
     """YouTube search is not usable, and why — a message a parent can act on."""
 
