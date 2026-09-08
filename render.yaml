@@ -10,8 +10,21 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.6"
+      # Nova Pro is the floor: it carries Curator and Reviewer, which between
+      # them eat almost every input token (transcripts, and one RSS feed per
+      # imported channel). Their call is coarse — approve/hide/ask, and what a
+      # channel publishes — so the cheap model is the right one.
       - key: HEYGILLI_MODEL_DEFAULT
         value: bedrock:us.amazon.nova-pro-v1:0
+      # The two roles a parent actually reads run on Sonnet. The Planner writes
+      # the questions a child meets; the Digest writes the note at the end of
+      # the day. Digest is nearly free either way — counts and answers, no
+      # transcript. Planner is not, but plans cache per (video, band, language),
+      # so the bill follows unique videos rather than sessions.
+      - key: HEYGILLI_MODEL_PLANNER
+        value: bedrock:us.anthropic.claude-sonnet-4-6
+      - key: HEYGILLI_MODEL_DIGEST
+        value: bedrock:us.anthropic.claude-sonnet-4-6
       - key: HEYGILLI_CAPTION_INTERVAL_S
         value: "1.5"
       - key: AWS_REGION
