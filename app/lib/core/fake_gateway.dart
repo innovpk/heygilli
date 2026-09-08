@@ -874,6 +874,16 @@ class FakeGateway implements Gateway {
         StarterTopic(id: 'making', label: 'Drawing and making things'),
         StarterTopic(id: 'school', label: 'Letters, numbers and school subjects'),
       ],
+      breakActivities: const [
+        StarterTopic(id: 'stretch', label: 'Have a stretch'),
+        StarterTopic(id: 'jump', label: 'Star jumps'),
+        StarterTopic(id: 'water', label: 'Get a drink of water'),
+        StarterTopic(id: 'window', label: 'Look out of the window'),
+        StarterTopic(id: 'draw', label: 'Draw something'),
+        StarterTopic(id: 'tidy', label: 'Tidy one thing'),
+        StarterTopic(id: 'walk', label: 'Walk about'),
+        StarterTopic(id: 'pet', label: 'Say hello to a pet'),
+      ],
       channels: [
         for (final row in all)
           if (row[4].split('|').contains(band) &&
@@ -992,13 +1002,21 @@ class FakeGateway implements Gateway {
   Future<String> speechUrl(String text, {bool slow = false}) async => '';
 
   @override
-  Future<int> setPreferences(String kidId, List<String> topics) async {
+  Future<int> setPreferences(
+    String kidId,
+    List<String> topics, {
+    List<String> breakActivities = const [],
+  }) async {
     await _lag();
     _preferences[kidId] = topics;
+    breakPicks[kidId] = breakActivities;
     return topics.isEmpty ? 6 : topics.length * 3;
   }
 
   final _preferences = <String, List<String>>{};
+
+  /// What the setup screen sent for breaks, so a test can see it arrive.
+  final breakPicks = <String, List<String>>{};
 
   /// Demo review list: the Curator's three verdicts, so the setup screen can
   /// be seen doing its job. Rejections made here are remembered for the rest

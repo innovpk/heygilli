@@ -29,6 +29,7 @@ class PreferencesScreen extends StatefulWidget {
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
   final _picked = <String>{};
+  final _breaks = <String>{};
   late Future<StarterChannels> _data = context
       .read<AppState>()
       .gateway
@@ -46,6 +47,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       await context.read<AppState>().gateway.setPreferences(
         widget.kid.id,
         _picked.toList(),
+        breakActivities: _breaks.toList(),
       );
       navigator.pop(true);
     } catch (e) {
@@ -118,10 +120,39 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   style: HgText.body(size: 14, color: HgColors.coral),
                 ),
               ],
+              const SizedBox(height: 28),
+              Text('WHEN THE SCREEN PAUSES', style: HgText.label()),
+              const SizedBox(height: 6),
+              Text(
+                'Watching stops for a break every so often. Gilli says what to '
+                "do — pick anything $name would actually get up and do, and it "
+                'says those. Without this a break stops the video and leaves '
+                'them looking at it.',
+                style: HgText.body(size: 14, color: HgColors.brown),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final a in snap.data?.breakActivities ?? const <StarterTopic>[])
+                    FilterChip(
+                      label: Text(a.label),
+                      selected: _breaks.contains(a.id),
+                      onSelected: _busy
+                          ? null
+                          : (on) => setState(
+                              () => on ? _breaks.add(a.id) : _breaks.remove(a.id),
+                            ),
+                      selectedColor: HgColors.mango,
+                      checkmarkColor: HgColors.ink,
+                    ),
+                ],
+              ),
               const SizedBox(height: 24),
               Text(
-                'You can add a channel by name later, or drop any of them, from '
-                "$name's page.",
+                'You can add a channel by name later, or drop any of them, and '
+                "change what Gilli says at break time, from $name's page.",
                 style: HgText.body(size: 13, color: HgColors.muted),
               ),
             ],

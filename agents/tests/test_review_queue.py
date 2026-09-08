@@ -141,3 +141,45 @@ def test_a_contradiction_is_read_the_restrictive_way(client, auth, kid_id, store
     assert r.json() == {"approved": 0, "hidden": 1}
     home = client.get(f"/kids/{kid_id}/home", headers=auth["hdr"]).json()
     assert [v["id"] for row in home["rows"] for v in row["videos"]] == []
+
+
+# --- Deleting a child, as the parent sees it ----------------------------------------------------
+
+
+def test_deleting_a_child_empties_their_inbox(client, auth, kid_id, store):
+    """The inbox is the one place a deleted child could keep speaking.
+
+    Every other trace is on a screen you reach through the child, so it goes
+    when they do whether or not anything deleted it. The inbox is reached past
+    them, and a card asking "is this all right for Abu?" about a child who no
+    longer exists is both a question with no answer and a name the parent asked
+    to be rid of.
+    """
+    video = screened(store, auth["hid"], kid_id, "v_ask", "ask_parent", "borderline")
+    store.put_parent_prompt(
+        ParentPrompt(household_id=auth["hid"], kid_id=kid_id, video=video, reason="borderline")
+    )
+    assert len(client.get("/parent/inbox", headers=auth["hdr"]).json()) == 1
+
+    r = client.delete(f"/kids/{kid_id}?confirm=Abu", headers=auth["hdr"])
+
+    assert r.status_code == 200
+    assert client.get("/parent/inbox", headers=auth["hdr"]).json() == []
+
+
+def test_a_sibling_keeps_their_inbox(client, auth, kid_id, store):
+    """Two children share one inbox, so deleting by household would empty it."""
+    sibling = client.post(
+        "/kids", json={"nickname": "Zara", "age": 6}, headers=auth["hdr"]
+    ).json()["id"]
+    for kid, vid in ((kid_id, "v_abu"), (sibling, "v_zara")):
+        video = screened(store, auth["hid"], kid, vid, "ask_parent", "borderline")
+        store.put_parent_prompt(
+            ParentPrompt(household_id=auth["hid"], kid_id=kid, video=video, reason="borderline")
+        )
+    assert len(client.get("/parent/inbox", headers=auth["hdr"]).json()) == 2
+
+    client.delete(f"/kids/{kid_id}?confirm=Abu", headers=auth["hdr"])
+
+    left = client.get("/parent/inbox", headers=auth["hdr"]).json()
+    assert [i["kid_id"] for i in left] == [sibling]

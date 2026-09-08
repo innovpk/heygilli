@@ -203,3 +203,83 @@ def test_preferences_pick_the_channels_and_start_the_screening(
     # Chosen for the band and the topic, not the whole list.
     approved = store.list_channels(auth["hid"], kid_id)
     assert 0 < len(approved) < 26
+
+
+# --- What a child does while the screen is paused -----------------------------------------------
+
+
+def test_break_lines_are_built_from_the_parent_s_own_picks(client, auth, store, monkeypatch):
+    """A break said "time for a break" and stopped the video, which leaves a
+    child looking at a still frame with nothing to do — the moment a break
+    either works or is simply waited out."""
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: None)
+    monkeypatch.setattr(
+        gateway, "_channel_info",
+        lambda cid: {"channel_id": cid, "title": cid, "thumb_url": ""},
+    )
+    kid_id = client.post(
+        "/kids", json={"nickname": "Abu", "age": 8}, headers=auth["hdr"]
+    ).json()["id"]
+
+    client.post(
+        f"/kids/{kid_id}/preferences",
+        json={"topics": [], "break_activities": ["jump", "water"]},
+        headers=auth["hdr"],
+    )
+
+    kid = store.get_kid(auth["hid"], kid_id)
+    assert kid.break_activities == ["jump", "water"]
+    said = [m.text for m in kid.break_messages]
+    assert any("Star jumps" in t for t in said)
+    assert any("drink of water" in t for t in said)
+
+
+def test_lines_a_parent_wrote_are_never_overwritten(client, auth, store, monkeypatch):
+    """A setup step must not replace something a person sat and typed."""
+    from heygilli_agents.schemas import BreakMessage
+
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: None)
+    monkeypatch.setattr(
+        gateway, "_channel_info",
+        lambda cid: {"channel_id": cid, "title": cid, "thumb_url": ""},
+    )
+    kid_id = client.post(
+        "/kids", json={"nickname": "Abu", "age": 8}, headers=auth["hdr"]
+    ).json()["id"]
+    kid = store.get_kid(auth["hid"], kid_id)
+    kid.break_messages = [BreakMessage(text="Go and find Nani", spoken="Go and find Nani")]
+    store.put_kid(kid)
+
+    client.post(
+        f"/kids/{kid_id}/preferences",
+        json={"break_activities": ["jump"]},
+        headers=auth["hdr"],
+    )
+
+    after = store.get_kid(auth["hid"], kid_id)
+    assert [m.text for m in after.break_messages] == ["Go and find Nani"]
+    # The picks are still recorded, so the Rules screen can offer to use them.
+    assert after.break_activities == ["jump"]
+
+
+def test_an_activity_we_do_not_know_is_dropped_not_spoken(client, auth, store, monkeypatch):
+    """Gilli says these to a child, so an unrecognised id becomes nothing
+    rather than being echoed back verbatim."""
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: None)
+    monkeypatch.setattr(
+        gateway, "_channel_info",
+        lambda cid: {"channel_id": cid, "title": cid, "thumb_url": ""},
+    )
+    kid_id = client.post(
+        "/kids", json={"nickname": "Abu", "age": 8}, headers=auth["hdr"]
+    ).json()["id"]
+
+    client.post(
+        f"/kids/{kid_id}/preferences",
+        json={"break_activities": ["jump", "<script>alert(1)</script>"]},
+        headers=auth["hdr"],
+    )
+
+    said = [m.text for m in store.get_kid(auth["hid"], kid_id).break_messages]
+    assert len(said) == 1
+    assert "script" not in said[0]

@@ -71,6 +71,11 @@ class Kid(BaseModel):
     age_band: AgeBand | None = None
     languages: list[Language] = Field(default_factory=lambda: ["en"])
     avatar: str = "gilli"
+    #: What this child does when the screen pauses, in the parent's own words.
+    #: A break used to say "time for a break" and leave a child looking at a
+    #: stopped video with nothing to do, which is the moment the break either
+    #: works or is waited out.
+    break_activities: list[str] = Field(default_factory=list)
     #: What the parent said this child likes, from the starter-channel screen.
     #: It used to filter that screen's suggestions and then be thrown away, so
     #: a parent who asked for science and was handed a science channel whose
