@@ -42,25 +42,45 @@ Live against the gateway on an Android emulator, 5 September: the Curator's appr
 
 ## How it is built
 
-**Four Strands agents** in Python, each an `Agent` with a frozen system prompt, a model, and a few `@tool` functions:
+**Six Strands agents** in Python, each an `Agent` with a frozen system prompt and its own model setting:
 
-| Agent | Runs | Tools | Decides |
+| Agent | Runs | `@tool` functions it may call | Decides |
 |---|---|---|---|
-| Curator | on schedule and on channel add | `youtube_uploads` (RSS + oEmbed, no API key), `get_transcript`, `screen_video`, `notify_parent` | approve, hide, or ask the parent |
-| Planner | per approved video, per age band and language | `get_transcript`, `icon_lookup`, `save_plan` | a structured `QuestionPlan`; band and timing rules enforced in code afterwards |
-| Buddy | live, one per session over a WebSocket | `score_answer`, `tts` (Amazon Polly), `session_log`, `switch_mode` | scoring, the reply, and mid-session adaptation |
-| Digest | nightly per kid | `read_sessions`, `notify_parent` | the digest and whether anything deserves a notification |
+| Curator | on channel add and on schedule | `screen_video` | approve, hide, or ask the parent |
+| Planner | per approved video, per age band and language | `icon_lookup`, `list_icons` | a structured `QuestionPlan`; band and timing rules enforced in code afterwards |
+| Buddy | live, one per session over a WebSocket | — | scoring, the reply, and mid-session adaptation |
+| Digest | nightly per kid | — | the words a parent reads, and whether anything deserves a notification |
+| Reviewer | per channel on import | `screen_video` | what a channel actually publishes, from its RSS feed alone |
+| Coach | when a parent writes a break line or sets household policy | — | drafts **for the parent**; nothing here can reach a child |
 
-Curator to Planner is a Strands Graph with deterministic edges. The FastAPI gateway exposes REST plus one WebSocket per session; the contract is in [docs/PROTOCOL.md](docs/PROTOCOL.md).
+`ROLES` in `agents/heygilli_agents/models.py` is exactly those six, and each takes its own
+`HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding a
+seventh: channel drift runs on `reviewer`, the revisit question on `planner`, and the
+progress note and watch-history summary on `digest`.
+
+Everything else the pipeline needs — reading a transcript, listing a channel's uploads,
+Polly speech, notifying a parent — is a plain function the gateway calls in code, not a
+tool handed to a model. The agents decide; the code fetches and enforces.
+
+**Why not a Graph.** SPEC §9.3 sketched Curator → Planner as a Strands `GraphBuilder`
+graph, and the installed SDK (strands-agents 1.54) has one. It is not used. Its nodes hand
+each other free text, so the Planner would have to re-parse the Curator's prose, and the
+§7.3 rule enforcement would sit outside the graph regardless. The hand-off is a typed
+Python pipeline instead: the Curator agent makes the judgement call with structured
+output, code fans out to the Planner agent per (band, language), and every plan passes
+`rules.enforce`. Same agents, deterministic edges, no prose in between.
+
+The FastAPI gateway exposes REST plus one WebSocket per session; the contract is in
+[docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 **The model is a setting.** Each agent reads `HEYGILLI_MODEL_<ROLE>=<provider>:<model id>`. Default is Amazon Bedrock in us-east-1; Anthropic direct, OpenAI, and Ollama are one-line alternates with the same code and the same eval (`agents/eval/run_eval.py`).
 
-The client is one Flutter codebase for phone and tablet, with a Google TV layout as the next milestone. Storage is local JSON in development and DynamoDB for deployment.
+The client is one Flutter codebase — Android, iOS and web build from it unchanged — with a Google TV layout as the next milestone. Storage is local JSON in development and DynamoDB for deployment.
 
 ## Layout
 
 ```
-app/       Flutter client (Android phone + tablet)
+app/       Flutter client (Android, iOS, web; phone and tablet layouts)
 agents/    Python: Strands agents, tools, FastAPI gateway, tests, eval
 design/    Mockup artboards and the design canvas generator
 docs/      Architecture diagram, protocol, screenshots, submission docs, video script, runbook
