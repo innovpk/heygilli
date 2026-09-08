@@ -1686,7 +1686,7 @@ def debug_gemini_models(hid: str = Depends(household)) -> dict:
     A retired or misspelled model answers 404, which reads exactly like a dead
     key. This says which it is without anyone pasting a key anywhere.
     """
-    want = os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash")
+    want = os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.5-flash-lite")
     try:
         from google import genai  # type: ignore
 

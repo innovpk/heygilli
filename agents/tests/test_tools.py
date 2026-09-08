@@ -527,3 +527,48 @@ def test_clearing_cooldowns_lets_the_next_call_actually_try(monkeypatch):
 
     assert t._gemini_ready()
     assert not t._captions_blocked
+
+
+def test_a_busy_model_is_waited_out_not_given_up_on(monkeypatch):
+    """503 "high demand" is a queue, not a wall.
+
+    The free tier answers it often, and the old policy — three attempts, two
+    then four seconds — gave up after six seconds inside a background run where
+    nobody is waiting on the response. What that bought was a video screened on
+    its title, permanently: a successful transcript is cached forever, a failed
+    one is simply not retried until the next run.
+    """
+    from heygilli_agents.tools import transcript as t
+
+    slept: list[float] = []
+    monkeypatch.setattr(t.time, "sleep", slept.append)
+    calls = {"n": 0}
+
+    def busy_until_the_fifth():
+        calls["n"] += 1
+        if calls["n"] < 5:
+            raise RuntimeError("ServerError: 503 UNAVAILABLE. high demand")
+        return "transcript"
+
+    assert t._with_retries(busy_until_the_fifth, "vid") == "transcript"
+    assert calls["n"] == 5
+    # Backing off, rather than hammering a model that just said it is busy.
+    assert slept == [2.0, 4.0, 8.0, 16.0]
+
+
+def test_a_quota_refusal_is_not_waited_out(monkeypatch):
+    """Retrying a 429 spends the cooldown early and gains nothing."""
+    from heygilli_agents.tools import transcript as t
+
+    slept: list[float] = []
+    monkeypatch.setattr(t.time, "sleep", slept.append)
+    calls = {"n": 0}
+
+    def out_of_quota():
+        calls["n"] += 1
+        raise RuntimeError("ClientError: 429 RESOURCE_EXHAUSTED")
+
+    with pytest.raises(RuntimeError):
+        t._with_retries(out_of_quota, "vid")
+    assert calls["n"] == 1
+    assert slept == []

@@ -197,7 +197,15 @@ def _proxy_config():
 #: Attempts for one video before giving up on Gemini for it. The free tier
 #: answers 503 "high demand" often enough that a single try lost whole runs,
 #: and the retry costs a pause where the alternative costs the screening.
-GEMINI_ATTEMPTS = int(os.getenv("HEYGILLI_GEMINI_ATTEMPTS", "3"))
+GEMINI_ATTEMPTS = int(os.getenv("HEYGILLI_GEMINI_ATTEMPTS", "6"))
+
+#: First backoff, doubled each attempt. Six attempts from two seconds waits
+#: about a minute in total. That is a long time to sit still, and it is spent
+#: inside a background curation run where nobody is waiting on the response —
+#: whereas giving up buys a video screened on its title for as long as it
+#: exists, because a successful transcript is cached forever and a failed one
+#: is not retried until the next run.
+GEMINI_BACKOFF_S = float(os.getenv("HEYGILLI_GEMINI_BACKOFF_S", "2"))
 
 
 def _is_transient(e: Exception) -> bool:
@@ -223,7 +231,7 @@ def _with_retries(call, video_id: str):
         except Exception as e:
             if attempt == GEMINI_ATTEMPTS or not _is_transient(e):
                 raise
-            wait = 2.0 * attempt
+            wait = GEMINI_BACKOFF_S * (2 ** (attempt - 1))
             log.info("gemini busy for %s (attempt %d), retrying in %.0fs", video_id, attempt, wait)
             time.sleep(wait)
     return None  # unreachable: the loop returns or raises
@@ -248,10 +256,17 @@ def _from_gemini(video_id: str) -> list[dict] | None:
     )
     def call():
         return client.models.generate_content(
-            # 2.5-flash is closed to keys made after it was retired, and answers
-            # a 404 rather than falling back, so a fresh deployment got no
-            # transcript at all. Overridable because this name will retire too.
-            model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.6-flash"),
+            # A lite model, and not for cost: free-tier quota is counted per
+            # model name, and gemini-3.6-flash's is spent. Asking the live
+            # gateway for the same video on each name separated them — the
+            # flash answered 429 RESOURCE_EXHAUSTED on every attempt, while
+            # the lite answered 503 "high demand", which is a queue rather
+            # than a wall, and returned a full transcript once it got a turn.
+            #
+            # Overridable because this name will retire, and because the next
+            # thing to check when transcripts stop is whether another one has
+            # quota left.
+            model=os.getenv("HEYGILLI_GEMINI_MODEL", "gemini-3.5-flash-lite"),
             contents=types.Content(
                 parts=[
                     types.Part(file_data=types.FileData(file_uri=f"https://www.youtube.com/watch?v={video_id}")),
