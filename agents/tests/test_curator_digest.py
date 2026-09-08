@@ -1,6 +1,8 @@
 """Curator and Digest pipelines end to end on the fake model, network mocked."""
 from __future__ import annotations
 
+import pytest
+
 from heygilli_agents import curator, digest
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
@@ -465,3 +467,30 @@ def test_going_back_is_capped_so_new_uploads_stay_the_point_of_the_run(
     left = [v for v in store.list_kid_videos("hh", kid.id)
             if (store.get_video(v) or Video(id=v)).transcript_source == "none"]
     assert len(left) == backlog - curator.REREAD_PER_RUN
+
+
+def test_a_video_is_marked_read_only_once_its_plans_are_written(
+    store: LocalStore, monkeypatch
+) -> None:
+    """`transcript_source` is the only thing that brings a video back here.
+
+    Marking it read before the plans exist loses it for good on any failure
+    partway through: it would claim a transcript it never used, and nothing
+    would ever come back for it.
+    """
+    kid = _kid_with_channel(store, monkeypatch)
+    store.put_video(Video(id="oldvideo001", title="Old", duration_s=600, transcript_source="none"))
+    store.set_kid_video("hh", kid.id, "oldvideo001", "approve", "screened on its title")
+    monkeypatch.setattr(curator, "fetch_transcript", _transcripts(available=True))
+
+    def exploding(*args, **kwargs):
+        raise RuntimeError("the planner fell over")
+
+    monkeypatch.setattr(curator, "build_plan", exploding)
+
+    with pytest.raises(RuntimeError):
+        curator.reread_titles_only(kid, store)
+
+    assert store.get_video("oldvideo001").transcript_source == "none", (
+        "the video claims a transcript it never used, so nothing will come back for it"
+    )

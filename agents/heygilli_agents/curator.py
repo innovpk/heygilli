@@ -354,8 +354,6 @@ def reread_titles_only(kid: Kid, store: Store, planner: Agent | None = None) -> 
             break
         if tr["source"] == "none":
             continue
-        video.transcript_source = tr["source"]
-        store.put_video(video)
         for language in kid.languages:
             # Past the cache deliberately: the cached plan is the fallback that
             # this exists to replace.
@@ -364,6 +362,11 @@ def reread_titles_only(kid: Kid, store: Store, planner: Agent | None = None) -> 
                 kid.question_freq, planner, kid.disabled_prompts,
             )
             store.put_plan(plan)
+        # Marked as read only once the plans are actually written. The other
+        # order loses the video: a Planner failure halfway through would leave
+        # it claiming a transcript it never used, and `transcript_source` is
+        # the only thing that brings it back here next time.
+        video.transcript_source = tr["source"]
         video.plan_ready = True
         store.put_video(video)
         done += 1
