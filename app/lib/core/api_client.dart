@@ -532,6 +532,18 @@ class ApiClient implements Gateway {
   @override
   Future<void> decide(String promptId, String decision) =>
       _post('/parent/inbox/$promptId', {'decision': decision});
+
+  @override
+  Future<ReviewQueue> reviewQueue(String kidId) async => ReviewQueue.fromJson(
+    await _get('/kids/$kidId/review') as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> reviewDecide(
+    String kidId, {
+    List<String> approve = const [],
+    List<String> hide = const [],
+  }) => _post('/kids/$kidId/review', {'approve': approve, 'hide': hide});
 }
 
 /// Digs the active break out of a 409 body from `POST /sessions`.

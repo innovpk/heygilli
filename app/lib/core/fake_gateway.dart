@@ -990,6 +990,50 @@ class FakeGateway implements Gateway {
   @override
   Future<String> speechUrl(String text, {bool slow = false}) async => '';
 
+  /// Demo review list: the Curator's three verdicts, so the setup screen can
+  /// be seen doing its job. Rejections made here are remembered for the rest
+  /// of the session, because a decision that does not stick reads as a bug.
+  final _reviewHidden = <String, Set<String>>{};
+
+  @override
+  Future<ReviewQueue> reviewQueue(String kidId) async {
+    await _lag();
+    final hidden = _reviewHidden[kidId] ?? const <String>{};
+    const seed = <(Video, String, String, String)>[
+      (_volcano, 'approve', 'Explains how volcanoes work. Suitable for the age band.', 'watched'),
+      (_ears, 'approve', 'Gentle science about hearing. Nothing you said to avoid.', 'watched'),
+      (_twinkle, 'ask_parent', 'A sponsor read in the middle, which you said to ask about.', 'watched'),
+      (_ducks, 'hide', 'A live stream, so what it will show has not happened yet.', 'title only'),
+    ];
+    return ReviewQueue(
+      items: [
+        for (final (video, status, reason, read) in seed)
+          ReviewItem(
+            video: video,
+            status: hidden.contains(video.id) ? 'hide' : status,
+            reason: reason,
+            channelTitle: 'Demo channel',
+            read: read,
+          ),
+      ],
+      screened: seed.length,
+      expected: seed.length,
+      channels: 2,
+    );
+  }
+
+  @override
+  Future<void> reviewDecide(
+    String kidId, {
+    List<String> approve = const [],
+    List<String> hide = const [],
+  }) async {
+    await _lag();
+    (_reviewHidden[kidId] ??= <String>{})
+      ..addAll(hide)
+      ..removeAll(approve);
+  }
+
   @override
   Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     await _lag();

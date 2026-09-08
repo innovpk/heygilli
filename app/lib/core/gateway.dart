@@ -257,4 +257,17 @@ abstract class Gateway {
 
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);
+
+  /// `GET /kids/{id}/review`: everything screened for this child, with what
+  /// the Curator made of each one and how far the run has got.
+  Future<ReviewQueue> reviewQueue(String kidId);
+
+  /// `POST /kids/{id}/review`: the parent's answers, in one go. Whole
+  /// channels are approved at a time, so one call per video would be a screen
+  /// full of spinners over a gateway that may be asleep.
+  Future<void> reviewDecide(
+    String kidId, {
+    List<String> approve,
+    List<String> hide,
+  });
 }

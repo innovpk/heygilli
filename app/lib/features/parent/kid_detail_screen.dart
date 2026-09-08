@@ -14,6 +14,7 @@ import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
+import 'setup_review_screen.dart';
 import 'starter_channels_screen.dart';
 import 'policy_screen.dart';
 import 'progress_screen.dart';
@@ -209,12 +210,27 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   /// Reloads the list on the way back: the point of the screen is that the
   /// Channels tab is no longer empty afterwards.
   Future<void> _startFromSuggestions() async {
+    final kid = _edited ?? widget.kid;
     final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => StarterChannelsScreen(kid: kid)),
+    );
+    if (added != true || !mounted) return;
+    setState(() => _channels = _load());
+    // Straight on to what those channels actually contain. Approving a
+    // channel approves a channel: the uploads are then read one at a time,
+    // and until somebody says yes to them the child's screen is empty. That
+    // step used to live in the inbox, later, in a different part of the app.
+    await _reviewVideos();
+  }
+
+  /// What the child will see, with the Curator's verdict on each.
+  Future<void> _reviewVideos() async {
+    final decided = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => StarterChannelsScreen(kid: _edited ?? widget.kid),
+        builder: (_) => SetupReviewScreen(kid: _edited ?? widget.kid),
       ),
     );
-    if (added == true && mounted) setState(() => _channels = _load());
+    if (decided == true && mounted) setState(() => _channels = _load());
   }
 
   /// Correct this child's nickname, age or languages.
@@ -589,6 +605,22 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                           'Suggest channels for ${kid.nickname}',
                           style: HgText.body(size: 15, color: HgColors.ink),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Screening takes minutes, so the parent who left while it
+                    // was still running needs a way back to the list rather
+                    // than a one-time screen they can miss.
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _reviewVideos,
+                        icon: const Icon(Icons.fact_check_outlined, size: 22),
+                        label: Text(
+                          'Review what Gilli screened',
+                          style: HgText.body(size: 15, color: HgColors.ink),
+                        ),
+                        style: _importButtonStyle,
                       ),
                     ),
                     const SizedBox(height: 10),

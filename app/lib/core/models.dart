@@ -1503,6 +1503,74 @@ enum PromptKind {
   };
 }
 
+/// One screened video, as the parent reviews it while setting a child up.
+///
+/// The Curator's own verdict is carried rather than applied: the parent is
+/// looking at everything it decided, including what it approved and what it
+/// hid, and the point of the screen is that they can disagree with any of it.
+class ReviewItem {
+  const ReviewItem({
+    required this.video,
+    required this.status,
+    required this.reason,
+    required this.channelTitle,
+    required this.read,
+  });
+
+  factory ReviewItem.fromJson(Map<String, dynamic> j) => ReviewItem(
+    video: Video.fromJson(j['video'] as Map<String, dynamic>),
+    status: j['status'] as String? ?? '',
+    reason: j['reason'] as String? ?? '',
+    channelTitle: j['channel_title'] as String? ?? '',
+    read: j['read'] as String? ?? '',
+  );
+
+  final Video video;
+
+  /// What the Curator decided: `approve`, `hide` or `ask_parent`.
+  final String status;
+  final String reason;
+  final String channelTitle;
+
+  /// `watched` or `title only` — what the judgement was made on. Shown,
+  /// because a video read on its title alone is a different opinion rather
+  /// than a weaker one, and the parent deciding should know which they have.
+  final String read;
+
+  /// Where this starts on the screen. The Curator's verdict is the default
+  /// answer, so a parent who agrees with all of it has nothing to do.
+  bool get startsApproved => status == 'approve';
+}
+
+/// The review list, with how far the screening has got.
+class ReviewQueue {
+  const ReviewQueue({
+    required this.items,
+    required this.screened,
+    required this.expected,
+    required this.channels,
+  });
+
+  factory ReviewQueue.fromJson(Map<String, dynamic> j) => ReviewQueue(
+    items: (j['items'] as List? ?? [])
+        .map((i) => ReviewItem.fromJson(i as Map<String, dynamic>))
+        .toList(),
+    screened: j['screened'] as int? ?? 0,
+    expected: j['expected'] as int? ?? 0,
+    channels: j['channels'] as int? ?? 0,
+  );
+
+  final List<ReviewItem> items;
+  final int screened;
+  final int expected;
+  final int channels;
+
+  /// Screening a channel's uploads takes minutes, so the screen has to be
+  /// able to say "still going" rather than showing a short list as if it were
+  /// the whole answer.
+  bool get stillScreening => screened < expected;
+}
+
 class ParentPrompt {
   const ParentPrompt({
     required this.id,

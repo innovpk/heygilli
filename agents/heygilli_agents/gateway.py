@@ -1387,6 +1387,116 @@ def parent_inbox(hid: str = Depends(household)) -> list[dict]:
     return out
 
 
+#: Uploads the Curator reads per channel. Mirrors `run_curator`'s own default;
+#: used here only to say how far along a run is.
+_PER_CHANNEL = 5
+
+
+@app.get("/kids/{kid_id}/review")
+def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
+    """Everything screened for this child, with what the Curator made of it.
+
+    The inbox holds only the judgement calls, which made approving a new
+    child's first videos an errand in a different part of the app, done later,
+    against a list that does not say what was *not* asked about. This is the
+    whole screening — approved, hidden and asked about together, each with the
+    reason — so the parent sets a child up in one sitting and the inbox goes
+    back to being where later uploads arrive.
+
+    `screened` and `expected` are here because a run takes minutes: without
+    them a parent who has just approved channels sees an empty list and no
+    reason to believe anything is coming.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    channels = [c for c in store.list_channels(hid, kid_id) if c.approved]
+    titles = {c.id: c.title or c.id for c in channels}
+
+    items: list[dict] = []
+    for vid, entry in store.list_kid_videos(hid, kid_id).items():
+        video = store.get_video(vid)
+        if video is None:
+            continue
+        items.append(
+            {
+                "video": video.public(),
+                "status": entry.get("status", ""),
+                "reason": entry.get("reason", ""),
+                "channel_title": titles.get(video.channel_id, video.channel_id),
+                # What it was judged on. A video read on its title alone is not
+                # a weaker opinion, it is a different one, and the parent
+                # deciding is the person who should be told which they have.
+                "read": "title only" if video.transcript_source in ("", "none") else "watched",
+            }
+        )
+    items.sort(key=lambda i: i["video"].get("published_at") or "", reverse=True)
+    return {
+        "items": items,
+        "screened": len(items),
+        "expected": len(channels) * _PER_CHANNEL,
+        "channels": len(channels),
+    }
+
+
+class ReviewIn(BaseModel):
+    approve: list[str] = Field(default_factory=list)
+    hide: list[str] = Field(default_factory=list)
+
+
+@app.post("/kids/{kid_id}/review")
+def review_decide(kid_id: str, body: ReviewIn, hid: str = Depends(household)) -> dict:
+    """The parent's answers to that list, in one go.
+
+    Whole channels are approved at a time here, so one video at a time over a
+    sleeping gateway would be a screen full of spinners.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    # An id in both lists is a client bug, and the safe reading of a
+    # contradiction about what a child may watch is the restrictive one.
+    hide = set(body.hide)
+    approve = [v for v in body.approve if v not in hide]
+
+    open_prompts: dict[str, list] = {}
+    for prompt in store.list_parent_prompts(hid):
+        if prompt.video is not None and prompt.kid_id == kid_id:
+            open_prompts.setdefault(prompt.video.id, []).append(prompt)
+
+    def settle(video_id: str, decision: str) -> None:
+        # Decided here, so it must not still be waiting in the inbox: the same
+        # video asked about twice is the parent wondering whether their first
+        # answer took.
+        for prompt in open_prompts.get(video_id, []):
+            prompt.decision = decision
+            store.put_parent_prompt(prompt)
+
+    for video_id in approve:
+        video = store.get_video(video_id)
+        if video is None:
+            continue
+        video.age_ok = True
+        if kid.age_band and kid.age_band not in video.screening.age_ok:
+            video.screening.age_ok.append(kid.age_band)
+        store.put_video(video)
+        store.set_kid_video(hid, kid_id, video_id, "approve", "parent decided")
+        settle(video_id, "approve")
+        for language in kid.languages:
+            ensure_plan(
+                video,
+                kid.age_band or "7_8",
+                language,
+                store,
+                freq=kid.question_freq,
+                disabled_prompts=kid.disabled_prompts,
+            )
+
+    for video_id in hide:
+        store.set_kid_video(hid, kid_id, video_id, "hide", "parent decided")
+        settle(video_id, "hide")
+
+    return {"approved": len(approve), "hidden": len(hide)}
+
+
 class DecisionIn(BaseModel):
     decision: Literal["approve", "hide"]
 
