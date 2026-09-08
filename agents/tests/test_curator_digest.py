@@ -549,3 +549,82 @@ def test_a_video_is_marked_read_only_once_its_plans_are_written(
     assert store.get_video("oldvideo001").transcript_source == "none", (
         "the video claims a transcript it never used, so nothing will come back for it"
     )
+
+
+# --- what the family asked for -------------------------------------------------------
+#
+# The rule lived in the prompt and held until the prompt also asked for a fuller
+# `reason`. Then the Curator began approving Crash Course *Literature* for a
+# household that asked for science, writing "aligns with the parent's request
+# for science content" underneath it. A check the model can compose its way
+# around is not a check.
+
+
+def test_a_video_that_is_not_what_the_family_asked_for_goes_to_the_parent() -> None:
+    from heygilli_agents.schemas import CuratorDecision
+
+    approved_off_topic = CuratorDecision(
+        decision="approve", reason="It teaches how to find themes in a novel.",
+        matches_wanted=False,
+    )
+    out = curator.apply_wanted(approved_off_topic, ["science"])
+
+    assert out.decision == "ask_parent", "an off-topic video was approved for the child"
+    assert "not one of the things you asked for" in out.reason
+    assert "science" in out.reason, "the parent is not told which topic it missed"
+    # The model's own words survive: the parent still learns what it *is*.
+    assert "find themes" in out.reason
+
+
+def test_decide_actually_applies_the_check() -> None:
+    """Testing `apply_wanted` alone proves nothing about whether anything calls
+    it — which is the very shape of the bug being fixed here: a check that
+    exists and does not run."""
+    from heygilli_agents.schemas import Video
+
+    def off_topic(model_name: str, text: str) -> dict:
+        assert model_name == "CuratorDecision", model_name
+        return {"decision": "approve", "reason": "It teaches how to find themes in a novel.",
+                "topics": ["literature"], "matches_wanted": False}
+
+    out = curator.decide(
+        Video(id="lit0000001", title="How to find themes", description="A novel.",
+              duration_s=600),
+        "7_8", make_agent("curator", "s", model=FakeModel(canned=off_topic)),
+        "excerpt about a novel", wanted_topics=["science"],
+    )
+
+    assert out.decision == "ask_parent", "decide() approved an off-topic video"
+    assert "not one of the things you asked for" in out.reason
+    assert "find themes" in out.reason, "the model's own words were thrown away"
+
+
+def test_being_off_topic_never_hides_a_video() -> None:
+    """Wanting science is a preference, not a safety rule, so it goes to the
+    parent rather than being decided for them."""
+    from heygilli_agents.schemas import CuratorDecision
+
+    out = curator.apply_wanted(
+        CuratorDecision(decision="approve", reason="r", matches_wanted=False), ["science"]
+    )
+    assert out.decision != "hide"
+
+
+def test_a_video_that_is_what_they_asked_for_is_left_alone() -> None:
+    from heygilli_agents.schemas import CuratorDecision
+
+    on_topic = CuratorDecision(decision="approve", reason="Volcano shapes and eruptions.",
+                               matches_wanted=True)
+    assert curator.apply_wanted(on_topic, ["science"]) == on_topic
+    # And a household that asked for nothing in particular is not second-guessed.
+    off = CuratorDecision(decision="approve", reason="r", matches_wanted=False)
+    assert curator.apply_wanted(off, []) == off
+
+
+def test_an_off_topic_hide_is_not_quietly_softened_into_a_question() -> None:
+    """`hide` is a safety verdict. Being off-topic as well must not turn it into
+    something the parent is invited to allow — that would launder a hide."""
+    from heygilli_agents.schemas import CuratorDecision
+
+    hidden = CuratorDecision(decision="hide", reason="Scary throughout.", matches_wanted=False)
+    assert curator.apply_wanted(hidden, ["science"]).decision == "hide"

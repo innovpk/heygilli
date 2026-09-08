@@ -886,6 +886,12 @@ class CuratorDecision(BaseModel):
         description="If this decision turns on one of the household's own policy answers, "
                     "that answer's id; otherwise empty.",
     )
+    matches_wanted: bool = Field(
+        default=True,
+        description="True only if this video is genuinely about one of the topics the parent "
+                    "asked for. A video that is good, calm and educational but about something "
+                    "else is False. Judge the video, not whether you like it.",
+    )
 
 
 # --- WebSocket messages (PROTOCOL.md) ------------------------------------------------------

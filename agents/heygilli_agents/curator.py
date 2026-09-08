@@ -52,11 +52,13 @@ they did not already have. Two or three sentences, each earning its place:
   video touched it.
 - When you were given no transcript, say plainly that this is the title and description only.
   Never write as though you watched something you did not.
-- Off-topic is not a verdict on quality. Say what it IS about and whether it looks worth their
-  child's time, so a parent can say yes to it knowingly.
+- Off-topic is not a verdict on quality, but it is still off-topic. Say what it IS about so the
+  parent can say yes to it knowingly — and never write that it matches what they asked for when
+  it does not. A literature lesson is not science however good it is.
 
 Never begin with "This video is about". Never restate the title back to them. Two videos in the
-same run must not come back with the same sentence.
+same run must not come back with the same sentence, and "It is educational, calm, and aligns with
+what the parent asked for" is not a sentence — it is a shrug with more words in it.
 
 This household may have told you what it actually wants. When a household policy is given, it
 outranks your own taste: a thing this family said is "fine" is fine here even if you would normally
@@ -145,6 +147,31 @@ def apply_policy(decision: CuratorDecision, policy: Policy | None) -> CuratorDec
     })
 
 
+def apply_wanted(
+    decision: CuratorDecision, wanted_topics: Sequence[str]
+) -> CuratorDecision:
+    """A video that is not what the family asked for goes to the parent.
+
+    The rule lived in the prompt and the model kept it right up until the
+    prompt also asked for a fuller `reason`. Then it began approving Crash
+    Course *Literature* for a household that asked for science, writing "aligns
+    with the parent's request for science content" underneath — the check had
+    become a sentence it could compose its way around.
+
+    So the judgement stays with the model, which is the only thing that can
+    tell whether volcanoes count as science, and the consequence moves here,
+    where no wording can reach it. Same split as `apply_policy`, and never a
+    hide: wanting science is a preference, not a safety rule.
+    """
+    if not wanted_topics or decision.matches_wanted or decision.decision != "approve":
+        return decision
+    return decision.model_copy(update={
+        "decision": "ask_parent",
+        "reason": f"{decision.reason} This is not one of the things you asked for "
+                  f"({', '.join(wanted_topics)}), so it is yours to say.",
+    })
+
+
 def caption_language(transcript_source: str) -> str:
     """The language of the captions we read, or "" when we do not know.
 
@@ -215,7 +242,8 @@ def decide(
         f"Return the CuratorDecision. Hide anything not in a language above."
     )
     try:
-        return apply_policy(structured(agent, prompt, CuratorDecision), policy)
+        decided = structured(agent, prompt, CuratorDecision)
+        return apply_wanted(apply_policy(decided, policy), wanted_topics)
     except LLMError as e:
         log.warning("curator model failed for %s: %s", video.id, e)
         return CuratorDecision(decision="ask_parent", reason="Could not review automatically.")
