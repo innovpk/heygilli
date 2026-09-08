@@ -130,6 +130,23 @@ def _note_gemini_failure(video_id: str, e: Exception) -> None:
         log.warning("gemini transcript failed for %s: %s", video_id, e)
 
 
+#: How every blocked message starts. Named so one can be recognised when it
+#: arrives as the cause of another.
+_BLOCKED_PREFIX = "no transcript source answered — "
+
+
+def clear_cooldowns() -> None:
+    """Forget that Gemini or captions turned us down, for the debug endpoint.
+
+    Standing down is what stops a run being spent on 429s, and it also means
+    that by the time anybody asks why a transcript failed, the answer on hand
+    is "we did not try" — which is not the answer they need.
+    """
+    global _gemini_until, _captions_blocked
+    _gemini_until = 0.0
+    _captions_blocked = False
+
+
 def _why_blocked(captions_error: Exception | None = None) -> str:
     """One line naming every source that could have answered and did not.
 
@@ -137,15 +154,26 @@ def _why_blocked(captions_error: Exception | None = None) -> str:
     watch, and "captions were refused" alone has sent that person to check the
     wrong thing more than once.
     """
-    parts = [f"captions: {captions_error or 'refused to this machine'}"]
+    # A cached captions failure is itself a TranscriptsBlocked whose text is
+    # already a whole _why_blocked() line. Embedding it produced a message that
+    # said everything twice, which is how it read the first time anyone needed
+    # it: "no transcript source answered - captions: no transcript source
+    # answered - captions: refused to this machine; gemini: ...; gemini: ...".
+    why = str(captions_error) if captions_error else "refused to this machine"
+    if why.startswith(_BLOCKED_PREFIX):
+        why = "refused to this machine"
+    parts = [f"captions: {why}"]
     if not os.getenv("GOOGLE_API_KEY"):
         parts.append("gemini: no GOOGLE_API_KEY")
     elif not _gemini_ready():
-        parts.append("gemini: out of quota, standing down")
+        parts.append(
+            f"gemini: standing down for {int(_gemini_until - time.monotonic())}s after "
+            f"{_gemini_last_error or 'a quota refusal'}"
+        )
     else:
         parts.append(f"gemini: {_gemini_last_error or 'no transcript returned'}")
     parts.append("proxy: configured" if _proxy_config() else "proxy: not configured")
-    return "no transcript source answered — " + "; ".join(parts)
+    return _BLOCKED_PREFIX + "; ".join(parts)
 
 
 def _proxy_config():

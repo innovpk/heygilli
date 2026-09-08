@@ -1631,7 +1631,9 @@ async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswe
 
 
 @app.get("/debug/transcript")
-def debug_transcript(video_id: str, hid: str = Depends(household)) -> dict:
+def debug_transcript(
+    video_id: str, reset: bool = False, hid: str = Depends(household)
+) -> dict:
     """Run the transcript chain for one video and report what each source said.
 
     The Curator swallows a failed transcript on purpose — one unreadable video
@@ -1644,6 +1646,10 @@ def debug_transcript(video_id: str, hid: str = Depends(household)) -> dict:
     deployment has.
     """
     out: dict = {"video_id": video_id}
+    if reset:
+        # Otherwise the answer to "why did this fail" is "we did not try",
+        # which is the standing-down working, not a diagnosis.
+        transcript_sources.clear_cooldowns()
     try:
         got = transcript_sources.fetch_transcript(video_id)
         out["source"] = got.get("source")

@@ -463,3 +463,67 @@ def test_an_unaccepted_key_is_named_as_such(monkeypatch) -> None:
     with pytest.raises(youtube.SearchUnavailable) as e:
         youtube.search_channels("peppa")
     assert "not accepted" in str(e.value) and "API key not valid" in str(e.value)
+
+
+# --- Why a transcript could not be read ---------------------------------------------------------
+#
+# This message is the whole account of why a household's videos were screened
+# on their titles. It is read by somebody who already knows something is wrong
+# and needs to know which of three things to go and fix.
+
+
+def test_the_reason_names_each_source_once(monkeypatch):
+    """A cached captions failure must not be pasted back into its own successor.
+
+    `_why_blocked` takes the captions error and builds a line naming every
+    source. The cached error handed to it on later videos is a
+    `TranscriptsBlocked` whose text is *already* one of those lines, so the
+    result said everything twice — "no transcript source answered — captions:
+    no transcript source answered — captions: refused to this machine; gemini:
+    ...; proxy: ...; gemini: ...; proxy: ..." — which is what came back the
+    first time anyone asked the live gateway.
+    """
+    from heygilli_agents.tools import transcript as t
+
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("HEYGILLI_PROXY_URL", raising=False)
+    monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
+
+    first = t.TranscriptsBlocked(t._why_blocked())
+    second = t._why_blocked(first)
+
+    assert second.count("captions:") == 1
+    assert second.count("gemini:") == 1
+    assert second.count("proxy:") == 1
+
+
+def test_standing_down_says_what_it_stood_down_from(monkeypatch):
+    """"Out of quota" was a claim with nothing behind it.
+
+    While the cooldown is running, the reason given for Gemini was the cooldown
+    itself, so the provider's own words — the one thing that says whether this
+    is really quota, a dead key or a retired model — were dropped exactly when
+    somebody was reading the message to find out.
+    """
+    from heygilli_agents.tools import transcript as t
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "k")
+    monkeypatch.setattr(t, "_gemini_until", t.time.monotonic() + 600)
+    monkeypatch.setattr(t, "_gemini_last_error", "ClientError: 429 RESOURCE_EXHAUSTED")
+
+    why = t._why_blocked()
+
+    assert "429 RESOURCE_EXHAUSTED" in why
+
+
+def test_clearing_cooldowns_lets_the_next_call_actually_try(monkeypatch):
+    """The debug endpoint's reset, without which it reports the standing-down."""
+    from heygilli_agents.tools import transcript as t
+
+    monkeypatch.setattr(t, "_gemini_until", t.time.monotonic() + 600)
+    monkeypatch.setattr(t, "_captions_blocked", True)
+
+    t.clear_cooldowns()
+
+    assert t._gemini_ready()
+    assert not t._captions_blocked

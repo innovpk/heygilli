@@ -47,6 +47,24 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   );
 
   late Future<List<Channel>> _channels = _load();
+
+  /// Open on Channels when this child has none.
+  ///
+  /// "How it is going" is the right first tab for a child who is watching, and
+  /// the wrong one for a child added a minute ago: it is empty, and the one
+  /// thing that has to happen next — approving channels, without which kid
+  /// mode shows nothing at all — is behind the third tab. A parent who added a
+  /// child and stopped here is a parent whose app never started.
+  void _openOnChannelsIfEmpty() {
+    _channels
+        .then((list) {
+          if (mounted && list.isEmpty) _tabs.animateTo(2);
+        })
+        .catchError((_) {
+          // A channel list that would not load says nothing about which tab
+          // to open on; leave the parent where they landed.
+        });
+  }
   final _url = TextEditingController();
   bool _adding = false;
   bool _curating = false;
@@ -70,6 +88,12 @@ class _KidDetailScreenState extends State<KidDetailScreen>
 
   Future<List<Channel>> _load() =>
       context.read<AppState>().gateway.channels(widget.kid.id);
+
+  @override
+  void initState() {
+    super.initState();
+    _openOnChannelsIfEmpty();
+  }
 
   @override
   void dispose() {

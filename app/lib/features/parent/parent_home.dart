@@ -39,7 +39,7 @@ class _ParentHomeState extends State<ParentHome> {
       body: _tab == 0 ? const _KidsTab() : const InboxScreen(),
       floating: _tab == 0
           ? FloatingActionButton.extended(
-              onPressed: () => showAddKidSheet(context),
+              onPressed: () => _addKid(context),
               backgroundColor: HgColors.mango,
               foregroundColor: HgColors.ink,
               icon: const Icon(Icons.add_rounded),
@@ -74,6 +74,21 @@ class _ParentHomeState extends State<ParentHome> {
   }
 }
 
+/// Add a kid, then go straight to them.
+///
+/// Adding used to end on the kid list, which is the screen the parent was
+/// already looking at: the only sign it worked was a new row, and the next
+/// thing that has to happen — giving that child channels — was two taps away
+/// behind a tab that does not announce itself. The child's page opens on
+/// Channels while they have none, so this lands on the question to answer.
+Future<void> _addKid(BuildContext context) async {
+  final kid = await showAddKidSheet(context);
+  if (kid == null || !context.mounted) return;
+  await Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => KidDetailScreen(kid: kid)));
+}
+
 class _KidsTab extends StatelessWidget {
   const _KidsTab();
 
@@ -100,17 +115,35 @@ class _KidsTab extends StatelessWidget {
                 style: HgText.body(color: HgColors.brown),
               ),
               const SizedBox(height: 8),
-              // The fastest way in for a household that already uses YouTube
-              // Kids: the export names the profiles and brings their channels,
-              // so the parent does not start from an empty list.
-              OutlinedButton.icon(
+              // The step everyone takes, as the button everyone can see. It
+              // was the floating button and nothing else, while the one
+              // prominent thing on the screen was the Takeout import — the
+              // rare path, and the one that asks the parent to go to Google
+              // and wait for an email before the app does anything.
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () => _addKid(context),
+                  icon: const Icon(Icons.add_rounded, size: 22),
+                  label: Text(
+                    'Add a kid',
+                    style: HgText.body(size: 16, color: HgColors.ink),
+                  ),
+                ),
+              ),
+              // Still here, quieter: the fastest way in for a household that
+              // already uses YouTube Kids, since the export names the profiles
+              // and brings their channels.
+              TextButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const TakeoutImportScreen(),
                   ),
                 ),
-                icon: const Icon(Icons.folder_zip_outlined, size: 20),
-                label: const Text('Already use YouTube Kids? Import a profile'),
+                child: Text(
+                  'Already use YouTube Kids? Import a profile',
+                  style: HgText.body(size: 14, color: HgColors.brown),
+                ),
               ),
             ],
           ),
