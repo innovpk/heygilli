@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -64,16 +63,16 @@ const kidPlayerParams = YoutubePlayerParams(
   strictRelatedVideos: true,
   enableCaption: false,
   enableKeyboard: false,
-  // Nothing this app sends reaches the embed. Turning the controls off took
-  // the bar, but "Watch on YouTube", the share button and "More videos" live
-  // in a hover overlay that survives it — on a tablet nothing summons that,
-  // and on the web build a mouse does. The player is not hidden, moved or
-  // covered: it renders exactly as YouTube serves it, and we simply stop
-  // forwarding pointer events into it.
+  // `pointerEvents: none` was here, to keep a child away from the overlay that
+  // carries "Watch on YouTube", the share button and "More videos". It did
+  // that. It also made the player impossible to start.
   //
-  // The cost is that an ad inside the player cannot be clicked either. That is
-  // a deliberate trade for a screen a six-year-old is sitting in front of.
-  pointerEvents: PointerEvents.none,
+  // The setting is baked into the wrapper page before the first frame, so it
+  // is already on while the embed is CUED — and a browser that refuses to
+  // autoplay sound, which is every mobile browser and Safari, is waiting at
+  // that point for a tap it can never receive. The video simply never began.
+  // A player a child cannot start is worse than one showing a logo, so this
+  // stays off until there is a way to have both.
 );
 
 enum _Phase {
@@ -136,17 +135,6 @@ class _SessionScreenState extends State<SessionScreen> {
   /// subtree included — to move a bar six pixels. The embed survives that
   /// (it is behind a GlobalKey) but nothing else about it is worth paying for.
   final _position = ValueNotifier<double>(0);
-
-  /// False until the embed has played a single frame.
-  ///
-  /// Before that YouTube draws its poster over the video — the title, the
-  /// channel, a share button and "Watch on YouTube" — and no player parameter
-  /// turns that off. `pointerEvents: none` stops a child reaching any of it,
-  /// which is why a paused player is clean: the pause overlay only appears in
-  /// answer to a pointer. The poster does not need one. It is simply the
-  /// state the player is in before it starts, so the only way past it is to
-  /// wait for the first frame and cover what is there until then.
-  final _started = ValueNotifier<bool>(false);
 
   /// How many more times the child may ask to hear this question.
   ///
@@ -252,7 +240,6 @@ class _SessionScreenState extends State<SessionScreen> {
       // Fire and forget; the screen is already going away.
       unawaited(context.read<AppState>().gateway.endSession(id));
     }
-    _started.dispose();
     _ears.dispose();
     _voice.stop();
     _yt.close();
@@ -270,7 +257,6 @@ class _SessionScreenState extends State<SessionScreen> {
     // with the video, so a single call at the top of the session lands before
     // there is anything to unload.
     if (v.playerState == PlayerState.playing) hideCaptions(_yt);
-    _started.value = hasStarted(_started.value, v.playerState);
     if (v.playerState == PlayerState.ended && !_ended) {
       // The gateway normally sends `end` itself; this covers a missed frame.
       Future<void>.delayed(const Duration(seconds: 2), () {
@@ -618,16 +604,13 @@ class _SessionScreenState extends State<SessionScreen> {
 
   Widget _player(bool rounded) => ClipRRect(
     borderRadius: BorderRadius.circular(rounded ? 20 : 0),
-    child: PosterCover(
-      started: _started,
-      child: KeyedSubtree(
-        key: _playerKey,
-        child: YoutubePlayer(
-          controller: _yt,
-          backgroundColor: HgColors.tealDeep,
-          enableFullScreenOnVerticalDrag: false,
-          autoFullScreen: false,
-        ),
+    child: KeyedSubtree(
+      key: _playerKey,
+      child: YoutubePlayer(
+        controller: _yt,
+        backgroundColor: HgColors.tealDeep,
+        enableFullScreenOnVerticalDrag: false,
+        autoFullScreen: false,
       ),
     ),
   );
@@ -1168,76 +1151,4 @@ class _SayItAgainButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Whether the embed has played a frame yet, given what it has just reported.
-///
-/// Latching, and that is the point: it goes true on the first `playing` and
-/// stays true. A plain `state == playing` would put the cover back over every
-/// pause — and Gilli pauses this player several times a video.
-bool hasStarted(bool wasStarted, PlayerState state) =>
-    wasStarted || state == PlayerState.playing;
-
-/// Hides YouTube's poster — the screen the embed shows before it plays.
-///
-/// The poster carries the title, the channel, a share button and "Watch on
-/// YouTube", and no player parameter turns any of it off. `pointerEvents:
-/// none` is what keeps the *pause* overlay away, because that one only appears
-/// in answer to a pointer; the poster needs no pointer, it is simply where the
-/// player starts.
-///
-/// So this covers it, and covers nothing else. It lifts on the first frame and
-/// never returns, which means it is never over playing video — not the video,
-/// not an ad, and not YouTube's branding on either.
-///
-/// What it deliberately leaves alone: YouTube flashes the same title, logo and
-/// "More videos" for about three seconds at the *start of every play*,
-/// including each resume after Gilli's questions. No parameter stops that
-/// either, and the only thing that would is a cover over playing video —
-/// which is the line SPEC §5.5 and YouTube's terms both draw, and worth more
-/// than three seconds of a logo.
-class PosterCover extends StatelessWidget {
-  const PosterCover({super.key, required this.started, required this.child});
-
-  final ValueListenable<bool> started;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      child,
-      ValueListenableBuilder<bool>(
-        valueListenable: started,
-        // Once it has faded the spinner would otherwise go on ticking — and
-        // repainting — under a transparent layer for the whole video.
-        builder: (context, isStarted, _) => TickerMode(
-          enabled: !isStarted,
-          child: IgnorePointer(
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
-              opacity: isStarted ? 0 : 1,
-              // Deliberately not a spinner on black: this is the first second of
-              // a video the child chose, so it should read as "coming", not as
-              // "something is wrong".
-              child: const ColoredBox(
-                color: HgColors.tealDeep,
-                child: Center(
-                  child: SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation(HgColors.mango),
-                      backgroundColor: HgColors.teal,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
 }

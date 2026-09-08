@@ -21,17 +21,17 @@ void main() {
     expect(kidPlayerParams.showFullscreenButton, isFalse);
   });
 
-  test('nothing this app sends reaches the embed', () {
-    // The control bar is gone, but "Watch on YouTube", the share button and
-    // "More videos" live in an overlay that survives `controls=0`. That
-    // overlay is summoned by a pointer — a mouse over the web build, a tap on
-    // a tablet — so refusing to forward pointer events is what keeps it away,
-    // and measurably does: a player paused by Gilli shows a clean frame.
+  test('the player can still be started by the child in front of it', () {
+    // `pointerEvents: none` is the obvious way to keep a child away from
+    // "Watch on YouTube", and it shipped once. It also stops the video ever
+    // playing: the setting is on before the first frame, and a browser that
+    // will not autoplay sound — every mobile browser, and Safari — leaves the
+    // embed CUED, waiting for a tap that can no longer reach it. It came back
+    // as "the video never starts", which is the whole product gone.
     //
-    // It does not deal with the poster the embed shows *before* it plays,
-    // which carries the same links and needs no pointer at all. `PosterCover`
-    // is that half, and `poster_cover_test.dart` is where it is checked.
-    expect(kidPlayerParams.pointerEvents, PointerEvents.none);
+    // So this is not a style preference. Turning it on again means a player a
+    // child cannot start.
+    expect(kidPlayerParams.pointerEvents, isNot(PointerEvents.none));
   });
 
   test('no settings, captions or keyboard seeking for a child to find', () {
