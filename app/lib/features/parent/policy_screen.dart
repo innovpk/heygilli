@@ -23,9 +23,21 @@ import 'parent_widgets.dart';
 ///    "Rather not", and that routes a video to their inbox. The card says so
 ///    under the button, where they are deciding.
 class PolicyScreen extends StatefulWidget {
-  const PolicyScreen({super.key, required this.kid});
+  const PolicyScreen({super.key, required this.kid, this.setup = false});
 
   final Kid kid;
+
+  /// Part of setting a child up, rather than a settings page reached later.
+  ///
+  /// The answers are what every upload is then read against, so they belong
+  /// before the channels and not after: a household that picked channels
+  /// first had them screened against nothing it had said, and the screen a
+  /// parent finally found was in the Rules tab, under the time limits.
+  ///
+  /// In setup it moves on when it saves, and can be skipped — skipping is an
+  /// answer here too, and a parent who wants to look at the app before
+  /// deciding what they think must not be held at a wall of questions.
+  final bool setup;
 
   @override
   State<PolicyScreen> createState() => _PolicyScreenState();
@@ -122,6 +134,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
         notes: _notes.text.trim(),
       );
       if (!mounted) return;
+      if (widget.setup) {
+        Navigator.of(context).pop(true);
+        return;
+      }
       setState(() {
         _policy = saved;
         _savedChoices = Map.of(_choices);
@@ -138,7 +154,19 @@ class _PolicyScreenState extends State<PolicyScreen> {
   Widget build(BuildContext context) {
     final name = widget.kid.nickname;
     return ParentScaffold(
-      title: 'What your household wants',
+      title: widget.setup
+          ? 'What $name may watch'
+          : 'What your household wants',
+      actions: [
+        if (widget.setup)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Skip for now',
+              style: HgText.body(size: 15, color: HgColors.brown),
+            ),
+          ),
+      ],
       subtitle: name.toUpperCase(),
       body: FutureBuilder<_Loaded>(
         future: _future,
@@ -212,7 +240,11 @@ class _PolicyScreenState extends State<PolicyScreen> {
                           ),
                         )
                       : Text(
-                          _dirty ? 'Save these answers' : 'Saved',
+                          _dirty
+                              ? (widget.setup
+                                    ? 'Save and pick channels'
+                                    : 'Save these answers')
+                              : 'Saved',
                           style: HgText.body(
                             size: 16,
                             color: _dirty ? HgColors.ink : HgColors.brown,

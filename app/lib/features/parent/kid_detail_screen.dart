@@ -14,6 +14,7 @@ import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
+import 'hidden_screen.dart';
 import 'setup_review_screen.dart';
 import 'starter_channels_screen.dart';
 import 'policy_screen.dart';
@@ -605,6 +606,27 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                           'Suggest channels for ${kid.nickname}',
                           style: HgText.body(size: 15, color: HgColors.ink),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Screening that only shows its successes has to be taken
+                    // on trust. The child is never told a video was hidden,
+                    // which is right for them and wrong for the person who
+                    // set the rules.
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => HiddenScreen(kid: kid),
+                          ),
+                        ),
+                        icon: const Icon(Icons.visibility_off_outlined, size: 22),
+                        label: Text(
+                          'What was kept from ${kid.nickname}',
+                          style: HgText.body(size: 15, color: HgColors.ink),
+                        ),
+                        style: _importButtonStyle,
                       ),
                     ),
                     const SizedBox(height: 10),

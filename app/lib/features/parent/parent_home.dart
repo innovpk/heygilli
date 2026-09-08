@@ -9,6 +9,9 @@ import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'inbox_screen.dart';
 import 'kid_detail_screen.dart';
+import 'policy_screen.dart';
+import 'setup_review_screen.dart';
+import 'starter_channels_screen.dart';
 import 'parent_widgets.dart';
 import 'takeout_import_screen.dart';
 
@@ -74,19 +77,43 @@ class _ParentHomeState extends State<ParentHome> {
   }
 }
 
-/// Add a kid, then go straight to them.
+/// Add a kid, then set them up: what they may watch, then who from, then what.
 ///
-/// Adding used to end on the kid list, which is the screen the parent was
-/// already looking at: the only sign it worked was a new row, and the next
-/// thing that has to happen — giving that child channels — was two taps away
-/// behind a tab that does not announce itself. The child's page opens on
-/// Channels while they have none, so this lands on the question to answer.
+/// The order is the whole point. The parent's answers are what every upload is
+/// read against, so they have to come first — a household that picked channels
+/// first had them screened against nothing it had said, and got a science
+/// channel's motivational-quote compilations because nothing knew what it had
+/// asked for. Channels next, because nothing outside an approved one can ever
+/// reach the child. The videos those channels actually hold last, with Gilli's
+/// reading of each, because approving a channel is not approving its uploads.
+///
+/// Every step can be left. A parent who stops after the first has a child with
+/// rules and no channels, which is a coherent thing to be halfway through, and
+/// each step is reachable again from the child's page.
 Future<void> _addKid(BuildContext context) async {
   final kid = await showAddKidSheet(context);
   if (kid == null || !context.mounted) return;
-  await Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => KidDetailScreen(kid: kid)));
+  final navigator = Navigator.of(context);
+
+  await navigator.push(
+    MaterialPageRoute(builder: (_) => PolicyScreen(kid: kid, setup: true)),
+  );
+  if (!context.mounted) return;
+  final picked = await navigator.push<bool>(
+    MaterialPageRoute(builder: (_) => StarterChannelsScreen(kid: kid)),
+  );
+  if (!context.mounted) return;
+  // Only when there is something to review: with no channels there are no
+  // uploads, and an empty list would read as the screening having failed.
+  if (picked == true) {
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => SetupReviewScreen(kid: kid)),
+    );
+    if (!context.mounted) return;
+  }
+  await navigator.push(
+    MaterialPageRoute(builder: (_) => KidDetailScreen(kid: kid)),
+  );
 }
 
 class _KidsTab extends StatelessWidget {

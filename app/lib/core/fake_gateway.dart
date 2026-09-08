@@ -994,12 +994,15 @@ class FakeGateway implements Gateway {
   /// Demo review list: the Curator's three verdicts, so the setup screen can
   /// be seen doing its job. Rejections made here are remembered for the rest
   /// of the session, because a decision that does not stick reads as a bug.
-  final _reviewHidden = <String, Set<String>>{};
+  /// Overrides both ways, keyed by kid then video: a parent putting a hidden
+  /// video back has to stick as surely as one they reject, and a set of
+  /// rejections alone can only ever add.
+  final _reviewDecided = <String, Map<String, String>>{};
 
   @override
   Future<ReviewQueue> reviewQueue(String kidId) async {
     await _lag();
-    final hidden = _reviewHidden[kidId] ?? const <String>{};
+    final decided = _reviewDecided[kidId] ?? const <String, String>{};
     const seed = <(Video, String, String, String)>[
       (_volcano, 'approve', 'Explains how volcanoes work. Suitable for the age band.', 'watched'),
       (_ears, 'approve', 'Gentle science about hearing. Nothing you said to avoid.', 'watched'),
@@ -1011,7 +1014,7 @@ class FakeGateway implements Gateway {
         for (final (video, status, reason, read) in seed)
           ReviewItem(
             video: video,
-            status: hidden.contains(video.id) ? 'hide' : status,
+            status: decided[video.id] ?? status,
             reason: reason,
             channelTitle: 'Demo channel',
             read: read,
@@ -1030,9 +1033,13 @@ class FakeGateway implements Gateway {
     List<String> hide = const [],
   }) async {
     await _lag();
-    (_reviewHidden[kidId] ??= <String>{})
-      ..addAll(hide)
-      ..removeAll(approve);
+    final decided = _reviewDecided[kidId] ??= <String, String>{};
+    for (final id in hide) {
+      decided[id] = 'hide';
+    }
+    for (final id in approve) {
+      decided[id] = 'approve';
+    }
   }
 
   @override

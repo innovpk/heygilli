@@ -114,7 +114,7 @@ void main() {
     );
   });
 
-  testWidgets('adding a kid carries on into that kid, on Channels', (
+  testWidgets('adding a kid carries on into setting them up', (
     tester,
   ) async {
     await pumpWide(tester, const ParentHome());
@@ -128,9 +128,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    // Not back on the list they were already looking at. Which tab it lands
-    // on is the previous test's business; the demo gateway gives its new
-    // children channels, so this one would land on "How it is going".
-    expect(find.byType(KidDetailScreen), findsOneWidget);
+    // Not back on the list they were already looking at: the setup carries on
+    // by itself. Which step it carries on *to* is setup_order_test's business
+    // — it is the rules, because the answers are what the channels' uploads
+    // are then screened against.
+    expect(find.byType(ParentHome), findsNothing);
   });
 }
