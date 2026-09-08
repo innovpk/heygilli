@@ -628,3 +628,56 @@ def test_an_off_topic_hide_is_not_quietly_softened_into_a_question() -> None:
 
     hidden = CuratorDecision(decision="hide", reason="Scary throughout.", matches_wanted=False)
     assert curator.apply_wanted(hidden, ["science"]).decision == "hide"
+
+
+# --- reasons that talk to the parent instead of about the video ----------------------
+#
+# "Please let me know if this video is acceptable." closed all eleven reasons in
+# one live run. It sits beside a switch the parent is already reaching for.
+
+
+@pytest.mark.parametrize(
+    ("written", "kept"),
+    [
+        ("It explains volcano shapes. Please let me know if this video is acceptable.",
+         "It explains volcano shapes."),
+        ("It explains volcano shapes. Let me know if this is okay.",
+         "It explains volcano shapes."),
+        ("Slugs and dung beetles, calmly told. Kindly confirm.",
+         "Slugs and dung beetles, calmly told."),
+        # Untouched: nothing to drop.
+        ("It explains volcano shapes.", "It explains volcano shapes."),
+        # The words, but as part of what the video does — the thing the parent
+        # most needs to hear. Matching anywhere cut this to "The presenter says".
+        ("The presenter says let me know in the comments, which is a call to action.",
+         "The presenter says let me know in the comments, which is a call to action."),
+        # The same, with a sentence before it so the "only one sentence" guard
+        # is not what saves it: the anchor has to be doing the work.
+        ("It is calm throughout. "
+         "The presenter says let me know in the comments, which is a call to action.",
+         "It is calm throughout. "
+         "The presenter says let me know in the comments, which is a call to action."),
+        # Nothing but a plea: leave it. A reason cut to nothing is worse.
+        ("Please let me know if this video is acceptable.",
+         "Please let me know if this video is acceptable."),
+    ],
+)
+def test_a_closing_plea_is_dropped_and_nothing_else_is(written: str, kept: str) -> None:
+    assert curator.tidy_reason(written) == kept
+
+
+def test_decide_tidies_what_the_model_actually_returns() -> None:
+    """Same trap as `apply_wanted`: a tidier nothing calls is not a tidier."""
+    from heygilli_agents.schemas import Video
+
+    def pleading(model_name: str, text: str) -> dict:
+        return {"decision": "approve",
+                "reason": "It walks through how lava cools into rock. "
+                          "Please let me know if this video is acceptable.",
+                "topics": ["science"], "matches_wanted": True}
+
+    out = curator.decide(
+        Video(id="vol0000001", title="Lava", description="Rocks.", duration_s=600),
+        "7_8", make_agent("curator", "s", model=FakeModel(canned=pleading)), "excerpt",
+    )
+    assert out.reason == "It walks through how lava cools into rock."

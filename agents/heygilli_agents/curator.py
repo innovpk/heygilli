@@ -12,6 +12,7 @@ edges, no prose in between. See README "Why not a Graph".
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Sequence
 
 from pydantic import BaseModel, Field
@@ -40,6 +41,11 @@ body topics), or you simply cannot tell from the title, description and transcri
 
 Decide alone on clear cases; ask the parent only on borderline ones. Give up to 3 topic tags.
 
+`approve` is the ordinary answer for a video that is on topic, calm and suitable for the band, and
+most good videos are. `ask_parent` is for something that genuinely gave you pause — not a way of
+being safe. A run that asks about everything is a run that has decided nothing, and the parent is
+back to watching each video themselves, which is the thing this is for.
+
 `reason` is read by a parent deciding whether to overrule you, so it has to tell them something
 they did not already have. Two or three sentences, each earning its place:
 
@@ -48,8 +54,11 @@ they did not already have. Two or three sentences, each earning its place:
   reading "Every Kind of Volcano" tells a parent nothing at all.
 - Say what their child would get from it, or what in it gave you pause — concretely. The moment,
   the segment, the turn of tone; not a category.
-- When one of the household's own answers bears on it, name that answer and say which part of the
-  video touched it.
+- When one of the household's own answers bears on it, name that answer, say which part of the
+  video touched it, and put its id in `policy_id`. Only when it really does: an erupting volcano
+  in a science explainer is not "mild peril", and a compilation is not "pushing merchandise".
+  Reaching for a preference that is not there turns every video into a question and teaches a
+  parent that your reasons mean nothing.
 - When you were given no transcript, say plainly that this is the title and description only.
   Never write as though you watched something you did not.
 - Off-topic is not a verdict on quality, but it is still off-topic. Say what it IS about so the
@@ -59,6 +68,10 @@ they did not already have. Two or three sentences, each earning its place:
 Never begin with "This video is about". Never restate the title back to them. Two videos in the
 same run must not come back with the same sentence, and "It is educational, calm, and aligns with
 what the parent asked for" is not a sentence — it is a shrug with more words in it.
+
+Do not address the parent or ask them anything. No "please let me know if this is acceptable", no
+sign-off, no question at the end: they are reading this beside a switch they are about to press,
+and a line asking for a decision they are already making is noise. Write about the video and stop.
 
 This household may have told you what it actually wants. When a household policy is given, it
 outranks your own taste: a thing this family said is "fine" is fine here even if you would normally
@@ -145,6 +158,36 @@ def apply_policy(decision: CuratorDecision, policy: Policy | None) -> CuratorDec
         "decision": "ask_parent",
         "reason": f"{decision.reason} You said you would rather not: {preference}",
     })
+
+
+#: A whole closing sentence addressed to the parent rather than about the
+#: video. The prompt forbids these; this is what happens when it is not obeyed,
+#: which it was not — "Please let me know if this video is acceptable." closed
+#: all eleven reasons in one run. It sits beside a switch the parent is already
+#: reaching for, asking for the decision they are in the middle of making.
+#:
+#: Anchored at the start of the sentence, which matters: matching anywhere cut
+#: "The presenter says let me know in the comments, which is a call to action"
+#: down to "The presenter says" — losing the very thing the parent needed.
+_PLEA = re.compile(
+    r"^(?:please\s+|kindly\s+)?(?:let me know|do let me know|confirm)\b",
+    re.IGNORECASE,
+)
+_SENTENCE = re.compile(r"[^.?!]+[.?!]*")
+
+
+def tidy_reason(reason: str) -> str:
+    """Drop a closing plea, leaving what was actually said about the video.
+
+    Narrow on purpose: only the final sentence, only when it opens as one of
+    these. A sentence that merely contains the words keeps them, and a reason
+    that is nothing but a plea is left alone — cutting a parent's explanation
+    to nothing is worse than leaving one stray line in it.
+    """
+    sentences = [m.group().strip() for m in _SENTENCE.finditer(reason.strip()) if m.group().strip()]
+    if len(sentences) < 2 or not _PLEA.match(sentences[-1]):
+        return reason.strip()
+    return " ".join(sentences[:-1])
 
 
 def apply_wanted(
@@ -243,6 +286,7 @@ def decide(
     )
     try:
         decided = structured(agent, prompt, CuratorDecision)
+        decided = decided.model_copy(update={"reason": tidy_reason(decided.reason)})
         return apply_wanted(apply_policy(decided, policy), wanted_topics)
     except LLMError as e:
         log.warning("curator model failed for %s: %s", video.id, e)
