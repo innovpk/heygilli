@@ -1561,6 +1561,8 @@ class ReviewQueue {
     required this.screened,
     required this.expected,
     required this.channels,
+    this.unknownLength = 0,
+    this.maxMinutes = 0,
   });
 
   factory ReviewQueue.fromJson(Map<String, dynamic> j) => ReviewQueue(
@@ -1570,12 +1572,22 @@ class ReviewQueue {
     screened: j['screened'] as int? ?? 0,
     expected: j['expected'] as int? ?? 0,
     channels: j['channels'] as int? ?? 0,
+    unknownLength: j['unknown_length'] as int? ?? 0,
+    maxMinutes: j['max_minutes'] as int? ?? 0,
   );
 
   final List<ReviewItem> items;
   final int screened;
   final int expected;
   final int channels;
+
+  /// How many of these were screened with no length to screen against, and
+  /// the ceiling they would have been held to. Nothing over [maxMinutes] is
+  /// suggested — but a length can only be looked up through the parent's own
+  /// Google grant, so where it could not be, that rule did not run. The screen
+  /// says so; a rule that quietly skips is worse than no rule.
+  final int unknownLength;
+  final int maxMinutes;
 
   /// Screening a channel's uploads takes minutes, so the screen has to be
   /// able to say "still going" rather than showing a short list as if it were

@@ -1033,7 +1033,7 @@ class FakeGateway implements Gateway {
     const seed = <(Video, String, String, String)>[
       (_volcano, 'approve', 'Explains how volcanoes work. Suitable for the age band.', 'watched'),
       (_ears, 'approve', 'Gentle science about hearing. Nothing you said to avoid.', 'watched'),
-      (_twinkle, 'ask_parent', 'A sponsor read in the middle, which you said to ask about.', 'watched'),
+      (_twinkle, 'ask_parent', 'A sponsor named in the description, which you said to ask about.', 'title only'),
       (_ducks, 'hide', 'A live stream, so what it will show has not happened yet.', 'title only'),
     ];
     return ReviewQueue(

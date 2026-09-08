@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import 'hidden_screen.dart';
 import 'parent_widgets.dart';
 
 /// What the child will actually see, before they see it.
@@ -28,6 +29,17 @@ class SetupReviewScreen extends StatefulWidget {
   @override
   State<SetupReviewScreen> createState() => _SetupReviewScreenState();
 }
+
+/// The suggestions, which is not everything that was screened.
+///
+/// A video Gilli hid is the opposite of a suggestion, and putting it here with
+/// its switch off asked the parent to answer a question nobody posed — worse,
+/// "Allow all" then meant "allow the things we kept back too". A two-hour film
+/// landed in a seven-year-old's science list this way. Hidden videos live on
+/// the "Kept from" screen, which exists to be argued with, and this screen
+/// points at it and says how many are there.
+List<ReviewItem> _suggested(ReviewQueue queue) =>
+    [for (final item in queue.items) if (item.status != 'hide') item];
 
 class _SetupReviewScreenState extends State<SetupReviewScreen> {
   /// Screening a channel's uploads is minutes of work, so the list arrives a
@@ -68,7 +80,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
       setState(() {
         _queue = queue;
         _error = null;
-        for (final item in queue.items) {
+        for (final item in _suggested(queue)) {
           // Only for videos the parent has not answered yet: a refresh must
           // never move a switch they have already set.
           _approved.putIfAbsent(item.video.id, () => item.startsApproved);
@@ -114,6 +126,8 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final queue = _queue;
+    final suggested = queue == null ? const <ReviewItem>[] : _suggested(queue);
+    final kept = queue == null ? 0 : queue.items.length - suggested.length;
     final yes = _approved.values.where((v) => v).length;
     return ParentScaffold(
       title: 'What ${widget.kid.nickname} will see',
@@ -124,7 +138,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
         (null, _) => const Center(
           child: CircularProgressIndicator(color: HgColors.mango),
         ),
-        (final ReviewQueue q, _) when q.items.isEmpty => _Message(
+        (final ReviewQueue q, _) when suggested.isEmpty => _Message(
           text: q.stillScreening
               ? 'Reading the first uploads from ${q.channels} '
                     '${q.channels == 1 ? 'channel' : 'channels'}. This takes a '
@@ -161,7 +175,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                 ),
               ],
             ),
-            for (final item in q.items)
+            for (final item in suggested)
               _ReviewCard(
                 item: item,
                 approved: _approved[item.video.id] ?? item.startsApproved,
@@ -169,10 +183,30 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                     ? null
                     : (v) => setState(() => _approved[item.video.id] = v),
               ),
+            if (kept > 0) ...[
+              const SizedBox(height: 16),
+              _KeptNote(kid: widget.kid, kept: kept),
+            ],
+            // The one rule on this screen that can silently not run. Nothing
+            // over the ceiling is suggested, but a length is only knowable
+            // through the parent's own Google grant; where it was not, the
+            // ceiling skipped that video rather than judging it on a number
+            // nobody has. A parent told nothing would read the ceiling as a
+            // promise it cannot keep.
+            if (q.unknownLength > 0 && q.maxMinutes > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Nothing over ${q.maxMinutes} minutes is suggested. '
+                '${q.unknownLength} of these ${q.unknownLength == 1 ? 'has' : 'have'} '
+                'no length we could look up, so that check did not run on '
+                '${q.unknownLength == 1 ? 'it' : 'them'}.',
+                style: HgText.body(size: 13, color: HgColors.coral),
+              ),
+            ],
           ],
         ),
       },
-      floating: queue == null || queue.items.isEmpty
+      floating: queue == null || suggested.isEmpty
           ? null
           : FloatingActionButton.extended(
               onPressed: _saving ? null : _save,
@@ -221,6 +255,42 @@ class _StillScreening extends StatelessWidget {
               'Still reading — $screened of about $expected done. More will '
               'appear here on their own.',
               style: HgText.body(size: 14, color: HgColors.brown),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KeptNote extends StatelessWidget {
+  const _KeptNote({required this.kid, required this.kept});
+  final Kid kid;
+  final int kept;
+
+  @override
+  Widget build(BuildContext context) {
+    return PCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 8,
+        children: [
+          Text(
+            '$kept more ${kept == 1 ? 'video was' : 'videos were'} kept back — '
+            'too long, or something in ${kept == 1 ? 'it' : 'them'} Gilli keeps '
+            'from every child. ${kid.nickname} will not see '
+            '${kept == 1 ? 'it' : 'them'}.',
+            style: HgText.body(size: 14, color: HgColors.brown),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => HiddenScreen(kid: kid),
+                ),
+              ),
+              child: Text('See what was kept, and why'),
             ),
           ),
         ],

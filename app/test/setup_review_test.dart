@@ -56,7 +56,7 @@ void main() {
   Switch switchFor(WidgetTester tester, String title) =>
       tester.widget<Switch>(switchFinder(tester, title));
 
-  testWidgets('everything screened is shown, not only the questions', (
+  testWidgets('every suggestion is shown, not only the questions', (
     tester,
   ) async {
     await open(tester);
@@ -66,8 +66,46 @@ void main() {
       find.textContaining('Explains how volcanoes work'),
       findsOneWidget,
     );
-    expect(find.textContaining('A sponsor read in the middle'), findsOneWidget);
-    expect(find.textContaining('A live stream'), findsOneWidget);
+    expect(
+      find.textContaining('A sponsor named in the description'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('what Gilli kept back is counted here, not offered here', (
+    tester,
+  ) async {
+    // A hidden video is the opposite of a suggestion. Listing it with its
+    // switch off asked a question nobody posed, and made "Allow all" mean
+    // "allow the things we kept back too" — which is how a two-hour film
+    // reached a seven-year-old's science list. It belongs on the screen built
+    // for arguing with, and this one says how many are there.
+    await open(tester);
+
+    expect(find.textContaining('A live stream'), findsNothing);
+    expect(find.text('Five Little Ducks'), findsNothing);
+    expect(find.textContaining('1 more video was kept back'), findsOneWidget);
+    expect(find.text('See what was kept, and why'), findsOneWidget);
+  });
+
+  testWidgets('a ceiling that could not run on some of them says so', (
+    tester,
+  ) async {
+    // A length is only knowable through the parent's own Google grant. Where
+    // it was not, the ceiling skipped that video rather than judging it on a
+    // number nobody has, and a parent told nothing reads the ceiling as a
+    // promise it cannot keep.
+    app = AppState(
+      gateway: _UnmeasuredGateway(gateway),
+      settings: await LocalSettings.load(),
+    );
+    await open(tester);
+
+    expect(
+      find.textContaining('Nothing over 35 minutes is suggested'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('2 of these have no length'), findsOneWidget);
   });
 
   testWidgets('the verdict is the starting position, not the final one', (
@@ -75,10 +113,10 @@ void main() {
   ) async {
     await open(tester);
 
-    // Approved starts on, hidden starts off — a parent who agrees with all of
-    // it has nothing to do but confirm.
+    // Approved starts on, a question starts off — a parent who agrees with
+    // all of it has nothing to do but confirm.
     expect(switchFor(tester, 'Every Kind of Volcano').value, isTrue);
-    expect(switchFor(tester, 'Five Little Ducks').value, isFalse);
+    expect(switchFor(tester, 'Twinkle Twinkle Little Star').value, isFalse);
   });
 
   testWidgets('what it was judged on is on the card', (tester) async {
@@ -95,7 +133,7 @@ void main() {
     await tester.tap(find.text('Allow all'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Allow 4 videos'), findsOneWidget);
+    expect(find.text('Allow 3 videos'), findsOneWidget);
   });
 
   testWidgets('a refresh never moves a switch the parent has set', (
@@ -162,6 +200,8 @@ class _StillScreeningGateway extends FakeGateway {
       screened: q.items.length,
       expected: q.items.length + 5,
       channels: q.channels,
+      unknownLength: q.unknownLength,
+      maxMinutes: q.maxMinutes,
     );
   }
 
@@ -171,4 +211,25 @@ class _StillScreeningGateway extends FakeGateway {
     List<String> approve = const [],
     List<String> hide = const [],
   }) => inner.reviewDecide(kidId, approve: approve, hide: hide);
+}
+
+
+/// A gateway whose lengths could not be looked up, as a household without a
+/// Google grant has.
+class _UnmeasuredGateway extends FakeGateway {
+  _UnmeasuredGateway(this.inner);
+  final FakeGateway inner;
+
+  @override
+  Future<ReviewQueue> reviewQueue(String kidId) async {
+    final q = await inner.reviewQueue(kidId);
+    return ReviewQueue(
+      items: q.items,
+      screened: q.screened,
+      expected: q.expected,
+      channels: q.channels,
+      unknownLength: 2,
+      maxMinutes: 35,
+    );
+  }
 }

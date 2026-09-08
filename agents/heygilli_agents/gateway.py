@@ -82,7 +82,7 @@ from .takeout import (
     parse_takeout_zip_with_history,
 )
 from .tools import transcript as transcript_sources
-from .tools.screening import prescreen
+from .tools.screening import MAX_DURATION_S, blocked_for_everyone
 from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import (
     SearchUnavailable,
@@ -1196,11 +1196,13 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
         # stayed on an eight-year-old's shelf because it was let through
         # before live streams were understood.
         #
-        # Only the `hide` rules, and deliberately not `ask_parent`: those are
-        # the judgement calls, and this video being here means the parent
-        # already made one. Re-applying them would quietly overrule a person
-        # who said yes. A `hide` was never theirs to make.
-        if prescreen(v).verdict == "hide":
+        # Only the rules that hold whatever a household says, and deliberately
+        # not the judgement calls: this video being here means the parent
+        # already made one, and re-applying those would quietly overrule a
+        # person who said yes. That includes length and shortness, which read
+        # like safety rules and are not — "allow it anyway" on a long video has
+        # to survive the next time this screen is opened.
+        if blocked_for_everyone(v):
             continue
         # A length of 0 means "we could not find out", never "instant".
         #
@@ -1505,6 +1507,19 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
         "screened": len(items),
         "expected": len(channels) * _PER_CHANNEL,
         "channels": len(channels),
+        #: How many of these were screened without a length to screen against.
+        #:
+        #: The length ceiling is the one rule here that can silently not run.
+        #: A length comes from the parent's own Google grant; without one, or
+        #: when the lookup is refused, `duration_s` is 0 — and 0 is "we could
+        #: not find out", not "instant", so the ceiling skips it rather than
+        #: judging it on a number nobody has. Saying so is the difference
+        #: between a parent who knows the shelf may hold a long one and a
+        #: parent who believes a promise that was not kept.
+        "unknown_length": sum(
+            1 for i in items if not i["video"].get("duration_s")
+        ),
+        "max_minutes": MAX_DURATION_S // 60,
     }
 
 

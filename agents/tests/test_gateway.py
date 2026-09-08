@@ -595,15 +595,50 @@ def test_a_rule_added_today_protects_a_shelf_approved_yesterday(
 
 
 def test_re_screening_a_shelf_never_overrules_the_parent(client, auth, store) -> None:
-    """Only the `hide` rules are re-applied. `ask_parent` rules are judgement
-    calls, and a video sitting on a shelf means the parent already made one —
-    re-applying those would quietly overrule somebody who said yes."""
+    """Only the rules that hold whatever a household said are re-applied.
+
+    The rest are judgement calls, and a video sitting on a shelf means the
+    parent already made one — re-applying those would quietly overrule somebody
+    who said yes. Length is the trap: it reads like a safety rule, it hides at
+    suggestion time like one, and it is not one. A parent who pressed "allow it
+    anyway" on a long video and found it gone again has nothing to press and
+    nothing to read.
+    """
+    from heygilli_agents.tools.screening import prescreen
+
     hid = auth["_hid"]
     kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
-    # Over 45 minutes: prescreen says ask_parent, and the parent said yes.
+    # Both of the rules that are the parent's to overrule: too long, and too
+    # short. Neither is ever suggested; both stay once the parent says yes.
     store.put_video(Video(id="longvideo01", title="A Very Long Story", duration_s=50 * 60))
-    store.set_kid_video(hid, kid["id"], "longvideo01", "approve", "parent decided")
+    store.put_video(Video(id="shortclip01", title="A Blink", duration_s=20))
+    for vid in ("longvideo01", "shortclip01"):
+        assert prescreen(store.get_video(vid)).verdict == "hide", "the fixture stopped biting"
+        store.set_kid_video(hid, kid["id"], vid, "approve", "parent decided")
 
     ids = {v["id"] for r in client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
            for v in r["videos"]}
-    assert ids == {"longvideo01"}
+    assert ids == {"longvideo01", "shortclip01"}
+
+
+def test_the_review_list_says_when_the_length_ceiling_could_not_run(
+    client, auth, store
+) -> None:
+    """A length is only knowable through the parent's own Google grant. Where
+    there is none, `duration_s` is 0 — "we could not find out", not "instant" —
+    and the ceiling skips that video rather than judging it on a number nobody
+    has. A parent told nothing reads the ceiling as a promise it cannot keep."""
+    hid = auth["_hid"]
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
+    store.put_video(Video(id="measured001", title="A Measured One", duration_s=600))
+    store.put_video(Video(id="unmeasured1", title="No Length", duration_s=0))
+    store.put_video(Video(id="unmeasured2", title="No Length Either", duration_s=0))
+    for vid in ("measured001", "unmeasured1", "unmeasured2"):
+        store.set_kid_video(hid, kid["id"], vid, "approve", "screened")
+
+    body = client.get(f"/kids/{kid['id']}/review", headers=hdr(auth)).json()
+
+    assert body["unknown_length"] == 2
+    # And the ceiling itself, so the screen can name it rather than hardcode a
+    # number that drifts away from the one actually being applied.
+    assert 30 <= body["max_minutes"] <= 40

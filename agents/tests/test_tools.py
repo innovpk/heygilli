@@ -96,7 +96,7 @@ def test_fetch_video_meta(fake_pages, monkeypatch) -> None:
 def test_prescreen_rules() -> None:
     assert screening.prescreen(Video(id="a", title="Scary 3AM Prank", duration_s=300)).verdict == "hide"
     assert screening.prescreen(Video(id="b", title="Slime challenge", duration_s=300)).verdict == "ask_parent"
-    assert screening.prescreen(Video(id="c", title="Giraffes", duration_s=50 * 60)).verdict == "ask_parent"
+    assert screening.prescreen(Video(id="c", title="Giraffes", duration_s=50 * 60)).verdict == "hide"
     assert screening.prescreen(Video(id="d", title="Giraffes", duration_s=20)).verdict == "hide"
     assert screening.prescreen(Video(id="e", title="Giraffes", duration_s=600)).verdict == "pass"
     assert screening.prescreen(Video(id="f", title="Addition for kids", duration_s=600)).verdict == "pass"  # "ad " needs a boundary
@@ -595,15 +595,52 @@ def test_a_short_video_says_nothing_was_wrong_with_it(monkeypatch):
     assert "Allow it" in result.reason
 
 
-def test_a_long_video_says_it_is_the_length_alone(monkeypatch):
+def test_a_long_video_is_not_suggested_and_says_it_is_the_length_alone(monkeypatch):
+    """A two-hour film reached a seven-year-old's science suggestions because
+    the ceiling only *asked*, and a row you have to notice and untick is a
+    decision made by not making one. It is kept back now — and the reason has
+    to say that nothing was wrong with the video, or a parent reads a length as
+    a verdict."""
     from heygilli_agents.schemas import Video
-    from heygilli_agents.tools.screening import prescreen
+    from heygilli_agents.tools.screening import MAX_DURATION_S, prescreen
 
+    assert 30 * 60 <= MAX_DURATION_S <= 40 * 60, "the ceiling is meant to be 30-40 minutes"
     result = prescreen(Video(id="v", channel_id="UCx", title="A Long One", duration_s=4000))
 
-    assert result.verdict == "ask_parent"
+    assert result.verdict == "hide"
     assert "66 minutes" in result.reason
     assert "Nothing was found wrong with it" in result.reason
+    assert "Allow it" in result.reason
+    # Just under the ceiling is an ordinary video, not a near miss.
+    assert prescreen(
+        Video(id="w", title="A Long One", duration_s=MAX_DURATION_S - 60)
+    ).verdict == "pass"
+
+
+def test_only_the_rules_that_hold_whatever_a_household_said_are_re_appliable():
+    """`blocked_for_everyone` is what a shelf is re-screened against, so what
+    it does and does not answer to is the whole of the guarantee: a parent's
+    "allow it anyway" on a long or a very short video must survive, and a
+    blocked word or a live stream must not."""
+    from heygilli_agents.schemas import Video
+    from heygilli_agents.tools.screening import BLOCK_WORDS, blocked_for_everyone, prescreen
+
+    theirs = [
+        Video(id="long", title="A Long One", duration_s=4000),
+        Video(id="short", title="A Short Clip", duration_s=20),
+    ]
+    for video in theirs:
+        assert prescreen(video).verdict == "hide", "the fixture no longer exercises the rule"
+        assert blocked_for_everyone(video) is None, f"{video.id} is the parent's call to make"
+
+    ours = [
+        Video(id="word", title=f"A {BLOCK_WORDS[0]} video", duration_s=600),
+        Video(id="live", title="🔴 LIVE Cartoons", duration_s=600),
+    ]
+    for video in ours:
+        blocked = blocked_for_everyone(video)
+        assert blocked is not None and blocked.verdict == "hide", video.id
+        assert blocked.reason == prescreen(video).reason, "two wordings for one rule"
 
 
 def test_a_blocked_word_says_whose_rule_it_is(monkeypatch):
