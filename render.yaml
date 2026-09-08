@@ -48,6 +48,20 @@ services:
       # off, and it says so rather than approving unread videos.
       - key: GOOGLE_API_KEY
         sync: false
+      # Declared, not filled: a `sync: false` key with nothing in it shows up
+      # in the dashboard as a blank waiting to be pasted into, which is the
+      # difference between a documented option and one anybody finds. Leave
+      # them empty and nothing changes — the proxy is skipped and `/healthz`
+      # reports `proxy: false`. Fill either shape and the caption path starts
+      # working with no code change and no redeploy of anything else:
+      #   HEYGILLI_PROXY_URL                  http://user:pass@host:port
+      #   WEBSHARE_PROXY_USERNAME / _PASSWORD a Webshare rotating pool
+      - key: HEYGILLI_PROXY_URL
+        sync: false
+      - key: WEBSHARE_PROXY_USERNAME
+        sync: false
+      - key: WEBSHARE_PROXY_PASSWORD
+        sync: false
       # Searching YouTube for a channel needs a *plain* API key, not the AI
       # Studio one above: that is bound to a service account, and the YouTube
       # Data API refuses that shape outright — "API keys are not supported by

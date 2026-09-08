@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from strands import Agent
 
 from .llm import LLMError, make_agent, structured
-from .planner import SAFETY_RULES, ensure_plan, planner_agent
+from .planner import SAFETY_RULES, build_plan, ensure_plan, planner_agent
 from .schemas import CuratorDecision, Kid, Policy, Video
 from .store import Store
 from .tools.notify import notify_parent
@@ -65,6 +65,9 @@ class CuratorReport(BaseModel):
     #: the parent is shown the same fact per video as "read: title only".
     read_titles_only: int = 0
     no_transcripts: str = ""
+    #: Videos already on the shelf whose questions came from a title alone,
+    #: read properly this time. See `reread_titles_only`.
+    reread: int = 0
 
 
 #: What a video with no readable transcript looks like to the rest of the run.
@@ -304,4 +307,64 @@ def run_curator(
                 notify_parent(kid.household_id, kid.id, video, decision.reason)
                 report.ask_parent.append(entry)
             store.set_kid_video(kid.household_id, kid.id, video.id, decision.decision, decision.reason)
+
+    if not no_transcripts:
+        report.reread = reread_titles_only(kid, store, planner)
     return report
+
+
+#: How many already-screened videos one run will go back to. A re-read is a
+#: transcript fetch and a Planner call each, and new uploads are the point of
+#: the run, so this is what is left over rather than the whole backlog.
+REREAD_PER_RUN = 10
+
+
+def reread_titles_only(kid: Kid, store: Store, planner: Agent | None = None) -> int:
+    """Go back to videos whose questions were written from a title alone.
+
+    A transcript failure is nearly always temporary — a Gemini quota window, a
+    503, a caption fetch that was rate-limited — and the run that hit one wrote
+    a fallback plan: one general end-of-video question, the same for every
+    video it happened to. That plan is cached forever and the video is in
+    `seen`, so the next run skips it. One bad fifteen minutes during setup cost
+    a child real questions on those videos for as long as they existed, and
+    nothing anywhere said so or could be pressed to fix it.
+
+    So: the approved videos that were read on their title, re-read, and their
+    plans rebuilt when the words arrive this time. Deliberately only the plan.
+    The *decision* is not revisited — a video on this shelf either passed
+    screening or a parent put it there by hand, and quietly re-deciding it on
+    new evidence would take back an answer they gave.
+    """
+    done = 0
+    for video_id, entry in store.list_kid_videos(kid.household_id, kid.id).items():
+        if done >= REREAD_PER_RUN:
+            break
+        if entry.get("status") != "approve":
+            continue
+        video = store.get_video(video_id)
+        if video is None or video.transcript_source not in ("", "none"):
+            continue
+        try:
+            tr = fetch_transcript(video.id)
+        except TranscriptsBlocked as e:
+            # Still nothing, and it will be nothing for every video after this
+            # one too: the refusal is about this machine, not this video.
+            log.info("re-read for kid %s got no further: %s", kid.id, e)
+            break
+        if tr["source"] == "none":
+            continue
+        video.transcript_source = tr["source"]
+        store.put_video(video)
+        for language in kid.languages:
+            # Past the cache deliberately: the cached plan is the fallback that
+            # this exists to replace.
+            plan = build_plan(
+                video, tr["segments"], kid.age_band or "7_8", language,
+                kid.question_freq, planner, kid.disabled_prompts,
+            )
+            store.put_plan(plan)
+        video.plan_ready = True
+        store.put_video(video)
+        done += 1
+    return done

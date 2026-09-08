@@ -285,3 +285,183 @@ def test_region_tagged_captions_still_match(store: LocalStore) -> None:
     assert curator.understandable("captions:en-GB:auto", ["en"])
     assert curator.understandable("captions:es-419:manual", ["es"])
     assert not curator.understandable("captions:ru:auto", ["en", "ur"])
+
+
+# --- a bad fifteen minutes must not cost a child real questions for ever -------------------------
+#
+# A transcript failure is nearly always temporary: a Gemini quota window, a
+# 503, a rate-limited caption fetch. The run that hits one writes a fallback
+# plan — one general end-of-video question, the same one for every video it
+# happened to — and that plan is cached forever while the video sits in `seen`.
+# So the next run skipped it, and the child kept "what was your favourite bit?"
+# on a video the words for were available again fifteen minutes later.
+
+
+def _transcripts(available: bool):
+    def fetch(video_id: str) -> dict:
+        if not available:
+            raise TranscriptsBlocked("the request was blocked")
+        return {"video_id": video_id, "source": "captions:en:auto", "segments": SEGMENTS}
+
+    return fetch
+
+
+def _set_transcripts(monkeypatch, available: bool) -> None:
+    monkeypatch.setattr(curator, "fetch_transcript", _transcripts(available))
+    monkeypatch.setattr("heygilli_agents.planner.fetch_transcript", _transcripts(available))
+
+
+def _kid_with_channel(store: LocalStore, monkeypatch) -> Kid:
+    kid = Kid(household_id="hh", nickname="Abu", age=8, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="SciShow Kids"))
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: UPLOADS)
+    monkeypatch.setattr(curator, "fetch_video_meta", lambda vid: {"duration_s": 600, "thumb_url": "t"})
+    return kid
+
+
+def _run(kid: Kid, store: LocalStore) -> curator.CuratorReport:
+    model = FakeModel()
+    return curator.run_curator(
+        kid, store,
+        curator=make_agent("curator", "s", model=model),
+        planner=make_agent("planner", "s", model=model),
+    )
+
+
+def test_a_video_read_on_its_title_is_read_properly_when_the_words_come_back(
+    store: LocalStore, monkeypatch
+) -> None:
+    kid = _kid_with_channel(store, monkeypatch)
+
+    _set_transcripts(monkeypatch, available=False)
+    first = _run(kid, store)
+    assert first.read_titles_only == len(UPLOADS), "the fixture stopped blocking transcripts"
+    assert first.reread == 0, "nothing was readable, so there was nothing to go back to"
+    assert store.get_video("goodvideo01").transcript_source == "none"
+    fallback = store.get_plan("goodvideo01", "7_8", "en")
+    assert fallback is not None and len(fallback.questions) == 1, "not the fallback plan"
+
+    _set_transcripts(monkeypatch, available=True)
+    second = _run(kid, store)
+
+    assert second.reread == 1
+    assert store.get_video("goodvideo01").transcript_source == "captions:en:auto"
+    now = store.get_plan("goodvideo01", "7_8", "en")
+    assert now is not None and now.questions != fallback.questions, (
+        "the cached fallback plan survived, so the child still gets the same one question"
+    )
+
+
+def test_going_back_over_a_shelf_never_redecides_what_is_on_it(
+    store: LocalStore, monkeypatch
+) -> None:
+    """A transcript is new evidence, and re-deciding on it would take back an
+    answer somebody gave. A video on this shelf either passed screening or a
+    parent put it there by hand; the words only change what Gilli *asks*."""
+    kid = _kid_with_channel(store, monkeypatch)
+    _set_transcripts(monkeypatch, available=False)
+    _run(kid, store)
+    before = {v: e["status"] for v, e in store.list_kid_videos("hh", kid.id).items()}
+    assert sorted(before.values()) == ["approve", "ask_parent", "hide"], before
+
+    _set_transcripts(monkeypatch, available=True)
+    _run(kid, store)
+
+    assert {v: e["status"] for v, e in store.list_kid_videos("hh", kid.id).items()} == before
+    # And the ones that are not on the shelf were not spent on either: a
+    # re-read is a transcript fetch and a Planner call, and a hidden video has
+    # nobody to ask questions of.
+    assert store.get_video("scaryvideo1").transcript_source == "none"
+    assert store.get_video("borderline1").transcript_source == "none"
+
+
+def test_a_refusal_stops_the_backlog_rather_than_being_asked_once_per_video(
+    store: LocalStore, monkeypatch
+) -> None:
+    """The refusal is about this machine, not this video, so the first one
+    answers for all of them. Carrying on would be a fetch per video for the
+    same refusal each time, on top of a run that has already got nowhere."""
+    kid = _kid_with_channel(store, monkeypatch)
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: [])
+    for i in range(5):
+        vid = f"backlog{i:04d}"
+        store.put_video(Video(id=vid, title=f"Old {i}", duration_s=600, transcript_source="none"))
+        store.set_kid_video("hh", kid.id, vid, "approve", "screened on its title")
+
+    calls: list[str] = []
+
+    def counted(video_id: str) -> dict:
+        calls.append(video_id)
+        raise TranscriptsBlocked("the request was blocked")
+
+    monkeypatch.setattr(curator, "fetch_transcript", counted)
+    monkeypatch.setattr("heygilli_agents.planner.fetch_transcript", counted)
+    report = _run(kid, store)
+
+    assert report.reread == 0
+    assert len(calls) == 1, f"asked {len(calls)} times for one answer"
+
+
+def test_a_run_that_already_hit_the_wall_does_not_spend_anything_going_back(
+    store: LocalStore, monkeypatch
+) -> None:
+    """Screening this run's own uploads established that the words are not
+    available. Going back over the shelf afterwards would ask again for the
+    same refusal, having just been told."""
+    kid = _kid_with_channel(store, monkeypatch)
+    store.put_video(Video(id="oldvideo001", title="Old", duration_s=600, transcript_source="none"))
+    store.set_kid_video("hh", kid.id, "oldvideo001", "approve", "screened on its title")
+
+    calls: list[str] = []
+
+    def counted(video_id: str) -> dict:
+        calls.append(video_id)
+        raise TranscriptsBlocked("the request was blocked")
+
+    monkeypatch.setattr(curator, "fetch_transcript", counted)
+    monkeypatch.setattr("heygilli_agents.planner.fetch_transcript", counted)
+    report = _run(kid, store)
+
+    assert report.no_transcripts, "the fixture did not block the run's own uploads"
+    assert report.reread == 0
+    # Asked once, told once, and the latch carried the answer to the rest of
+    # the run — including the backlog, which was never asked about at all.
+    #
+    # Counted rather than named: the backlog is walked in insertion order and
+    # `goodvideo01` is ahead of it, so a re-read that ran anyway would break on
+    # that one and never name `oldvideo001` at all. Only the extra call shows.
+    assert calls == ["goodvideo01", "goodvideo01"], (
+        "one for the upload, one for its plan; a third is the backlog being "
+        f"asked after the run had just been told: {calls}"
+    )
+
+
+def test_going_back_is_capped_so_new_uploads_stay_the_point_of_the_run(
+    store: LocalStore, monkeypatch
+) -> None:
+    kid = _kid_with_channel(store, monkeypatch)
+    backlog = curator.REREAD_PER_RUN + 4
+    for i in range(backlog):
+        vid = f"backlog{i:04d}"
+        store.put_video(Video(id=vid, title=f"Old {i}", duration_s=600, transcript_source="none"))
+        store.set_kid_video("hh", kid.id, vid, "approve", "screened on its title")
+
+    fetched: list[str] = []
+
+    def counted(video_id: str) -> dict:
+        fetched.append(video_id)
+        return {"video_id": video_id, "source": "captions:en:auto", "segments": SEGMENTS}
+
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: [])
+    monkeypatch.setattr(curator, "fetch_transcript", counted)
+    monkeypatch.setattr("heygilli_agents.planner.fetch_transcript", counted)
+
+    report = _run(kid, store)
+
+    assert report.reread == curator.REREAD_PER_RUN
+    assert len(fetched) == curator.REREAD_PER_RUN
+    # The rest are still waiting, so the next run picks them up.
+    left = [v for v in store.list_kid_videos("hh", kid.id)
+            if (store.get_video(v) or Video(id=v)).transcript_source == "none"]
+    assert len(left) == backlog - curator.REREAD_PER_RUN
