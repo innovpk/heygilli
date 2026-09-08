@@ -23,10 +23,14 @@ void main() {
 
   test('nothing this app sends reaches the embed', () {
     // The control bar is gone, but "Watch on YouTube", the share button and
-    // "More videos" live in a hover overlay that survives `controls=0`. On a
-    // tablet nothing summons it; on the web build a mouse does. The player is
-    // not hidden, moved or covered — it renders as YouTube serves it — we just
-    // stop forwarding pointer events into it.
+    // "More videos" live in an overlay that survives `controls=0`. That
+    // overlay is summoned by a pointer — a mouse over the web build, a tap on
+    // a tablet — so refusing to forward pointer events is what keeps it away,
+    // and measurably does: a player paused by Gilli shows a clean frame.
+    //
+    // It does not deal with the poster the embed shows *before* it plays,
+    // which carries the same links and needs no pointer at all. `PosterCover`
+    // is that half, and `poster_cover_test.dart` is where it is checked.
     expect(kidPlayerParams.pointerEvents, PointerEvents.none);
   });
 
