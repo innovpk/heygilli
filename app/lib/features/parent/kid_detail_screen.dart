@@ -264,8 +264,9 @@ class _KidDetailScreenState extends State<KidDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Looking through these channels for new videos. It takes a few '
-            'minutes; ${widget.kid.nickname}\'s videos appear as they pass.',
+            'Looking for new videos, and going back over any that were read '
+            'on their title alone. It takes a few minutes; '
+            '${widget.kid.nickname}\'s videos appear as they pass.',
           ),
         ),
       );
@@ -704,7 +705,10 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     const SizedBox(height: 6),
                     Text(
                       'HeyGilli checks these channels on its own. Use this when '
-                      "${kid.nickname}'s videos have not appeared yet.",
+                      "${kid.nickname}'s videos have not appeared yet, or when "
+                      'some of them say "read: the title only" — this goes back '
+                      'and reads those properly, so the questions come from '
+                      'what is said in them.',
                       style: HgText.body(size: 13, color: HgColors.muted),
                     ),
                     const SizedBox(height: 14),
