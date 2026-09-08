@@ -50,8 +50,14 @@ class _AddKidSheetState extends State<_AddKidSheet> {
     text: widget.editing?.nickname ?? widget.initialNickname,
   );
   late int _age = widget.editing?.age ?? 5;
-  late bool _en = widget.editing?.languages.contains('en') ?? true;
-  late bool _ur = widget.editing?.languages.contains('ur') ?? false;
+  /// Urdu is not offered for now, so there is nothing left to pick between
+  /// and no picker. A child added today speaks English; one added when there
+  /// were two keeps whatever they were given, because a screen that no longer
+  /// asks a question is not a reason to answer it for them.
+  late final List<String> _languages = switch (widget.editing?.languages) {
+    final List<String> had when had.isNotEmpty => had,
+    _ => const ['en'],
+  };
   bool _busy = false;
   String? _error;
 
@@ -67,17 +73,13 @@ class _AddKidSheetState extends State<_AddKidSheet> {
       setState(() => _error = 'Give the kid a nickname.');
       return;
     }
-    if (!_en && !_ur) {
-      setState(() => _error = 'Pick at least one language.');
-      return;
-    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       final existing = widget.editing;
-      final languages = [if (_en) 'en', if (_ur) 'ur'];
+      final languages = _languages;
       final state = context.read<AppState>();
       final kid = existing == null
           ? await state.addKid(
@@ -159,26 +161,6 @@ class _AddKidSheetState extends State<_AddKidSheet> {
           Text(
             'Band ${band.label}: ${_bandBlurb(band)}',
             style: HgText.body(size: 14, color: HgColors.brown),
-          ),
-          Text('LANGUAGES', style: HgText.label()),
-          Row(
-            spacing: 10,
-            children: [
-              FilterChip(
-                label: const Text('English'),
-                selected: _en,
-                onSelected: (v) => setState(() => _en = v),
-                selectedColor: HgColors.mango,
-                checkmarkColor: HgColors.ink,
-              ),
-              FilterChip(
-                label: const Text('Urdu'),
-                selected: _ur,
-                onSelected: (v) => setState(() => _ur = v),
-                selectedColor: HgColors.mango,
-                checkmarkColor: HgColors.ink,
-              ),
-            ],
           ),
           if (_error != null)
             Text(_error!, style: HgText.body(color: HgColors.coral)),
