@@ -15,6 +15,7 @@ import '../../core/settings.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import 'break_screen.dart';
+import 'captions_off.dart';
 import 'gilli_widget.dart';
 import 'mic_button.dart';
 import 'pick_cards.dart';
@@ -62,6 +63,16 @@ const kidPlayerParams = YoutubePlayerParams(
   strictRelatedVideos: true,
   enableCaption: false,
   enableKeyboard: false,
+  // Nothing this app sends reaches the embed. Turning the controls off took
+  // the bar, but "Watch on YouTube", the share button and "More videos" live
+  // in a hover overlay that survives it — on a tablet nothing summons that,
+  // and on the web build a mouse does. The player is not hidden, moved or
+  // covered: it renders exactly as YouTube serves it, and we simply stop
+  // forwarding pointer events into it.
+  //
+  // The cost is that an ad inside the player cannot be clicked either. That is
+  // a deliberate trade for a screen a six-year-old is sitting in front of.
+  pointerEvents: PointerEvents.none,
 );
 
 enum _Phase {
@@ -242,6 +253,10 @@ class _SessionScreenState extends State<SessionScreen> {
       debugPrint('[yt] ${v.playerState} error=${v.error}');
     }
     _playerState = v.playerState;
+    // Every time it starts playing, not once: the captions module is loaded
+    // with the video, so a single call at the top of the session lands before
+    // there is anything to unload.
+    if (v.playerState == PlayerState.playing) hideCaptions(_yt);
     if (v.playerState == PlayerState.ended && !_ended) {
       // The gateway normally sends `end` itself; this covers a missed frame.
       Future<void>.delayed(const Duration(seconds: 2), () {

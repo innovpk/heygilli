@@ -27,6 +27,7 @@ dependencies:
   file_picker: ^12.2.0
   archive: ^4.2.0
   path_provider: ^2.1.6
+  web: ^1.1.1
 
 dev_dependencies:
   plugin_platform_interface: ^2.1.8

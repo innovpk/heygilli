@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/features/kid/session_screen.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 /// What YouTube's own player is allowed to show a child.
 ///
@@ -18,6 +19,15 @@ void main() {
     expect(kidPlayerParams.showVideoAnnotations, isFalse, reason: 'cards link out');
     expect(kidPlayerParams.strictRelatedVideos, isTrue);
     expect(kidPlayerParams.showFullscreenButton, isFalse);
+  });
+
+  test('nothing this app sends reaches the embed', () {
+    // The control bar is gone, but "Watch on YouTube", the share button and
+    // "More videos" live in a hover overlay that survives `controls=0`. On a
+    // tablet nothing summons it; on the web build a mouse does. The player is
+    // not hidden, moved or covered — it renders as YouTube serves it — we just
+    // stop forwarding pointer events into it.
+    expect(kidPlayerParams.pointerEvents, PointerEvents.none);
   });
 
   test('no settings, captions or keyboard seeking for a child to find', () {
