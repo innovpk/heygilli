@@ -76,6 +76,45 @@ def listen_ms(band: AgeBand) -> int:
     return TIMING[band].listen_ms
 
 
+#: What a video should actually come back with, as against the ceiling below.
+#:
+#: `max_questions` was the only number the Planner was given, so a model that
+#: proposed one question was inside the rules and a child watching a
+#: twenty-minute video was asked one thing at minute two and then left alone.
+#: Two or three is the shape of the thing: enough that Gilli is watching along,
+#: few enough that it is not a comprehension test.
+TARGET_QUESTIONS = 3
+TARGET_SHORT_S = 8 * 60  # under this, two is plenty
+
+
+def target_questions(band: AgeBand, duration_s: int) -> int:
+    """How many to aim for, never more than the band's ceiling allows."""
+    if 0 < duration_s < SHORT_VIDEO_S:
+        return 1
+    want = 2 if 0 < duration_s <= TARGET_SHORT_S else TARGET_QUESTIONS
+    return min(want, max_questions(band, duration_s))
+
+
+def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -> list[int]:
+    """Seconds at which questions could go, spaced by the band's own rules.
+
+    The gap is the binding constraint, not the count: a five-minute video for a
+    pre-reader has room for one question and no amount of asking will fit two
+    without breaking the spacing the band exists to protect.
+    """
+    if duration_s <= 0:
+        return []
+    t = TIMING[band]
+    gap = min_gap_s(band, freq)
+    last = duration_s - END_MARGIN_S
+    slots: list[int] = []
+    at = t.first_question_s
+    while at <= last and len(slots) < max_questions(band, duration_s):
+        slots.append(at)
+        at += gap
+    return slots
+
+
 def max_questions(band: AgeBand, duration_s: int) -> int:
     if 0 < duration_s < SHORT_VIDEO_S:
         return 1
@@ -172,7 +211,12 @@ def enforce(
             continue
         spaced.append(q)
 
-    spaced = spaced[: max_questions(band, duration_s)]
+    # The target, not the ceiling. `max_questions` is the most SPEC 7.3 permits
+    # (3 to 6 for a reader) and the Planner was happily filling it: six
+    # questions in an eight-minute video, measured live — one every eighty
+    # seconds, which is a comprehension test with a cartoon in the gaps. Three
+    # is the bottom of that same SPEC range, so this stays inside it.
+    spaced = spaced[: target_questions(band, duration_s)]
     return [_fill(q, band, language) for q in spaced]
 
 

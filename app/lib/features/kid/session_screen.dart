@@ -18,6 +18,7 @@ import 'break_screen.dart';
 import 'gilli_widget.dart';
 import 'mic_button.dart';
 import 'pick_cards.dart';
+import 'question_track.dart';
 
 /// One co-watching session: the YouTube embed plus Gilli's loop
 /// (pause → ask → answer → reply → resume) driven by the gateway over the
@@ -89,6 +90,18 @@ class _SessionScreenState extends State<SessionScreen> {
 
   AskMessage? _ask;
 
+  /// Where this video's questions are, so the child can see them coming. The
+  /// server still decides when to ask; these only draw the strip.
+  List<int> _questionTimes = const [];
+  int _asked = 0;
+
+  /// Position, as something the strip alone can listen to.
+  ///
+  /// A `setState` twice a second would rebuild the whole screen — the player
+  /// subtree included — to move a bar six pixels. The embed survives that
+  /// (it is behind a GlobalKey) but nothing else about it is worth paying for.
+  final _position = ValueNotifier<double>(0);
+
   /// How many more times the child may ask to hear this question.
   ///
   /// SPEC 7.4 allows one, and the gateway enforces the same cap — this only
@@ -117,9 +130,10 @@ class _SessionScreenState extends State<SessionScreen> {
   void initState() {
     super.initState();
     _ytSub = _yt.stream.listen(_onPlayerValue);
-    _posSub = _yt.videoStateStream.listen(
-      (s) => _positionS = s.position.inMilliseconds / 1000,
-    );
+    _posSub = _yt.videoStateStream.listen((s) {
+      _positionS = s.position.inMilliseconds / 1000;
+      _position.value = _positionS;
+    });
     // Some webviews ignore autoplay; give the player one more push.
     _nudge = Timer(const Duration(seconds: 5), () {
       if (_playerState == PlayerState.unStarted ||
@@ -179,6 +193,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   @override
   void dispose() {
+    _position.dispose();
     _positionTimer?.cancel();
     _listenWindow?.cancel();
     _nudge?.cancel();
@@ -225,9 +240,10 @@ class _SessionScreenState extends State<SessionScreen> {
     if (!mounted || _onBreak) return;
     debugPrint('[ws] ${m.runtimeType}');
     switch (m) {
-      case ReadyMessage(:final language):
+      case ReadyMessage(:final language, :final questionTimes):
         setState(() {
           _language = language;
+          _questionTimes = questionTimes;
           if (_phase == _Phase.connecting) _phase = _Phase.watching;
         });
       case PauseMessage():
@@ -258,6 +274,9 @@ class _SessionScreenState extends State<SessionScreen> {
     // new question, so the allowance stays where it is.
     final again = _ask?.q == ask.q;
     setState(() {
+      // Counted from the question's own index, so hearing one again does not
+      // move the child along the strip.
+      if (!again) _asked = ask.q + 1;
       if (!again) _repeatsLeft = _repeatsPerQuestion;
       _repeatPending = false;
       _ask = ask;
@@ -530,6 +549,21 @@ class _SessionScreenState extends State<SessionScreen> {
     _ => false,
   };
 
+  /// The question strip, under the player and never on it: HeyGilli plays by
+  /// YouTube's rules and those forbid overlays during playback.
+  Widget _trackStrip() => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    child: ValueListenableBuilder<double>(
+      valueListenable: _position,
+      builder: (context, seconds, _) => QuestionTrack(
+        positionS: seconds,
+        durationS: widget.video.durationS,
+        questionTimes: _questionTimes,
+        askedCount: _asked,
+      ),
+    ),
+  );
+
   Widget _player(bool rounded) => ClipRRect(
     borderRadius: BorderRadius.circular(rounded ? 20 : 0),
     child: KeyedSubtree(
@@ -575,6 +609,7 @@ class _SessionScreenState extends State<SessionScreen> {
                         ),
                       ),
                     ),
+                    _trackStrip(),
                     SizedBox(
                       height: bar,
                       child: _WatchBar(
@@ -618,6 +653,10 @@ class _SessionScreenState extends State<SessionScreen> {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _trackStrip(),
+                  ),
                   Expanded(child: _buildStage(true)),
                 ],
               );
@@ -642,6 +681,10 @@ class _SessionScreenState extends State<SessionScreen> {
                       child: _player(false),
                     ),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: _trackStrip(),
                 ),
                 Expanded(child: _buildStage(false)),
               ],

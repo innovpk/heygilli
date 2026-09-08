@@ -253,6 +253,7 @@ Learning goals by band, which the question generator is told to serve:
 | Minimum gap, normal | 4 min | 3 min | 3 min |
 | Minimum gap, gentle | 6 min | 5 min | 5 min |
 | Max questions per video | 1 under 5 min, 2 above | 3 to 6 | 3 to 6 |
+| Questions actually planned | 1 under 3 min, else 2 | 2 up to 8 min, else 3 | 2 up to 8 min, else 3 |
 | Listening window | 15 s | 20 s | 20 s |
 | Default frequency | gentle, cannot be raised | normal | normal |
 
@@ -260,6 +261,8 @@ Learning goals by band, which the question generator is told to serve:
 - The listening window is measured from the moment the buddy stops speaking, not from the pause. It was 5 s and 8 s: long enough to say an answer you already had, not long enough to think of one, and the video resumed while the child was still thinking.
 - For 4 to 6, prefer moments where the subject of the question is clearly visible on the paused frame.
 - Videos under 3 minutes get one question at the end only, for every band.
+- The row above the max is what a video is actually given. The ceiling is what the rules permit; the Planner filled it, and six questions in an eight-minute video — measured live — is a comprehension test with a cartoon in the gaps. Both ends are enforced: a plan thinner than the target is topped up from the question bank, and one fatter is trimmed.
+- The scheduled seconds are sent to the client in `ready` so the child can see the questions coming. Drawn under the player, never on it: YouTube's API terms forbid overlays during playback.
 - Sibling mode: alternate bands between questions, and use the youngest band's timing rules.
 
 ### 7.4 Answer handling

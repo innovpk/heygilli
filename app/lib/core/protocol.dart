@@ -76,6 +76,10 @@ sealed class ServerMessage {
           planQuestions: (j['plan_questions'] as num?)?.toInt() ?? 0,
           ageBand: j['age_band'] as String? ?? '4_6',
           language: j['language'] as String? ?? 'en',
+          questionTimes: [
+            for (final t in (j['question_times'] as List? ?? []))
+              (t as num).toInt(),
+          ],
         );
       case 'pause':
         return const PauseMessage();
@@ -136,10 +140,19 @@ class ReadyMessage extends ServerMessage {
     required this.planQuestions,
     required this.ageBand,
     required this.language,
+    this.questionTimes = const [],
   });
   final int planQuestions;
   final String ageBand;
   final String language;
+
+  /// The seconds this video's questions are scheduled for.
+  ///
+  /// Shown to the child so a pause is something they saw coming rather than
+  /// something that happens to them. The client still never decides when to
+  /// ask — the server does, on a position tick — so being wrong about these
+  /// changes nothing about what actually happens.
+  final List<int> questionTimes;
 }
 
 class PauseMessage extends ServerMessage {

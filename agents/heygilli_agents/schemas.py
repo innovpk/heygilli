@@ -959,6 +959,13 @@ class ServerReady(BaseModel):
     plan_questions: int
     age_band: AgeBand
     language: Language
+    #: The seconds this video's questions are scheduled for, in order.
+    #:
+    #: The client is told so it can show the child where they are coming. It
+    #: still never decides when to ask — the server does that on a position
+    #: tick — so a client that ignored this, or got it wrong, changes nothing
+    #: about what actually happens.
+    question_times: list[int] = Field(default_factory=list)
 
 
 class ServerPause(BaseModel):

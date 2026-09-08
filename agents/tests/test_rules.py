@@ -89,9 +89,28 @@ def test_min_gap_drops_the_later_violator() -> None:
     assert [x.t_sec for x in pre] == [130, 500]  # gentle gap 360 for 4_6
 
 
-def test_max_questions_cap_per_band() -> None:
+def test_a_video_gets_two_or_three_questions_not_as_many_as_will_fit() -> None:
+    """Measured against the live gateway: an eight-minute video came back with
+    six questions, one every eighty seconds. That is a comprehension test with
+    a cartoon in the gaps.
+
+    `max_questions` is the most SPEC 7.3 permits, and the Planner was filling
+    it because nothing asked it not to. Three is the bottom of that same range,
+    so this stays inside the spec rather than departing from it."""
     many = [q(90 + i * 200, "recall") for i in range(10)]
-    assert len(rules.enforce(many, "7_8", 3600)) == 6
+    kept = rules.enforce(many, "7_8", 3600)
+    assert len(kept) == 3
+    assert len(kept) <= rules.max_questions("7_8", 3600), "outside what SPEC 7.3 allows"
+
+    # A shorter one gets fewer still: two is plenty inside eight minutes. Eight
+    # minutes exactly, because that is where three would otherwise fit — at 400s
+    # the spacing already limits it to two and the target is doing no work.
+    # Three that genuinely fit inside 480s and obey the gap, so the count that
+    # comes back is the target's doing and not the spacing's.
+    fits = [q(90, "recall"), q(280, "why"), q(470, "predict")]
+    assert len(rules.enforce(fits, "7_8", 600)) == 3, "the fixture stopped biting"
+    assert len(rules.enforce(fits, "7_8", 480)) == 2
+
     pre = [q(120 + i * 400, "name_it") for i in range(5)]
     assert len(rules.enforce(pre, "4_6", 3600)) == 2
     assert len(rules.enforce(pre, "4_6", 290)) == 1

@@ -94,6 +94,7 @@ def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Lan
         f"types allowed: {', '.join(TYPES_FOR_BAND[band])}\n"
         f"first question no earlier than: {t.first_question_s}s\n"
         f"minimum gap between questions: {rules.min_gap_s(band, freq)}s\n"
+        f"aim for exactly: {rules.target_questions(band, video.duration_s)} questions\n"
         f"maximum questions: {rules.max_questions(band, video.duration_s)}\n"
         f"{BAND_GUIDE[band].strip()}\n\n"
         f"Transcript:\n{transcript_text(segments)}\n\n"
@@ -124,7 +125,51 @@ def build_plan(
     if not kept:
         log.info("no question survived the rules for %s/%s; using fallback", video.id, band)
         return fallback_plan(video, band, language, disabled_prompts)
+    kept = top_up(kept, video, band, language, freq, disabled_prompts)
     return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=kept)
+
+
+def top_up(
+    kept: list[Question],
+    video: Video,
+    band: AgeBand,
+    language: Language,
+    freq: QuestionFreq | None = None,
+    disabled_prompts: Sequence[str] = (),
+) -> list[Question]:
+    """Bring a thin plan up to the target with questions from the bank.
+
+    The Planner was given a ceiling and no floor, so one question was inside the
+    rules — and a child watching twenty minutes was asked a single thing at
+    minute two and then left to it. The model is the right author of a question
+    about *this* video and the wrong thing to depend on for how many there are,
+    so the count is guaranteed here.
+
+    Only into slots the band's own spacing leaves free, and never past the
+    ceiling: a plan that met the target by crowding two questions into a minute
+    would be worse than a short one.
+    """
+    want = rules.target_questions(band, video.duration_s)
+    if len(kept) >= want:
+        return kept
+    gap = rules.min_gap_s(band, freq)
+    free = [
+        slot
+        for slot in rules.room_for(band, video.duration_s, freq)
+        if all(abs(slot - q.t_sec) >= gap for q in kept)
+    ]
+    if not free:
+        return kept
+    prompts = question_bank.pick_many(band, video.id, want - len(kept), disabled_prompts)
+    added = [
+        question_bank.as_question(prompt, slot, language)
+        for prompt, slot in zip(prompts, free, strict=False)
+    ]
+    if not added:
+        return kept
+    return rules.enforce(
+        kept + added, band, video.duration_s, language, freq, icon_ids()
+    )
 
 
 def repair_pick(q: Question, language: Language) -> Question:
@@ -184,8 +229,23 @@ def fallback_plan(
         if video.duration_s
         else rules.TIMING[band].first_question_s
     )
-    prompt = question_bank.pick(band, video.id, disabled_prompts)
-    questions = [question_bank.as_question(prompt, t_sec, language)] if prompt else []
+    # One question used to be the whole of a transcript-less plan, and with no
+    # transcripts reachable from the deployed gateway that was every video a
+    # child ever saw: one question, at the very end, and nothing else the whole
+    # way through. The bank has more than one thing to ask.
+    want = rules.target_questions(band, video.duration_s)
+    # A full gap clear of the end-of-video question, not merely before it: a
+    # four-year-old was getting one at 2:00 and another at 6:37 of a 6:40 video,
+    # 277 seconds apart where that band's own spacing asks for 360.
+    gap = rules.min_gap_s(band)
+    slots = [
+        slot for slot in rules.room_for(band, video.duration_s) if slot <= t_sec - gap
+    ][: want - 1]
+    prompts = question_bank.pick_many(band, video.id, len(slots) + 1, disabled_prompts)
+    questions = [
+        question_bank.as_question(prompt, at, language)
+        for prompt, at in zip(prompts, [*slots, t_sec], strict=False)
+    ]
     return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=questions)
 
 

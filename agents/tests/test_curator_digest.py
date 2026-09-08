@@ -397,7 +397,15 @@ def test_a_video_read_on_its_title_is_read_properly_when_the_words_come_back(
     assert first.reread == 0, "nothing was readable, so there was nothing to go back to"
     assert store.get_video("goodvideo01").transcript_source == "none"
     fallback = store.get_plan("goodvideo01", "7_8", "en")
-    assert fallback is not None and len(fallback.questions) == 1, "not the fallback plan"
+    # A fallback plan is one written from the bank rather than from the video,
+    # which is what its questions being bank wordings says. The count used to
+    # identify it — there was exactly one — and that stopped being true when a
+    # transcript-less plan went from one question to two or three.
+    from heygilli_agents import question_bank
+
+    assert fallback is not None
+    bank = {p.text.get("en") for p in question_bank.for_band("7_8")}
+    assert {q.text for q in fallback.questions} <= bank, "not the fallback plan"
 
     _set_transcripts(monkeypatch, available=True)
     second = _run(kid, store)

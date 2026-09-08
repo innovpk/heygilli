@@ -233,6 +233,39 @@ def pick(band: AgeBand, video_id: str, disabled: Sequence[str] = ()) -> Prompt |
     return pool[int.from_bytes(digest[:8], "big") % len(pool)]
 
 
+def pick_many(
+    band: AgeBand, video_id: str, count: int, disabled: Sequence[str] = ()
+) -> list[Prompt]:
+    """`count` different prompts for this video, or as many as the band has.
+
+    Same rule as `pick`: chosen by hashing the video id, so a child coming back
+    to a video meets the questions they met before — they are part of that video
+    for them — while the next video gets different ones. Distinct, because being
+    asked the same thing twice in one sitting reads as not having been heard the
+    first time.
+    """
+    pool = allowed(band, disabled)
+    if not pool or count <= 0:
+        return []
+    digest = hashlib.sha256(f"{band}:{video_id}".encode()).digest()
+    start = int.from_bytes(digest[:8], "big") % len(pool)
+    # Strides through the pool from a per-video starting point rather than
+    # taking a slice, so two videos that happen to start near each other do not
+    # come back with almost the same list.
+    step = 1 + (int.from_bytes(digest[8:16], "big") % max(1, len(pool) - 1))
+    out: list[Prompt] = []
+    seen: set[str] = set()
+    for i in range(len(pool)):
+        prompt = pool[(start + i * step) % len(pool)]
+        if prompt.id in seen:
+            continue
+        seen.add(prompt.id)
+        out.append(prompt)
+        if len(out) == count:
+            break
+    return out
+
+
 def as_question(prompt: Prompt, t_sec: int, language: Language) -> Question:
     """The prompt, scheduled at a second of one video.
 

@@ -543,7 +543,9 @@ Client → server
 Server → client
 
 ```
-{t: "ready", plan_questions: number, age_band, language}
+{t: "ready", plan_questions: number, age_band, language, question_times: number[]}
+           question_times = the seconds the questions are scheduled for, so the client can show
+           the child where they are coming. The client still never decides when to ask.
 {t: "pause"}                                                   pause playback now
 {t: "ask", q: number, type, input, text?: string, text_ur?: string, speak?: string,
            tts_url: string, listen_ms: number, options?: [{icon_id, label}], gesture}

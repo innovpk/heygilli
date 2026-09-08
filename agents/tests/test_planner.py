@@ -1,7 +1,7 @@
 """Planner: model proposes, code enforces; offline via FakeModel."""
 from __future__ import annotations
 
-from heygilli_agents import planner
+from heygilli_agents import planner, rules
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
 from heygilli_agents.schemas import Option, Question, Video
@@ -67,9 +67,19 @@ def test_fallback_when_nothing_survives_or_no_transcript() -> None:
     from heygilli_agents.schemas import TYPES_FOR_BAND
 
     plan = planner.build_plan(VIDEO, [], "9_11", "en")
-    assert len(plan.questions) == 1
-    assert plan.questions[0].type in TYPES_FOR_BAND["9_11"]
-    assert plan.questions[0].t_sec == 1200 - planner.rules.END_MARGIN_S
+    # Two or three, not one. A single end-of-video question was the whole of a
+    # transcript-less plan, and with no transcripts reachable from the deployed
+    # gateway that was every video a child ever saw: twenty minutes of watching
+    # and one thing asked, at the very end.
+    assert len(plan.questions) == planner.rules.target_questions("9_11", 1200)
+    assert len(plan.questions) >= 2
+    assert all(q.type in TYPES_FOR_BAND["9_11"] for q in plan.questions)
+    # The last one still belongs at the end.
+    assert plan.questions[-1].t_sec == 1200 - planner.rules.END_MARGIN_S
+    # And they are different questions, spaced by the band's own rules.
+    assert len({q.text for q in plan.questions}) == len(plan.questions)
+    gaps = [b.t_sec - a.t_sec for a, b in zip(plan.questions, plan.questions[1:])]
+    assert all(g >= planner.rules.min_gap_s("9_11") for g in gaps), gaps
     only_why = [{"t_sec": 130, "type": "why", "input": "voice", "text": "Why?", "expected": "x"}]
     plan = planner.build_plan(VIDEO, SEGMENTS, "4_6", "ur", agent=agent_with(only_why))
     assert plan.questions[0].type in TYPES_FOR_BAND["4_6"] and plan.language == "ur"
@@ -141,12 +151,17 @@ def test_a_video_of_unknown_length_is_not_asked_about_at_second_zero() -> None:
         # The same threshold every other question in that band obeys, rather
         # than a number invented here.
         assert asked_at == rules.TIMING[band].first_question_s
+        # A length nobody could look up leaves no room to space more out, so it
+        # stays at one rather than guessing where the middle of it is.
+        assert len(unknown.questions) == 1, f"{band} invented slots in a video of unknown length"
 
-    # A known length still puts it at the end, which is where it belongs.
+    # A known length still puts the last one at the end, which is where it
+    # belongs — with the others spread through what came before.
     known = planner.fallback_plan(
         Video(id="known", title="Giraffes", duration_s=600), "7_8", "en"
     )
-    assert known.questions[0].t_sec == 600 - rules.END_MARGIN_S
+    assert known.questions[-1].t_sec == 600 - rules.END_MARGIN_S
+    assert len(known.questions) == rules.target_questions("7_8", 600)
 
 
 def test_the_question_never_lands_before_the_band_would_allow_one() -> None:
@@ -159,8 +174,70 @@ def test_the_question_never_lands_before_the_band_would_allow_one() -> None:
             plan = planner.fallback_plan(
                 Video(id=f"v{band}{duration}", title="T", duration_s=duration), band, "en"
             )
-            t = plan.questions[0].t_sec
+            first = plan.questions[0].t_sec
+            assert first >= rules.TIMING[band].first_question_s or duration <= 200, (
+                f"{band}/{duration}s asks before the band allows: {first}"
+            )
             if duration == 0:
-                assert t == rules.TIMING[band].first_question_s
+                assert first == rules.TIMING[band].first_question_s
             else:
-                assert t == max(duration - rules.END_MARGIN_S, 0)
+                # However many there are, the last is the end-of-video one and
+                # none of them lands after the video has finished.
+                assert plan.questions[-1].t_sec == max(duration - rules.END_MARGIN_S, 0)
+                assert all(q.t_sec <= duration for q in plan.questions)
+
+
+# --- how many questions a video actually gets -----------------------------------------
+#
+# The Planner was given a ceiling and no floor, so a model proposing one
+# question was inside the rules — and a child watching twenty minutes was asked
+# a single thing at minute two and then left alone with it.
+
+
+def test_a_thin_model_answer_is_topped_up_to_the_target() -> None:
+    from heygilli_agents import rules
+
+    one = [{"t_sec": 100, "type": "why", "input": "voice", "text": "Why did it melt?",
+            "expected": "the sun"}]
+    plan = planner.build_plan(
+        Video(id="vidtop", title="Ice", duration_s=1200), SEGMENTS, "7_8", "en",
+        agent=agent_with(one),
+    )
+
+    assert len(plan.questions) == rules.target_questions("7_8", 1200)
+    assert len(plan.questions) >= 2
+    # The model's own question about this video survives; the bank fills in.
+    assert any(q.text == "Why did it melt?" for q in plan.questions)
+    assert len({q.text for q in plan.questions}) == len(plan.questions)
+
+
+def test_topping_up_never_crowds_the_band_spacing() -> None:
+    """A plan that hit the target by putting two questions a minute apart would
+    be worse than a short one: the gap is what the band exists to protect."""
+    one = [{"t_sec": 100, "type": "why", "input": "voice", "text": "Why?", "expected": "x"}]
+    for band in ("4_6", "7_8", "9_11"):
+        for duration in (200, 400, 900, 3000):
+            plan = planner.build_plan(
+                Video(id=f"v{band}{duration}", title="T", duration_s=duration),
+                SEGMENTS, band, "en", agent=agent_with(one),
+            )
+            times = [q.t_sec for q in plan.questions]
+            gaps = [b - a for a, b in zip(times, times[1:])]
+            assert all(g >= rules.min_gap_s(band) for g in gaps), f"{band}/{duration}: {times}"
+            assert len(times) <= rules.max_questions(band, duration), f"{band}/{duration}"
+            assert all(t <= duration for t in times), f"{band}/{duration}: {times}"
+
+
+def test_a_plan_that_already_meets_the_target_is_left_alone() -> None:
+    three = [
+        {"t_sec": 100, "type": "why", "input": "voice", "text": "Why?", "expected": "x"},
+        {"t_sec": 400, "type": "recall", "input": "voice", "text": "What happened?", "expected": "y"},
+        {"t_sec": 700, "type": "predict", "input": "voice", "text": "What next?", "expected": "z"},
+    ]
+    plan = planner.build_plan(
+        Video(id="vidfull", title="T", duration_s=1200), SEGMENTS, "7_8", "en",
+        agent=agent_with(three),
+    )
+    assert [q.text for q in plan.questions] == ["Why?", "What happened?", "What next?"], (
+        "the bank was used where the model had already answered"
+    )

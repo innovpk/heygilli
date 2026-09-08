@@ -1948,6 +1948,7 @@ class FakeSession implements SessionSocket {
             planQuestions: plan.length,
             ageBand: kid.band.wire,
             language: language,
+            questionTimes: [for (final a in plan) a.atS],
           ),
         );
       case PositionMessage(:final seconds):

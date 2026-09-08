@@ -96,7 +96,10 @@ def test_full_session_over_websocket(client: TestClient, auth: dict, store: Loca
     with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
         ws.send_json({"t": "hello"})
         ready = ws.receive_json()
-        assert ready == {"t": "ready", "plan_questions": 2, "age_band": "7_8", "language": "en"}
+        # The times come down so the child can see where the questions are; the
+        # server still decides when to ask, on a position tick.
+        assert ready == {"t": "ready", "plan_questions": 2, "age_band": "7_8",
+                         "language": "en", "question_times": [100, 400]}
 
         ws.send_json({"t": "position", "seconds": 50})
         ws.send_json({"t": "position", "seconds": 99.5})

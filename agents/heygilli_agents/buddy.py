@@ -181,7 +181,12 @@ class SessionEngine:
         return len(self.answered) >= len(self.questions)
 
     def ready(self) -> ServerReady:
-        return ServerReady(plan_questions=len(self.questions), age_band=self.band, language=self.language)
+        return ServerReady(
+            plan_questions=len(self.questions),
+            age_band=self.band,
+            language=self.language,
+            question_times=[q.t_sec for q in self.questions],
+        )
 
     def due_question(self, position_s: float) -> int | None:
         self.position_s = max(self.position_s, position_s)
