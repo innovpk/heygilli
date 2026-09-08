@@ -33,6 +33,9 @@ class SessionScreen extends StatefulWidget {
   State<SessionScreen> createState() => _SessionScreenState();
 }
 
+/// SPEC 7.4: "Never repeat a question more than once, in any band."
+const _repeatsPerQuestion = 1;
+
 enum _Phase {
   connecting,
   watching,
@@ -85,6 +88,19 @@ class _SessionScreenState extends State<SessionScreen> {
   String? _errorText;
 
   AskMessage? _ask;
+
+  /// How many more times the child may ask to hear this question.
+  ///
+  /// SPEC 7.4 allows one, and the gateway enforces the same cap — this only
+  /// stops the button offering something that would be ignored. Reset when a
+  /// new question arrives, and deliberately *not* when the same one comes back
+  /// down: a repeat arrives as an `ask` like any other, and resetting on that
+  /// would hand out an unlimited supply.
+  int _repeatsLeft = _repeatsPerQuestion;
+
+  /// True from the tap until the question comes back, so a child pressing
+  /// twice does not spend two.
+  bool _repeatPending = false;
 
   /// The word Gilli actually said out loud for this question, when it could.
   /// Null when the question carried none, and null when the device had no
@@ -238,7 +254,12 @@ class _SessionScreenState extends State<SessionScreen> {
 
   Future<void> _handleAsk(AskMessage ask) async {
     _listenWindow?.cancel();
+    // The same `q` coming back down is the repeat this screen asked for, not a
+    // new question, so the allowance stays where it is.
+    final again = _ask?.q == ask.q;
     setState(() {
+      if (!again) _repeatsLeft = _repeatsPerQuestion;
+      _repeatPending = false;
       _ask = ask;
       _seed = null;
       _reply = null;
@@ -324,6 +345,23 @@ class _SessionScreenState extends State<SessionScreen> {
     }
     _socket?.send(msg);
     setState(() => _phase = _Phase.answered);
+  }
+
+  /// "Say it again". The server sends the question back down and starts the
+  /// listening window over, so this only asks — it never replays anything on
+  /// its own, which would mean speaking over a reply already on its way.
+  Future<void> _onRepeat() async {
+    final ask = _ask;
+    if (ask == null || _answered || _repeatPending || _repeatsLeft <= 0) return;
+    setState(() {
+      _repeatPending = true;
+      _repeatsLeft--;
+    });
+    // Stop the mic first, or the recogniser hears Gilli read the question and
+    // hands that back as the child's answer.
+    await _ears.stopListening();
+    _listenWindow?.cancel();
+    _socket?.send(RepeatMessage(ask.q));
   }
 
   void _onPick(int index) {
@@ -866,6 +904,19 @@ class _SessionScreenState extends State<SessionScreen> {
         ),
       );
     }
+    // A child who missed the question had nothing to do about it: the window
+    // ran out, Gilli said "no worries" and the video started again, which reads
+    // to a child as being told their answer did not matter. Offered for as long
+    // as they may still answer, and it goes away once they have used their one
+    // (SPEC 7.4) — a button that does nothing is worse than no button.
+    if (reply == null && _phase == _Phase.listening && _repeatsLeft > 0) {
+      children.add(
+        _SayItAgainButton(
+          showText: showText,
+          onPressed: _repeatPending || _answered ? null : _onRepeat,
+        ),
+      );
+    }
     if (showText && _errorText != null) {
       children.add(
         Text(_errorText!, style: HgText.body(size: 13, color: HgColors.coral)),
@@ -967,6 +1018,55 @@ class _WatchBar extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Say it again", in a size a four-year-old can hit (SPEC 9.2 tap targets).
+///
+/// Icon-only for pre-readers, who have no text anywhere on this screen: the
+/// replay arrow is the whole of what they get, and it is the same arrow they
+/// have seen on every video player they have ever been handed.
+class _SayItAgainButton extends StatelessWidget {
+  const _SayItAgainButton({required this.showText, required this.onPressed});
+  final bool showText;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!showText) {
+      return SizedBox(
+        width: 76,
+        height: 76,
+        child: IconButton.filled(
+          onPressed: onPressed,
+          style: IconButton.styleFrom(
+            backgroundColor: HgColors.tealDeep,
+            foregroundColor: HgColors.cream,
+            disabledBackgroundColor: HgColors.tealDeep,
+          ),
+          icon: const Icon(Icons.replay_rounded, size: 40),
+          tooltip: 'Say it again',
+        ),
+      );
+    }
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.replay_rounded, size: 24),
+        label: Text(
+          'Say it again',
+          style: HgText.body(size: 17, color: HgColors.cream),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: HgColors.cream,
+          side: const BorderSide(color: HgColors.sky, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(26),
+          ),
+        ),
       ),
     );
   }

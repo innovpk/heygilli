@@ -503,6 +503,7 @@ Client → server
 {t: "answer", q: number, input: "pick", option: 0|1|2}
 {t: "answer", q: number, input: "copy"}                        kid made a sound / did the action
 {t: "answer", q: number, input: "none"}                        listening window elapsed with nothing
+{t: "repeat", q: number}                                       say the question again, once (SPEC 7.4)
 {t: "resumed"}                                                 client resumed playback after "resume"
 {t: "bye"}
 ```
@@ -540,6 +541,8 @@ question pause, at the end of the video, or on its own three minutes after the l
 break periods" above.)
 
 Ordering per question: `pause` → `ask` → (client `answer`) → `reply` → `resume`. If no `answer` arrives within `listen_ms` + 1500 ms, the server treats it as `input: "none"`.
+
+A `repeat` for the question in flight is answered with the same `ask` again and restarts that window from the moment it arrives — a child asks because they are stuck, which is to say late, so topping up what was left would read them the question and then cut them off anyway. One per question (SPEC 7.4 "never repeat a question more than once"); past that, and for any `q` that is not the live one, it is ignored. The client must not replay the question on its own: the deadline lives on the server, and a device replaying it would be talking over a `reply` and a `resume` already in flight.
 
 ## TTS
 

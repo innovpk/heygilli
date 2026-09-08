@@ -19,10 +19,20 @@ def pick(t: int, ids=("icon_red", "icon_fish", "icon_car"), correct=(True, False
 
 
 def test_timing_table_matches_spec() -> None:
-    assert rules.TIMING["4_6"] == rules.Timing(120, 240, 360, 2, 5000, "gentle")
-    assert rules.TIMING["7_8"] == rules.Timing(90, 180, 300, 6, 8000, "normal")
-    assert rules.TIMING["9_11"] == rules.Timing(90, 180, 300, 6, 8000, "normal")
-    assert rules.listen_ms("4_6") == 5000 and rules.listen_ms("9_11") == 8000
+    assert rules.TIMING["4_6"] == rules.Timing(120, 240, 360, 2, 15000, "gentle")
+    assert rules.TIMING["7_8"] == rules.Timing(90, 180, 300, 6, 20000, "normal")
+    assert rules.TIMING["9_11"] == rules.Timing(90, 180, 300, 6, 20000, "normal")
+    assert rules.listen_ms("4_6") == 15000 and rules.listen_ms("9_11") == 20000
+
+
+def test_a_child_gets_long_enough_to_think_of_an_answer() -> None:
+    """The window is measured from the moment Gilli stops speaking, and it used
+    to be 5 and 8 seconds. That is how long an adult takes to say an answer
+    they already had. A child has to notice it is their turn, think, and then
+    get the words out, and the video started again while they were still on the
+    thinking. Being cut off mid-thought teaches a child not to bother."""
+    for band in ("4_6", "7_8", "9_11"):
+        assert 15000 <= rules.listen_ms(band) <= 20000, band
 
 
 def test_min_gap_gentle_cannot_be_raised_for_prereaders() -> None:

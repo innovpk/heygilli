@@ -167,7 +167,7 @@ HeyGilli is built for an ordinary household with a television and no time.
 2. Kid selects a video with the remote. Buddy says hello by name and starts the video.
 3. At the first natural break (see 7.3), the video pauses and shrinks to a corner. Buddy appears and asks a question aloud. The question is also shown as text, large for 7 to 8 and normal for 9 to 11. A mic icon pulses.
 4. Kid holds the mic button on the remote and answers. Speech is transcribed and scored.
-5. Buddy responds in one or two sentences, then the video resumes. If the kid says nothing for 8 seconds, the buddy says "No worries, let's keep watching" and resumes. Never blocks.
+5. Buddy responds in one or two sentences, then the video resumes. If the kid says nothing for 20 seconds, the buddy says "No worries, let's keep watching" and resumes. Never blocks. "Say it again" is on screen for the whole of that window, once per question.
 6. At the end of the video: "You watched a whole video about volcanoes! Want another, or shall we do something?" and an optional offline activity card.
 
 ### 6.3 Kid session on TV, ages 4 to 6 (pre-reader path)
@@ -176,7 +176,7 @@ HeyGilli is built for an ordinary household with a television and no time.
 2. Kid selects a video. Buddy says hello by name and starts the video.
 3. At the first break (later than for older kids, see 7.3), the video pauses on the current frame. The frame stays large, because the question is about what is on screen. The buddy appears small in a corner and asks aloud. No text anywhere.
 4. The buddy asks one of three things: **name it** ("What animal is that?"), **copy it** ("Can you roar like him?"), or **pick it** (three big pictures appear; "Show me the red one"). For pick-it, the remote's left, centre, and right map to the three pictures, so a 4-year-old only has to press one direction.
-5. Kid answers by speaking, copying, or pressing. Listening window is 5 seconds, not 8. A single word counts as a full answer.
+5. Kid answers by speaking, copying, or pressing. Listening window is 15 seconds, not 20. A single word counts as a full answer.
 6. **The buddy always models the answer**, whatever happened. Correct: "Yes! A giraffe. It has a looong neck" with a matching gesture from the buddy. Unclear or silent: "It's a giraffe! Gi-raffe. Can you say giraffe?" then a 3-second pause, then resume whether or not the kid repeats. The modeled word is the learning; silence is a teaching moment, not a dead end.
 7. Video resumes. Videos under 5 minutes get one question. Longer videos get at most two.
 8. At the end: "All done! You saw a giraffe and a red truck. Shall we watch one more?" Buddy names what they saw; no summary, no activity card beyond "can you find something red in your room?" spoken once.
@@ -253,10 +253,11 @@ Learning goals by band, which the question generator is told to serve:
 | Minimum gap, normal | 4 min | 3 min | 3 min |
 | Minimum gap, gentle | 6 min | 5 min | 5 min |
 | Max questions per video | 1 under 5 min, 2 above | 3 to 6 | 3 to 6 |
-| Listening window | 5 s | 8 s | 8 s |
+| Listening window | 15 s | 20 s | 20 s |
 | Default frequency | gentle, cannot be raised | normal | normal |
 
 - Place at a scene change, a sentence end in the transcript, or a music cue. Never inside a sentence.
+- The listening window is measured from the moment the buddy stops speaking, not from the pause. It was 5 s and 8 s: long enough to say an answer you already had, not long enough to think of one, and the video resumed while the child was still thinking.
 - For 4 to 6, prefer moments where the subject of the question is clearly visible on the paused frame.
 - Videos under 3 minutes get one question at the end only, for every band.
 - Sibling mode: alternate bands between questions, and use the youngest band's timing rules.
@@ -265,7 +266,7 @@ Learning goals by band, which the question generator is told to serve:
 
 - STT transcript, D-pad choice, or tap is scored against the expected answer and variants. Output: `correct | partial | off_topic | unclear | silence`. Pick-it answers score deterministically without a model call.
 - Response is spoken, max 6 seconds of TTS. Everything the kid says is processed and discarded. Only the score and a 10-word paraphrase are stored.
-- Never repeat a question more than once, in any band.
+- Never repeat a question more than once, in any band. The child may ask for that one repeat themselves ("Say it again"); it goes to the server, which sends the question back down and starts the listening window over. Past the cap the request is ignored, so a child leaning on the button cannot hold a session open.
 
 Ages 7 to 11:
 
@@ -404,7 +405,7 @@ One Flutter codebase, three form factors. TV uses a separate widget tree for D-p
 ### 9.2 Client (Flutter)
 
 - `youtube_player_iframe` for playback on all three form factors. Pause and seek via the IFrame API. On pause, the player is scaled to a corner rather than covered, to respect embed policy.
-- `speech_to_text` for the remote mic on Android TV and device mic on tablet. Push-to-talk, 8-second window for 7 and up, 5 seconds for 4 to 6. For pre-readers, the buddy also starts listening automatically after the question, so a kid who just talks at the TV without pressing anything is still heard.
+- `speech_to_text` for the remote mic on Android TV and device mic on tablet. Push-to-talk, 20-second window for 7 and up, 15 seconds for 4 to 6. For pre-readers, the buddy also starts listening automatically after the question, so a kid who just talks at the TV without pressing anything is still heard.
 - Pick-it answers on TV: three large pictures, remote left, centre, and right (and D-pad, and the number keys 1 to 3 where the remote has them). Focused picture wobbles. Any of the three presses answers; no confirm step.
 - Icon library: a few hundred kid-safe concept icons bundled in the app, keyed by id, so pick-it renders instantly and never depends on the network or generated images.
 - Buddy animation: a small Lottie or Rive character with named gestures. Reply payloads carry a gesture id.
@@ -614,7 +615,7 @@ Cut order if behind schedule, in this sequence: TV stretch → AgentCore Memory 
 | TV stretch never lands, and the pitch has been "TV-first" | Medium | Video and slides show the TV mockups as the next milestone; the architecture slide makes the point that TV is a layout, not a rebuild |
 | On-device Urdu STT is poor | Medium | Test day 6; cloud STT fallback ready |
 | STT cannot understand 4-year-old speech | High | Phonetic scoring, any utterance counts as partial, pick-it fallback after two empty results, auto-listen without button press; if all fail, pick-it becomes primary for the band and the demo still works |
-| Kid finds the pauses annoying | High for wrong tuning | Gentle mode locked for 4 to 6; 5 or 8 second no-answer resume; never repeat |
+| Kid finds the pauses annoying | High for wrong tuning | Gentle mode locked for 4 to 6; 15 or 20 second no-answer resume; one repeat, and only if the child asks for it |
 | 9 to 11 year olds find the buddy babyish and disengage | Medium | Separate tone register, no stretched words or animal sounds, opinion questions, test with a real 10-year-old |
 | Latency between answer and reply feels long on TV | Medium | Low effort for scoring; stream TTS; play a "hmm" filler within 300 ms |
 | Google adds a kids co-watching mode to Gemini on TV | Low in the hackathon window | Our moat is the parent's own channels plus bilingual; move fast on distribution |

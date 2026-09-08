@@ -1,6 +1,8 @@
 """Scripted REST + WebSocket session against gateway.py (docs/PROTOCOL.md), offline."""
 from __future__ import annotations
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -102,7 +104,7 @@ def test_full_session_over_websocket(client: TestClient, auth: dict, store: Loca
         assert ws.receive_json() == {"t": "pause"}
         ask = ws.receive_json()
         assert ask["t"] == "ask" and ask["q"] == 0 and ask["type"] == "why" and ask["input"] == "voice"
-        assert ask["text"] == "Why did the ice melt?" and ask["listen_ms"] == 8000
+        assert ask["text"] == "Why did the ice melt?" and ask["listen_ms"] == 20000
         assert ask["tts_url"] == "" and ask["gesture"] == "think" and "options" not in ask
 
         ws.send_json({"t": "position", "seconds": 100.5})  # a stray tick while paused is ignored
@@ -154,7 +156,7 @@ def test_prereader_session_pick_flow(client: TestClient, auth: dict, store: Loca
         ask = ws.receive_json()
         assert "text" not in ask  # pre-readers get no text
         assert [o["icon_id"] for o in ask["options"]] == ["icon_red", "icon_fish", "icon_car"]
-        assert ask["listen_ms"] == 5000
+        assert ask["listen_ms"] == 15000
         ws.send_json({"t": "answer", "q": 0, "input": "pick", "option": 1})
         reply = ws.receive_json()
         assert reply["result"] == "off_topic" and reply["model_word"] == "red" and "text" not in reply
@@ -642,3 +644,146 @@ def test_the_review_list_says_when_the_length_ceiling_could_not_run(
     # And the ceiling itself, so the screen can name it rather than hardcode a
     # number that drifts away from the one actually being applied.
     assert 30 <= body["max_minutes"] <= 40
+
+
+# --- hearing the question again ------------------------------------------------------------------
+#
+# A child who missed the question had nothing to do about it. The window ran
+# out, Gilli said "no worries", and the video started again — which reads to a
+# child as being told the answer did not matter.
+
+
+def _start_session(client: TestClient, auth: dict, store: LocalStore, age: int = 8) -> tuple[str, str]:
+    kid = client.post("/kids", json={"nickname": "Zara", "age": age, "languages": ["en"]},
+                      headers=hdr(auth)).json()
+    store.put_video(VIDEO)
+    store.put_plan(_plan_7_8())
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": VIDEO.id, "device": "tv"},
+                       headers=hdr(auth)).json()
+    return body["session_id"], auth["Authorization"].split()[1]
+
+
+def test_a_child_can_ask_to_hear_the_question_again(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """The same question comes back down, and nothing has been decided yet: the
+    answer that follows the repeat is scored exactly as a first answer would
+    be. A repeat that quietly counted as a miss would be worse than no repeat."""
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        assert ws.receive_json() == {"t": "pause"}
+        first = ws.receive_json()
+        assert first["t"] == "ask" and first["q"] == 0
+
+        ws.send_json({"t": "repeat", "q": 0})
+        again = ws.receive_json()
+        assert again == first, "the child heard something other than the question they asked for"
+
+        ws.send_json({"t": "answer", "q": 0, "input": "voice",
+                      "transcript": "because the sun warmed it up"})
+        reply = ws.receive_json()
+        assert reply["t"] == "reply" and reply["result"] == "correct"
+        assert ws.receive_json() == {"t": "resume"}
+        ws.send_json({"t": "bye"})
+        ws.receive_json()
+
+    answers = store.list_answers(auth["_hid"], sid)
+    assert [a.result for a in answers] == ["correct"], "the repeat was scored as an answer"
+
+
+def test_leaning_on_the_repeat_button_cannot_hold_a_session_open(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """SPEC 7.4: never repeat a question more than once, in any band. The cap
+    is also the thing that stops a four-year-old with a finger on the button
+    from keeping the video paused indefinitely: past it the request is ignored
+    and the window runs out as it always would."""
+    from heygilli_agents import gateway as gw
+
+    assert gw.MAX_REPEATS == 1, "SPEC 7.4 puts the cap at once"
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        first = ws.receive_json()
+
+        ws.send_json({"t": "repeat", "q": 0})
+        assert ws.receive_json() == first
+        # Over the cap: ignored, and the session is still waiting for an answer
+        # rather than having said anything a third time.
+        ws.send_json({"t": "repeat", "q": 0})
+        ws.send_json({"t": "repeat", "q": 0})
+        ws.send_json({"t": "answer", "q": 0, "input": "none"})
+        after = ws.receive_json()
+        assert after["t"] == "reply", f"the question was said again past the cap: {after}"
+
+
+def test_a_repeat_for_a_question_that_is_not_the_live_one_is_ignored(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """A late tap on the previous question's button must not re-ask the one in
+    front of the child, and must not spend the repeat they still have for it."""
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        ws.receive_json()  # the ask
+
+        ws.send_json({"t": "repeat", "q": 7})  # no such question
+        ws.send_json({"t": "answer", "q": 0, "input": "none"})
+        # Nothing was said again: the very next thing down the wire is the
+        # reply to the answer, not a second copy of the question.
+        after = ws.receive_json()
+        assert after["t"] == "reply", f"a repeat for another question re-asked this one: {after}"
+
+
+def test_a_repeat_starts_the_clock_again_rather_than_leaving_what_was_on_it(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """A child asks to hear it again precisely because they are stuck, which is
+    to say late. Topping the window up by nothing would hand them the question
+    a second time and then cut them off while they were still thinking — the
+    same failure, with an extra reading of the question in the middle of it.
+
+    Run against a window shortened to a second so the difference is observable:
+    the repeat lands near the end of it, and the answer lands after the
+    original deadline would have passed.
+    """
+    from heygilli_agents import gateway as gw
+    from heygilli_agents import rules
+
+    monkeypatch.setattr(gw, "ANSWER_GRACE_MS", 100)
+    monkeypatch.setitem(
+        rules.TIMING, "7_8", rules.TIMING["7_8"].__class__(90, 180, 300, 6, 900, "normal")
+    )
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        assert ws.receive_json()["listen_ms"] == 900, "the window was not shortened"
+
+        time.sleep(0.8)  # nearly out of the original second
+        ws.send_json({"t": "repeat", "q": 0})
+        assert ws.receive_json()["t"] == "ask"
+        time.sleep(0.6)  # past where the original deadline was, inside the new one
+        ws.send_json({"t": "answer", "q": 0, "input": "voice",
+                      "transcript": "because the sun warmed it up"})
+
+        reply = ws.receive_json()
+        assert reply["t"] == "reply"
+        assert reply["result"] == "correct", (
+            "the window was not restarted, so the child was cut off while thinking"
+        )

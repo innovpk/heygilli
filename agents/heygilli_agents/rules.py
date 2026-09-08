@@ -29,10 +29,23 @@ class Timing:
 
 
 # SPEC §7.3 timing table.
+#
+# The listening window used to be 5 seconds for pre-readers and 8 for everyone
+# else, and it was measured from the moment Gilli stopped speaking. That is
+# about as long as it takes an adult to answer a question they already knew the
+# answer to. A child has to hear it, work out that it is their turn, think, and
+# then say something — and eight seconds in, while they were still on the
+# thinking, the video started playing again. Being cut off mid-thought teaches
+# a child not to bother, which is the opposite of the whole point.
+#
+# 15 and 20 seconds. Pre-readers get less not because they are quicker but
+# because they need only one word and will not sit through silence; the older
+# bands are answering "why" and "what do you think", which take longer to say
+# than to know.
 TIMING: dict[str, Timing] = {
-    "4_6": Timing(120, 240, 360, 2, 5000, "gentle"),
-    "7_8": Timing(90, 180, 300, 6, 8000, "normal"),
-    "9_11": Timing(90, 180, 300, 6, 8000, "normal"),
+    "4_6": Timing(120, 240, 360, 2, 15000, "gentle"),
+    "7_8": Timing(90, 180, 300, 6, 20000, "normal"),
+    "9_11": Timing(90, 180, 300, 6, 20000, "normal"),
 }
 
 SHORT_VIDEO_S = 180  # under 3 minutes: one question at the end, every band

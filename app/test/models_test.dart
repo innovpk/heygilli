@@ -52,11 +52,21 @@ void main() {
       );
     });
 
-    test('only pre-readers auto-listen and get the 5 s window', () {
+    test('only pre-readers auto-listen, and every band gets time to think', () {
       expect(AgeBand.b4to6.autoListens, isTrue);
-      expect(AgeBand.b4to6.defaultListenMs, 5000);
       expect(AgeBand.b7to8.autoListens, isFalse);
-      expect(AgeBand.b9to11.defaultListenMs, 8000);
+      // The window is measured from the moment Gilli stops speaking, and it
+      // was 5 and 8 seconds — long enough to say an answer you already had,
+      // not long enough to think of one. The video resumed mid-thought.
+      for (final band in AgeBand.values) {
+        expect(
+          band.defaultListenMs,
+          inInclusiveRange(15000, 20000),
+          reason: '$band is cut off before a child has answered',
+        );
+      }
+      expect(AgeBand.b4to6.defaultListenMs, 15000);
+      expect(AgeBand.b9to11.defaultListenMs, 20000);
     });
   });
 

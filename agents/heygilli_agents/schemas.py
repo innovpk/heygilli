@@ -903,6 +903,19 @@ class ClientAnswer(BaseModel):
     option: int | None = Field(default=None, ge=0, le=2)
 
 
+class ClientRepeat(BaseModel):
+    """The child asked to hear the question again (SPEC §7.4).
+
+    Sent instead of an answer, and it must reach the server rather than being
+    handled on the device alone: the server holds its own deadline for this
+    question, and a client that replayed the question by itself would be
+    speaking over a `reply` and a `resume` already on their way.
+    """
+
+    t: Literal["repeat"]
+    q: int
+
+
 class ClientResumed(BaseModel):
     t: Literal["resumed"]
 
@@ -912,7 +925,7 @@ class ClientBye(BaseModel):
 
 
 ClientMessage = Annotated[
-    ClientHello | ClientPosition | ClientAnswer | ClientResumed | ClientBye,
+    ClientHello | ClientPosition | ClientAnswer | ClientRepeat | ClientResumed | ClientBye,
     Field(discriminator="t"),
 ]
 

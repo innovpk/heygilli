@@ -64,6 +64,7 @@ from .schemas import (
     ParentPrompt,
     Policy,
     PolicyAnswer,
+    ServerAsk,
     ServerBreak,
     ServerError,
     ServerPause,
@@ -113,6 +114,10 @@ logging.getLogger("uvicorn.access").addFilter(_DropHealthChecks())
 
 SECRET = os.getenv("HEYGILLI_SECRET", "dev-secret-change-me").encode()
 ANSWER_GRACE_MS = 1500  # PROTOCOL: listen_ms + 1500 ms -> input "none"
+
+#: How many times a child may ask to hear one question again. SPEC §7.4:
+#: "Never repeat a question more than once, in any band."
+MAX_REPEATS = 1
 PREREADER_ECHO_WAIT_S = 3.0  # SPEC §7.4: "Can you say giraffe?" then 3 s, then resume regardless
 
 app = FastAPI(title="HeyGilli gateway", version="1.0")
@@ -1781,7 +1786,7 @@ async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None =
             revisit.record_asked(engine.kid, engine.store, tag, engine.session.id)
         await ws.send_json(wire(ask))
 
-        answer = await _await_answer(ws, idx, ask.listen_ms + ANSWER_GRACE_MS)
+        answer = await _await_answer(ws, idx, ask.listen_ms + ANSWER_GRACE_MS, ask)
         if answer is None:  # client went away
             return
         reply = await asyncio.to_thread(engine.answer, answer)
@@ -1800,9 +1805,22 @@ async def _send_break(ws: WebSocket, guard: BreakGuard) -> None:
     log.info("break %s sent to kid %s", brk.id, guard.kid.id)
 
 
-async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswer | None:
-    """Wait for the answer to question `idx`; a timeout becomes input "none"."""
+async def _await_answer(
+    ws: WebSocket, idx: int, timeout_ms: int, ask: ServerAsk | None = None
+) -> ClientAnswer | None:
+    """Wait for the answer to question `idx`; a timeout becomes input "none".
+
+    A `repeat` buys the child the whole window again and sends the question
+    back down to be said a second time. It has to be the server that grants
+    that: the deadline lives here, so a client that replayed the question on
+    its own would be talking over a `reply` and a `resume` already in flight.
+
+    Capped at `MAX_REPEATS`, which SPEC §7.4 puts at once — and the cap is what
+    stops a child leaning on the button from holding a session open for ever.
+    After it, the request is ignored and the window runs out as normal.
+    """
     deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
+    repeats = 0
     while True:
         remaining = deadline - asyncio.get_event_loop().time()
         if remaining <= 0:
@@ -1820,6 +1838,16 @@ async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswe
             continue
         if msg.t == "answer" and msg.q == idx:
             return msg
+        if msg.t == "repeat" and msg.q == idx and ask is not None:
+            if repeats >= MAX_REPEATS:
+                continue  # the window runs out on its own; nothing is said twice more
+            repeats += 1
+            # The clock starts again from now rather than being topped up: a
+            # child who asked late was left with whatever was on it, which is
+            # the position they asked for help from in the first place.
+            deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
+            await ws.send_json(wire(ask))
+            continue
         if msg.t == "bye":
             return None
         # position ticks while paused, "resumed", or a stale answer: ignore and keep listening

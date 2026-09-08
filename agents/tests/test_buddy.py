@@ -134,7 +134,7 @@ def test_older_band_uses_model_reply_and_keeps_only_paraphrase(store: LocalStore
                  followup="Ice melts at zero degrees.")
     e = engine(store, "7_8", [q])
     ask = e.ask(0)
-    assert ask.text == q.text and ask.listen_ms == 8000
+    assert ask.text == q.text and ask.listen_ms == 20000
     transcript = "because the sun was shining on it and it got really really hot outside today"
     reply = e.answer(ClientAnswer(t="answer", q=0, input="voice", transcript=transcript))
     assert reply.result == "correct" and reply.gesture == "cheer" and reply.text

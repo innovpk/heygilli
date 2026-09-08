@@ -60,8 +60,14 @@ enum AgeBand {
   /// who just talks at the screen is still heard.
   bool get autoListens => this == AgeBand.b4to6;
 
-  /// Listening window fallback when the server omits listen_ms.
-  int get defaultListenMs => this == AgeBand.b4to6 ? 5000 : 8000;
+  /// Listening window fallback when the server omits listen_ms (SPEC 7.3).
+  ///
+  /// It is measured from the moment Gilli stops speaking, and it was 5 and 8
+  /// seconds — about as long as an adult takes to say an answer they already
+  /// had. A child has to notice it is their turn, think, and then get the
+  /// words out, and the video used to start again while they were still on the
+  /// thinking.
+  int get defaultListenMs => this == AgeBand.b4to6 ? 15000 : 20000;
 
   String get label => switch (this) {
     AgeBand.b4to6 => '4 to 6',

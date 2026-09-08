@@ -1867,6 +1867,7 @@ class FakeSession implements SessionSocket {
     required this.plan,
     this.breakAtS,
     this.onBreakDue,
+    this.answerWindow,
   }) {
     _out = StreamController<ServerMessage>.broadcast();
   }
@@ -1927,11 +1928,46 @@ class FakeSession implements SessionSocket {
         }
       case AnswerMessage():
         _awaitingAnswer?.complete(message);
+      case RepeatMessage(:final q):
+        _onRepeat(q);
       case ResumedMessage():
         break;
       case ByeMessage():
         close();
     }
+  }
+
+  /// The question currently in flight, kept so a `repeat` can send the same
+  /// one back down rather than a rebuilt copy of it.
+  AskMessage? _live;
+  int _repeats = 0;
+
+  /// How long the demo waits for an answer. PROTOCOL is listen_ms + 1500 ms;
+  /// the demo adds four seconds more because it has no cloud TTS and the
+  /// device reads the question aloud inside the same window.
+  ///
+  /// Overridable only so a test can watch the window restart without sitting
+  /// through twenty-five seconds of it. Nothing in the app passes it.
+  final Duration? answerWindow;
+
+  void _armAnswerTimeout() {
+    _answerTimeout?.cancel();
+    _answerTimeout = Timer(
+      answerWindow ??
+          Duration(milliseconds: kid.band.defaultListenMs + 1500 + 4000),
+      () => _awaitingAnswer?.complete(null),
+    );
+  }
+
+  /// Same contract as the gateway: the question goes down again and the
+  /// listening window starts over, capped at one (SPEC 7.4). Past the cap the
+  /// request is ignored and the window runs out as it always would.
+  void _onRepeat(int q) {
+    final live = _live;
+    if (live == null || live.q != q || _repeats >= 1) return;
+    _repeats++;
+    _armAnswerTimeout();
+    _emit(live);
   }
 
   Future<void> _runQuestion(int index) async {
@@ -1942,8 +1978,7 @@ class FakeSession implements SessionSocket {
 
     final band = kid.band;
     final urdu = language == 'ur';
-    _emit(
-      AskMessage(
+    final message = AskMessage(
         q: index,
         type: ask.type,
         input: ask.input,
@@ -1965,16 +2000,15 @@ class FakeSession implements SessionSocket {
         // Only for a bilingual session. Seeding is opt-in by virtue of the
         // language list, so an English-only kid is never offered one.
         word: urdu ? ask.seed : null,
-      ),
     );
+    _live = message;
+    _repeats = 0;
+    _emit(message);
 
     // PROTOCOL: if no answer within listen_ms + 1500 ms, treat as none.
     // The demo allows extra time for the question TTS to finish first.
     _awaitingAnswer = Completer<ClientMessage?>();
-    _answerTimeout = Timer(
-      Duration(milliseconds: band.defaultListenMs + 1500 + 4000),
-      () => _awaitingAnswer?.complete(null),
-    );
+    _armAnswerTimeout();
     final answer = await _awaitingAnswer!.future;
     _answerTimeout?.cancel();
     if (_closed) return;

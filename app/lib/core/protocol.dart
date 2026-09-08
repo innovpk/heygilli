@@ -389,6 +389,21 @@ class AnswerMessage extends ClientMessage {
   };
 }
 
+/// `{t: "repeat", q}` — the child asked to hear the question again.
+///
+/// It goes to the server rather than being handled here, because the server
+/// holds its own deadline for the question: replaying it on the device alone
+/// would mean talking over a `reply` and a `resume` already on their way. The
+/// server answers by sending the same `ask` down again and starting the
+/// listening window over.
+class RepeatMessage extends ClientMessage {
+  const RepeatMessage(this.q);
+  final int q;
+
+  @override
+  Map<String, dynamic> toJson() => {'t': 'repeat', 'q': q};
+}
+
 class ResumedMessage extends ClientMessage {
   const ResumedMessage();
   @override
