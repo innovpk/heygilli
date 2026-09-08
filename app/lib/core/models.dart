@@ -1601,6 +1601,24 @@ class ReviewQueue {
   bool get stillScreening => screened < expected;
 }
 
+/// An answer to one question a parent asked about one video.
+class VideoAnswer {
+  const VideoAnswer({required this.answer, required this.answeredFrom});
+
+  factory VideoAnswer.fromJson(Map<String, dynamic> j) => VideoAnswer(
+    answer: j['answer'] as String? ?? '',
+    answeredFrom: j['answered_from'] as String? ?? '',
+  );
+
+  final String answer;
+
+  /// What the answer rests on — the words of the video, or the title alone.
+  /// Set by the server from the fetch that actually happened, never by the
+  /// model: an answer drawn from a video nobody could read is worse than no
+  /// answer, because it reads exactly like a good one.
+  final String answeredFrom;
+}
+
 class ParentPrompt {
   const ParentPrompt({
     required this.id,

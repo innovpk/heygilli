@@ -561,6 +561,21 @@ class ApiClient implements Gateway {
     List<String> approve = const [],
     List<String> hide = const [],
   }) => _post('/kids/$kidId/review', {'approve': approve, 'hide': hide});
+
+  @override
+  Future<VideoAnswer> askAboutVideo(
+    String kidId,
+    String videoId,
+    String question, {
+    List<(String, String)> history = const [],
+  }) async => VideoAnswer.fromJson(
+    await _post('/kids/$kidId/videos/$videoId/ask', {
+      'question': question,
+      'history': [
+        for (final (q, a) in history) [q, a],
+      ],
+    }) as Map<String, dynamic>,
+  );
 }
 
 /// Digs the active break out of a 409 body from `POST /sessions`.

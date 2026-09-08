@@ -34,6 +34,7 @@ GET  /kids/{kid_id}/channels                                  → Channel[]
 GET  /kids/{kid_id}/home                                      → {rows: [{title, videos: Video[]}],
                                                                  watching_allowed, blocked_reason,
                                                                  active_break: BreakPeriod | null}
+POST /kids/{kid_id}/videos/{video_id}/ask  {question, history?: [[q,a]]}  → {answer, answered_from}
 POST /sessions                 {kid_id, video_id, device}     → {session_id, video: Video, plan_ready: bool}
 POST /sessions/{id}/end                                       → {ok: true}
 GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest
@@ -345,6 +346,37 @@ Two limits of the parse, stated because they show on the screen. Only a file nam
 history at all rather than risk opening the search history, and the signed-in parent's own watch
 history is never in scope. And the timestamps Google writes are localised, so a non-English export
 contributes its counts with no dates and an empty `by_hour`.
+
+### Asking about one video
+
+`POST /kids/{kid_id}/videos/{video_id}/ask` → `{answer, answered_from}`.
+
+The screening writes a few sentences and the parent decides. That is enough when their question is
+the one the Curator happened to answer, and no use when it is not — "is the dog hurt in it?", "does
+it sell them something at the end?", "why is this one being kept from her?". Those are answerable
+from words already cached.
+
+The Explainer is a tool-using agent, because the excerpt it is handed is only the opening of the
+video — as much as fits. `search_transcript` reaches the whole transcript, `channel_reputation`
+returns what an earlier channel review already found, and `screen_video` is the same rule check the
+Curator runs. It is told not to answer "the words don't mention it" without having searched.
+
+Two guarantees are in code rather than in the prompt:
+
+- **`answered_from` is derived from the fetch that actually happened**, never from the model's
+  account of itself. A model that can say "I watched it" eventually says so about a video nobody
+  could fetch, and that is the one claim on this screen a parent has to be able to trust. The
+  values are `the words of the video`, `the title and description only`, and `nothing`.
+- **`search_transcript` distinguishes "not in the video" from "nobody read the video"** via
+  `searched_whole_video`. They are opposite answers to a parent and a tool that returns
+  `found: false` for both invites the confident wrong one.
+
+Nothing here decides anything: no verdict moves and no shelf changes. It is information for
+somebody about to decide, and the switch stays theirs.
+
+Stateless. `history` is the earlier turns of the same conversation, oldest first, held by the
+client — there is no reason to keep a record of what a parent was worried about, and every reason
+not to, including that it would then have to be deleted with the child.
 
 ### Channel drift: a channel is not what it was
 

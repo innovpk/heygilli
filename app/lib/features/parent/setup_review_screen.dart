@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import 'ask_about_video_sheet.dart';
 import 'hidden_screen.dart';
 import 'parent_widgets.dart';
 
@@ -182,6 +183,12 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                 onChanged: _saving
                     ? null
                     : (v) => setState(() => _approved[item.video.id] = v),
+                onAsk: () => AskAboutVideoSheet.open(
+                  context,
+                  kidId: widget.kid.id,
+                  video: item.video,
+                  channelTitle: item.channelTitle,
+                ),
               ),
             if (kept > 0) ...[
               const SizedBox(height: 16),
@@ -304,11 +311,13 @@ class _ReviewCard extends StatelessWidget {
     required this.item,
     required this.approved,
     required this.onChanged,
+    required this.onAsk,
   });
 
   final ReviewItem item;
   final bool approved;
   final ValueChanged<bool>? onChanged;
+  final VoidCallback onAsk;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +371,20 @@ class _ReviewCard extends StatelessWidget {
             Text(
               item.reason,
               style: HgText.body(size: 14, color: HgColors.brown),
+            ),
+            // The screening answers the question it thought of. This is for
+            // the one the parent actually has.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onAsk,
+                icon: const Icon(Icons.help_outline_rounded, size: 18),
+                label: const Text('Ask about this'),
+                style: TextButton.styleFrom(
+                  foregroundColor: HgColors.ink,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
             ),
             // Not a footnote. A video read on its title alone is a different
             // judgement from one read on what is said in it, and the person

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import 'ask_about_video_sheet.dart';
 import 'parent_widgets.dart';
 
 /// What Gilli kept from a child, and why it did.
@@ -112,17 +113,34 @@ class _HiddenScreenState extends State<HiddenScreen> {
                               : 'Read: what is said in the video',
                           style: HgText.body(size: 12, color: HgColors.muted),
                         ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                            onPressed: _restoring.contains(item.video.id)
-                                ? null
-                                : () => _restore(item),
-                            child: Text(
-                              'Allow it anyway',
-                              style: HgText.body(size: 14),
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: _restoring.contains(item.video.id)
+                                  ? null
+                                  : () => _restore(item),
+                              child: Text(
+                                'Allow it anyway',
+                                style: HgText.body(size: 14),
+                              ),
                             ),
-                          ),
+                            // "Why is this one being kept from her?" is the
+                            // question this screen exists to raise and could
+                            // not answer beyond the one line it was given.
+                            TextButton.icon(
+                              onPressed: () => AskAboutVideoSheet.open(
+                                context,
+                                kidId: widget.kid.id,
+                                video: item.video,
+                                channelTitle: item.channelTitle,
+                              ),
+                              icon: const Icon(Icons.help_outline_rounded, size: 18),
+                              label: const Text('Ask about this'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: HgColors.ink,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

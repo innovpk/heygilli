@@ -1026,6 +1026,46 @@ class FakeGateway implements Gateway {
   /// rejections alone can only ever add.
   final _reviewDecided = <String, Map<String, String>>{};
 
+  /// Demo answers. Canned, and deliberately shaped like the real thing: an
+  /// answer that says what it rests on, and says plainly when the words do not
+  /// settle the question.
+  @override
+  Future<VideoAnswer> askAboutVideo(
+    String kidId,
+    String videoId,
+    String question, {
+    List<(String, String)> history = const [],
+  }) async {
+    await _lag();
+    final q = question.toLowerCase();
+    if (q.trim().isEmpty) {
+      return const VideoAnswer(answer: 'Ask me something about this video.',
+          answeredFrom: 'nothing');
+    }
+    if (q.contains('advert') || q.contains('sponsor') || q.contains('sell')) {
+      return const VideoAnswer(
+        answer: 'There is a sponsor read about three minutes in — the presenter '
+            'names a brand of lunch box and asks viewers to buy one. Nothing '
+            'else in the words is selling anything.',
+        answeredFrom: 'the words of the video',
+      );
+    }
+    if (q.contains('scary') || q.contains('hurt') || q.contains('frighten')) {
+      return const VideoAnswer(
+        answer: 'Nobody is hurt in it. The one moment that could sound alarming '
+            'is an eruption near the end, and the narrator says straight away '
+            'that everyone got out safely.',
+        answeredFrom: 'the words of the video',
+      );
+    }
+    return const VideoAnswer(
+      answer: 'The words of the video do not settle that one. What they do cover '
+          'is how lava forms and why some volcanoes erupt more often than '
+          'others — ask me about any of that and I can be more use.',
+      answeredFrom: 'the words of the video',
+    );
+  }
+
   @override
   Future<ReviewQueue> reviewQueue(String kidId) async {
     await _lag();

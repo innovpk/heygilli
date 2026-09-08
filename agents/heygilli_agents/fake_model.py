@@ -148,6 +148,9 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
                  "why": "Sprout Science posts monster explainers."},
             ]
         }
+    if model_name == "VideoAnswer":
+        return {"answer": "The words of the video do not mention that at all.",
+                "answered_from": ""}
     if model_name == "CuratorDecision":
         return {"decision": "approve", "reason": "Educational animal video, calm tone.", "topics": ["animals"]}
     if model_name == "ChannelReviewDraft":

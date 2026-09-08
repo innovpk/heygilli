@@ -15,7 +15,7 @@ _TMP_ROOT = Path(tempfile.mkdtemp(prefix="heygilli-tests-"))
 os.environ["HEYGILLI_DATA_DIR"] = str(_TMP_ROOT / "data")
 os.environ["HEYGILLI_TTS"] = "off"
 os.environ["HEYGILLI_STORE"] = "local"
-for role in ("CURATOR", "PLANNER", "BUDDY", "DIGEST", "REVIEWER", "COACH"):
+for role in ("CURATOR", "PLANNER", "BUDDY", "DIGEST", "REVIEWER", "COACH", "EXPLAINER"):
     os.environ[f"HEYGILLI_MODEL_{role}"] = "fake:"
 os.environ.pop("GOOGLE_API_KEY", None)
 # Same for the YouTube key. The Curator now looks up video lengths through

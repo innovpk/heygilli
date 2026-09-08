@@ -894,6 +894,19 @@ class CuratorDecision(BaseModel):
     )
 
 
+class VideoAnswer(BaseModel):
+    """An answer to one parent's question about one video."""
+
+    answer: str = Field(
+        description="Two to four sentences answering what was asked, from the evidence given. "
+                    "When the evidence does not answer it, say so plainly."
+    )
+    #: What the answer was actually read from. Set in code from the transcript
+    #: fetch, never by the model: a model that can say "I watched it" will say
+    #: it about a video nobody could fetch.
+    answered_from: str = ""
+
+
 # --- WebSocket messages (PROTOCOL.md) ------------------------------------------------------
 
 

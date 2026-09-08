@@ -277,6 +277,21 @@ abstract class Gateway {
     List<String> breakActivities,
   });
 
+  /// `POST /kids/{id}/videos/{videoId}/ask`: a question about one video,
+  /// answered from what is actually known about it.
+  ///
+  /// Decides nothing. The screening writes a few sentences and then the parent
+  /// decides, which works when their question is the one it happened to answer
+  /// and not otherwise. [history] is the earlier turns of this conversation,
+  /// oldest first — held here rather than on the server, so no record of what a
+  /// parent was worried about is kept anywhere.
+  Future<VideoAnswer> askAboutVideo(
+    String kidId,
+    String videoId,
+    String question, {
+    List<(String, String)> history,
+  });
+
   /// `GET /kids/{id}/review`: everything screened for this child, with what
   /// the Curator made of each one and how far the run has got.
   Future<ReviewQueue> reviewQueue(String kidId);

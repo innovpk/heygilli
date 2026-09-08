@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import breaks, coach, drift, history, question_bank, revisit, words
+from . import ask, breaks, coach, drift, history, question_bank, revisit, words
 from . import starter_channels as starter_channels_data
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
@@ -1527,6 +1527,46 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
         ),
         "max_minutes": MAX_DURATION_S // 60,
     }
+
+
+class AskIn(BaseModel):
+    question: str
+    #: Earlier turns of this same conversation, oldest first, as [question, answer].
+    #: Held by the client rather than the server: there is no reason to keep a
+    #: record of what a parent was worried about, and every reason not to.
+    history: list[tuple[str, str]] = Field(default_factory=list)
+
+
+@app.post("/kids/{kid_id}/videos/{video_id}/ask")
+def ask_about_video(
+    kid_id: str, video_id: str, body: AskIn, hid: str = Depends(household)
+) -> dict:
+    """A parent's question about one video, answered from what is known about it.
+
+    The screening writes a few sentences and then the parent decides. That works
+    when their question is the one the Curator happened to answer and not
+    otherwise — "is the dog hurt in it?", "does it sell them something at the
+    end?", "why is this one being kept from her?" — and those are answerable
+    from words already in the cache.
+
+    Decides nothing. No verdict moves, no shelf changes; the switch stays where
+    it was and stays theirs.
+    """
+    _kid(hid, kid_id)
+    store = get_store()
+    video = store.get_video(video_id)
+    if video is None:
+        raise HTTPException(404, "no such video")
+    entry = store.list_kid_videos(hid, kid_id).get(video_id, {})
+    answer = ask.answer_about_video(
+        video,
+        body.question,
+        status=entry.get("status", ""),
+        reason=entry.get("reason", ""),
+        policy=store.get_policy(hid, kid_id),
+        history=[(q, a) for q, a in body.history],
+    )
+    return answer.model_dump()
 
 
 class ReviewIn(BaseModel):
