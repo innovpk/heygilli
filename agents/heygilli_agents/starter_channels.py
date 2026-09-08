@@ -108,7 +108,7 @@ CHANNELS: tuple[StarterChannel, ...] = (
         topics=("songs",), bands=("4_6",),
     ),
     StarterChannel(
-        channel_id="UCwSf8jBhIOb58Tk78MZNnPg", title="Pinkfong",
+        channel_id="UCcdwLMPsaU2ezNSJU1nFoBQ", title="Baby Shark - Pinkfong Kids' Songs & Stories",
         blurb="Baby Shark and the rest. Catchy, and repetitive by design.",
         topics=("songs",), bands=("4_6",),
     ),
@@ -137,8 +137,8 @@ CHANNELS: tuple[StarterChannel, ...] = (
         topics=("science",), bands=("4_6", "7_8"),
     ),
     StarterChannel(
-        channel_id="UC5AN7XdQkLo6SO9_nI5Mk9Q", title="Free School",
-        blurb="Art, history and nature explained plainly, no jokes.",
+        channel_id="UCfPyVJEBD7Di1YYjTdS2v8g", title="Homeschool Pop",
+        blurb="Primary-school lessons explained plainly, no jokes.",
         topics=("science", "school"), bands=("7_8", "9_11"),
     ),
     StarterChannel(

@@ -572,3 +572,49 @@ def test_a_quota_refusal_is_not_waited_out(monkeypatch):
         t._with_retries(out_of_quota, "vid")
     assert calls["n"] == 1
     assert slept == []
+
+
+# --- Reasons a parent is meant to act on --------------------------------------------------------
+
+
+def test_a_short_video_says_nothing_was_wrong_with_it(monkeypatch):
+    """"Too short to hold a question" reads as a verdict on the video.
+
+    A parent seeing it beside an ordinary clip has no way to tell that nothing
+    was found wrong with it at all — the only thing wrong was that Gilli would
+    have had nothing to ask about afterwards.
+    """
+    from heygilli_agents.schemas import Video
+    from heygilli_agents.tools.screening import prescreen
+
+    result = prescreen(Video(id="v", channel_id="UCx", title="A Short Clip", duration_s=20))
+
+    assert result.verdict == "hide"
+    assert "Nothing was found wrong with it" in result.reason
+    # And what to do about it, since the parent can overrule this one.
+    assert "Allow it" in result.reason
+
+
+def test_a_long_video_says_it_is_the_length_alone(monkeypatch):
+    from heygilli_agents.schemas import Video
+    from heygilli_agents.tools.screening import prescreen
+
+    result = prescreen(Video(id="v", channel_id="UCx", title="A Long One", duration_s=4000))
+
+    assert result.verdict == "ask_parent"
+    assert "66 minutes" in result.reason
+    assert "Nothing was found wrong with it" in result.reason
+
+
+def test_a_blocked_word_says_whose_rule_it_is(monkeypatch):
+    """The household's answers did not cause this one, and saying so matters:
+    a parent who reads it as their own setting goes looking for the setting."""
+    from heygilli_agents.schemas import Video
+    from heygilli_agents.tools.screening import BLOCK_WORDS, prescreen
+
+    result = prescreen(
+        Video(id="v", channel_id="UCx", title=f"A {BLOCK_WORDS[0]} video", duration_s=600)
+    )
+
+    assert result.verdict == "hide"
+    assert "whatever their household said" in result.reason

@@ -11,7 +11,7 @@ import 'inbox_screen.dart';
 import 'kid_detail_screen.dart';
 import 'policy_screen.dart';
 import 'setup_review_screen.dart';
-import 'starter_channels_screen.dart';
+import 'preferences_screen.dart';
 import 'parent_widgets.dart';
 import 'takeout_import_screen.dart';
 
@@ -99,13 +99,16 @@ Future<void> _addKid(BuildContext context) async {
     MaterialPageRoute(builder: (_) => PolicyScreen(kid: kid, setup: true)),
   );
   if (!context.mounted) return;
-  final picked = await navigator.push<bool>(
-    MaterialPageRoute(builder: (_) => StarterChannelsScreen(kid: kid)),
+  // What they like, not which channels to trust. Picking channels asked the
+  // parent to vouch for a channel's entire future output from a one-line
+  // blurb, before seeing anything it makes — and two of the twenty-six blurbs
+  // were wrong about their own channel. The server picks where to look; the
+  // parent judges what comes back.
+  final looking = await navigator.push<bool>(
+    MaterialPageRoute(builder: (_) => PreferencesScreen(kid: kid)),
   );
   if (!context.mounted) return;
-  // Only when there is something to review: with no channels there are no
-  // uploads, and an empty list would read as the screening having failed.
-  if (picked == true) {
+  if (looking == true) {
     await navigator.push(
       MaterialPageRoute(builder: (_) => SetupReviewScreen(kid: kid)),
     );

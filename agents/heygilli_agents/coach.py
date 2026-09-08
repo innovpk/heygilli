@@ -202,7 +202,7 @@ def suggest_policy_questions(
     """
     channels = [c.strip() for c in channels if c.strip()]
     if len(channels) < MIN_CHANNELS:
-        return builtin_policy_questions()
+        return builtin_policy_questions(kid.age_band or "7_8")
 
     try:
         agent = agent or policy_agent()
@@ -213,7 +213,7 @@ def suggest_policy_questions(
         ).questions
     except Exception as e:  # noqa: BLE001 - a provider error must not empty the parent's screen
         log.warning("policy questions failed for %s: %s", kid.id, e)
-        return builtin_policy_questions()
+        return builtin_policy_questions(kid.age_band or "7_8")
 
     kept: list[PolicyQuestion] = []
     seen: set[str] = set()
@@ -228,20 +228,61 @@ def suggest_policy_questions(
         kept.append(PolicyQuestion(id=qid, question=text, why=" ".join(draft.why.split())))
         if len(kept) >= WANTED_QUESTIONS:
             break
-    return kept or builtin_policy_questions()
+    return kept or builtin_policy_questions(kid.age_band or "7_8")
 
 
-def builtin_policy_questions() -> list[PolicyQuestion]:
-    """The questions worth asking any household, used when there is not enough
-    to go on. Their `why` says plainly that they were not drawn from this
-    family's own channels, because claiming otherwise would be a lie the parent
-    could not check."""
-    generic = "Asked of every family: this is one of the commonest things a child's feed fills with."
-    pairs = [
-        ("Are unboxing and toy-haul videos all right?", generic),
-        ("Are challenge and prank videos all right?", generic),
-        ("Is cartoon peril — chases, monsters, mild scares — all right?", generic),
-        ("Are videos that push merchandise or a sponsor all right?", generic),
-        ("Is rude humour — toilet jokes, name-calling — all right?", generic),
-    ]
-    return [PolicyQuestion(id=question_id(q), question=q, why=why) for q, why in pairs]
+#: What is worth asking about, per age band.
+#:
+#: One list was asked of every family, which meant a parent of a four-year-old
+#: was asked about sponsor reads and a parent of an eleven-year-old was asked
+#: about cartoon peril — each of them answering somebody else's question. What
+#: fills a child's feed, and what a parent worries about in it, both move a
+#: great deal between four and eleven.
+_BY_BAND: dict[str, list[str]] = {
+    "4_6": [
+        "Is cartoon peril — chases, monsters, mild scares — all right?",
+        "Are unboxing and toy-haul videos all right?",
+        "Are loud, fast-cut videos with constant sound effects all right?",
+        "Are adults playing with toys in character all right?",
+        "Are songs and episodes that run for an hour or more all right?",
+    ],
+    "7_8": [
+        "Are challenge and prank videos all right?",
+        "Is rude humour — toilet jokes, name-calling — all right?",
+        "Are videos that push merchandise or a sponsor all right?",
+        "Are gaming videos with a commentator all right?",
+        "Are reaction videos — someone watching something else — all right?",
+    ],
+    "9_11": [
+        "Are pranks played on real people all right?",
+        "Is cartoon or game violence all right?",
+        "Are videos about being popular online — followers, going viral — all right?",
+        "Are creators giving opinions on the news or politics all right?",
+        "Are videos about appearance, dieting or working out all right?",
+    ],
+}
+
+#: Bands in order, so an unrecognised one falls to the middle rather than to
+#: nothing: a parent seeing the wrong band's questions is a smaller failure
+#: than a parent seeing an empty screen.
+_DEFAULT_BAND = "7_8"
+
+
+def builtin_policy_questions(band: AgeBand | str = _DEFAULT_BAND) -> list[PolicyQuestion]:
+    """The questions worth asking a household with a child this age.
+
+    Used when there is not enough of this child's own watching to go on. The
+    `why` says plainly that they were not drawn from this family's channels,
+    because claiming otherwise would be a lie the parent could not check — but
+    it can honestly say they were chosen for the age, because they were.
+    """
+    questions = _BY_BAND.get(str(band), _BY_BAND[_DEFAULT_BAND])
+    why = (
+        f"Asked of families with a child aged {_band_words(band)}: this is one of the "
+        "commonest things their feeds fill with."
+    )
+    return [PolicyQuestion(id=question_id(q), question=q, why=why) for q in questions]
+
+
+def _band_words(band: AgeBand | str) -> str:
+    return {"4_6": "4 to 6", "7_8": "7 to 8", "9_11": "9 to 11"}.get(str(band), "7 to 8")

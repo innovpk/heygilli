@@ -1398,6 +1398,45 @@ def parent_inbox(hid: str = Depends(household)) -> list[dict]:
     return out
 
 
+class PreferencesIn(BaseModel):
+    topics: list[str] = Field(default_factory=list)
+
+
+@app.post("/kids/{kid_id}/preferences")
+def set_preferences(
+    kid_id: str, body: PreferencesIn, tasks: BackgroundTasks, hid: str = Depends(household)
+) -> dict:
+    """Take what a child likes and go and find them videos.
+
+    Setting a child up used to mean picking channels off a list. That is the
+    wrong question to put to a parent: they are being asked to vouch for a
+    channel's entire future output on the strength of a one-line blurb, before
+    they have seen a single thing it makes — and the blurbs could be wrong,
+    which is how a motivational-quotes channel ended up offered as science.
+
+    So the channels are chosen here, from the band and the topics, and what the
+    parent is shown is the videos. A channel is only a way of finding them;
+    approving one is not the point and never was, and the parent still gets to
+    add or drop any of them by hand afterwards.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    wanted = [t.strip() for t in body.topics if t.strip()]
+    kid.topics = sorted(set(kid.topics) | set(wanted))
+    store.put_kid(kid)
+
+    have = {c.id for c in store.list_channels(hid, kid_id) if c.approved}
+    added = 0
+    for channel in starter_channels_data.suggest(kid.age_band or "7_8", wanted):
+        if channel.channel_id in have:
+            continue
+        _approve_channel(hid, kid_id, _channel_info(channel.channel_id))
+        added += 1
+    if added or have:
+        tasks.add_task(_curate_in_background, kid)
+    return {"channels": added + len(have), "topics": kid.topics}
+
+
 #: Uploads the Curator reads per channel. Mirrors `run_curator`'s own default;
 #: used here only to say how far along a run is.
 _PER_CHANNEL = 5

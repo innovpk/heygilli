@@ -991,6 +991,15 @@ class FakeGateway implements Gateway {
   @override
   Future<String> speechUrl(String text, {bool slow = false}) async => '';
 
+  @override
+  Future<int> setPreferences(String kidId, List<String> topics) async {
+    await _lag();
+    _preferences[kidId] = topics;
+    return topics.isEmpty ? 6 : topics.length * 3;
+  }
+
+  final _preferences = <String, List<String>>{};
+
   /// Demo review list: the Curator's three verdicts, so the setup screen can
   /// be seen doing its job. Rejections made here are remembered for the rest
   /// of the session, because a decision that does not stick reads as a bug.

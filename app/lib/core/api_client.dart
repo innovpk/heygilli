@@ -536,6 +536,14 @@ class ApiClient implements Gateway {
       _post('/parent/inbox/$promptId', {'decision': decision});
 
   @override
+  Future<int> setPreferences(String kidId, List<String> topics) async {
+    final r =
+        await _post('/kids/$kidId/preferences', {'topics': topics})
+            as Map<String, dynamic>;
+    return r['channels'] as int? ?? 0;
+  }
+
+  @override
   Future<ReviewQueue> reviewQueue(String kidId) async => ReviewQueue.fromJson(
     await _get('/kids/$kidId/review') as Map<String, dynamic>,
   );
