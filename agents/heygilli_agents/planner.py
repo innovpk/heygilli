@@ -249,6 +249,30 @@ def fallback_plan(
     return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=questions)
 
 
+def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -> QuestionPlan:
+    """Bring a plan written under an older count down to the current target.
+
+    Plans are cached per video and shared by every household, so lowering the
+    number of questions changed nothing for any video already planned — a
+    five-minute video went on handing out the six it was given the first time,
+    to everyone, for ever.
+
+    Trimming rather than re-planning: the questions are already in order and
+    already spaced, so the first few are a correct plan for this video, and a
+    model call to rediscover that would be paid for by a child waiting.
+    """
+    want = rules.target_questions(band, video.duration_s)
+    if len(plan.questions) <= want:
+        return plan
+    trimmed = plan.model_copy(update={"questions": plan.questions[:want]})
+    store.put_plan(trimmed)
+    log.info(
+        "trimmed cached plan for %s/%s from %d to %d",
+        video.id, band, len(plan.questions), want,
+    )
+    return trimmed
+
+
 def ensure_plan(
     video: Video,
     band: AgeBand,
@@ -262,7 +286,7 @@ def ensure_plan(
     store = store or get_store()
     cached = store.get_plan(video.id, band, language)
     if cached:
-        return cached
+        return trim_cached(cached, video, band, store)
     try:
         tr = fetch_transcript(video.id)
     except TranscriptsBlocked as e:

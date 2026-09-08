@@ -37,6 +37,33 @@ class SessionScreen extends StatefulWidget {
 /// SPEC 7.4: "Never repeat a question more than once, in any band."
 const _repeatsPerQuestion = 1;
 
+/// The embed a child watches, with YouTube's own furniture turned off.
+///
+/// All of these are documented IFrame Player API parameters, which is the
+/// whole reason they are used rather than anything drawn on top: the terms
+/// forbid overlaying the player, not configuring it.
+///
+/// `showControls` is the one that matters most, and not for tidiness. The
+/// control bar carried a settings menu, a captions toggle, a copy-link button
+/// and a second progress bar sitting under Gilli's own — but also, on pause,
+/// YouTube's "More videos" panel. Every video on a child's shelf has been
+/// read against what their household said, and one tap on that panel put them
+/// in an unscreened video inside the same frame. That is the allowlist gone,
+/// silently, from the one screen built to enforce it.
+///
+/// The child loses nothing they had: Gilli decides when this pauses, the way
+/// back out is the Home button in the bar above, and where they are in the
+/// video is what `QuestionTrack` is for.
+@visibleForTesting
+const kidPlayerParams = YoutubePlayerParams(
+  showControls: false,
+  showFullscreenButton: false,
+  showVideoAnnotations: false,
+  strictRelatedVideos: true,
+  enableCaption: false,
+  enableKeyboard: false,
+);
+
 enum _Phase {
   connecting,
   watching,
@@ -57,11 +84,7 @@ class _SessionScreenState extends State<SessionScreen> {
   late final YoutubePlayerController _yt = YoutubePlayerController.fromVideoId(
     videoId: widget.video.id,
     autoPlay: true,
-    params: const YoutubePlayerParams(
-      showFullscreenButton: false,
-      strictRelatedVideos: true,
-      enableCaption: false,
-    ),
+    params: kidPlayerParams,
   );
 
   final _ears = KidEars();

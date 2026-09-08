@@ -241,3 +241,51 @@ def test_a_plan_that_already_meets_the_target_is_left_alone() -> None:
     assert [q.text for q in plan.questions] == ["Why?", "What happened?", "What next?"], (
         "the bank was used where the model had already answered"
     )
+
+
+def test_a_plan_cached_under_the_old_count_is_brought_down(
+    store: LocalStore, monkeypatch
+) -> None:
+    """Plans are cached per video and shared by every household, so lowering the
+    count changed nothing for anything already planned: a video went on handing
+    out the six questions it was given the first time, to everyone, for ever.
+
+    Measured live — a 5m48s video still came back with three after the cap
+    shipped, because its plan predated it.
+    """
+    from heygilli_agents.schemas import Question, QuestionPlan
+
+    video = Video(id="vidcached1", title="Volcanoes", duration_s=348)  # 5m48s -> target 2
+    six = [
+        Question(t_sec=90 + i * 200, type="recall", input="voice", text=f"q{i}", expected="x")
+        for i in range(6)
+    ]
+    store.put_plan(QuestionPlan(video_id=video.id, age_band="7_8", language="en", questions=six))
+
+    def _never(vid):  # pragma: no cover - a trim must cost no model call
+        raise AssertionError("re-planned a video that only needed trimming")
+
+    monkeypatch.setattr(planner, "build_plan", _never)
+    plan = planner.ensure_plan(video, "7_8", "en", store)
+
+    want = rules.target_questions("7_8", 348)
+    assert want == 2
+    assert len(plan.questions) == want
+    # The ones kept are the first, which are already in order and already
+    # spaced — the front of a correct plan.
+    assert [q.text for q in plan.questions] == ["q0", "q1"]
+    # And it is written back, so the next child does not pay for it again.
+    assert len(store.get_plan(video.id, "7_8", "en").questions) == want
+
+
+def test_a_cached_plan_already_within_the_target_is_untouched(store: LocalStore) -> None:
+    from heygilli_agents.schemas import Question, QuestionPlan
+
+    video = Video(id="vidcached2", title="Volcanoes", duration_s=1200)
+    two = [
+        Question(t_sec=90, type="recall", input="voice", text="a", expected="x"),
+        Question(t_sec=400, type="why", input="voice", text="b", expected="y"),
+    ]
+    store.put_plan(QuestionPlan(video_id=video.id, age_band="7_8", language="en", questions=two))
+    plan = planner.ensure_plan(video, "7_8", "en", store)
+    assert [q.text for q in plan.questions] == ["a", "b"]
