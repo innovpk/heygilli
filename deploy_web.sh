@@ -18,7 +18,14 @@ CID="$(sed -n 's/^GOOGLE_CLIENT_ID=//p' agents/.env | tail -1 | tr -d '"'"'"' \r
 [ -n "$CID" ] || { echo "no GOOGLE_CLIENT_ID in agents/.env"; exit 1; }
 
 echo "==> building Flutter web for /app/"
-(cd app && flutter build web --release \
+# No service worker. Flutter's default one caches the whole bundle and hands
+# it to the page that is already open, picking a new build up only on some
+# later load — so a parent who had the app open when a deploy landed kept
+# being served the previous UI, and so did the person testing it, and neither
+# of them had any way to tell that was what they were looking at. Nothing here
+# works offline anyway: without the gateway there are no videos, no screening
+# and no sign-in.
+(cd app && flutter build web --release --pwa-strategy=none \
   --base-href=/app/ \
   --dart-define=HEYGILLI_API_URL=https://heygilli-gateway.onrender.com \
   --dart-define=HEYGILLI_GOOGLE_SERVER_CLIENT_ID="$CID")
