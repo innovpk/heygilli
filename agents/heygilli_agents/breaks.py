@@ -61,13 +61,63 @@ def _span(s: Session) -> tuple[datetime, datetime] | None:
     return start, max(start, end)
 
 
-def minutes_today(sessions: Sequence[Session], day: str, extra_seconds: int = 0) -> int:
+def _sitting(
+    sessions: Sequence[Session],
+    now: datetime,
+    last_break_end: datetime | None = None,
+) -> list[Session]:
+    """The run of watching that is still going on: the sessions in it, oldest first.
+
+    Walks the sessions in order and starts the run over whenever the child was
+    away for `GAP_RESET_MINUTES` — including the gap between the last session
+    and `now`, so a child who stopped twenty minutes ago is in no run at all.
+    Sessions that finished before `last_break_end` are dropped, because the
+    break already wiped them. Deliberately ignores dates: watching from 23:55
+    to 00:10 is one sitting.
+    """
+    gap = timedelta(minutes=GAP_RESET_MINUTES)
+
+    spans = [(span, s) for s in sessions if (span := _span(s)) is not None]
+    spans.sort(key=lambda item: item[0][0])
+
+    run: list[Session] = []
+    prev_end: datetime | None = None
+    for (start, end), s in spans:
+        if end <= (last_break_end or datetime.min.replace(tzinfo=UTC)):
+            continue  # finished before the last break; the break already wiped it
+        if prev_end is not None and start - prev_end >= gap:
+            run = []
+        run.append(s)
+        prev_end = end if prev_end is None else max(prev_end, end)
+
+    if prev_end is not None and now - prev_end >= gap:
+        return []
+    return run
+
+
+def minutes_today(
+    sessions: Sequence[Session],
+    day: str,
+    extra_seconds: int = 0,
+    now: datetime | None = None,
+) -> int:
     """Minutes watched on `day` (YYYY-MM-DD), plus a live session's `extra_seconds`.
 
     Sessions carry the date they started on, so yesterday's watching rolls off
-    at midnight without anything having to run at midnight.
+    at midnight without anything having to run at midnight — but it must not
+    roll off underneath a child who is still watching. A sitting that began at
+    23:30 would otherwise hand back the whole daily allowance at midnight,
+    mid-video, which is the one moment the limit exists for. So the sitting that
+    is still going on counts towards today whichever day its sessions started
+    on, and drops off once the child has actually stopped for
+    `GAP_RESET_MINUTES`. A movement break is not stopping: the carry-over
+    deliberately ignores breaks, or five minutes on the rug would clear the day.
     """
-    total = sum(max(0, s.watched_sec) for s in sessions if s.date == day)
+    now = now or _utcnow()
+    counted: dict[str, Session] = {s.id: s for s in sessions if s.date == day}
+    if day == now.date().isoformat():
+        counted.update({s.id: s for s in _sitting(sessions, now)})
+    total = sum(max(0, s.watched_sec) for s in counted.values())
     return (total + max(0, extra_seconds)) // 60
 
 
@@ -77,31 +127,9 @@ def continuous_minutes(
     last_break_end: datetime | None = None,
     extra_seconds: int = 0,
 ) -> int:
-    """Minutes of unbroken watching: since the last break, or since a 10-minute gap.
-
-    Walks the sessions in order and adds them up, starting over whenever the
-    child was away for `GAP_RESET_MINUTES` — including the gap between the last
-    session and `now`, so a child who stopped twenty minutes ago starts fresh.
-    Deliberately ignores dates: watching from 23:55 to 00:10 is one sitting.
-    """
+    """Minutes of unbroken watching: since the last break, or since a 10-minute gap."""
     now = now or _utcnow()
-    gap = timedelta(minutes=GAP_RESET_MINUTES)
-
-    spans = [(span, s.watched_sec) for s in sessions if (span := _span(s)) is not None]
-    spans.sort(key=lambda item: item[0][0])
-
-    run = 0
-    prev_end: datetime | None = None
-    for (start, end), watched in spans:
-        if end <= (last_break_end or datetime.min.replace(tzinfo=UTC)):
-            continue  # finished before the last break; the break already wiped it
-        if prev_end is not None and start - prev_end >= gap:
-            run = 0
-        run += max(0, watched)
-        prev_end = end if prev_end is None else max(prev_end, end)
-
-    if prev_end is not None and now - prev_end >= gap:
-        run = 0
+    run = sum(max(0, s.watched_sec) for s in _sitting(sessions, now, last_break_end))
     return (run + max(0, extra_seconds)) // 60
 
 
@@ -136,7 +164,7 @@ def build_state(
     now = now or _utcnow()
     running = active_break(breaks, now)
     today = now.date().isoformat()
-    watched = minutes_today(sessions, today, extra_seconds)
+    watched = minutes_today(sessions, today, extra_seconds, now)
     left = max(0, kid.daily_minutes - watched) if kid.daily_minutes > 0 else None
     state = WatchState(
         minutes_today=watched,
