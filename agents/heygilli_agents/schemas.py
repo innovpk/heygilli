@@ -874,7 +874,12 @@ class ParentPrompt(BaseModel):
 
 class CuratorDecision(BaseModel):
     decision: Literal["approve", "hide", "ask_parent"]
-    reason: str = Field(description="One line a parent can read")
+    reason: str = Field(
+        description="Two or three sentences for the parent who has to decide: what actually "
+                    "happens in the video, what their child would get from it or what gave you "
+                    "pause, and which of the household's own answers it touches. Never restate "
+                    "the title."
+    )
     topics: list[str] = Field(default_factory=list)
     policy_id: str = Field(
         default="",
