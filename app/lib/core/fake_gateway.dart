@@ -431,6 +431,7 @@ class FakeGateway implements Gateway {
     String kidId,
     List<String> channelIds, {
     String profile = '',
+    List<String> topics = const [],
   }) async {
     await _lag();
     final existing = _channels[kidId] ??= [];

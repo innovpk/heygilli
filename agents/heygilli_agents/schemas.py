@@ -71,6 +71,12 @@ class Kid(BaseModel):
     age_band: AgeBand | None = None
     languages: list[Language] = Field(default_factory=lambda: ["en"])
     avatar: str = "gilli"
+    #: What the parent said this child likes, from the starter-channel screen.
+    #: It used to filter that screen's suggestions and then be thrown away, so
+    #: a parent who asked for science and was handed a science channel whose
+    #: latest uploads are motivational-quote compilations got them approved
+    #: without anything noticing they were not what was asked for.
+    topics: list[str] = Field(default_factory=list)
     question_freq: QuestionFreq = "normal"
 
     # Time limits (PROTOCOL.md "Time limits and movement breaks"). All four are

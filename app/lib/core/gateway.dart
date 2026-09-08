@@ -44,6 +44,13 @@ abstract class Gateway {
     String kidId,
     List<String> channelIds, {
     String profile,
+
+    /// What the parent said this child likes, when these came off the
+    /// starter-channel screen. Recorded on the child so the screening knows
+    /// what was asked for: a channel's topics are the channel's, not each
+    /// upload's, and a science channel posting quote compilations had nothing
+    /// to notice it with.
+    List<String> topics,
   });
 
   /// `POST /import/takeout`, multipart. The only route to a child's YouTube

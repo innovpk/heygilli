@@ -157,6 +157,7 @@ def decide(
     policy: Policy | None = None,
     languages: Sequence[str] = (),
     transcript_source: str = "",
+    wanted_topics: Sequence[str] = (),
 ) -> CuratorDecision:
     prescreened = prescreen(video)
     if prescreened.verdict != "pass":
@@ -172,8 +173,22 @@ def decide(
                    f"which is not a language they are set up for",
         )
     spoken = ", ".join(languages) if languages else "unknown"
+    # What the parent asked for, and what to do when an upload is not it. A
+    # channel's topics are the channel's, not each video's: an educational
+    # channel posts quote compilations, a science channel posts a birthday
+    # message, and both were approved without anything noticing they were not
+    # what the parent chose. Never hidden for it, though — a preference the
+    # family expressed goes to the parent, and only the safety rules hide on
+    # their own.
+    wanted = (
+        f"the parent asked for: {', '.join(wanted_topics)}\n"
+        "If this video is not about any of those, return ask_parent and say so "
+        "in the reason. Never hide it for that alone.\n"
+        if wanted_topics
+        else ""
+    )
     prompt = (
-        f"age_band: {band}\nlanguages the child speaks: {spoken}\n"
+        f"age_band: {band}\nlanguages the child speaks: {spoken}\n{wanted}"
         f"title: {video.title}\nduration_s: {video.duration_s}\n"
         f"description: {video.description[:600]}\n\n{policy_prompt(policy)}"
         f"Transcript excerpt:\n{excerpt}\n\n"
@@ -263,6 +278,7 @@ def run_curator(
                 policy,
                 languages=kid.languages,
                 transcript_source=tr["source"],
+                wanted_topics=kid.topics,
             )
             video.screening.topics = decision.topics
             video.screening.reason = decision.reason

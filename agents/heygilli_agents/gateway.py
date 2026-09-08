@@ -741,6 +741,11 @@ def curate_now(kid_id: str, tasks: BackgroundTasks, hid: str = Depends(household
 
 class ImportChannelsIn(BaseModel):
     channel_ids: list[str] = Field(default_factory=list)
+    #: What the parent said this child likes, when these came from the
+    #: starter-channel screen. Recorded on the kid, because a channel's topics
+    #: are the channel's and not each upload's: a science channel posts a
+    #: quote compilation and nothing noticed it was not what was asked for.
+    topics: list[str] = Field(default_factory=list)
     profile: str = Field(
         default="",
         description="The Takeout profile these channels came from. Present only when the parent "
@@ -802,6 +807,12 @@ def import_channels(
     """
     kid = _kid(hid, kid_id)
     store = get_store()
+    wanted = [t.strip() for t in body.topics if t.strip()]
+    if wanted and sorted(wanted) != sorted(kid.topics):
+        # Added to rather than replaced: a parent who comes back for animals
+        # after picking science has not stopped wanting science.
+        kid.topics = sorted(set(kid.topics) | set(wanted))
+        store.put_kid(kid)
     have = {c.id for c in store.list_channels(hid, kid_id) if c.approved}
     added: list[dict] = []
     already: list[str] = []

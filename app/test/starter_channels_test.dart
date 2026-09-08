@@ -15,8 +15,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A parent who did neither had an empty app.
 class _CountingGateway extends FakeGateway {
   final List<String> added = [];
+  final List<String> imported = [];
   final List<String> searches = [];
   bool searchFails = false;
+
+  @override
+  Future<ImportResult> importChannels(
+    String kidId,
+    List<String> channelIds, {
+    String profile = '',
+    List<String> topics = const [],
+  }) {
+    imported.addAll(channelIds);
+    return super.importChannels(
+      kidId,
+      channelIds,
+      profile: profile,
+      topics: topics,
+    );
+  }
 
   @override
   Future<Channel> addChannel(String kidId, String url) {
@@ -33,6 +50,8 @@ class _CountingGateway extends FakeGateway {
 }
 
 void main() {
+  _topicsTravel();
+
   _search();
 
   _existingHousehold();
@@ -111,9 +130,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    expect(gateway.added, [
-      'https://www.youtube.com/channel/UC3wCAOfSB0W9iuKDDtNJeGw',
-    ]);
+    expect(gateway.imported, ['UC3wCAOfSB0W9iuKDDtNJeGw']);
   });
 
   testWidgets('select all is a toggle, not a trap', (tester) async {
@@ -129,7 +146,7 @@ void main() {
     await tester.tap(find.text('Clear all'));
     await tester.pump();
     expect(find.text('Choose at least one'), findsOneWidget);
-    expect(gateway.added, isEmpty);
+    expect(gateway.imported, isEmpty);
   });
 }
 
@@ -160,6 +177,7 @@ void _existingHousehold() {
       'https://www.youtube.com/channel/UC3wCAOfSB0W9iuKDDtNJeGw',
     );
     gateway.added.clear();
+    gateway.imported.clear();
     await app.refreshKids();
   });
 
@@ -209,11 +227,11 @@ void _existingHousehold() {
       await tester.pump(const Duration(milliseconds: 300));
     }
     expect(
-      gateway.added.any((u) => u.contains('UC3wCAOfSB0W9iuKDDtNJeGw')),
+      gateway.imported.any((id) => id.contains('UC3wCAOfSB0W9iuKDDtNJeGw')),
       isFalse,
       reason: 'a channel they already had must not be re-added',
     );
-    expect(gateway.added.length, total - 1);
+    expect(gateway.imported.length, total - 1);
   });
 }
 
@@ -278,7 +296,10 @@ void _search() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(gateway.added, ['https://www.youtube.com/channel/UCONtPx56PSebXJOxbFv-2jQ']);
+    // Sent by id in the batch call now rather than as a pasted URL one at a
+    // time; the server resolves both the same way, and the batch is what
+    // carries the parent's chosen topics.
+    expect(gateway.imported, ['UCONtPx56PSebXJOxbFv-2jQ']);
   });
 
   testWidgets('nothing is searched until the parent asks', (tester) async {
@@ -314,4 +335,87 @@ void _search() {
     expect(find.textContaining('Could not search'), findsOneWidget);
     expect(find.text('Nothing on YouTube matched that.'), findsNothing);
   });
+}
+
+/// What the parent picked has to reach the screening.
+///
+/// A parent chose Science, was offered Free School — a real educational
+/// channel, correctly tagged — and had Swami Vivekananda and Albert Einstein
+/// quote compilations approved onto an eight-year-old's shelf. The topics
+/// filtered which channels were *suggested* and were then dropped, so by the
+/// time each upload was read nothing knew science had been asked for.
+void _topicsTravel() {
+  testWidgets('approving suggestions sends the topics that were picked', (
+    tester,
+  ) async {
+    late AppState app;
+    late _CapturingGateway gateway;
+    late Kid kid;
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      gateway = _CapturingGateway();
+      await gateway.signInDev('parent');
+      app = AppState(gateway: gateway, settings: await LocalSettings.load());
+      kid = await gateway.createKid(
+        nickname: 'Abu',
+        age: 8,
+        languages: const ['en'],
+      );
+      await app.refreshKids();
+    });
+
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: app,
+        child: MaterialApp(home: StarterChannelsScreen(kid: kid)),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    await tester.tap(find.text('Science and how things work'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    // Two, so that "one call for the batch" is a claim the test can fail on.
+    await tester.tap(find.byType(CheckboxListTile).at(0));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byType(CheckboxListTile).at(1));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Add 2 channels'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(gateway.sentTopics, ['science']);
+    // One call for the batch, not one per channel over a sleeping gateway.
+    expect(gateway.importCalls, 1);
+  });
+}
+
+/// Keeps what the screen sent, which is the thing under test.
+class _CapturingGateway extends FakeGateway {
+  List<String> sentTopics = const [];
+  int importCalls = 0;
+
+  @override
+  Future<ImportResult> importChannels(
+    String kidId,
+    List<String> channelIds, {
+    String profile = '',
+    List<String> topics = const [],
+  }) {
+    importCalls++;
+    sentTopics = topics;
+    return super.importChannels(
+      kidId,
+      channelIds,
+      profile: profile,
+      topics: topics,
+    );
+  }
 }

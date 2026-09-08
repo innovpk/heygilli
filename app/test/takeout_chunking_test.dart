@@ -157,6 +157,7 @@ class _RecordingGateway extends FakeGateway {
     String kidId,
     List<String> channelIds, {
     String profile = '',
+    List<String> topics = const [],
   }) async {
     batches.add(List.of(channelIds));
     profiles.add(profile);

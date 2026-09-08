@@ -116,14 +116,15 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      for (final c in picked) {
-        // The same call a pasted channel goes through, so screening starts on
-        // its own exactly as it does for one added by hand.
-        await state.gateway.addChannel(
-          widget.kid.id,
-          'https://www.youtube.com/channel/${c.channelId}',
-        );
-      }
+      // One call rather than one per channel: it carries the topics the
+      // parent picked, which the screening needs and which a per-channel add
+      // has nowhere to put, and it starts the Curator once instead of once
+      // per channel over a gateway that may be asleep.
+      await state.gateway.importChannels(
+        widget.kid.id,
+        [for (final c in picked) c.channelId],
+        topics: _topics.toList(),
+      );
       messenger.showSnackBar(
         SnackBar(
           content: Text(

@@ -149,10 +149,12 @@ class ApiClient implements Gateway {
     String kidId,
     List<String> channelIds, {
     String profile = '',
+    List<String> topics = const [],
   }) async => ImportResult.fromJson(
     await _post('/kids/$kidId/channels/import', {
           'channel_ids': channelIds,
           if (profile.isNotEmpty) 'profile': profile,
+          if (topics.isNotEmpty) 'topics': topics,
         })
         as Map<String, dynamic>,
   );
