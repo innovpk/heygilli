@@ -45,8 +45,11 @@ def search_transcript(video_id: str, phrase: str) -> dict:
     Returns:
         {"found": bool, "hits": [{"at": "3:12", "text": str}], "source": str,
          "searched_whole_video": bool}
-        `searched_whole_video` is false when there is no transcript at all, in
-        which case "not found" means nothing was read, not that it is absent.
+        `searched_whole_video` is TRUE when every word anyone has of this video
+        was searched — a phrase that did not turn up is not said in it, and may
+        be reported as simply absent. It is FALSE only when there is no
+        transcript at all, in which case "not found" means nothing was read
+        rather than that the phrase is absent.
     """
     needle = (phrase or "").strip().lower()
     if not needle:
