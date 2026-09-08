@@ -21,17 +21,31 @@ void main() {
     expect(kidPlayerParams.showFullscreenButton, isFalse);
   });
 
-  test('the player can still be started by the child in front of it', () {
-    // `pointerEvents: none` is the obvious way to keep a child away from
-    // "Watch on YouTube", and it shipped once. It also stops the video ever
-    // playing: the setting is on before the first frame, and a browser that
-    // will not autoplay sound — every mobile browser, and Safari — leaves the
-    // embed CUED, waiting for a tap that can no longer reach it. It came back
-    // as "the video never starts", which is the whole product gone.
+  test('nothing this app sends reaches the embed', () {
+    // The control bar is gone, but "Watch on YouTube", the share button and,
+    // on pause, "More videos" live in an overlay that survives `controls=0`.
+    // That panel is the allowlist gone: one tap and the child is in a video
+    // nobody screened, inside the same frame.
+    expect(kidPlayerParams.pointerEvents, PointerEvents.none);
+  });
+
+  test('and so the video has to start without a tap', () {
+    // These two go together, and separating them broke the app once.
     //
-    // So this is not a style preference. Turning it on again means a player a
-    // child cannot start.
-    expect(kidPlayerParams.pointerEvents, isNot(PointerEvents.none));
+    // `pointerEvents: none` is written into the wrapper before the first
+    // frame, so it is already on while the embed is CUED — and every mobile
+    // browser, and Safari, refuses to autoplay anything with sound. The player
+    // sat on its poster waiting for a tap that could never arrive, and the
+    // video never began at all.
+    //
+    // Muted autoplay is permitted everywhere. The sound is turned back on as
+    // soon as it is playing, and `SoundButton` covers the browsers that refuse
+    // to be told.
+    expect(
+      kidPlayerParams.mute,
+      isTrue,
+      reason: 'unmuted + pointerEvents:none is a player that never starts',
+    );
   });
 
   test('no settings, captions or keyboard seeking for a child to find', () {

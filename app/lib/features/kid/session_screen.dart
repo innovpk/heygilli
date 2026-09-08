@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -63,16 +64,25 @@ const kidPlayerParams = YoutubePlayerParams(
   strictRelatedVideos: true,
   enableCaption: false,
   enableKeyboard: false,
-  // `pointerEvents: none` was here, to keep a child away from the overlay that
-  // carries "Watch on YouTube", the share button and "More videos". It did
-  // that. It also made the player impossible to start.
+  // Nothing this app sends reaches the embed, which is what keeps a child away
+  // from "Watch on YouTube", the share button and, on pause, "More videos" —
+  // one tap on that panel puts them in an unscreened video inside the frame,
+  // and that is the allowlist gone from the screen built to enforce it.
   //
-  // The setting is baked into the wrapper page before the first frame, so it
-  // is already on while the embed is CUED — and a browser that refuses to
-  // autoplay sound, which is every mobile browser and Safari, is waiting at
-  // that point for a tap it can never receive. The video simply never began.
-  // A player a child cannot start is worse than one showing a logo, so this
-  // stays off until there is a way to have both.
+  // This costs the tap that starts the video, and that is not free. The
+  // setting is written into the wrapper before the first frame, so a browser
+  // that will not autoplay sound — every mobile browser, and Safari — sits on
+  // the poster waiting for a tap it can never receive. It shipped that way
+  // once and the video simply never began.
+  //
+  // `mute` is what buys it back. Muted autoplay is permitted everywhere, so
+  // playback starts on its own and needs no tap at all; the sound is turned
+  // back on the moment it is playing. See `_unmuteOnce`.
+  //
+  // The other cost is that an ad inside the player cannot be clicked. That is
+  // a deliberate trade for a screen a six-year-old is sitting in front of.
+  pointerEvents: PointerEvents.none,
+  mute: true,
 );
 
 enum _Phase {
@@ -135,6 +145,18 @@ class _SessionScreenState extends State<SessionScreen> {
   /// subtree included — to move a bar six pixels. The embed survives that
   /// (it is behind a GlobalKey) but nothing else about it is worth paying for.
   final _position = ValueNotifier<double>(0);
+
+  /// True when the browser kept the video muted and a child has to ask for
+  /// sound themselves.
+  ///
+  /// The automatic path works on every browser that lets a page unmute what it
+  /// started. Where it does not — iOS is the one that matters — a silent video
+  /// is a broken app that looks like a working one, so this puts a button in
+  /// HeyGilli's own bar rather than leaving a child watching a mime.
+  final _needsSound = ValueNotifier<bool>(false);
+
+  /// Whether the unmute has already been attempted for this session.
+  bool _unmuteTried = false;
 
   /// How many more times the child may ask to hear this question.
   ///
@@ -240,6 +262,7 @@ class _SessionScreenState extends State<SessionScreen> {
       // Fire and forget; the screen is already going away.
       unawaited(context.read<AppState>().gateway.endSession(id));
     }
+    _needsSound.dispose();
     _ears.dispose();
     _voice.stop();
     _yt.close();
@@ -256,7 +279,10 @@ class _SessionScreenState extends State<SessionScreen> {
     // Every time it starts playing, not once: the captions module is loaded
     // with the video, so a single call at the top of the session lands before
     // there is anything to unload.
-    if (v.playerState == PlayerState.playing) hideCaptions(_yt);
+    if (v.playerState == PlayerState.playing) {
+      hideCaptions(_yt);
+      unawaited(_unmuteOnce());
+    }
     if (v.playerState == PlayerState.ended && !_ended) {
       // The gateway normally sends `end` itself; this covers a missed frame.
       Future<void>.delayed(const Duration(seconds: 2), () {
@@ -264,6 +290,31 @@ class _SessionScreenState extends State<SessionScreen> {
           _onMessage(const EndMessage(summaryTtsUrl: '', wordsSaid: []));
         }
       });
+    }
+  }
+
+  /// Turn the sound on, once, and find out whether it worked.
+  ///
+  /// The video is started muted so that it starts at all (see
+  /// [kidPlayerParams]). Asking is not the same as being obeyed: a browser may
+  /// refuse to unmute audio the user has not asked for, and it refuses
+  /// silently. So this reads the player back rather than trusting the call,
+  /// and if the sound is still off it says so instead of leaving a child in
+  /// front of a silent video wondering why Gilli has stopped talking.
+  Future<void> _unmuteOnce() async {
+    if (_unmuteTried) return;
+    _unmuteTried = true;
+    await _restoreSound();
+  }
+
+  Future<void> _restoreSound() async {
+    try {
+      await _yt.unMute();
+      final stillMuted = await _yt.isMuted;
+      if (mounted) _needsSound.value = stillMuted;
+    } catch (e) {
+      debugPrint('[yt] could not unmute: $e');
+      if (mounted) _needsSound.value = true;
     }
   }
 
@@ -656,6 +707,10 @@ class _SessionScreenState extends State<SessionScreen> {
                             : null,
                         onHome: () => Navigator.of(context).maybePop(),
                         gilli: _smallGilli(44),
+                        sound: SoundButton(
+                          needsSound: _needsSound,
+                          onTap: _restoreSound,
+                        ),
                       ),
                     ),
                   ],
@@ -679,6 +734,10 @@ class _SessionScreenState extends State<SessionScreen> {
                               ? widget.video.title
                               : null,
                           onHome: () => Navigator.of(context).maybePop(),
+                          sound: SoundButton(
+                            needsSound: _needsSound,
+                            onTap: _restoreSound,
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.only(left: 12),
@@ -710,6 +769,10 @@ class _SessionScreenState extends State<SessionScreen> {
                 _TopBar(
                   title: _band.showsVideoTitles ? widget.video.title : null,
                   onHome: () => Navigator.of(context).maybePop(),
+                  sound: SoundButton(
+                    needsSound: _needsSound,
+                    onTap: _restoreSound,
+                  ),
                 ),
                 SizedBox(
                   height: videoH,
@@ -1016,9 +1079,10 @@ class _SessionScreenState extends State<SessionScreen> {
 
 /// Thin bar above the video: a home button and, for readers, the title.
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, required this.onHome});
+  const _TopBar({required this.title, required this.onHome, this.sound});
   final String? title;
   final VoidCallback onHome;
+  final Widget? sound;
 
   @override
   Widget build(BuildContext context) {
@@ -1043,11 +1107,57 @@ class _TopBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: HgText.body(size: 16, color: HgColors.sky),
               ),
-            ),
+            )
+          else
+            const Spacer(),
+          ?sound,
         ],
       ),
     );
   }
+}
+
+/// "Tap for sound", for the browsers that will not unmute on their own.
+///
+/// Deliberately loud: a pre-reader cannot be told what it is for in words, and
+/// a silent video is the failure they are least able to explain to anybody. It
+/// disappears the moment the sound is on.
+///
+/// It lives in HeyGilli's own bar, never over the player — SPEC §5.5.
+class SoundButton extends StatelessWidget {
+  const SoundButton({super.key, required this.needsSound, required this.onTap});
+
+  final ValueListenable<bool> needsSound;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: needsSound,
+    builder: (context, muted, _) => muted
+        ? Semantics(
+            button: true,
+            label: 'Turn the sound on',
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: HgColors.mango,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.volume_off_rounded,
+                  color: HgColors.ink,
+                  size: 26,
+                ),
+              ),
+            ),
+          )
+        : const SizedBox.shrink(),
+  );
 }
 
 /// Gilli, mic and pick-card sizes for the current stage box.
@@ -1068,10 +1178,12 @@ class _WatchBar extends StatelessWidget {
     required this.title,
     required this.onHome,
     required this.gilli,
+    required this.sound,
   });
   final String? title;
   final VoidCallback onHome;
   final Widget gilli;
+  final Widget sound;
 
   @override
   Widget build(BuildContext context) {
@@ -1097,7 +1209,10 @@ class _WatchBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: HgText.body(size: 16, color: HgColors.sky),
               ),
-            ),
+            )
+          else
+            const Spacer(),
+          sound,
         ],
       ),
     );
