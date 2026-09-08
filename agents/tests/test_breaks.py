@@ -103,6 +103,43 @@ def test_continuous_watching_survives_midnight() -> None:
     assert breaks.minutes_today([late, after], "2026-09-06") == 10
 
 
+def midnight_sitting() -> Session:
+    """61 minutes ending at 00:29, so the day's whole allowance is already spent."""
+    return Session(
+        household_id="hh_1", kid_id="kid_1", video_id="v1", age_band="7_8",
+        started_at="2026-09-05T23:28:00+00:00", ended_at="2026-09-06T00:29:00+00:00",
+        watched_sec=61 * 60, date="2026-09-05",
+    )
+
+
+def test_the_day_does_not_reset_underneath_a_child_who_is_still_watching() -> None:
+    """Midnight rolls the day over; a sitting in progress carries across it.
+
+    Sessions are dated by the day they started, so without this a child who
+    started at 23:28 was handed a fresh hour at midnight, mid-video.
+    """
+    late = midnight_sitting()
+    now = datetime(2026, 9, 6, 0, 30, tzinfo=UTC)  # a minute after they stopped
+    assert breaks.minutes_today([late], "2026-09-06", now=now) == 61
+
+    state = breaks.build_state(kid(daily_minutes=60), [late], [], now=now)
+    assert state.minutes_left_today == 0
+    assert state.watching_allowed is False and state.blocked_reason == "daily_limit"
+
+    # Stopping for the gap is what ends the day: after it, the new one is theirs.
+    stopped = datetime(2026, 9, 6, 0, 45, tzinfo=UTC)
+    assert breaks.minutes_today([late], "2026-09-06", now=stopped) == 0
+
+
+def test_a_movement_break_does_not_hand_back_the_day() -> None:
+    """A break wipes the sitting, which is what it is for, and nothing else."""
+    late = midnight_sitting()
+    ended = NOW.replace(year=2026, month=9, day=6, hour=0, minute=34)
+    now = datetime(2026, 9, 6, 0, 35, tzinfo=UTC)
+    assert breaks.minutes_today([late], "2026-09-06", now=now) == 61
+    assert breaks.continuous_minutes([late], now, last_break_end=ended) == 0
+
+
 # --- state ---------------------------------------------------------------------------
 
 
