@@ -42,7 +42,7 @@ Live against the gateway on an Android emulator, 5 September: the Curator's appr
 
 ## How it is built
 
-**Six Strands agents** in Python, each an `Agent` with a frozen system prompt and its own model setting:
+**Seven Strands agents** in Python, each an `Agent` with a frozen system prompt and its own model setting:
 
 | Agent | Runs | `@tool` functions it may call | Decides |
 |---|---|---|---|
@@ -52,10 +52,11 @@ Live against the gateway on an Android emulator, 5 September: the Curator's appr
 | Digest | nightly per kid | — | the words a parent reads, and whether anything deserves a notification |
 | Reviewer | per channel on import | `screen_video` | what a channel actually publishes, from its RSS feed alone |
 | Coach | when a parent writes a break line or sets household policy | — | drafts **for the parent**; nothing here can reach a child |
+| Explainer | when a parent asks a question about one video | `search_transcript`, `channel_reputation`, `screen_video` | nothing — it answers from the cached transcript, and says so when there is none |
 
-`ROLES` in `agents/heygilli_agents/models.py` is exactly those six, and each takes its own
-`HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding a
-seventh: channel drift runs on `reviewer`, the revisit question on `planner`, and the
+`ROLES` in `agents/heygilli_agents/models.py` is exactly those seven, and each takes its own
+`HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding an
+eighth: channel drift runs on `reviewer`, the revisit question on `planner`, and the
 progress note and watch-history summary on `digest`.
 
 Everything else the pipeline needs — reading a transcript, listing a channel's uploads,
