@@ -1632,7 +1632,10 @@ async def _await_answer(ws: WebSocket, idx: int, timeout_ms: int) -> ClientAnswe
 
 @app.get("/debug/transcript")
 def debug_transcript(
-    video_id: str, reset: bool = False, hid: str = Depends(household)
+    video_id: str,
+    reset: bool = False,
+    model: str = "",
+    hid: str = Depends(household),
 ) -> dict:
     """Run the transcript chain for one video and report what each source said.
 
@@ -1650,6 +1653,14 @@ def debug_transcript(
         # Otherwise the answer to "why did this fail" is "we did not try",
         # which is the standing-down working, not a diagnosis.
         transcript_sources.clear_cooldowns()
+    # Free-tier quota is counted per model, so "we are out of quota" is a fact
+    # about one model name and not about the key. Trying another one is the
+    # only way to find out which, and it is a question worth being able to ask
+    # from outside the host.
+    was = os.environ.get("HEYGILLI_GEMINI_MODEL")
+    if model:
+        os.environ["HEYGILLI_GEMINI_MODEL"] = model
+        out["model"] = model
     try:
         got = transcript_sources.fetch_transcript(video_id)
         out["source"] = got.get("source")
@@ -1659,6 +1670,12 @@ def debug_transcript(
     except Exception as e:  # noqa: BLE001 - reporting the failure IS the endpoint
         out["source"] = "none"
         out["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        if model:
+            if was is None:
+                os.environ.pop("HEYGILLI_GEMINI_MODEL", None)
+            else:
+                os.environ["HEYGILLI_GEMINI_MODEL"] = was
     return out
 
 
