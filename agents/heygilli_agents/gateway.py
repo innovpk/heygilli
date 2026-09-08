@@ -268,6 +268,9 @@ def starter_channels(band: str = "7_8", topics: str = "") -> dict:
     wanted = [t.strip() for t in topics.split(",") if t.strip()]
     return {
         "topics": [{"id": t, "label": label} for t, label in starter_channels_data.TOPICS],
+        "break_activities": [
+            {"id": a, "label": label} for a, label in starter_channels_data.BREAK_ACTIVITIES
+        ],
         "channels": [
             {
                 "channel_id": c.channel_id,
@@ -1400,6 +1403,10 @@ def parent_inbox(hid: str = Depends(household)) -> list[dict]:
 
 class PreferencesIn(BaseModel):
     topics: list[str] = Field(default_factory=list)
+    #: What this child does when the screen pauses. Asked here because a break
+    #: is set up before the first one happens or it is set up after a parent
+    #: has already watched one be ignored.
+    break_activities: list[str] = Field(default_factory=list)
 
 
 @app.post("/kids/{kid_id}/preferences")
@@ -1423,6 +1430,15 @@ def set_preferences(
     store = get_store()
     wanted = [t.strip() for t in body.topics if t.strip()]
     kid.topics = sorted(set(kid.topics) | set(wanted))
+    activities = [a.strip() for a in body.break_activities if a.strip()]
+    if activities:
+        kid.break_activities = activities
+        # Only when the parent has not written their own: theirs outrank these,
+        # and a setup step must not overwrite something a person sat and typed.
+        if not kid.break_messages:
+            kid.break_messages = [
+                BreakMessage(**m) for m in starter_channels_data.break_messages(activities)
+            ]
     store.put_kid(kid)
 
     have = {c.id for c in store.list_channels(hid, kid_id) if c.approved}
@@ -1434,7 +1450,11 @@ def set_preferences(
         added += 1
     if added or have:
         tasks.add_task(_curate_in_background, kid)
-    return {"channels": added + len(have), "topics": kid.topics}
+    return {
+        "channels": added + len(have),
+        "topics": kid.topics,
+        "break_messages": len(kid.break_messages),
+    }
 
 
 #: Uploads the Curator reads per channel. Mirrors `run_curator`'s own default;

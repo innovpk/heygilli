@@ -117,6 +117,35 @@ void main() {
     expect(find.byType(SetupReviewScreen), findsOneWidget);
   });
 
+  testWidgets('breaks are asked about while setting up, not after', (
+    tester,
+  ) async {
+    late Kid kid;
+    await tester.runAsync(() async {
+      kid = await gateway.createKid(
+        nickname: 'Abu',
+        age: 8,
+        languages: const ['en'],
+      );
+      await app.refreshKids();
+    });
+    await pumpWide(tester, PreferencesScreen(kid: kid));
+
+    expect(find.text('WHEN THE SCREEN PAUSES'), findsOneWidget);
+    await tester.tap(find.text('Star jumps'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Get a drink of water'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.textContaining('Find videos'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    // A break that says "time for a break" and stops the video leaves a child
+    // looking at a still frame, which is the moment it is waited out instead.
+    expect(gateway.breakPicks[kid.id], ['jump', 'water']);
+  });
+
   testWidgets('picking nothing still goes looking', (tester) async {
     late Kid kid;
     await tester.runAsync(() async {

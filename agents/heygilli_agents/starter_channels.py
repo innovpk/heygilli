@@ -200,6 +200,44 @@ CHANNELS: tuple[StarterChannel, ...] = (
 )
 
 
+#: What a child might do while the screen is paused, offered during setup.
+#:
+#: A break said "time for a break" and stopped the video, which leaves a child
+#: looking at a still frame with nothing to do — the moment a break either
+#: works or is simply waited out. These are the parent's answer to "what would
+#: they actually get up and do", and Gilli says their words back.
+BREAK_ACTIVITIES: tuple[tuple[str, str], ...] = (
+    ("stretch", "Have a stretch"),
+    ("jump", "Star jumps"),
+    ("water", "Get a drink of water"),
+    ("window", "Look out of the window"),
+    ("draw", "Draw something"),
+    ("tidy", "Tidy one thing"),
+    ("walk", "Walk about"),
+    ("pet", "Say hello to a pet"),
+)
+
+_BREAK_LABELS = dict(BREAK_ACTIVITIES)
+
+
+def break_messages(activities: list[str] | tuple[str, ...]) -> list[dict]:
+    """Break lines built from the parent's own picks.
+
+    Written from a fixed sentence and the parent's own choice rather than by a
+    model, on purpose: nothing Gilli says to a child is meant to reach them
+    without a parent behind it, and a generated line would need approving
+    before it could be used. Every word here is either ours and fixed or the
+    parent's and chosen.
+    """
+    out: list[dict] = []
+    for key in activities:
+        label = _BREAK_LABELS.get(key)
+        if not label:
+            continue
+        out.append({"text": f"Break time. {label}?", "spoken": f"Break time. {label}?"})
+    return out
+
+
 def suggest(band: AgeBand, topics: list[str] | tuple[str, ...] = ()) -> list[StarterChannel]:
     """Channels for this band, narrowed to these topics when any are given.
 

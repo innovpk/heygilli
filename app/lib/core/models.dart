@@ -261,11 +261,23 @@ class StarterTopic {
 /// What the setup screen needs in one call: the topics to offer and the
 /// channels matching what has been picked so far.
 class StarterChannels {
-  const StarterChannels({this.topics = const [], this.channels = const []});
+  const StarterChannels({
+    this.topics = const [],
+    this.channels = const [],
+    this.breakActivities = const [],
+  });
   final List<StarterTopic> topics;
   final List<StarterChannel> channels;
 
+  /// What a child might get up to while the screen is paused. Offered in the
+  /// same shape as topics because it is the same kind of question.
+  final List<StarterTopic> breakActivities;
+
   factory StarterChannels.fromJson(Map<String, dynamic> j) => StarterChannels(
+    breakActivities: [
+      for (final a in (j['break_activities'] as List? ?? const []))
+        StarterTopic.fromJson((a as Map).cast<String, dynamic>()),
+    ],
     topics: [
       for (final t in (j['topics'] as List? ?? const []))
         StarterTopic.fromJson((t as Map).cast<String, dynamic>()),
