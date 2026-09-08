@@ -12,7 +12,7 @@ Judging: 15 September to 8 October. Winners announced on or around 14 October, 2
 
 - [ ] Create AWS Builder ID at profile.aws.amazon.com. Save the ID; the Devpost form asks for it.
 - [ ] Register for the hackathon on Devpost (agentsforhumans.devpost.com, "Join hackathon"), same email as the Builder ID.
-- [ ] Submit the $50 AWS credits request form (Devpost Resources tab). It closes Thursday 11 September, 12:00 PM PT. Do not wait for that day.
+- [x] Submit the $50 AWS credits request form (Devpost Resources tab). **Credits received 9 September.**
 - [x] Bedrock model access confirmed in us-east-1; ids pinned in `agents/.env.example` and SPEC 9.5.
 - [x] Repo created: github.com/mujahidmasood/heygilli, private. MIT `LICENSE` present.
 - [ ] Register heygilli.com or heygilli.io if wanted for the demo link (optional).
@@ -30,7 +30,7 @@ Per SPEC section 14. Items that affect the submission only:
 
 ## Thursday 11 September
 
-- [ ] **Credits form closes 12:00 PM PT.** If not submitted yet, submit before noon PT (midnight PKT on 11/12 September).
+- [x] ~~Credits form closes 12:00 PM PT.~~ Done; credits received 9 September.
 - [ ] Provider eval run on Bedrock and the second provider. Record pass and fail counts; fill `[TBD from testing]` in `docs/blog-1-strands-design.md`.
 - [ ] Second child test if possible.
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
