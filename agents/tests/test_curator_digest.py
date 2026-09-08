@@ -49,6 +49,61 @@ def test_run_curator_approves_hides_and_asks(store: LocalStore, monkeypatch) -> 
     assert again.approved == [] and again.hidden == [] and again.ask_parent == []
 
 
+def test_the_curator_screens_against_a_looked_up_length(
+    store: LocalStore, monkeypatch
+) -> None:
+    """The length the ceiling is applied to comes from `videos.list`, one call
+    for the whole channel.
+
+    The watch page is the only other source and YouTube refuses it to
+    datacenter addresses, so on the deployed gateway every video was screened
+    with `duration_s: 0` — "we could not find out", which the ceiling skips.
+    A 2h13m film reached an eight-year-old that way. Here that same film is
+    measured and kept off the shelf, and the ordinary one beside it is not.
+    """
+    kid = Kid(household_id="hh", nickname="Zara", age=8, languages=["en"])
+    store.put_kid(kid)
+    store.put_channel("hh", kid.id, Channel(id="UCx", title="SciShow Kids"))
+    uploads = [
+        {"id": "thefilm001", "channel_id": "UCx", "title": "A Long Documentary",
+         "published_at": "2026-09-01", "thumb_url": "t", "description": "About space."},
+        {"id": "goodvideo01", "channel_id": "UCx", "title": "Why Do Giraffes Have Long Necks?",
+         "published_at": "2026-09-02", "thumb_url": "t", "description": "Learn about giraffes."},
+    ]
+    asked: list[list[str]] = []
+
+    def _durations(ids):
+        asked.append(list(ids))
+        return {"thefilm001": 8020, "goodvideo01": 600}  # 2h13m40s, and 10m
+
+    monkeypatch.setattr(curator, "fetch_uploads", lambda cid, limit: uploads)
+    monkeypatch.setattr(curator, "fetch_durations", _durations)
+    # The watch page, refused in production. If the length came from here the
+    # test would prove nothing about the path that actually runs.
+    monkeypatch.setattr(curator, "fetch_video_meta",
+                        lambda vid: {"duration_s": 0, "thumb_url": "t"})
+    monkeypatch.setattr(curator, "fetch_transcript",
+                        lambda vid: {"video_id": vid, "source": "captions:en:auto",
+                                     "segments": SEGMENTS})
+    monkeypatch.setattr("heygilli_agents.planner.fetch_transcript",
+                        lambda vid: {"video_id": vid, "source": "captions:en:auto",
+                                     "segments": SEGMENTS})
+
+    model = FakeModel()
+    report = curator.run_curator(kid, store, curator=make_agent("curator", "s", model=model),
+                                 planner=make_agent("planner", "s", model=model))
+
+    assert store.get_video("thefilm001").duration_s == 8020, "the length was not recorded"
+    assert [v["id"] for v in report.hidden] == ["thefilm001"]
+    assert [v["id"] for v in report.approved] == ["goodvideo01"]
+    assert "35" in store.list_kid_videos("hh", kid.id)["thefilm001"]["reason"], (
+        "the parent is not told which ceiling it passed"
+    )
+    # One call for the channel, not one per video: that is what makes reading
+    # every upload's length affordable on every run.
+    assert asked == [["thefilm001", "goodvideo01"]]
+
+
 def test_run_digest_counts_in_code_and_words_from_model(store: LocalStore) -> None:
     kid = Kid(household_id="hh", nickname="Ayaan", age=5)
     store.put_kid(kid)

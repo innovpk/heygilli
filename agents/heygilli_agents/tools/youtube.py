@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 
 import httpx
 from strands import tool
@@ -283,6 +284,90 @@ def search_channels(query: str, limit: int = 10) -> list[dict]:
             "blurb": html.unescape(str(snippet.get("description") or "")).strip(),
             "thumb_url": _best_thumb(snippet),
         })
+    return out
+
+
+#: `videos.list` costs **1** quota unit a call and takes up to 50 ids at once,
+#: against the same 10,000 a day `search.list` spends 100 of. Reading the
+#: length of every upload HeyGilli screens therefore costs about one unit per
+#: channel per run — which is why this is used automatically and searching is
+#: not.
+VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+_ISO_DURATION = re.compile(
+    r"^P(?:(?P<d>\d+)D)?T(?:(?P<h>\d+)H)?(?:(?P<m>\d+)M)?(?:(?P<s>\d+)S)?$"
+)
+
+
+def parse_iso_duration(text: str) -> int:
+    """`PT2H13M40S` -> seconds. 0 for anything unparseable.
+
+    A live stream in progress comes back as `P0D`, which parses to 0 — the
+    same "we do not know" every other unknown length uses, and the right
+    answer: a stream has no length yet.
+    """
+    m = _ISO_DURATION.match((text or "").strip())
+    if not m:
+        return 0
+    d, h, mi, sec = (int(m.group(k) or 0) for k in ("d", "h", "m", "s"))
+    return ((d * 24 + h) * 60 + mi) * 60 + sec
+
+
+def fetch_durations(video_ids: Sequence[str]) -> dict[str, int]:
+    """Length in seconds for each id, from the YouTube Data API.
+
+    The only source of a length that works from a datacenter. The watch page
+    carries `lengthSeconds` and is refused to server addresses, so
+    `fetch_video_meta` came back with 0 for every video the deployed gateway
+    ever screened — and 0 means "we could not find out", so the length ceiling
+    skipped all of them. A 2-hour-13-minute film was offered to an
+    eight-year-old with a 35-minute ceiling in force, because nothing in
+    production had ever had a length to compare against it.
+
+    Ids with no length are simply absent from the result rather than mapped to
+    0: the caller must be able to tell "this is 0 seconds long" from "nobody
+    could say", and they mean opposite things to the screening.
+    """
+    ids = [v for v in dict.fromkeys(video_ids) if v]
+    if not ids:
+        return {}
+    key = (
+        os.getenv("HEYGILLI_YOUTUBE_API_KEY", "").strip()
+        or os.getenv("GOOGLE_API_KEY", "").strip()
+    )
+    if not key:
+        log.info("no YouTube Data API key, so no video lengths: %d unknown", len(ids))
+        return {}
+
+    out: dict[str, int] = {}
+    for start in range(0, len(ids), 50):
+        batch = ids[start : start + 50]
+        cached = {v: c for v in batch if (c := get_store().cache_get("video_len", v))}
+        out.update({v: int(c["duration_s"]) for v, c in cached.items()})
+        wanted = [v for v in batch if v not in cached]
+        if not wanted:
+            continue
+        try:
+            with httpx.Client(timeout=20.0) as c:
+                r = c.get(VIDEOS_URL, params={
+                    "part": "contentDetails", "id": ",".join(wanted), "key": key,
+                })
+        except httpx.HTTPError as e:
+            # One failed batch must not sink a curation run: the videos in it
+            # keep an unknown length, which is what they had before.
+            log.warning("video lengths failed for %d ids: %s", len(wanted), e)
+            continue
+        if r.status_code != 200:
+            log.warning("YouTube answered %s to videos.list: %s",
+                        r.status_code, r.text[:200])
+            continue
+        for item in (r.json().get("items") or []):
+            vid = str(item.get("id") or "")
+            seconds = parse_iso_duration(
+                str((item.get("contentDetails") or {}).get("duration") or "")
+            )
+            if vid and seconds:
+                out[vid] = seconds
+                get_store().cache_put("video_len", vid, {"duration_s": seconds})
     return out
 
 

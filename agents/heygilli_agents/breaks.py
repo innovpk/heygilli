@@ -44,6 +44,55 @@ MAX_TASK_SECONDS = 180
 Verdict = Literal["no", "wait_for_moment", "now"]
 
 
+# --- how long one video may run -----------------------------------------------------
+#
+# The length ceiling used to exist only at screening time, tested against a
+# length read off the YouTube watch page — and YouTube refuses that page to
+# datacenter addresses. In production almost every video was screened with no
+# length at all, and an unknown length is skipped rather than judged, so the
+# ceiling and the parent's own "longest video" setting were both decorative: a
+# two-hour-thirteen-minute film reached an eight-year-old with a 35-minute
+# ceiling in force.
+#
+# This is the same limit applied where nothing can refuse us: on our own server,
+# while the child is watching. It needs no length, no API key and no cooperation
+# from YouTube.
+
+
+def video_cap_seconds(kid: Kid, duration_s: int, unmeasured_cap_s: int) -> int:
+    """How long this child may spend on this one video. 0 means no cap.
+
+    Three cases, and the difference between them is who decided:
+
+    * The parent set a number. Theirs wins outright — it is the setting that
+      exists for exactly this, and it applies whether or not we ever managed to
+      measure the video.
+    * No number, and the length was known when it was screened. The ceiling
+      already had its say then, and anything over it that is on the shelf is
+      there because a parent put it there. Cutting it off now would overrule
+      somebody who said yes.
+    * No number, and the length was never known. This is the case that let the
+      film through: the ceiling did not get a say, so it gets one here.
+    """
+    if kid.max_video_minutes:
+        return kid.max_video_minutes * 60
+    if duration_s:
+        return 0
+    return unmeasured_cap_s
+
+
+def too_long_line(band: AgeBand) -> str:
+    """What Gilli says when it stops a video for length.
+
+    Never "you watched too much": the child did nothing wrong, and a stop that
+    sounds like a telling-off makes the next one something to avoid rather than
+    something normal. It is about the video being a long one.
+    """
+    if band == "4_6":
+        return "That is a looong video! Let us stop there. Bye bye!"
+    return "That is a long one — let us stop there for today. See you next time!"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 

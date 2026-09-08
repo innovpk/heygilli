@@ -787,3 +787,96 @@ def test_a_repeat_starts_the_clock_again_rather_than_leaving_what_was_on_it(
         assert reply["result"] == "correct", (
             "the window was not restarted, so the child was cut off while thinking"
         )
+
+
+# --- stopping a video that turns out to be too long ----------------------------------
+#
+# Enforced on our own server while the child watches, because the screening-time
+# ceiling needs a length and the only source of one is the YouTube watch page,
+# which YouTube refuses to datacenter addresses.
+
+
+def test_a_video_nobody_could_measure_is_stopped_once_it_runs_long(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    from heygilli_agents import breaks as breaks_mod
+    from heygilli_agents import gateway as gw
+
+    # The cap this video would get is the unmeasured one, shrunk so the test
+    # does not sit through it.
+    monkeypatch.setattr(gw, "MAX_DURATION_S", 1)
+    kid = client.post("/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]},
+                      headers=hdr(auth)).json()
+    # duration_s = 0 is the production case: nobody could look the length up.
+    store.put_video(Video(id=VIDEO.id, title="A Long One", duration_s=0))
+    store.put_plan(_plan_7_8())
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": VIDEO.id,
+                                          "device": "tv"}, headers=hdr(auth)).json()
+
+    with client.websocket_connect(
+        f"/sessions/{body['session_id']}/ws?token={auth['Authorization'].split()[1]}"
+    ) as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        time.sleep(1.1)  # past the cap
+        # A tick that is also due a question, so there is always something to
+        # read back: `pause` if the guard did not fire, `end` if it did. Ticking
+        # somewhere quiet instead meant a broken guard hung this test rather
+        # than failing it, which is a worse way to find out.
+        ws.send_json({"t": "position", "seconds": 100.2})
+        end = ws.receive_json()
+
+    assert end["t"] == "end", f"the video kept playing: {end}"
+    assert end["summary_text"] == breaks_mod.too_long_line("7_8")
+
+
+def test_a_video_that_is_not_over_its_cap_keeps_playing(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """The guard must not end every session it is attached to — the failure that
+    would be far worse than the one it fixes."""
+    from heygilli_agents import gateway as gw
+
+    monkeypatch.setattr(gw, "MAX_DURATION_S", 600)
+    kid = client.post("/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]},
+                      headers=hdr(auth)).json()
+    store.put_video(Video(id=VIDEO.id, title="A Long One", duration_s=0))
+    store.put_plan(_plan_7_8())
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": VIDEO.id,
+                                          "device": "tv"}, headers=hdr(auth)).json()
+
+    with client.websocket_connect(
+        f"/sessions/{body['session_id']}/ws?token={auth['Authorization'].split()[1]}"
+    ) as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        # The question, not an end: the session is running normally.
+        assert ws.receive_json() == {"t": "pause"}
+        assert ws.receive_json()["t"] == "ask"
+
+
+def test_a_measured_video_the_parent_allowed_is_never_stopped_for_length(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """Its length was known when it was screened, so the ceiling already had its
+    say; it is on the shelf because somebody overruled that. Stopping it here
+    would take the decision back without saying so."""
+    from heygilli_agents import gateway as gw
+
+    monkeypatch.setattr(gw, "MAX_DURATION_S", 1)
+    kid = client.post("/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]},
+                      headers=hdr(auth)).json()
+    store.put_video(Video(id=VIDEO.id, title="A Long One", duration_s=8020))  # 2h13m, measured
+    store.put_plan(_plan_7_8())
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": VIDEO.id,
+                                          "device": "tv"}, headers=hdr(auth)).json()
+
+    with client.websocket_connect(
+        f"/sessions/{body['session_id']}/ws?token={auth['Authorization'].split()[1]}"
+    ) as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        time.sleep(1.1)
+        ws.send_json({"t": "position", "seconds": 100.2})
+        assert ws.receive_json() == {"t": "pause"}

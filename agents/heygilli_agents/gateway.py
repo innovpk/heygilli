@@ -51,6 +51,7 @@ from .google_auth import (
 from .planner import ensure_plan, fallback_plan
 from .reviewer import review_channel
 from .schemas import (
+    AgeBand,
     AuthSession,
     BreakMessage,
     BreakPeriod,
@@ -1666,6 +1667,42 @@ class BreakGuard:
         return brk.at()
 
 
+class LengthGuard:
+    """Stops one video that runs longer than this child may watch it for.
+
+    The whole point is that it asks YouTube for nothing. The screening-time
+    ceiling depends on a length, the only source of a length is the watch page,
+    and YouTube refuses that page to datacenter addresses — so in production the
+    ceiling had nothing to test and let every compilation and full episode
+    through. Here the clock is ours.
+
+    Counting is wall-clock from the moment the socket opens, the same basis
+    `BreakGuard` uses and for the same reason: it is what the child actually sat
+    through, and the video's own position can be scrubbed.
+    """
+
+    def __init__(self, cap_s: int, band: AgeBand) -> None:
+        self.cap_s = cap_s
+        self.band = band
+        self._started = time.monotonic()
+
+    def over(self) -> bool:
+        return bool(self.cap_s) and time.monotonic() - self._started >= self.cap_s
+
+    def line(self) -> str:
+        return breaks.too_long_line(self.band)
+
+
+def _make_length_guard(kid: Kid | None, video: Video, band: AgeBand) -> LengthGuard | None:
+    if kid is None:
+        return None
+    cap_s = breaks.video_cap_seconds(kid, video.duration_s, MAX_DURATION_S)
+    if not cap_s:
+        return None
+    log.info("video %s capped at %ds for kid %s", video.id, cap_s, kid.id)
+    return LengthGuard(cap_s, band)
+
+
 def _video_titles(store, video_ids) -> list[str]:
     titles = []
     for vid in dict.fromkeys(video_ids):
@@ -1720,13 +1757,14 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         plan = await asyncio.to_thread(words.seed, plan, kid, store, session.language)
     engine = SessionEngine(session, plan, kid, store)  # type: ignore[arg-type]
     guard = _make_guard(session.household_id, kid, session, store)
+    length = _make_length_guard(kid, video, session.age_band)
 
     try:
         first = _client_msg.validate_python(await ws.receive_json())
         if first.t != "hello":
             await ws.send_json(wire(ServerError(message="expected hello")))
         await ws.send_json(wire(engine.ready()))
-        await _loop(ws, engine, guard)
+        await _loop(ws, engine, guard, length)
     except (WebSocketDisconnect, ValidationError) as e:
         log.info("session %s closed: %s", session_id, type(e).__name__)
     finally:
@@ -1750,7 +1788,12 @@ def _find_session(session_id: str) -> Session | None:
     return None
 
 
-async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None = None) -> None:
+async def _loop(
+    ws: WebSocket,
+    engine: SessionEngine,
+    guard: BreakGuard | None = None,
+    length: LengthGuard | None = None,
+) -> None:
     """pause -> ask -> (answer | timeout) -> reply -> resume, until the client says bye.
 
     A due break interrupts this loop at the next natural moment — a question
@@ -1773,6 +1816,14 @@ async def _loop(ws: WebSocket, engine: SessionEngine, guard: BreakGuard | None =
         if guard is not None and guard.verdict(natural_moment=idx is not None) == "now":
             await _send_break(ws, guard)
             await ws.send_json(wire(engine.end()))
+            return
+        # Long enough on this one video. Checked on every tick rather than only
+        # at a question, because a video with no questions left still has to
+        # stop — and checked after the break so a break that was already due
+        # still fires first.
+        if length is not None and length.over():
+            log.info("session %s stopped: past its %ds cap", engine.session.id, length.cap_s)
+            await ws.send_json(wire(engine.end(line=length.line())))
             return
         if idx is None:
             continue

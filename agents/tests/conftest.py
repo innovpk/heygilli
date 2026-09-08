@@ -18,6 +18,11 @@ os.environ["HEYGILLI_STORE"] = "local"
 for role in ("CURATOR", "PLANNER", "BUDDY", "DIGEST", "REVIEWER", "COACH"):
     os.environ[f"HEYGILLI_MODEL_{role}"] = "fake:"
 os.environ.pop("GOOGLE_API_KEY", None)
+# Same for the YouTube key. The Curator now looks up video lengths through
+# `videos.list` on every run, so a key left in the environment would have the
+# suite quietly calling YouTube for real — burning a live quota and making the
+# tests depend on the network.
+os.environ.pop("HEYGILLI_YOUTUBE_API_KEY", None)
 # Blank, not absent: gateway.py calls load_dotenv() at import, and python-dotenv
 # leaves a key that already exists alone. Tests that need Google sign-in set
 # their own values (tests/test_google_auth.py).

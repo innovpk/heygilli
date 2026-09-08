@@ -236,7 +236,14 @@ class SessionEngine:
             model_word=q.expected if self.band == "4_6" and q.type != "copy_it" else None,
         )
 
-    def end(self) -> ServerEnd:
+    def end(self, line: str | None = None) -> ServerEnd:
+        """The goodbye. `line` overrides it when the session is ending for a
+        reason of its own — a video stopped for its length says so rather than
+        signing off as though it had simply finished."""
+        if line is not None:
+            return ServerEnd(summary_tts_url=synthesize(line, self.language, self.band == "4_6"),
+                             summary_text=line,
+                             words_said=list(dict.fromkeys(self.words_said)))
         if self.language == "ur":
             line = "بہت اچھا! پھر ملیں گے۔"
         elif self.band == "4_6":

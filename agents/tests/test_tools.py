@@ -655,3 +655,103 @@ def test_a_blocked_word_says_whose_rule_it_is(monkeypatch):
 
     assert result.verdict == "hide"
     assert "whatever their household said" in result.reason
+
+
+# --- video lengths ---------------------------------------------------------------------
+#
+# The only source of a length that answers a datacenter. `fetch_video_meta`
+# reads `lengthSeconds` off the watch page, which YouTube refuses to server
+# addresses, so in production every video was screened with `duration_s: 0` —
+# and 0 means "we could not find out", which the ceiling skips. A
+# 2h13m film reached an eight-year-old with a 35-minute ceiling in force.
+
+
+@pytest.mark.parametrize(
+    ("iso", "seconds"),
+    [
+        ("PT2H13M40S", 8020),   # the film that started this
+        ("PT6M", 360),
+        ("PT45S", 45),
+        ("PT1H", 3600),
+        ("P1DT2H", 93600),
+        ("P0D", 0),             # a live stream in progress: no length yet
+        ("", 0),
+        ("nonsense", 0),
+    ],
+)
+def test_iso_durations_parse_or_come_back_unknown(iso: str, seconds: int) -> None:
+    assert youtube.parse_iso_duration(iso) == seconds
+
+
+def test_lengths_come_back_per_id_and_unknown_ones_are_absent(monkeypatch) -> None:
+    """Absent, not 0. The caller has to be able to tell "this is 0 seconds long"
+    from "nobody could say" — they mean opposite things to the screening, and
+    conflating them is the bug this whole path exists to fix."""
+    monkeypatch.setenv("HEYGILLI_YOUTUBE_API_KEY", "yt-key")
+    seen: dict = {}
+
+    class _Resp:
+        status_code = 200
+        text = ""
+        def json(self):
+            return {"items": [
+                {"id": "long1", "contentDetails": {"duration": "PT2H13M40S"}},
+                {"id": "short1", "contentDetails": {"duration": "PT6M"}},
+                {"id": "stream", "contentDetails": {"duration": "P0D"}},
+            ]}
+
+    class _Client:
+        def __init__(self, *a, **k): ...
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, params=None):
+            seen["url"], seen["params"] = url, params
+            return _Resp()
+
+    monkeypatch.setattr(youtube.httpx, "Client", _Client)
+    out = youtube.fetch_durations(["long1", "short1", "stream", "never-heard-of"])
+
+    assert out == {"long1": 8020, "short1": 360}
+    assert "stream" not in out, "a stream with no length yet was recorded as 0 seconds"
+    assert "never-heard-of" not in out
+    # One call for the batch, and the cheap endpoint: `videos.list` is 1 quota
+    # unit against `search.list`'s 100, which is what makes this affordable on
+    # every curation run.
+    assert seen["url"] == youtube.VIDEOS_URL
+    assert seen["params"]["part"] == "contentDetails"
+    assert set(seen["params"]["id"].split(",")) == {
+        "long1", "short1", "stream", "never-heard-of"
+    }
+
+
+def test_no_key_means_unknown_lengths_rather_than_a_crash(monkeypatch) -> None:
+    """A deployment without a key keeps working; its videos simply have no
+    lengths, which is exactly where it was before."""
+    monkeypatch.delenv("HEYGILLI_YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    def _boom(*a, **k):  # pragma: no cover - must never be reached
+        raise AssertionError("called YouTube with no key")
+
+    monkeypatch.setattr(youtube.httpx, "Client", _boom)
+    assert youtube.fetch_durations(["a", "b"]) == {}
+
+
+def test_a_failed_lookup_does_not_sink_the_run(monkeypatch) -> None:
+    """One bad batch must leave those videos with an unknown length — what they
+    had before — rather than stopping a curation run."""
+    monkeypatch.setenv("HEYGILLI_YOUTUBE_API_KEY", "yt-key")
+
+    class _Resp:
+        status_code = 403
+        text = "quota exceeded"
+        def json(self): return {}
+
+    class _Client:
+        def __init__(self, *a, **k): ...
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, params=None): return _Resp()
+
+    monkeypatch.setattr(youtube.httpx, "Client", _Client)
+    assert youtube.fetch_durations(["a"]) == {}

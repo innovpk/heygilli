@@ -359,3 +359,50 @@ def test_the_parents_messages_rotate_so_a_child_hears_them_all() -> None:
 
 def test_pick_message_returns_nothing_when_the_parent_wrote_nothing() -> None:
     assert breaks.pick_message(kid(), []) is None
+
+
+# --- how long one video may run ------------------------------------------------------
+#
+# The screening-time ceiling tests a length, the only source of a length is the
+# YouTube watch page, and YouTube refuses that page to datacenter addresses. So
+# in production the ceiling had nothing to test and a two-hour-thirteen-minute
+# film reached an eight-year-old with a 35-minute ceiling in force.
+
+
+def _kid_with(max_video_minutes: int) -> Kid:
+    return Kid(household_id="hh", nickname="Zara", age=8,
+               max_video_minutes=max_video_minutes)
+
+
+def test_a_video_nobody_could_measure_is_capped_while_it_plays() -> None:
+    """The case that let the film through. Screening skipped it for want of a
+    length, so the cap has to be applied where a length is not needed."""
+    assert breaks.video_cap_seconds(_kid_with(0), duration_s=0, unmeasured_cap_s=2100) == 2100
+
+
+def test_a_parent_who_set_a_number_gets_that_number() -> None:
+    """Theirs is the setting that exists for exactly this, so it wins whether or
+    not the video was ever measured."""
+    for duration in (0, 600, 8020):
+        assert breaks.video_cap_seconds(
+            _kid_with(20), duration_s=duration, unmeasured_cap_s=2100
+        ) == 1200, duration
+
+
+def test_a_measured_video_on_the_shelf_is_not_cut_off_mid_way() -> None:
+    """A length that was known had the ceiling applied to it at screening time.
+    Anything over it that is still on the shelf is there because a parent put it
+    there, and stopping it now would overrule somebody who already said yes."""
+    assert breaks.video_cap_seconds(_kid_with(0), duration_s=600, unmeasured_cap_s=2100) == 0
+    long_one = breaks.video_cap_seconds(_kid_with(0), duration_s=8020, unmeasured_cap_s=2100)
+    assert long_one == 0, "a video the parent allowed knowing its length was cut off"
+
+
+def test_stopping_for_length_never_blames_the_child() -> None:
+    """A stop that sounds like a telling-off makes the next one something to
+    avoid. It is about the video being long, not about them watching too much."""
+    for band in ("4_6", "7_8", "9_11"):
+        line = breaks.too_long_line(band).lower()
+        assert line, band
+        for blame in ("too much", "you watched", "enough", "no more", "stop watching"):
+            assert blame not in line, f"{band}: {line!r}"

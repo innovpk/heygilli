@@ -24,7 +24,7 @@ from .store import Store
 from .tools.notify import notify_parent
 from .tools.screening import prescreen, screen_video
 from .tools.transcript import TranscriptsBlocked, fetch_transcript, transcript_text
-from .tools.youtube import fetch_uploads, fetch_video_meta
+from .tools.youtube import fetch_durations, fetch_uploads, fetch_video_meta
 
 log = logging.getLogger(__name__)
 
@@ -229,19 +229,26 @@ def run_curator(
             log.warning("uploads failed for %s: %s", channel.id, e)
             continue
         # One Data API call for the whole channel rather than a watch page per
-        # video: the watch page is refused to this machine, which left every
-        # duration at 0 — and a duration of 0 turns the parent's "longest
-        # video" limit into no limit and schedules the end-of-video question at
-        # the moment it starts.
+        # video. The watch page is refused to this machine, which left every
+        # duration at 0 — and 0 means "we could not find out", so the length
+        # ceiling skipped it, the parent's "longest video" limit applied to
+        # nothing, and the end-of-video question was scheduled for the moment
+        # it started. `videos.list` costs one quota unit for up to fifty ids
+        # and answers from a datacenter, which is the whole reason this is
+        # affordable to do automatically.
+        lengths = fetch_durations([up["id"] for up in uploads if up["id"] not in seen])
         for up in uploads:
             if up["id"] in seen:
                 continue
             video = store.get_video(up["id"]) or Video(**up)
+            video.duration_s = video.duration_s or lengths.get(video.id, 0)
             if not video.duration_s or not video.thumb_url:
                 # The watch page, which YouTube refuses to datacenter
                 # addresses: from a home connection this fills the length in,
                 # from the deployed gateway it does not, and an unknown length
-                # stays unknown rather than becoming zero seconds.
+                # stays unknown rather than becoming zero seconds. Still worth
+                # asking — it is also where the thumbnail comes from, and a
+                # household running this locally gets a length from it.
                 meta = fetch_video_meta(video.id)
                 video.duration_s = video.duration_s or meta.get("duration_s", 0)
                 video.thumb_url = video.thumb_url or meta.get("thumb_url", "")
