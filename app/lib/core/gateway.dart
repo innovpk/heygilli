@@ -265,6 +265,14 @@ abstract class Gateway {
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);
 
+  /// `POST /kids/{id}/preferences`: what this child likes. The server picks
+  /// the channels to look in and starts screening their uploads.
+  ///
+  /// The parent is not asked to vouch for a channel's entire future output
+  /// from a one-line blurb before seeing anything it makes — which they had no
+  /// way to check, and which was wrong twice in a list of twenty-six.
+  Future<int> setPreferences(String kidId, List<String> topics);
+
   /// `GET /kids/{id}/review`: everything screened for this child, with what
   /// the Curator made of each one and how far the run has got.
   Future<ReviewQueue> reviewQueue(String kidId);

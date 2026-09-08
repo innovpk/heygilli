@@ -146,3 +146,60 @@ def test_a_run_carries_the_child_s_topics_into_each_decision(store, monkeypatch)
     )
 
     assert "the parent asked for: science" in recorder.prompt
+
+
+# --- Questions pitched at the child's age -------------------------------------------------------
+
+
+def test_the_questions_follow_the_age():
+    """One list was asked of every family, so a parent of a four-year-old was
+    asked about sponsor reads and a parent of an eleven-year-old about cartoon
+    peril — each answering somebody else's question."""
+    from heygilli_agents.coach import builtin_policy_questions
+
+    young = [q.question for q in builtin_policy_questions("4_6")]
+    older = [q.question for q in builtin_policy_questions("9_11")]
+
+    assert not set(young) & set(older)
+    assert any("cartoon peril" in q for q in young)
+    assert any("pranks played on real people" in q for q in older)
+    # And it says which age it chose them for, since it cannot honestly claim
+    # they came from this family's own channels.
+    assert "4 to 6" in builtin_policy_questions("4_6")[0].why
+    assert "9 to 11" in builtin_policy_questions("9_11")[0].why
+
+
+def test_an_unknown_band_still_gets_questions():
+    """A parent seeing the middle band's questions is a smaller failure than a
+    parent seeing an empty screen."""
+    from heygilli_agents.coach import builtin_policy_questions
+
+    assert len(builtin_policy_questions("nonsense")) == 5
+
+
+def test_preferences_pick_the_channels_and_start_the_screening(
+    client, auth, store, monkeypatch
+):
+    """The parent is asked what their child likes, not to vouch for a channel's
+    entire future output from a one-line blurb they cannot check."""
+    started: list[str] = []
+    monkeypatch.setattr(gateway, "_curate_in_background", lambda kid: started.append(kid.id))
+    monkeypatch.setattr(
+        gateway, "_channel_info",
+        lambda cid: {"channel_id": cid, "title": cid, "thumb_url": ""},
+    )
+    kid_id = client.post(
+        "/kids", json={"nickname": "Abu", "age": 8}, headers=auth["hdr"]
+    ).json()["id"]
+
+    r = client.post(
+        f"/kids/{kid_id}/preferences", json={"topics": ["science"]}, headers=auth["hdr"]
+    )
+
+    assert r.status_code == 200
+    assert r.json()["channels"] > 0
+    assert store.get_kid(auth["hid"], kid_id).topics == ["science"]
+    assert started == [kid_id]
+    # Chosen for the band and the topic, not the whole list.
+    approved = store.list_channels(auth["hid"], kid_id)
+    assert 0 < len(approved) < 26

@@ -73,21 +73,51 @@ def _hits(text: str, words: tuple[str, ...]) -> list[str]:
 
 
 def prescreen(video: Video) -> ScreenResult:
+    """The rules that run before the model, each saying why in the parent's terms.
+
+    These reasons are read by somebody deciding whether to overrule them, so
+    every one of them has to answer the question they are actually asking: not
+    "which rule fired" but "was there anything wrong with this video". Two of
+    them used to answer the first. "Too short to hold a question" reads as a
+    verdict on the video, and a parent seeing it beside a perfectly ordinary
+    clip has no way to tell that nothing was found wrong with it at all — the
+    only thing wrong was that Gilli would have had nothing to ask about.
+    """
     text = f"{video.title} {video.description}"
     if hits := _hits(text, BLOCK_WORDS):
-        return ScreenResult(verdict="hide", reason=f"title/description mentions: {', '.join(hits)}")
+        return ScreenResult(
+            verdict="hide",
+            reason=f"The title or description mentions {', '.join(hits)}, which is on the "
+                   f"list of things kept from every child whatever their household said.",
+        )
     if looks_live(video.title):
         return ScreenResult(
             verdict="hide",
-            reason="a live stream, so what it will show has not happened yet and "
-                   "cannot be read against your answers",
+            reason="This is a live stream. What it will show has not happened yet, so there "
+                   "is nothing to read against your answers and no way to say whether it "
+                   "will suit them.",
         )
     if video.duration_s > MAX_DURATION_S:
-        return ScreenResult(verdict="ask_parent", reason="longer than 45 minutes")
+        return ScreenResult(
+            verdict="ask_parent",
+            reason=f"This runs {video.duration_s // 60} minutes, which is longer than "
+                   f"{MAX_DURATION_S // 60}. Nothing was found wrong with it — it is the "
+                   f"length alone, and whether that suits them is yours to say.",
+        )
     if 0 < video.duration_s < MIN_DURATION_S:
-        return ScreenResult(verdict="hide", reason="too short to hold a question")
+        return ScreenResult(
+            verdict="hide",
+            reason=f"This is {video.duration_s} seconds long. Nothing was found wrong with "
+                   f"it; it is too short for Gilli to watch along and ask anything about, "
+                   f"which is the whole of what Gilli is for. Allow it if you want it there.",
+        )
     if hits := _hits(text, ASK_WORDS):
-        return ScreenResult(verdict="ask_parent", reason=f"borderline topic: {', '.join(hits)}")
+        return ScreenResult(
+            verdict="ask_parent",
+            reason=f"The title or description mentions {', '.join(hits)}. That is a "
+                   f"judgement call rather than a rule, so it comes to you rather than "
+                   f"being decided for you.",
+        )
     return ScreenResult(verdict="pass", reason="no rule triggered")
 
 
