@@ -1029,6 +1029,39 @@ class FakeGateway implements Gateway {
   /// Demo answers. Canned, and deliberately shaped like the real thing: an
   /// answer that says what it rests on, and says plainly when the words do not
   /// settle the question.
+  /// Parent-written questions, per (kid, video). In memory only, like the rest
+  /// of the demo: nothing here outlives the tab.
+  final Map<String, List<ParentQuestion>> _parentQuestions = {};
+
+  @override
+  Future<List<ParentQuestion>> parentQuestions(String kidId, String videoId) async =>
+      List.unmodifiable(_parentQuestions['$kidId/$videoId'] ?? const []);
+
+  @override
+  Future<ParentQuestion> addParentQuestion(
+    String kidId,
+    String videoId,
+    String text, {
+    int? tSec,
+    bool yesNo = false,
+  }) async {
+    final q = ParentQuestion(
+      id: 'pq_${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      tSec: tSec,
+      yesNo: yesNo,
+    );
+    (_parentQuestions['$kidId/$videoId'] ??= []).add(q);
+    return q;
+  }
+
+  @override
+  Future<void> removeParentQuestion(
+    String kidId,
+    String videoId,
+    String questionId,
+  ) async => _parentQuestions['$kidId/$videoId']?.removeWhere((q) => q.id == questionId);
+
   @override
   Future<VideoAnswer> askAboutVideo(
     String kidId,

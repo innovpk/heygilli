@@ -563,6 +563,37 @@ class ApiClient implements Gateway {
   }) => _post('/kids/$kidId/review', {'approve': approve, 'hide': hide});
 
   @override
+  Future<List<ParentQuestion>> parentQuestions(String kidId, String videoId) async {
+    final r = await _get('/kids/$kidId/videos/$videoId/questions');
+    final list = (r as Map<String, dynamic>)['questions'] as List<dynamic>? ?? [];
+    return [
+      for (final q in list) ParentQuestion.fromJson(q as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<ParentQuestion> addParentQuestion(
+    String kidId,
+    String videoId,
+    String text, {
+    int? tSec,
+    bool yesNo = false,
+  }) async => ParentQuestion.fromJson(
+    await _post('/kids/$kidId/videos/$videoId/questions', {
+      'text': text,
+      if (tSec != null) 't_sec': tSec,
+      'yes_no': yesNo,
+    }) as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> removeParentQuestion(
+    String kidId,
+    String videoId,
+    String questionId,
+  ) async => _delete('/kids/$kidId/videos/$videoId/questions/$questionId');
+
+  @override
   Future<VideoAnswer> askAboutVideo(
     String kidId,
     String videoId,

@@ -26,6 +26,7 @@ from .schemas import (
     HistoryInsight,
     Kid,
     ParentPrompt,
+    ParentQuestion,
     Policy,
     QuestionPlan,
     RevisitRecord,
@@ -233,6 +234,24 @@ class Store(ABC):
     def get_plan(self, video_id: str, age_band: str, language: str) -> QuestionPlan | None:
         d = self.get(GLOBAL, "plan", QuestionPlan.key(video_id, age_band, language))
         return QuestionPlan.model_validate(d) if d else None
+
+    # -- questions a parent wrote for one video (SPEC 7.6)
+    def put_parent_question(self, household: str, q: ParentQuestion) -> None:
+        self.put(household, ParentQuestion.entity(q.kid_id), f"{q.video_id}#{q.id}", q.model_dump())
+
+    def list_parent_questions(self, household: str, kid_id: str, video_id: str) -> list[ParentQuestion]:
+        out = [
+            ParentQuestion.model_validate(d)
+            for d in self.list(household, ParentQuestion.entity(kid_id))
+        ]
+        return sorted(
+            [q for q in out if q.video_id == video_id], key=lambda q: q.created_at
+        )
+
+    def delete_parent_question(
+        self, household: str, kid_id: str, video_id: str, question_id: str
+    ) -> None:
+        self.delete(household, ParentQuestion.entity(kid_id), f"{video_id}#{question_id}")
 
     # -- revisits (PROTOCOL.md "Revisiting a shaky concept"), one record per concept
     def put_revisit(self, household: str, rec: RevisitRecord) -> None:

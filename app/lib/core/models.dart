@@ -1602,6 +1602,31 @@ class ReviewQueue {
 }
 
 /// An answer to one question a parent asked about one video.
+/// A question the parent wrote for one video, asked as they wrote it.
+class ParentQuestion {
+  const ParentQuestion({
+    required this.id,
+    required this.text,
+    this.tSec,
+    this.yesNo = false,
+  });
+
+  factory ParentQuestion.fromJson(Map<String, dynamic> j) => ParentQuestion(
+    id: j['id'] as String? ?? '',
+    text: j['text'] as String? ?? '',
+    tSec: (j['t_sec'] as num?)?.toInt(),
+    yesNo: j['yes_no'] as bool? ?? false,
+  );
+
+  final String id;
+  final String text;
+
+  /// The second to ask at, or null for "wherever it fits" — which is what a
+  /// parent who knows what they want asked, but not when, leaves alone.
+  final int? tSec;
+  final bool yesNo;
+}
+
 class VideoAnswer {
   const VideoAnswer({required this.answer, required this.answeredFrom});
 

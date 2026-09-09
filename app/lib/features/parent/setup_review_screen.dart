@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import 'add_question_sheet.dart';
 import 'ask_about_video_sheet.dart';
 import 'hidden_screen.dart';
 import 'parent_widgets.dart';
@@ -189,6 +190,12 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                   video: item.video,
                   channelTitle: item.channelTitle,
                 ),
+                onAddQuestion: () => AddQuestionSheet.show(
+                  context,
+                  kidId: widget.kid.id,
+                  videoId: item.video.id,
+                  videoTitle: item.video.title,
+                ),
               ),
             if (kept > 0) ...[
               const SizedBox(height: 16),
@@ -312,12 +319,18 @@ class _ReviewCard extends StatelessWidget {
     required this.approved,
     required this.onChanged,
     required this.onAsk,
+    required this.onAddQuestion,
   });
 
   final ReviewItem item;
   final bool approved;
   final ValueChanged<bool>? onChanged;
   final VoidCallback onAsk;
+
+  /// A question of the parent's own for this video. The screening decides what
+  /// a child may watch; this is the parent deciding what is worth talking
+  /// about, which is the part they are the only expert in.
+  final VoidCallback onAddQuestion;
 
   @override
   Widget build(BuildContext context) {
@@ -374,17 +387,27 @@ class _ReviewCard extends StatelessWidget {
             ),
             // The screening answers the question it thought of. This is for
             // the one the parent actually has.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: onAsk,
-                icon: const Icon(Icons.help_outline_rounded, size: 18),
-                label: const Text('Ask about this'),
-                style: TextButton.styleFrom(
-                  foregroundColor: HgColors.ink,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+            Wrap(
+              children: [
+                TextButton.icon(
+                  onPressed: onAsk,
+                  icon: const Icon(Icons.help_outline_rounded, size: 18),
+                  label: const Text('Ask about this'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: HgColors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                 ),
-              ),
+                TextButton.icon(
+                  onPressed: onAddQuestion,
+                  icon: const Icon(Icons.add_comment_outlined, size: 18),
+                  label: const Text('Add a question'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: HgColors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ],
             ),
             // Not a footnote. A video read on its title alone is a different
             // judgement from one read on what is said in it, and the person

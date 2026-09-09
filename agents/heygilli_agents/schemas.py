@@ -571,6 +571,38 @@ class RevisitRecord(BaseModel):
     last_session_id: str = ""
 
 
+class ParentQuestion(BaseModel):
+    """One question a parent wrote themselves, for one video and one child.
+
+    The screening decides what a child may watch; this is the parent deciding
+    what is worth talking about, which is a different and smaller thing to ask
+    of them and the one they are actually the expert in. "Ask her which animal
+    was the fastest" is a sentence a parent can write in ten seconds and no
+    model can guess.
+
+    Never written into the cached plan. Plans are shared by every household
+    (see `QuestionPlan.key`), and this belongs to one child in one home, so it
+    is merged for a session and no further — the same rule a revisit follows.
+    """
+
+    id: str = Field(default_factory=lambda: new_id("pq"))
+    kid_id: str
+    video_id: str
+    #: What the child is asked, in the parent's own words. Spoken as written.
+    text: str
+    #: Where in the video to ask. None means "wherever it fits" and is the
+    #: default, because a parent knows what they want asked and generally not
+    #: at which second.
+    t_sec: int | None = None
+    #: Whether a yes/no answer is wanted instead of a spoken one.
+    yes_no: bool = False
+    created_at: str = Field(default_factory=now_iso)
+
+    @staticmethod
+    def entity(kid_id: str) -> str:
+        return f"parentq@{kid_id}"
+
+
 class QuestionPlan(BaseModel):
     video_id: str
     age_band: AgeBand

@@ -292,6 +292,25 @@ abstract class Gateway {
     List<(String, String)> history,
   });
 
+  /// `GET /kids/{id}/videos/{v}/questions`: what this parent has added.
+  Future<List<ParentQuestion>> parentQuestions(String kidId, String videoId);
+
+  /// `POST /kids/{id}/videos/{v}/questions`: one question of the parent's own.
+  ///
+  /// Asked as written. Nothing rewrites it and no model sees it before the
+  /// child does — a parent who typed a sentence for their own child should get
+  /// that sentence back, not an improved one.
+  Future<ParentQuestion> addParentQuestion(
+    String kidId,
+    String videoId,
+    String text, {
+    int? tSec,
+    bool yesNo,
+  });
+
+  /// `DELETE /kids/{id}/videos/{v}/questions/{q}`.
+  Future<void> removeParentQuestion(String kidId, String videoId, String questionId);
+
   /// `GET /kids/{id}/review`: everything screened for this child, with what
   /// the Curator made of each one and how far the run has got.
   Future<ReviewQueue> reviewQueue(String kidId);

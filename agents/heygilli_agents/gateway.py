@@ -48,6 +48,7 @@ from .google_auth import (
     GoogleNotLinked,
     link_household,
 )
+from . import parent_questions
 from .planner import ensure_plan, fallback_plan
 from .reviewer import review_channel
 from .schemas import (
@@ -63,6 +64,7 @@ from .schemas import (
     Kid,
     Language,
     ParentPrompt,
+    ParentQuestion,
     Policy,
     PolicyAnswer,
     ServerAsk,
@@ -1529,6 +1531,64 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
     }
 
 
+class ParentQuestionIn(BaseModel):
+    text: str = Field(min_length=1, max_length=200)
+    #: Where to ask it. None means "wherever it fits", which is what a parent
+    #: who knows what they want asked but not at which second will send.
+    t_sec: int | None = Field(default=None, ge=0)
+    yes_no: bool = False
+
+
+@app.get("/kids/{kid_id}/videos/{video_id}/questions")
+def list_parent_questions(kid_id: str, video_id: str, hid: str = Depends(household)) -> dict:
+    """What this parent has added to this video, and whether there is room for more."""
+    _kid(hid, kid_id)
+    qs = get_store().list_parent_questions(hid, kid_id, video_id)
+    return {
+        "questions": [q.model_dump() for q in qs],
+        "max": parent_questions.MAX_PER_VIDEO,
+    }
+
+
+@app.post("/kids/{kid_id}/videos/{video_id}/questions")
+def add_parent_question(
+    kid_id: str, video_id: str, body: ParentQuestionIn, hid: str = Depends(household)
+) -> dict:
+    """Add a question of the parent's own to one video.
+
+    Asked as written. Nothing rewrites it, and no model sees it before the
+    child does — a parent who typed a sentence for their own child should get
+    that sentence, not an improved one.
+    """
+    _kid(hid, kid_id)
+    store = get_store()
+    existing = store.list_parent_questions(hid, kid_id, video_id)
+    if len(existing) >= parent_questions.MAX_PER_VIDEO:
+        raise HTTPException(
+            409,
+            f"{parent_questions.MAX_PER_VIDEO} is the most for one video — "
+            f"past that the video stops being something they are watching.",
+        )
+    q = ParentQuestion(
+        kid_id=kid_id,
+        video_id=video_id,
+        text=body.text.strip(),
+        t_sec=body.t_sec,
+        yes_no=body.yes_no,
+    )
+    store.put_parent_question(hid, q)
+    return q.model_dump()
+
+
+@app.delete("/kids/{kid_id}/videos/{video_id}/questions/{question_id}")
+def remove_parent_question(
+    kid_id: str, video_id: str, question_id: str, hid: str = Depends(household)
+) -> dict:
+    _kid(hid, kid_id)
+    get_store().delete_parent_question(hid, kid_id, video_id, question_id)
+    return {"ok": True}
+
+
 class AskIn(BaseModel):
     question: str
     #: Earlier turns of this same conversation, oldest first, as [question, answer].
@@ -1796,6 +1856,12 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         # For this session only: the cached plan is shared by every household and
         # a revisit belongs to one child (PROTOCOL.md "Revisiting a shaky concept").
         plan = await asyncio.to_thread(revisit.seed, plan, kid, store, video, session.id)
+        # Last of the three, and deliberately: `select` has already trimmed the
+        # plan and a revisit has already taken its slot, so what a parent wrote
+        # is added to a settled plan rather than competing with it for room.
+        plan = await asyncio.to_thread(
+            parent_questions.seed, plan, kid, store, video, session.language
+        )
         # A second-language word for something this child already has, for a
         # household that asked for one (PROTOCOL.md "Bilingual word seeding").
         plan = await asyncio.to_thread(words.seed, plan, kid, store, session.language)
