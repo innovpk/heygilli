@@ -68,37 +68,85 @@ class ParentScaffold extends StatelessWidget {
             // layout the doc comment above says it is not.
             final roomy = constraints.maxWidth >= wideBreakpoint;
             final wide = roomy && sidebar != null;
+            final trailing = <Widget>[
+              if (isDemo) const DemoBadge(),
+              ...actions,
+            ];
+            final back = leading != null
+                ? leading!
+                : canPop
+                ? IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: HgColors.ink,
+                    tooltip: 'Back',
+                  )
+                : null;
+            // On a phone, a long title and a text action do not share a line.
+            // "What Abu may watch" beside "Skip for now" left the title about
+            // ninety points wide and set it one word per line down four rows,
+            // which is not a heading.
+            //
+            // Measured rather than guessed from the window width, because the
+            // answer depends on the title: "Kids" fits beside anything, and
+            // stacking the controls under it wastes a line for nothing. The
+            // reserve is an estimate of the trailing row — icon buttons are 48
+            // and the demo chip about 70 — and it only has to be close, since
+            // being wrong costs a line break either way and never a clipped
+            // control.
+            final painter = TextPainter(
+              text: TextSpan(text: title, style: HgText.display(size: 32)),
+              textDirection: TextDirection.ltr,
+            )..layout();
+            final reserved =
+                (back == null ? 0 : 48) +
+                (isDemo ? 70 : 0) +
+                actions.length * 48 +
+                24;
+            final tight =
+                trailing.isNotEmpty &&
+                painter.width > constraints.maxWidth - reserved - 40;
+            final titleBlock = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (subtitle != null) Text(subtitle!, style: HgText.label()),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.display(size: 32, color: HgColors.ink),
+                ),
+              ],
+            );
             final header = Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: Row(
-                spacing: 12,
-                children: [
-                  if (leading != null)
-                    leading!
-                  else if (canPop)
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      color: HgColors.ink,
-                      tooltip: 'Back',
-                    ),
-                  Expanded(
-                    child: Column(
+              child: tight
+                  ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (subtitle != null)
-                          Text(subtitle!, style: HgText.label()),
-                        Text(
-                          title,
-                          style: HgText.display(size: 32, color: HgColors.ink),
+                        Row(
+                          spacing: 12,
+                          children: [
+                            ?back,
+                            Expanded(child: titleBlock),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          spacing: 12,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: trailing,
                         ),
                       ],
+                    )
+                  : Row(
+                      spacing: 12,
+                      children: [
+                        ?back,
+                        Expanded(child: titleBlock),
+                        ...trailing,
+                      ],
                     ),
-                  ),
-                  if (isDemo) const DemoBadge(),
-                  ...actions,
-                ],
-              ),
             );
             final page = Scaffold(
               backgroundColor: HgColors.cream,

@@ -189,7 +189,7 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
                       _dirty ? 'Save limits' : 'Saved',
                       style: HgText.body(
                         size: 16,
-                        color: _dirty ? HgColors.ink : HgColors.brown,
+                        color: _dirty ? HgColors.white : HgColors.brown,
                       ),
                     ),
             ),

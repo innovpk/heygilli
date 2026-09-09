@@ -53,7 +53,8 @@ class _ParentHomeState extends State<ParentHome> {
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         backgroundColor: HgColors.white,
-        indicatorColor: HgColors.mango.withValues(alpha: 0.35),
+        // Indicator and icon colours come from the theme, so this bar and the
+        // segmented control on a child's page cannot drift apart.
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.face_outlined, color: HgColors.ink),

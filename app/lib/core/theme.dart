@@ -152,13 +152,21 @@ ThemeData buildTheme() {
         shape: const StadiumBorder(),
       ),
     ),
-    // Parent tab bar sits on white, so labels and icons are ink, not cream.
+    // The parent tab bar sits on paper. The selected destination takes an ink
+    // pill with a duck-egg icon on it — the same shape and the same pair as
+    // the segmented control on a child's page, rather than a washed-out tint
+    // of the accent, which on paper read as a smudge.
     navigationBarTheme: NavigationBarThemeData(
+      indicatorColor: HgColors.ink,
       labelTextStyle: WidgetStatePropertyAll(
         HgText.body(size: 12, color: HgColors.ink, weight: FontWeight.w800),
       ),
-      iconTheme: const WidgetStatePropertyAll(
-        IconThemeData(color: HgColors.ink),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? HgColors.cream
+              : HgColors.ink,
+        ),
       ),
     ),
     chipTheme: ChipThemeData(
