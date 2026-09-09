@@ -80,6 +80,8 @@ void main() {
     });
   });
 
+  _seekRules();
+
   group('when the play glyph is drawn', () {
     test('never over playing video', () {
       // YouTube's terms forbid an overlay on playing video. It is why the
@@ -157,6 +159,108 @@ void main() {
           state: PlayerState.paused,
         ),
         isFalse,
+      );
+    });
+  });
+}
+
+/// Where a drag on the question track is allowed to land.
+///
+/// The questions are the product. A strip that scrubs past them is a skip
+/// button, and a child finds a skip button in one afternoon.
+void _seekRules() {
+  group('dragging the track', () {
+    const times = [120, 400, 800];
+
+    test('backwards is free, because nothing is skipped by going back', () {
+      expect(
+        seekTargetFor(
+          wanted: 30,
+          durationS: 1000,
+          positionS: 500,
+          questionTimes: times,
+          asked: 2,
+        ),
+        30,
+      );
+    });
+
+    test('forwards stops at the next question they have not been asked', () {
+      // Two asked, at 120 and 400. The child is at 410 and drags to the end.
+      expect(
+        seekTargetFor(
+          wanted: 990,
+          durationS: 1000,
+          positionS: 410,
+          questionTimes: times,
+          asked: 2,
+        ),
+        800,
+      );
+    });
+
+    test('forwards is free once every question has been asked', () {
+      expect(
+        seekTargetFor(
+          wanted: 990,
+          durationS: 1000,
+          positionS: 810,
+          questionTimes: times,
+          asked: 3,
+        ),
+        990,
+      );
+    });
+
+    test('a short hop forwards that clears no question is left alone', () {
+      expect(
+        seekTargetFor(
+          wanted: 300,
+          durationS: 1000,
+          positionS: 200,
+          questionTimes: times,
+          asked: 1,
+        ),
+        300,
+      );
+    });
+
+    test('never past the end, never before the start', () {
+      expect(
+        seekTargetFor(
+          wanted: 5000,
+          durationS: 1000,
+          positionS: 999,
+          questionTimes: const [],
+          asked: 0,
+        ),
+        1000,
+      );
+      expect(
+        seekTargetFor(
+          wanted: -20,
+          durationS: 1000,
+          positionS: 500,
+          questionTimes: const [],
+          asked: 0,
+        ),
+        0,
+      );
+    });
+
+    test('a question already behind the child does not pin them to it', () {
+      // Asked 0, but the child is already at 300 — past the 120 dot, because
+      // the server had not got round to asking yet. Clamping to 120 would drag
+      // them backwards, which is not what a forward drag is for.
+      expect(
+        seekTargetFor(
+          wanted: 350,
+          durationS: 1000,
+          positionS: 300,
+          questionTimes: times,
+          asked: 0,
+        ),
+        350,
       );
     });
   });

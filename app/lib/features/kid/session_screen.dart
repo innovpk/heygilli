@@ -126,6 +126,34 @@ bool showsPlayGlyph({
   return childPaused || stalled;
 }
 
+/// Where a drag on the track is allowed to land.
+///
+/// Backwards is free: a child who missed something should be able to go back
+/// and see it again, and nothing is skipped by doing so.
+///
+/// Forwards stops at the next question they have not been asked yet. The
+/// questions are the product — a scrub bar that runs past them is a skip
+/// button, and a child finds that in one afternoon. So the bar drags right up
+/// to the next dot and no further, which also makes the dot mean something:
+/// it is where the video is going to stop for you.
+@visibleForTesting
+double seekTargetFor({
+  required double wanted,
+  required int durationS,
+  required double positionS,
+  required List<int> questionTimes,
+  required int asked,
+}) {
+  final end = durationS.toDouble();
+  var target = wanted.clamp(0.0, end < 0 ? 0.0 : end);
+  if (target <= positionS) return target; // backwards, or standing still
+  if (asked < questionTimes.length) {
+    final nextQuestion = questionTimes[asked].toDouble();
+    if (nextQuestion >= positionS) target = math.min(target, nextQuestion);
+  }
+  return target;
+}
+
 enum _Phase {
   connecting,
   watching,
@@ -385,6 +413,27 @@ class _SessionScreenState extends State<SessionScreen> {
       unawaited(_unmuteOnce());
     }
     _syncPlayGlyph();
+  }
+
+  /// A drag on the question track.
+  ///
+  /// Gated exactly like the tap: while Gilli has the video the strip still
+  /// shows where the child is, and moving it does nothing. The pause is the
+  /// question, and dragging out of one is the same as tapping out of it.
+  Future<void> _onSeek(double wanted) async {
+    if (_isPaused || _onBreak || _ended) return;
+    final target = seekTargetFor(
+      wanted: wanted,
+      durationS: widget.video.durationS,
+      positionS: _positionS,
+      questionTimes: _questionTimes,
+      asked: _asked,
+    );
+    // Moved here first so the bar follows the finger rather than waiting for
+    // the player to report back, which is a whole tick away.
+    _positionS = target;
+    _position.value = target;
+    await _yt.seekTo(seconds: target, allowSeekAhead: true);
   }
 
   /// Turn the sound on, once, and find out whether it worked.
@@ -743,6 +792,7 @@ class _SessionScreenState extends State<SessionScreen> {
         durationS: widget.video.durationS,
         questionTimes: _questionTimes,
         askedCount: _asked,
+        onSeek: (_isPaused || _onBreak || _ended) ? null : _onSeek,
       ),
     ),
   );

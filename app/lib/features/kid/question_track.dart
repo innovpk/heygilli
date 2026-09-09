@@ -19,6 +19,7 @@ class QuestionTrack extends StatelessWidget {
     required this.durationS,
     required this.questionTimes,
     required this.askedCount,
+    this.onSeek,
   });
 
   /// Where the video is now, in seconds.
@@ -34,6 +35,10 @@ class QuestionTrack extends StatelessWidget {
   /// says which dots are behind the child.
   final int askedCount;
 
+  /// Where the child dragged to, in seconds. Null while Gilli has the video:
+  /// the strip still shows where they are, it just cannot be moved.
+  final ValueChanged<double>? onSeek;
+
   static const _height = 22.0;
   static const _barHeight = 6.0;
   static const _dot = 12.0;
@@ -44,45 +49,62 @@ class QuestionTrack extends StatelessWidget {
     final progress = (positionS / durationS).clamp(0.0, 1.0);
 
     return Semantics(
-      label: '${questionTimes.length} questions in this video, '
+      label:
+          '${questionTimes.length} questions in this video, '
           '$askedCount answered so far',
       child: SizedBox(
         height: _height,
         child: LayoutBuilder(
           builder: (context, box) {
             final w = box.maxWidth;
-            return Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                // The track.
-                Container(
-                  height: _barHeight,
-                  decoration: BoxDecoration(
-                    color: HgColors.tealDeep,
-                    borderRadius: BorderRadius.circular(_barHeight / 2),
-                  ),
-                ),
-                // How far the child has got.
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
+            void seekAt(double dx) {
+              final at = (dx / w).clamp(0.0, 1.0) * durationS;
+              onSeek?.call(at);
+            }
+
+            return GestureDetector(
+              // The whole strip is the target, not the six-pixel bar: this is
+              // dragged by a four-year-old with the video still playing.
+              behavior: HitTestBehavior.opaque,
+              onTapDown: onSeek == null
+                  ? null
+                  : (d) => seekAt(d.localPosition.dx),
+              onHorizontalDragUpdate: onSeek == null
+                  ? null
+                  : (d) => seekAt(d.localPosition.dx),
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  // The track.
+                  Container(
                     height: _barHeight,
-                    width: w * progress,
                     decoration: BoxDecoration(
-                      color: HgColors.sky,
+                      color: HgColors.tealDeep,
                       borderRadius: BorderRadius.circular(_barHeight / 2),
                     ),
                   ),
-                ),
-                for (var i = 0; i < questionTimes.length; i++)
-                  _Dot(
-                    left: (questionTimes[i] / durationS).clamp(0.0, 1.0) * w,
-                    done: i < askedCount,
-                    size: _dot,
-                    width: w,
+                  // How far the child has got.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      height: _barHeight,
+                      width: w * progress,
+                      decoration: BoxDecoration(
+                        color: HgColors.sky,
+                        borderRadius: BorderRadius.circular(_barHeight / 2),
+                      ),
+                    ),
                   ),
-              ],
+                  for (var i = 0; i < questionTimes.length; i++)
+                    _Dot(
+                      left: (questionTimes[i] / durationS).clamp(0.0, 1.0) * w,
+                      done: i < askedCount,
+                      size: _dot,
+                      width: w,
+                    ),
+                ],
+              ),
             );
           },
         ),
