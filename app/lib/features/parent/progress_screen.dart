@@ -38,7 +38,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   /// and when the gateway cannot answer, and the section simply does not
   /// appear — there is nothing honest to say about watching that happened
   /// before this app, without the export that measured it.
-  late Future<HistoryInsight?> _history = context
+  late final Future<HistoryInsight?> _history = context
       .read<AppState>()
       .gateway
       .history(widget.kid.id)
