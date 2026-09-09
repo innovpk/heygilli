@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/demo_badge.dart';
 import '../../core/google_auth.dart';
+import '../../core/hg_cta.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
 
@@ -128,8 +129,8 @@ class _SignInScreenState extends State<SignInScreen> {
                             children: [
                               SvgPicture.asset(
                                 'assets/gilli.svg',
-                                width: 96,
-                                height: 96,
+                                width: 150,
+                                height: 150,
                               ),
                               Text(
                                 'HeyGilli',
@@ -140,9 +141,9 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                               Text(
                                 'A buddy who watches YouTube with your kid.',
-                                style: HgText.body(
-                                  size: 19,
-                                  color: HgColors.brown,
+                                style: HgText.display(
+                                  size: 24,
+                                  color: HgColors.mango,
                                 ),
                               ),
                               Text(
@@ -190,7 +191,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (tight)
         Text(
           'Sign in',
-          style: HgText.display(size: 22, color: HgColors.ink),
+          style: HgText.display(size: 30, color: HgColors.ink),
         ),
       _signInControl(canUseGoogle),
       if (!tight)
@@ -203,21 +204,14 @@ class _SignInScreenState extends State<SignInScreen> {
           style: HgText.body(size: 14, color: HgColors.brown),
         ),
       const _OrDivider(),
-      SizedBox(
-        height: 52,
-        child: OutlinedButton(
-          onPressed: _busy ? null : _withoutGoogle,
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: HgColors.line),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(26),
-            ),
-          ),
-          child: Text(
-            'Set up without Google',
-            style: HgText.body(size: 16, color: HgColors.ink),
-          ),
-        ),
+      // The primary action, and it always was: most parents arrive with no
+      // intention of connecting Google, and this door asks nothing of them.
+      // Drawing it as the quieter of the two said the opposite.
+      HgCta(
+        label: 'Set up without Google',
+        onPressed: _busy ? null : _withoutGoogle,
+        busy: _busy,
+        expand: true,
       ),
       Text(
         'Nothing to sign in to. You add channels yourself, or '
@@ -280,7 +274,7 @@ class _Brand extends StatelessWidget {
       Text(
         'A buddy who watches YouTube with your kid',
         textAlign: TextAlign.center,
-        style: HgText.body(size: 16, color: HgColors.brown),
+        style: HgText.display(size: 20, color: HgColors.mango),
       ),
       if (isDemo) const DemoBadge(),
     ],

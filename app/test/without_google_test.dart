@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/core/app_state.dart';
 import 'package:heygilli/core/fake_gateway.dart';
+import 'package:heygilli/core/hg_cta.dart';
 import 'package:heygilli/core/settings.dart';
 import 'package:heygilli/features/parent/sign_in_screen.dart';
 import 'package:provider/provider.dart';
@@ -93,10 +94,10 @@ void main() {
     final app = AppState(gateway: FakeGateway(), settings: settings);
     await tester.pumpWidget(host(app));
 
-    final door = find.widgetWithText(OutlinedButton, 'Set up without Google');
+    final door = find.widgetWithText(HgCta, 'Set up without Google');
     expect(door, findsOneWidget);
     expect(
-      tester.widget<OutlinedButton>(door).onPressed,
+      tester.widget<HgCta>(door).onPressed,
       isNotNull,
       reason: 'the fallback door must not be disabled with the Google one',
     );
