@@ -1,18 +1,24 @@
 # Agents for Humans: child speech is the hard part
 
-*Draft for builder.aws.com. The rules require "Agents for Humans" in the title, so keep the prefix. Publish before 14 September 2026, 5:00 PM PT. Replace every `[TBD from testing]` with a real number from the child tests, or delete the sentence. No number in this post may be invented.*
+*Draft for builder.aws.com. The rules require "Agents for Humans" in the title, so keep the prefix. Publish before 14 September 2026, 5:00 PM PT. One block below is marked FILL AFTER THE CHILD TEST. Fill it from notes written the same day, or delete the block. No number in this post may be invented.*
 
 ---
 
 Speech recognisers are trained mostly on adults. A four-year-old whispers, mumbles, drops syllables, says "gaffe" for giraffe, and sometimes just roars at the tablet because that is what the question asked for. If your agent depends on a clean transcript from that child, it will fail most of the time.
 
-HeyGilli is an AI co-watching buddy for kids' YouTube, built on the Strands Agents SDK for the Agents for Humans hackathon. Gilli the palm squirrel pauses a video at a natural break and asks a question by voice. Kids aged 4 to 11 use it in three bands: 4_6, 7_8, and 9_11. This post is about the youngest band, because pre-readers set the design floor for everything else.
+HeyGilli is an AI co-watching buddy for kids' YouTube, built on the Strands Agents SDK for the Agents for Humans hackathon. Gilli the palm squirrel pauses a video at a natural break and asks a question by voice. Kids aged 4 to 11 use it in three bands: `4_6`, `7_8`, `9_11`. This post is about the youngest band, because pre-readers set the design floor for everything above them.
 
 ## Rule zero: no text
 
-A pre-reader cannot read, so the client renders no text for band 4_6. The gateway's `ask` and `reply` messages omit the `text` field for that band; the client has nothing to fall back on. The question is Gilli's voice. The answer is the child's voice or one tap. The feedback is Gilli's voice plus a gesture from a small named set: stretch, shrink, spin, point, roar, think, cheer.
+A pre-reader cannot read, so the client renders no text for band `4_6`. This is not a styling choice — the gateway omits the field:
 
-That forced three question types, all about what is on the paused frame or heard in the last thirty seconds. **Name it**: "What animal is that?" **Copy it**: "Can you roar like him?" **Pick it**: three big pictures, "Show me the blue one." No "why" before age 7. No trivia the video did not cover.
+```python
+text=None if self.band == "4_6" else q.text,  # pre-readers get no text on screen
+```
+
+There is nothing to fall back on. The question is Gilli's voice, spoken by Amazon Polly at a slower rate for this band alone. The answer is the child's voice or one tap. The feedback is Gilli's voice plus a gesture from a small named set: `stretch`, `shrink`, `spin`, `point`, `roar`, `think`, `cheer`, with `idle` as the resting state.
+
+That forced four question types for the band, all about what is on the paused frame or was heard in the last thirty seconds. **Name it**: "What animal is that?" **Copy it**: "Can you roar like him?" **Pick it**: three big pictures, "Show me the blue one." **Yes or no**, when nothing else fits. No "why" before age 7 — the band contract in `rules.enforce` rejects the type outright, so no prompt wording can smuggle one through.
 
 ## Modelling the answer word
 
@@ -21,42 +27,64 @@ Young children learn words by hearing an adult say the word clearly, right after
 - Correct: "Yes! A giraffe. It has a looong neck."
 - Partial, for example "gaffe": treated as correct. "A giraffe! Gi-raffe."
 - Off topic, for example "dog": "A dog? I see a giraffe! Gi-raffe."
-- Unclear or silence: "It's a giraffe! Gi-raffe. Can you say giraffe?" Then a three-second pause, then the video resumes whether or not the child repeats.
+- Unclear or silence: "It's a giraffe! Gi-raffe. Can you say giraffe?" Then a pause, then the video resumes whether or not the child repeats.
 
-The learning event is Gilli saying the word once, clearly, with a matching gesture. Silence is a teaching moment, not a failure. Nobody is told they are wrong. This also removed a class of scoring bugs, because the response to a bad recognition result is nearly the same as to a good one.
+The learning event is Gilli saying the word once, clearly, with a matching gesture. Silence is a teaching moment, not a failure. Nobody is told they are wrong. This also removed a whole class of scoring bugs, because the response to a bad recognition result is nearly the same as the response to a good one.
 
-The digest follows. For pre-readers it is not a comprehension report; it lists the words the child said and the words heard but not yet said. A word moving from the second list to the first over a week is the metric we care about.
+The digest follows the same idea. For pre-readers it is not a comprehension report; it lists the words the child said and the words heard but not yet said. A word moving from the second list to the first over a week is the metric we care about.
 
 ## Phonetic scoring instead of transcript matching
 
-The Planner agent writes each question with an expected answer and a list of acceptable variants, in English and Urdu. The Buddy agent's `score_answer` tool then scores the recogniser's output against them. For pre-readers the scoring is phonetic and forgiving: any utterance that shares a first sound or a syllable with the expected word is `partial`, and `partial` is treated as success.
+The Planner writes each question with an expected answer and a list of acceptable variants, in English and Urdu. The Buddy then scores the recogniser's output against them. For pre-readers the scoring is phonetic and forgiving: an utterance sharing a first sound or a syllable with the expected word scores `partial`, and `partial` is treated as success.
 
-This runs on the backend, not the device: the rules are the same on any speech engine, and thresholds can be tuned from a test set without an app update. Where the engine supports recognition hints, we pass the expected word and variants, which helps [TBD from testing: state the measured effect or remove].
+Note what is *not* here: this is not a tool call. Scoring a pre-reader's word is deterministic Python, and it never reaches a model. A model is used only where a child's *sentence* needs judgement, in the older bands. The live path a four-year-old walks has no model call in it at all beyond the reply text, which is why it cannot time out.
 
-Shy, whispered, and mumbled answers must produce the same experience as confident ones. In our test with a real four-year-old, [TBD from testing: how many name-it turns produced any utterance, and how many scored partial or better]. Test with a real child; an adult imitating one tells you nothing.
+Running it on the backend rather than the device means the rules are identical on any speech engine, and thresholds can be tuned from a test set without shipping an app update.
 
 Copy-it questions are never scored. Any sound, or none, gets "Great roar!" or "Listen to mine, ROAR!" and the video resumes.
 
 ## The pick-it fallback
 
-Some sessions the mic gets nothing: a loud room, a shy child, or no talking mood. If the mic returns nothing twice in one session for a pre-reader, the Buddy agent calls its `switch_mode` tool and the remaining questions become pick-it for that session.
+Some sessions the mic gets nothing: a loud room, a shy child, or no talking mood. Two empty results in one session for a pre-reader — `PREREADER_MAX_EMPTY = 2` — and every remaining voice question in that session is rewritten as pick-it.
 
-Pick-it needs no speech. Three pictures appear and the child taps one; on the TV layout, the next milestone, it is the remote's left, centre, or right. Any press answers, with no confirm step. Scoring is deterministic and free, with no model call.
+Again, not a tool the model chooses to call. It is a counter and a rewrite in the session object, one-way for the rest of the session, and the child is never told it happened. Adapting inside a session is where a live agent earns its keep, but the adaptation is far more trustworthy as code than as a judgement call.
 
-The pictures come from a fixed library of kid-safe icons keyed by concept, with English and Urdu labels, bundled in the app. The Planner picks icon ids only from that list, so there is no latency and no generated-image safety review. The two wrong options are always clearly different from the right one: a giraffe, a fish, a car, never a giraffe and a zebra. The library has 56 concepts today, enough for the demo videos; adding one is a row and an SVG.
+Pick-it needs no speech. Three pictures appear and the child taps one; on the TV layout, the next milestone, it is the remote's left, centre, or right. Any press answers, with no confirm step. Scoring is deterministic and free.
 
-## Timing for the impatient
+The pictures come from a fixed library of kid-safe icons keyed by concept, with English and Urdu labels, bundled in the app — 58 concepts today. The Planner may only return icon ids from that list, enforced after the model returns, so there is no latency and no generated-image safety review. The two wrong options are always clearly different from the right one: a giraffe, a fish, a car — never a giraffe and a zebra.
 
-A four-year-old will not wait. Band 4_6 rules: first question no earlier than two minutes in, at least four minutes between questions, one question for a video under five minutes and two above, a five-second listening window instead of eight. Frequency is locked to gentle. Gilli also starts listening automatically after the question, so a child who just talks at the tablet is still heard.
+## Timing, and the number we got most wrong
+
+Band `4_6`: first question no earlier than two minutes in, at least six minutes between questions at the default gentle frequency, one question for a video under five minutes and two above, and a hard ceiling of two questions however long the video runs.
+
+The listening window is the number we got wrong, and it is the clearest lesson in this post.
+
+It was five seconds for pre-readers and eight for everyone else, measured from the moment Gilli stopped speaking. That is roughly how long an adult takes to answer a question they already know the answer to. A child has to hear it, work out that it is their turn, think, and then say something. Eight seconds in, while they were still on the thinking, the video started playing again.
+
+Being cut off mid-thought teaches a child not to bother, which is the opposite of the entire point of the product.
+
+It is now **15 seconds for pre-readers and 20 for the older bands**. Pre-readers get less not because they are quicker but because they need only one word and will not sit through silence; the older bands are answering "why" and "what do you think", which take longer to say than to know.
+
+Gilli also starts listening automatically after the question, so a child who simply talks at the tablet is heard without pressing anything.
+
+<!-- FILL AFTER THE CHILD TEST, or delete this whole block before publishing.
+     Numbers must come from notes written the same day. Do not estimate.
+     - name-it turns asked:
+     - turns that produced any utterance at all:
+     - turns that scored partial or better:
+     - one thing the child did that no adult tester did:
+-->
 
 ## What we learned
 
-- Design for the child who says nothing. If the silent path is good, the talking path is easy.
-- Score the concept, not the transcript. Phonetic partial matches and a generous definition of success remove most of the pain.
-- Give the agent a non-speech path and let it switch on its own. Adapting inside the session is where a live agent earns its keep.
-- Fixed assets beat generated ones for pre-readers: instant, safe, reviewable.
-- [TBD from testing: one concrete surprise from the child sessions, with the number.]
+- **Design for the child who says nothing.** If the silent path is good, the talking path is easy. Every fallback in this system runs without a model.
+- **Score the concept, not the transcript.** Phonetic partial matches and a generous definition of success remove most of the pain.
+- **Put the adaptation in code, not in a prompt.** Switching to pick-it is a counter and a rewrite. It is testable, it is instant, and it cannot decide to do something else today.
+- **Fixed assets beat generated ones for pre-readers**: instant, safe, reviewable.
+- **Time your silences against a real child.** Our listening window was three times too short, and no amount of adult testing would have shown it. An adult fills a silence. A four-year-old is still deciding whether it is their turn.
 
-The companion post, "Agents for Humans: teaching a squirrel to co-watch", covers the four Strands agents, the Graph, and the one-line provider swap.
+Test with a real child. An adult imitating one tells you nothing.
+
+The companion post, "Agents for Humans: teaching a squirrel to co-watch", covers the seven Strands agents, the Graph we deliberately did not build, and what happened when our chosen model turned out to be one we could not call.
 
 Code: https://github.com/mujahidmasood/heygilli. MIT.
