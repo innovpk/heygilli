@@ -102,6 +102,22 @@ def planner_agent(model=None) -> Agent:
     return make_agent("planner", PLANNER_SYSTEM_PROMPT, tools=[icon_lookup, list_icons], model=model)
 
 
+#: How much of a transcript the Planner is given, named rather than left to
+#: `transcript_text`'s default so that the number is arguable.
+#:
+#: It is the model bill: input is 97% of it (11.66M tokens against 320K out)
+#: and almost all of that is this string, on the one call that runs per band
+#: and per language. So 6000 was tried, and the eval refused it — 11 of 18
+#: cells against 16, with draft violations going from 23 to 242. Half a
+#: transcript is not half a plan; the model stops seeing the end of the video
+#: and starts writing questions the timing rules then throw away.
+#:
+#: Cheaper plans have to come from somewhere else — a smaller model on the
+#: roles that only skim, or sending the segments that matter rather than the
+#: first N characters. Not from this number.
+PLAN_TRANSCRIPT_CHARS = 12000
+
+
 def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Language, freq) -> str:
     t = rules.TIMING[band]
     return (
@@ -114,7 +130,7 @@ def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Lan
         f"propose at least this many candidates: "
         f"{2 * rules.target_questions(band, video.duration_s) + 2}\n"
         f"{BAND_GUIDE[band].strip()}\n\n"
-        f"Transcript:\n{transcript_text(segments)}\n\n"
+        f"Transcript:\n{transcript_text(segments, max_chars=PLAN_TRANSCRIPT_CHARS)}\n\n"
         f"Return the PlanDraft."
     )
 

@@ -41,9 +41,30 @@ def make_agent(
 
 
 def structured[T: BaseModel](agent: Agent, prompt: str, output_model: type[T]) -> T:
-    """Invoke the agent and return a validated `output_model` (Strands structured output)."""
+    """Invoke the agent and return a validated `output_model` (Strands structured output).
+
+    Every failure leaves here as `LLMError`, including the provider's own. That
+    is the whole job of the `try` below.
+
+    Callers catch `LLMError` and fall back — `build_plan` to canned questions, the
+    Curator to asking the parent. None of them caught a `botocore` exception,
+    because none of them import botocore, and they should not have to: a model
+    that cannot be reached is one failure with one meaning, whoever is hosting it.
+
+    It cost a production outage to learn. A model id the account was not entitled
+    to invoke raised `ResourceNotFoundException`, which is not an `LLMError`, so
+    it went straight past the handler written for exactly this and out of the
+    gateway as a 500 — and an unhandled 500 carries no CORS headers, so the
+    browser reported a CORS problem and the model was never mentioned. Videos
+    with a cached plan kept working, which made it look intermittent.
+    """
     t0 = time.perf_counter()
-    result = agent(prompt, structured_output_model=output_model)
+    try:
+        result = agent(prompt, structured_output_model=output_model)
+    except LLMError:
+        raise
+    except Exception as e:  # provider SDK, transport, throttling, entitlement
+        raise LLMError(f"{agent.name}: {type(e).__name__}: {e}") from e
     ms = int((time.perf_counter() - t0) * 1000)
     out = result.structured_output
     if out is None:
