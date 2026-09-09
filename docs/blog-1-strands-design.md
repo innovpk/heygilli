@@ -26,7 +26,7 @@ We resisted one "assistant" agent with twenty tools. Each agent has one trigger,
 
 Three of the seven have tools at all. That surprised us. Everything else the pipeline needs — fetching a transcript, listing a channel's uploads, Polly speech, notifying a parent — is a plain Python function the gateway calls in code, not a tool handed to a model.
 
-The split turned out to be the useful one: **the agents decide, the code fetches and enforces.** A model that cannot reach the store cannot corrupt it. A rule that lives in `rules.enforce` can be unit-tested; a rule living in a prompt cannot. We have 567 tests, and almost none of them need a model.
+The split turned out to be the useful one: **the agents decide, the code fetches and enforces.** A model that cannot reach the store cannot corrupt it. A rule that lives in `rules.enforce` can be unit-tested; a rule living in a prompt cannot. We have 597 tests, and almost none of them need a model.
 
 `ROLES` in `models.py` has exactly seven entries, each with its own `HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding an eighth: channel drift runs on `reviewer`, the revisit question on `planner`, the progress note and the watch-history summary on `digest`.
 
@@ -37,6 +37,12 @@ Our spec sketched Curator → Planner as a Strands `GraphBuilder` graph, and the
 Graph nodes hand each other free text. The Planner would have had to re-parse the Curator's prose to learn which video had been approved — reconstructing, badly, a decision that was already a typed object. And the rule enforcement that makes a plan safe for an age band would still have sat outside the graph, because it is code, not a node.
 
 So the hand-off is a typed Python pipeline. The Curator agent makes the judgement call with Strands structured output, code fans out to the Planner agent per (band, language), and every plan passes `rules.enforce` on the way out. Same two agents, deterministic edges, no prose in between, every step reproducible in a test.
+
+Two later changes are the clearest examples of that split, and both started as prompt problems.
+
+Every question above age 6 was answered by talking, because those bands had no other type — a child who is shy, tired, or in a room with other people had no way into a session. The fix was not "ask the model to vary the questions". `TYPES_FOR_BAND` opened `pick_it` and `yes_no` to every band, and `rules.select` now chooses among the model's candidates for a mix of answer modes as it enforces the spacing. The model proposes; a function decides. And a yes/no question's two options are written by `build_yes_no`, not by the model, so it cannot offer three of them or label them in a language the household does not read.
+
+The same shape covers the newest feature. A parent can write their own question for a video, and it is asked exactly as typed — no model reads it before the child hears it. It is merged *after* selection rather than through it, because running a parent's own sentence through a mixing heuristic would let code silently discard the one question in the plan a human actually asked for.
 
 The general lesson: reach for a multi-agent topology when you cannot name the next step in advance. We could always name it. What we actually needed was structured output and a function call, and Strands gives you both without a topology.
 

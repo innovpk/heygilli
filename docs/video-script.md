@@ -1,6 +1,8 @@
 # HeyGilli demo video script
 
-Target length: 4:55. Hard limit: 5:00. Upload to YouTube, public, before the Devpost form is submitted.
+Target length: 4:51. Hard limit: 5:00. The beats below add to 4:51, which leaves nine seconds of
+slack for a title card and one overrun. If a beat runs long in the edit, cut beat 11 entirely before
+cutting anything from beats 1, 5 or 9. Upload to YouTube, public, before the Devpost form is submitted.
 
 Adapted from SPEC section 13 for a phone-and-tablet build. The TV appears once, as a mockup, and only if the stretch did not land. If the TV layout is built, it replaces beat 9.
 
@@ -80,7 +82,7 @@ screenshot from a real one, and this is the moment the product stops looking lik
 
 ### 4. It keeps screening, on its own. 1:20 to 1:40
 
-On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then a Graph edge into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Lisa?" with Yes and Hide. Parent taps Yes.
+On screen: Mac terminal. Run the Curator (`POST /curator/run` or the scheduled job). The Strands trace scrolls: `youtube_uploads`, `get_transcript`, `screen_video`, then the typed hand-off into Planner, `icon_lookup` calls, `save_plan`. Hold for about three seconds. Then the parent's phone lights up: "New from Blippi: 'Trip to the candy factory'. Sugar-heavy. Fine for Lisa?" with Yes and Hide. Parent taps Yes.
 
 Record: SCR (terminal, large font, dark theme), CAM or SCR (phone notification; CAM reads better).
 
@@ -104,18 +106,22 @@ Voice-over:
 > Whatever she says, Gilli says the word back once, clearly. That is the learning event.
 > A whispered "gaffe" counts. Silence counts too. Nobody is ever wrong.
 
-### 6. Pre-reader, pick-it. 2:05 to 2:20
+### 6. Tap instead of talk — at any age. 2:05 to 2:25
 
-On screen: same session. Video pauses. Three big pictures appear. Gilli: "Show me the blue one." Child taps the fish. Gilli: "Yes! Blue. The fish is blue." Resume.
+On screen: same session. Video pauses. Three big pictures appear. Gilli: "Show me the blue one." Child taps the fish. Gilli: "Yes! Blue. The fish is blue." Resume. Then cut to the nine-year-old's screen for two seconds: the same pause, but two cards — a green tick and a red cross — and a question read aloud.
 
 Record: CAM, SCR backup.
 
 Voice-over:
 
-> Pick-it questions need no speech at all. Three pictures from a fixed, kid-safe icon library. One tap.
-> If the mic hears nothing twice, the Buddy agent switches the rest of the session to pick-it on its own.
+> Not every question needs speech. Three pictures from a fixed, kid-safe icon library. One tap.
+> If the mic hears nothing twice, the Buddy agent switches the rest of the session to pictures on its own.
+> And the older bands get the same choice. A shy child, a tired child, a child in a room full of people — a session made only of talking has no way in for any of them.
 
-### 7. Older kid, English. 2:20 to 2:40
+Editing note: the second half of this beat is worth the five seconds. Every product in this space
+assumes a child who will perform on demand.
+
+### 7. Older kid, English. 2:25 to 2:42
 
 On screen: tablet, Rayan's profile (9). Volcano video. Pause. Question shown as text and spoken: "Why did the lava come out?" Child answers in a sentence into the mic. Gilli replies, building on the answer, then resumes.
 
@@ -127,7 +133,7 @@ Voice-over:
 > Now the questions are why and what next. Text appears alongside the voice.
 > Gilli talks like an older cousin who finds the topic interesting. No baby talk. An eleven-year-old who feels talked down to will not answer twice.
 
-### 8. Older kid, Urdu. 2:40 to 2:55
+### 8. Older kid, Urdu. 2:42 to 2:55
 
 On screen: same profile, Urdu selected. Question in Urdu. Answer in Urdu. Reply in Urdu. Subtitles in English burned into the edit.
 
@@ -138,11 +144,13 @@ Voice-over:
 > Bilingual households get nothing from English-first products.
 > Gilli asks in Urdu, listens in Urdu, and switches when the child does.
 
-### 9. The limits are yours, and so are the words. 2:55 to 3:15
+### 9. The limits are yours, and so are the words. 2:55 to 3:22
 
 On screen: the parent's Time limits card, four settings. Then kid mode: watching stops, Gilli
 appears with a countdown, and says the parent's own line. Then the parent screen showing where that
-line was written, with the suggestion list beside it.
+line was written, with the suggestion list beside it. Then, on a video card, tap **Add a question**
+and type one sentence — "Which animal was the fastest?" — and cut to that exact sentence being asked
+in the session.
 
 Record: SCR.
 
@@ -151,13 +159,15 @@ Voice-over:
 > You set the limits. After twenty-five minutes Gilli stops the video.
 > What he says then is your sentence, not his.
 > Gilli can suggest lines, but only to you, and only in your app.
-> Nothing he says to a child was written by a model.
+> And you can add a question of your own to any video. It is asked in your words, exactly as you typed them.
+> No model knows this one has been asking about volcanoes all week. You do.
+> Nothing Gilli says to a child was written by a model.
 
 Editing note: land the last line clearly. It is the answer to the obvious question about letting an
 AI talk to a six-year-old, and it is a real architectural claim: there is no model call anywhere in
 the child-facing break path.
 
-### 10. Provider swap. 3:15 to 3:30
+### 10. Provider swap. 3:22 to 3:35
 
 On screen: Mac terminal. Show `.env` with `HEYGILLI_MODEL_BUDDY=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0`. Change the one line to `HEYGILLI_MODEL_BUDDY=anthropic:claude-opus-5` (or the second provider chosen). Restart the gateway. Cut to the tablet: the same question turn runs again and Gilli replies. Optional: show the trace header naming the provider.
 
@@ -169,7 +179,7 @@ Voice-over:
 > Default is Claude on Amazon Bedrock. Change the line, restart, same agents, same session.
 > Strands makes the model a setting. We run the same eval on every provider before we trust it.
 
-### 11. Phone kid mode, or TV if built. 3:30 to 3:40
+### 11. Phone kid mode, or TV if built. 3:35 to 3:41
 
 On screen, phone version: phone in kid mode, one question turn on the small screen, then the parent-gated exit (PIN). TV version, if the stretch landed: TV home with D-pad focus, a pick-it answered with the remote's left, centre, right.
 
@@ -177,13 +187,13 @@ Record: SCR or CAM.
 
 Voice-over, phone:
 
-> On the phone, kid mode is the same loop on a smaller screen, and leaving it needs the parent's PIN.
+> Same loop on a phone. Leaving kid mode needs the parent's PIN.
 
 Voice-over, TV:
 
 > On the TV, the remote is the whole interface. Left, centre, right answers a pick-it. The mic button answers everything else.
 
-### 12. Nightly digest and Progress. 3:40 to 4:05
+### 12. Nightly digest and Progress. 3:41 to 4:03
 
 On screen: parent's phone. Notification arrives. Open it. Two cards: Lisa's (words said, words heard, try today) and Rayan's (understood, shaky, ask at dinner). Scroll slowly.
 
@@ -196,7 +206,7 @@ Voice-over:
 > For Rayan: what they understood, what was shaky, and one question for dinner.
 > The Digest also decides whether anything else deserves a notification. Tonight, nothing did.
 
-### 13. Architecture. 4:05 to 4:25
+### 13. Architecture. 4:03 to 4:22
 
 On screen: `docs/architecture.png`. Optionally zoom on the agents panel, then the provider layer, then the deployment box.
 
@@ -204,15 +214,16 @@ Record: SLIDE.
 
 Voice-over:
 
-> Four Strands agents behind a FastAPI gateway. Curator and Planner as a Graph, Buddy live per session, Digest nightly.
-> Plain Python tools. Bedrock by default, any provider by config. DynamoDB and AgentCore for deployment.
-> One Flutter codebase for phone, tablet, and TV.
+> Seven Strands agents behind a FastAPI gateway. Curator screens, Planner writes the questions, Buddy runs the session, Explainer answers the parent, Digest reports, Reviewer reads a channel, Coach drafts for the parent only.
+> Only three of them get tools. Everything else is plain Python the gateway calls, because the guarantees a parent is trusting belong in code, not in a prompt.
+> Bedrock by default, any provider by one environment variable. DynamoDB in production.
+> One Flutter codebase for phone, tablet and web.
 
 If TV is not built, add:
 
 > The TV layout is the next milestone. It is a new layout on the same codebase, not a new app.
 
-### 14. Impact and honesty. 4:25 to 4:45
+### 14. Impact and honesty. 4:22 to 4:41
 
 On screen: SLIDE with four lines: "Ads still play. Creators still get paid." / "Official YouTube embed, nothing overlaid or downloaded." / "Nothing a child says is stored." / "Every household with a screen and a child. Bilingual from day one." Then a second SLIDE: "Not built yet: TV layout, subscription import, sibling mode, AgentCore Memory." Adjust to what shipped.
 
@@ -225,7 +236,7 @@ Voice-over:
 > This works for every household with a screen and a child, in two languages from day one.
 > Not built yet: the TV layout, subscription import, and sibling mode.
 
-### 15. Close. 4:45 to 4:55
+### 15. Close. 4:41 to 4:51
 
 On screen: SLIDE with repo URL, live demo or APK link, two builder.aws post titles, "Built on Strands Agents SDK and Amazon Bedrock for Agents for Humans".
 

@@ -18,7 +18,7 @@ text=None if self.band == "4_6" else q.text,  # pre-readers get no text on scree
 
 There is nothing to fall back on. The question is Gilli's voice, spoken by Amazon Polly at a slower rate for this band alone. The answer is the child's voice or one tap. The feedback is Gilli's voice plus a gesture from a small named set: `stretch`, `shrink`, `spin`, `point`, `roar`, `think`, `cheer`, with `idle` as the resting state.
 
-That forced four question types for the band, all about what is on the paused frame or was heard in the last thirty seconds. **Name it**: "What animal is that?" **Copy it**: "Can you roar like him?" **Pick it**: three big pictures, "Show me the blue one." **Yes or no**, when nothing else fits. No "why" before age 7 — the band contract in `rules.enforce` rejects the type outright, so no prompt wording can smuggle one through.
+That forced four question types for the band, all about what is on the paused frame or was heard in the last thirty seconds. **Name it**: "What animal is that?" **Copy it**: "Can you roar like him?" **Pick it**: three big pictures, "Show me the blue one." **Yes or no**, two cards, when nothing else fits. No "why" before age 7 — the band contract in `rules.enforce` rejects the type outright, so no prompt wording can smuggle one through.
 
 ## Modelling the answer word
 
@@ -53,6 +53,18 @@ Pick-it needs no speech. Three pictures appear and the child taps one; on the TV
 
 The pictures come from a fixed library of kid-safe icons keyed by concept, with English and Urdu labels, bundled in the app — 58 concepts today. The Planner may only return icon ids from that list, enforced after the model returns, so there is no latency and no generated-image safety review. The two wrong options are always clearly different from the right one: a giraffe, a fish, a car — never a giraffe and a zebra.
 
+## The same problem, one band up
+
+Everything above assumes the child who will not talk is four. It took a while to notice we had built exactly that trap for the eight-year-olds.
+
+Band `4_6` had three ways to answer from the start — say it, do it, tap it. The reader bands had one. Not by policy: `TYPES_FOR_BAND` simply gave them nothing but spoken types, so a shy child, a tired child, a child eating dinner or sitting in a room with other people met a session with no way in at all. The cards and the icons were sitting there, used only by the youngest.
+
+`pick_it` and `yes_no` are now open to every band. A yes/no is a pick with two cards, so it reuses the same tested path and the same scoring, and its two options are written by `build_yes_no` rather than by the model — which therefore cannot offer three of them, mark both correct, or label them in English for an Urdu household.
+
+The part that mattered more than any of that was where the mixing happens. Transcripts are not reachable from our deployed gateway, so the written question bank *is* the plan for nearly every real session — and it was five spoken prompts per reader band, drawn by a hash that never looked at how they were answered. Measured before the fix: every reader band, three spoken questions in a row. A mix that lived only in the Planner would have been a mix almost nobody met.
+
+There is one more thing a model cannot supply, and it is the parent. They can now write their own question for a video, asked exactly as typed — because no model knows that this child has been asking about volcanoes all week, or that the woman about to appear is the grandmother they call Nani.
+
 ## Timing, and the number we got most wrong
 
 Band `4_6`: first question no earlier than two minutes in, at least six minutes between questions at the default gentle frequency, one question for a video under five minutes and two above, and a hard ceiling of two questions however long the video runs.
@@ -78,6 +90,7 @@ Gilli also starts listening automatically after the question, so a child who sim
 ## What we learned
 
 - **Design for the child who says nothing.** If the silent path is good, the talking path is easy. Every fallback in this system runs without a model.
+- **Then check you did it for every age.** We designed the silent path carefully for four-year-olds and left the eight-year-olds with nothing but a microphone, for a year, without noticing.
 - **Score the concept, not the transcript.** Phonetic partial matches and a generous definition of success remove most of the pain.
 - **Put the adaptation in code, not in a prompt.** Switching to pick-it is a counter and a rewrite. It is testable, it is instant, and it cannot decide to do something else today.
 - **Fixed assets beat generated ones for pre-readers**: instant, safe, reviewable.
