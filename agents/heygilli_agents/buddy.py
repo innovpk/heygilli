@@ -322,6 +322,19 @@ class SessionEngine:
             if self.empty_count >= PREREADER_MAX_EMPTY and not self.switched_to_pick:
                 self._switch_to_pick()
 
+    def no_microphone(self) -> None:
+        """This device cannot hear anything, so nothing may be asked by voice.
+
+        `_track_empty` reaches the same place after two empty windows, but only
+        for pre-readers and only after a child has sat through two questions
+        they had no way to answer. A device that says up front it cannot listen
+        is not a child being quiet: there is nothing to wait for, at any age.
+        """
+        if self.switched_to_pick:
+            return
+        log.info("session %s reported no microphone", self.session.id)
+        self._switch_to_pick()
+
     def _switch_to_pick(self) -> None:
         """SPEC §7.4: remaining voice questions become pick-it for this session."""
         self.switched_to_pick = True

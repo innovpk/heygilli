@@ -1,6 +1,8 @@
 """Planner: model proposes, code enforces; offline via FakeModel."""
 from __future__ import annotations
 
+import itertools
+
 from heygilli_agents import planner, rules
 from heygilli_agents.fake_model import FakeModel
 from heygilli_agents.llm import make_agent
@@ -225,7 +227,7 @@ def test_topping_up_never_crowds_the_band_spacing() -> None:
                 SEGMENTS, band, "en", agent=agent_with(one),
             )
             times = [q.t_sec for q in plan.questions]
-            gaps = [b - a for a, b in zip(times, times[1:])]
+            gaps = [b - a for a, b in itertools.pairwise(times)]
             assert all(g >= rules.min_gap_s(band) for g in gaps), f"{band}/{duration}: {times}"
             assert len(times) <= rules.max_questions(band, duration), f"{band}/{duration}"
             assert all(t <= duration for t in times), f"{band}/{duration}: {times}"

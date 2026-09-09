@@ -661,10 +661,16 @@ def test_an_off_topic_hide_is_not_quietly_softened_into_a_question() -> None:
          "The presenter says let me know in the comments, which is a call to action."),
         # The same, with a sentence before it so the "only one sentence" guard
         # is not what saves it: the anchor has to be doing the work.
-        ("It is calm throughout. "
-         "The presenter says let me know in the comments, which is a call to action.",
-         "It is calm throughout. "
-         "The presenter says let me know in the comments, which is a call to action."),
+        (
+            (
+                "It is calm throughout. "
+                "The presenter says let me know in the comments, which is a call to action."
+            ),
+            (
+                "It is calm throughout. "
+                "The presenter says let me know in the comments, which is a call to action."
+            ),
+        ),
         # Nothing but a plea: leave it. A reason cut to nothing is worse.
         ("Please let me know if this video is acceptable.",
          "Please let me know if this video is acceptable."),

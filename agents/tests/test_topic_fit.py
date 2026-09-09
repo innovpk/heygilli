@@ -115,8 +115,8 @@ def test_a_child_with_no_chosen_topics_is_not_asked_about_everything(monkeypatch
 def test_a_run_carries_the_child_s_topics_into_each_decision(store, monkeypatch):
     """The wiring, not the prompt: `decide` accepting topics is no use if the
     run that calls it for every upload never passes any."""
-    from heygilli_agents.llm import make_agent
     from heygilli_agents.fake_model import FakeModel
+    from heygilli_agents.llm import make_agent
     from heygilli_agents.schemas import Channel, Kid
 
     kid = Kid(household_id="hh", nickname="Abu", age=8, languages=["en"], topics=["science"])

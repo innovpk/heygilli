@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from heygilli_agents.starter_channels import CHANNELS  # noqa: E402
+from heygilli_agents.starter_channels import CHANNELS
 
 FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={}"
 

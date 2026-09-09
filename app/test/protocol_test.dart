@@ -150,9 +150,22 @@ void main() {
         jsonDecode(m.encode()) as Map<String, dynamic>;
 
     test('hello, resumed, bye', () {
-      expect(wire(const HelloMessage()), {'t': 'hello'});
+      // `can_listen` is always sent and defaults true, so a device that says
+      // nothing about its microphone is treated as having one — which is what
+      // every client did before the field existed.
+      expect(wire(const HelloMessage()), {'t': 'hello', 'can_listen': true});
       expect(wire(const ResumedMessage()), {'t': 'resumed'});
       expect(wire(const ByeMessage()), {'t': 'bye'});
+    });
+
+    test('hello says when this device cannot hear an answer', () {
+      // The server turns the whole session to pick-it on this, at any age.
+      // Without it a voice question on a device with no microphone is a child
+      // sitting in front of something they have no way to answer.
+      expect(wire(const HelloMessage(canListen: false)), {
+        't': 'hello',
+        'can_listen': false,
+      });
     });
 
     test('position', () {

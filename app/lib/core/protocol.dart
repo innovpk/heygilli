@@ -358,9 +358,15 @@ sealed class ClientMessage {
 }
 
 class HelloMessage extends ClientMessage {
-  const HelloMessage();
+  const HelloMessage({this.canListen = true});
+
+  /// Whether this device can hear an answer at all. False when the recogniser
+  /// refused to start — permission denied, no microphone, a browser without
+  /// one — and the server then asks nothing by voice for the whole session.
+  final bool canListen;
+
   @override
-  Map<String, dynamic> toJson() => {'t': 'hello'};
+  Map<String, dynamic> toJson() => {'t': 'hello', 'can_listen': canListen};
 }
 
 class PositionMessage extends ClientMessage {

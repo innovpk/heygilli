@@ -924,6 +924,11 @@ class VideoAnswer(BaseModel):
 
 class ClientHello(BaseModel):
     t: Literal["hello"]
+    #: Whether this device can hear an answer at all. False when the recogniser
+    #: refused to start — permission denied, no microphone, a browser without
+    #: one. Defaults true so that a client which does not know to say anything
+    #: is treated exactly as before.
+    can_listen: bool = True
 
 
 class ClientPosition(BaseModel):

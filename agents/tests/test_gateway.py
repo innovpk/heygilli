@@ -886,3 +886,62 @@ def test_a_measured_video_the_parent_allowed_is_never_stopped_for_length(
         time.sleep(1.1)
         ws.send_json({"t": "position", "seconds": 100.2})
         assert ws.receive_json() == {"t": "pause"}
+
+
+def test_a_device_that_cannot_listen_is_asked_nothing_by_voice(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """`can_listen: false` in the hello turns the whole session to pick-it.
+
+    The two-empty-windows switch reaches the same place, but only for
+    pre-readers and only after a child has sat through two questions they had
+    no way to answer. A device saying up front that it cannot hear is not a
+    child being quiet: there is nothing to wait for, at any age.
+    """
+    kid = client.post(
+        "/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]}, headers=hdr(auth)
+    ).json()
+    store.put_video(VIDEO)
+    store.put_plan(_plan_7_8())  # both questions are `voice`
+
+    sid = client.post(
+        "/sessions",
+        json={"kid_id": kid["id"], "video_id": VIDEO.id, "device": "web"},
+        headers=hdr(auth),
+    ).json()["session_id"]
+    token = auth["Authorization"].split()[1]
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello", "can_listen": False})
+        assert ws.receive_json()["t"] == "ready"
+        ws.send_json({"t": "position", "seconds": 100})
+        while (msg := ws.receive_json())["t"] != "ask":
+            pass
+        assert msg["input"] == "pick"
+        assert msg["options"], "a pick question a child cannot see options for is no better"
+
+
+def test_a_hello_without_the_flag_still_asks_by_voice(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """Old clients say only `{"t": "hello"}` and must behave exactly as before."""
+    kid = client.post(
+        "/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]}, headers=hdr(auth)
+    ).json()
+    store.put_video(VIDEO)
+    store.put_plan(_plan_7_8())
+
+    sid = client.post(
+        "/sessions",
+        json={"kid_id": kid["id"], "video_id": VIDEO.id, "device": "tv"},
+        headers=hdr(auth),
+    ).json()["session_id"]
+    token = auth["Authorization"].split()[1]
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        assert ws.receive_json()["t"] == "ready"
+        ws.send_json({"t": "position", "seconds": 100})
+        while (msg := ws.receive_json())["t"] != "ask":
+            pass
+        assert msg["input"] == "voice"

@@ -233,6 +233,11 @@ class _SessionScreenState extends State<SessionScreen> {
   /// until it lifts: one seek at the end instead of one per frame of a drag.
   final _scrubbing = ValueNotifier<bool>(false);
 
+  /// What to offer at the end. Gilli's last line asks "shall we watch one
+  /// more?", and until these were here the screen closed itself 1.2 seconds
+  /// later — a question asked and then taken away before it could be answered.
+  List<Video> _nextUp = const [];
+
   /// Whether to draw the play glyph — the child paused, or nothing ever
   /// started. Never true while Gilli has the video.
   final _showPlay = ValueNotifier<bool>(false);
@@ -313,7 +318,14 @@ class _SessionScreenState extends State<SessionScreen> {
         _onMessage,
         onError: (Object e) => _fail('Connection lost: $e'),
       );
-      socket.send(const HelloMessage());
+      // Ask the recogniser before saying hello, so the plan the server builds
+      // is one this device can actually answer. A voice question on a device
+      // that cannot listen is a child sitting in front of a question with no
+      // way to answer it — and until now that was every question, at every age
+      // above 4_6, for as long as the session lasted.
+      final canListen = await _ears.init();
+      if (!mounted) return;
+      socket.send(HelloMessage(canListen: canListen));
       // Ready is what makes it "watching"; until then we still play.
       _positionTimer = Timer.periodic(
         const Duration(milliseconds: 500),
@@ -581,6 +593,37 @@ class _SessionScreenState extends State<SessionScreen> {
     setState(() => _seed = spoken ? word : null);
   }
 
+  /// Straight into the next one, replacing this screen rather than stacking on
+  /// it: three videos in a row must not be three screens deep, and the way out
+  /// of kid mode is the PIN, never the back arrow.
+  void _openNext(Video video) {
+    _voice.stop();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => SessionScreen(video: video)),
+    );
+  }
+
+  /// A few videos to offer at the end, from the same shelf the child came
+  /// from. Failure is not worth a message: they get the shelf itself instead,
+  /// which is where these came from.
+  Future<void> _loadNextUp() async {
+    try {
+      final rows = await context.read<AppState>().gateway.home(_kid.id);
+      final seen = <String>{widget.video.id};
+      final out = <Video>[];
+      for (final row in rows) {
+        for (final v in row.videos) {
+          if (seen.add(v.id)) out.add(v);
+          if (out.length == 3) break;
+        }
+        if (out.length == 3) break;
+      }
+      if (mounted) setState(() => _nextUp = out);
+    } catch (e) {
+      debugPrint('[next-up] $e');
+    }
+  }
+
   Future<void> _startListening() async {
     final ask = _ask;
     if (ask == null || _answered || _phase != _Phase.listening) return;
@@ -749,8 +792,15 @@ class _SessionScreenState extends State<SessionScreen> {
       language: _ttsLanguage(line),
       slow: _preReader,
     );
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
-    if (mounted) Navigator.of(context).maybePop();
+    if (!mounted) return;
+    await _loadNextUp();
+    if (!mounted) return;
+    if (_nextUp.isEmpty) {
+      // Nothing to offer, so do what this always did rather than leave a child
+      // on a dead screen: back to the shelf, where there may be more.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (mounted) Navigator.of(context).maybePop();
+    }
   }
 
   String _ttsLanguage(String? text) =>
@@ -1134,6 +1184,18 @@ class _SessionScreenState extends State<SessionScreen> {
                 textAlign: TextAlign.center,
                 style: HgText.display(size: _band.questionTextSize),
               ),
+            // Gilli just asked whether they want another one. These are the
+            // answer, in pictures, because the child being asked may not read.
+            if (_nextUp.isNotEmpty)
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final v in _nextUp)
+                    _NextUpCard(video: v, onTap: () => _openNext(v)),
+                ],
+              ),
             SizedBox(
               height: 56,
               child: FilledButton.icon(
@@ -1326,6 +1388,40 @@ class _TopBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One offer at the end of a video: a thumbnail big enough for a small hand,
+/// and no text, because the child deciding may not read.
+class _NextUpCard extends StatelessWidget {
+  const _NextUpCard({required this.video, required this.onTap});
+
+  final Video video;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: video.title,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          video.thumb,
+          width: 148,
+          height: 83,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            width: 148,
+            height: 83,
+            color: HgColors.tealDeep,
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white70),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The play glyph, drawn only on a video that is not playing: the child

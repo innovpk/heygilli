@@ -1485,7 +1485,7 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
     them a parent who has just approved channels sees an empty list and no
     reason to believe anything is coming.
     """
-    kid = _kid(hid, kid_id)
+    _kid(hid, kid_id)  # 404s for a kid this household does not have
     store = get_store()
     channels = [c for c in store.list_channels(hid, kid_id) if c.approved]
     titles = {c.id: c.title or c.id for c in channels}
@@ -1807,6 +1807,10 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         first = _client_msg.validate_python(await ws.receive_json())
         if first.t != "hello":
             await ws.send_json(wire(ServerError(message="expected hello")))
+        elif not first.can_listen:
+            # Before `ready`, so the plan the client is told about is already
+            # the one it can actually answer.
+            engine.no_microphone()
         await ws.send_json(wire(engine.ready()))
         await _loop(ws, engine, guard, length)
     except (WebSocketDisconnect, ValidationError) as e:
