@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <style>
+    /*
+      The YouTube embed must never receive a pointer. `pointerEvents: none` in
+      the player params says so inside the iframe, and IgnorePointer says so in
+      the widget tree, and on web neither reaches the thing that matters: the
+      platform view is a DOM element sitting above Flutter's scene, with
+      pointer-events: auto on both the iframe and its host. Every click on the
+      video landed there and was eaten — the document inside has pointer-events
+      none, so nothing happened at all, and Flutter's gesture arena never heard
+      about it. Tap-to-pause did nothing for exactly this reason.
+
+      Scoped to the player by its data: URL so that no other platform view —
+      the Google sign-in button is one — is made unclickable by it.
+    */
+    flt-platform-view:has(> iframe[src^="data:text/html"]),
+    flt-platform-view > iframe[src^="data:text/html"] {
+      pointer-events: none !important;
+    }
+  </style>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
