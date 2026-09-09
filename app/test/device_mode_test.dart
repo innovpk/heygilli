@@ -139,7 +139,10 @@ void main() {
   testWidgets('a parent who typed the PIN gets through', (tester) async {
     // leaveKidMode is what the PIN gate calls on the way out.
     await tester.pumpWidget(host(onKidDeviceWithParentVisiting));
-    await tester.pump();
+    // settle rather than a single pump: landing on ParentHome starts the
+    // request for the household's waiting count, and a test that ends while it
+    // is still in flight is reported as a leaked timer.
+    await settle(tester);
 
     expect(find.byType(ParentHome), findsOneWidget);
   });
@@ -213,7 +216,7 @@ void main() {
 
   testWidgets('a parent device still opens on the household', (tester) async {
     await tester.pumpWidget(host(onParentDevice));
-    await tester.pump();
+    await settle(tester);
     expect(find.byType(ParentHome), findsOneWidget);
     expect(find.byType(KidHomeScreen), findsNothing);
   });

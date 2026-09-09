@@ -126,6 +126,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Sets the count from a list somebody has already fetched, so the inbox
+  /// does not make the rail ask for the same thing again a moment later.
+  void setWaiting(int count) {
+    if (count == _waiting) return;
+    _waiting = count;
+    notifyListeners();
+  }
+
   /// Adjusts the count without a round trip, for the screen that just made the
   /// decision and already knows one fewer is waiting.
   void waitingDecided() {

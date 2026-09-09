@@ -27,6 +27,17 @@ class _ParentHomeState extends State<ParentHome> {
   int _tab = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // The rail's badge and the kid cards both read this. Asked for once on the
+    // way in rather than per card, and quietly: a household with nothing
+    // waiting should not see a failed request about it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AppState>().refreshWaiting();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final name = context.select<AppState, String?>(
       (s) => s.settings.parentName,
@@ -231,7 +242,10 @@ class _KidsTab extends StatelessWidget {
             // more columns fit — at three columns the name and meta line no
             // longer fit and the card overflowed. The card's own content
             // needs the same height regardless of how narrow the column is.
-            mainAxisExtent: 132,
+            //
+            // 152 rather than 132 to leave room for the waiting line when
+            // there is one, without the card jumping height when there is not.
+            mainAxisExtent: 152,
           ),
           itemCount: kids.length,
           itemBuilder: (context, i) => _KidCard(kid: kids[i]),
@@ -241,33 +255,66 @@ class _KidsTab extends StatelessWidget {
   }
 }
 
+/// One child on the household list.
+///
+/// It shows the name, the band, and whether anything is waiting on the parent.
+/// It deliberately does NOT show what the child watched today.
+///
+/// That summary was built and taken out again. Getting it means a digest and a
+/// channel list per child, so a household with three children asks the gateway
+/// six questions to draw a list whose only job is to be tapped — and then asks
+/// most of them again the moment one is. On the free tier that is a slow list
+/// and a cold start apiece. The child's own page loads the same facts once, in
+/// parallel, on the screen that actually uses them.
+///
+/// The waiting count stays, because it costs nothing: the rail has already
+/// asked for it, and it is the one thing on this screen that might make a
+/// parent tap a different child than the one they came for.
 class _KidCard extends StatelessWidget {
   const _KidCard({required this.kid});
   final Kid kid;
 
   @override
   Widget build(BuildContext context) {
+    final waiting = context.select<AppState, int>((s) => s.waiting);
     return PCard(
       padding: const EdgeInsets.all(16),
       onTap: () => openKid(context, kid),
       child: Row(
         spacing: 16,
         children: [
-          KidAvatar(kid: kid, size: 60),
+          KidAvatar(kid: kid, size: 56),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 4,
+              spacing: 2,
               children: [
                 Text(
                   kid.nickname,
-                  style: HgText.display(size: 26, color: HgColors.ink),
+                  style: HgText.display(size: 28, color: HgColors.ink),
                 ),
                 Text(
                   'Age ${kid.age}  |  band ${kid.band.label}  |  '
                   '${languageNames(kid.languages)}',
-                  style: HgText.body(size: 14, color: HgColors.brown),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.body(size: 13, color: HgColors.brown),
                 ),
+                if (waiting > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '$waiting waiting for you',
+                      // Rust and bold only when there is something to do. A
+                      // count that is always coloured stops meaning "look at
+                      // me" the second time anybody sees it.
+                      style: HgText.body(
+                        size: 13,
+                        color: HgColors.mango,
+                        weight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

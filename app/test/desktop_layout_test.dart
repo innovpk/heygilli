@@ -39,6 +39,18 @@ void main() {
     child: const MaterialApp(home: ParentHome()),
   );
 
+  /// Draws the app and lets the household's waiting count arrive.
+  ///
+  /// ParentHome asks for it on the first frame so the rail can badge the inbox,
+  /// and the fake gateway answers after a real delay. A single `pump` leaves
+  /// that timer outstanding, which the test binding reports as a leak at
+  /// teardown rather than as the ordinary in-flight request it is.
+  Future<void> pumpHome(WidgetTester tester) async {
+    await tester.pumpWidget(host());
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+  }
+
   Future<void> resize(WidgetTester tester, double width) async {
     tester.view.physicalSize = Size(width, 1000);
     tester.view.devicePixelRatio = 1.0;
@@ -55,8 +67,7 @@ void main() {
     tester,
   ) async {
     await resize(tester, 500);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(HouseholdSidebar), findsNothing);
@@ -66,8 +77,7 @@ void main() {
     tester,
   ) async {
     await resize(tester, 1200);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     expect(find.byType(HouseholdSidebar), findsOneWidget);
     // Not just visually replaced: an invisible NavigationBar still eating
@@ -77,8 +87,7 @@ void main() {
 
   testWidgets('the rail actually switches tabs', (tester) async {
     await resize(tester, 1200);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     expect(find.text('Kids'), findsWidgets);
     // Twice: once on her card in the grid, once in the rail, which lists every
@@ -106,8 +115,7 @@ void main() {
     // threshold — this is what actually exercises the two-column tier
     // specifically rather than the three-column one.
     await resize(tester, 1000);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     expect(find.byType(GridView), findsOneWidget);
     final abeeha = tester.getTopLeft(inGrid('Abeeha'));
@@ -129,8 +137,7 @@ void main() {
     // sidebar plus the grid's own padding, not just clear the breakpoint
     // number read in isolation.
     await resize(tester, 2000);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     final abeeha = tester.getTopLeft(inGrid('Abeeha'));
     final abu = tester.getTopLeft(inGrid('Abu'));
@@ -146,8 +153,7 @@ void main() {
 
   testWidgets('one kid per row on a narrow window, unchanged', (tester) async {
     await resize(tester, 500);
-    await tester.pumpWidget(host());
-    await tester.pump();
+    await pumpHome(tester);
 
     expect(find.byType(GridView), findsNothing);
     final abeeha = tester.getTopLeft(find.text('Abeeha'));

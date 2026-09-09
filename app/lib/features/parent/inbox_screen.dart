@@ -31,8 +31,13 @@ class _InboxScreenState extends State<InboxScreen> {
     _inbox = _load();
   });
 
-  Future<List<ParentPrompt>> _load() =>
-      context.read<AppState>().gateway.inbox();
+  Future<List<ParentPrompt>> _load() async {
+    final list = await context.read<AppState>().gateway.inbox();
+    // The list has just been fetched, so the rail's count can be corrected for
+    // free rather than by asking again.
+    if (mounted) context.read<AppState>().setWaiting(list.length);
+    return list;
+  }
 
   Future<void> _decide(ParentPrompt p, String decision) async {
     setState(() => _busy.add(p.id));
