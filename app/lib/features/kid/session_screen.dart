@@ -85,6 +85,47 @@ const kidPlayerParams = YoutubePlayerParams(
   mute: true,
 );
 
+/// What a child's tap on the video should do.
+enum PlayerTap { nothing, pause, start }
+
+/// The tap a child is allowed, decided in one place so it can be pinned down.
+///
+/// `pointerEvents: none` takes the ordinary tap away from the embed, and this
+/// is what we hand back in its place. Two outcomes, and a third that matters
+/// more than either: while Gilli has the video, a tap does nothing at all.
+/// The pause is the question, and a child tapping past it has skipped it.
+@visibleForTesting
+PlayerTap playerTapFor({
+  required bool gilliHasVideo,
+  required bool onBreak,
+  required bool ended,
+  required PlayerState state,
+}) {
+  if (gilliHasVideo || onBreak || ended) return PlayerTap.nothing;
+  if (state == PlayerState.playing) return PlayerTap.pause;
+  return PlayerTap.start;
+}
+
+/// Whether the play glyph is drawn.
+///
+/// Never over playing video — YouTube's terms forbid an overlay there, and
+/// `_trackStrip` lives under the player for the same reason. Never while Gilli
+/// is asking either: a play button on the frame reads as the way out of the
+/// question, which is the one thing it must not be.
+@visibleForTesting
+bool showsPlayGlyph({
+  required bool gilliHasVideo,
+  required bool onBreak,
+  required bool ended,
+  required bool childPaused,
+  required PlayerState state,
+}) {
+  if (gilliHasVideo || onBreak || ended) return false;
+  final stalled =
+      state == PlayerState.unStarted || state == PlayerState.cued;
+  return childPaused || stalled;
+}
+
 enum _Phase {
   connecting,
   watching,
@@ -154,6 +195,15 @@ class _SessionScreenState extends State<SessionScreen> {
   /// is a broken app that looks like a working one, so this puts a button in
   /// HeyGilli's own bar rather than leaving a child watching a mime.
   final _needsSound = ValueNotifier<bool>(false);
+
+  /// True when the child paused it themselves. Deliberately separate from
+  /// `_serverPaused`: Gilli's pause is the session working, and this one is
+  /// somebody deciding they want a moment.
+  bool _childPaused = false;
+
+  /// Whether to draw the play glyph — the child paused, or nothing ever
+  /// started. Never true while Gilli has the video.
+  final _showPlay = ValueNotifier<bool>(false);
 
   /// Whether the unmute has already been attempted for this session.
   bool _unmuteTried = false;
@@ -263,6 +313,7 @@ class _SessionScreenState extends State<SessionScreen> {
       unawaited(context.read<AppState>().gateway.endSession(id));
     }
     _needsSound.dispose();
+    _showPlay.dispose();
     _ears.dispose();
     _voice.stop();
     _yt.close();
@@ -276,6 +327,7 @@ class _SessionScreenState extends State<SessionScreen> {
       debugPrint('[yt] ${v.playerState} error=${v.error}');
     }
     _playerState = v.playerState;
+    _syncPlayGlyph();
     // Every time it starts playing, not once: the captions module is loaded
     // with the video, so a single call at the top of the session lands before
     // there is anything to unload.
@@ -291,6 +343,48 @@ class _SessionScreenState extends State<SessionScreen> {
         }
       });
     }
+  }
+
+  void _syncPlayGlyph() {
+    _showPlay.value = showsPlayGlyph(
+      gilliHasVideo: _isPaused,
+      onBreak: _onBreak,
+      ended: _ended,
+      childPaused: _childPaused,
+      state: _playerState,
+    );
+  }
+
+  /// The child's own tap on the video.
+  ///
+  /// `pointerEvents: none` keeps them away from "Watch on YouTube" and the
+  /// related-videos panel, and it takes the ordinary tap with it. This gives
+  /// that tap back in our own layer, where it can do two things and nothing
+  /// else: pause what is playing, and start what never started.
+  Future<void> _onPlayerTap() async {
+    final tap = playerTapFor(
+      gilliHasVideo: _isPaused,
+      onBreak: _onBreak,
+      ended: _ended,
+      state: _playerState,
+    );
+    if (tap == PlayerTap.nothing) return;
+
+    if (tap == PlayerTap.pause) {
+      _childPaused = true;
+      await _yt.pauseVideo();
+    } else {
+      _childPaused = false;
+      // A tap is a user gesture, which is the one thing a browser that refused
+      // to autoplay will accept. `_nudge` calls `playVideo()` too and cannot
+      // help here: it is not a gesture, which is why a blocked video sat on
+      // the poster for ever with no way out of it.
+      await _yt.playVideo();
+      // The same gesture is what the unmute was missing, so let it try again.
+      _unmuteTried = false;
+      unawaited(_unmuteOnce());
+    }
+    _syncPlayGlyph();
   }
 
   /// Turn the sound on, once, and find out whether it worked.
@@ -655,14 +749,34 @@ class _SessionScreenState extends State<SessionScreen> {
 
   Widget _player(bool rounded) => ClipRRect(
     borderRadius: BorderRadius.circular(rounded ? 20 : 0),
-    child: KeyedSubtree(
-      key: _playerKey,
-      child: YoutubePlayer(
-        controller: _yt,
-        backgroundColor: HgColors.tealDeep,
-        enableFullScreenOnVerticalDrag: false,
-        autoFullScreen: false,
-      ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        KeyedSubtree(
+          key: _playerKey,
+          child: YoutubePlayer(
+            controller: _yt,
+            backgroundColor: HgColors.tealDeep,
+            enableFullScreenOnVerticalDrag: false,
+            autoFullScreen: false,
+          ),
+        ),
+        // Nothing is drawn here while the video plays: YouTube's terms forbid
+        // an overlay over playing video, and this one is transparent and
+        // empty until the video is stopped. It is a hit target, not a skin.
+        Positioned.fill(
+          child: GestureDetector(
+            key: const Key('player-tap'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _onPlayerTap,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showPlay,
+              builder: (context, show, _) =>
+                  show ? const Center(child: _PlayGlyph()) : const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 
@@ -1115,6 +1229,25 @@ class _TopBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The play glyph, drawn only on a video that is not playing: the child
+/// paused it, or nothing ever started and a tap is the only thing that can
+/// begin it.
+class _PlayGlyph extends StatelessWidget {
+  const _PlayGlyph();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      color: Color(0xB3000000),
+      shape: BoxShape.circle,
+    ),
+    child: const Padding(
+      padding: EdgeInsets.all(18),
+      child: Icon(Icons.play_arrow_rounded, size: 44, color: Colors.white),
+    ),
+  );
 }
 
 /// "Tap for sound", for the browsers that will not unmute on their own.
