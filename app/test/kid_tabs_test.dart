@@ -45,22 +45,28 @@ void main() {
     }
   }
 
-  testWidgets('the three tabs are there, and kid mode is above them', (
+  testWidgets('the four tabs are there, and kid mode is above them', (
     tester,
   ) async {
     await open(tester);
-    expect(find.text('How it is going'), findsOneWidget);
+    expect(find.text('Overview'), findsOneWidget);
+    expect(find.text('Progress'), findsOneWidget);
     expect(find.text('Rules'), findsOneWidget);
     expect(find.text('Channels'), findsOneWidget);
     // Starting a session is what a parent came to do most often, so it is not
-    // filed inside one of the three.
+    // filed inside one of the four.
     expect(find.text('Enter kid mode'), findsOneWidget);
   });
 
-  testWidgets('what happened is the first thing shown', (tester) async {
+  testWidgets('the note is the first thing shown, not a card about it', (
+    tester,
+  ) async {
+    // The tab used to be four doors, one of which led to the note a parent
+    // came to read. The note is the page now.
     await open(tester);
-    expect(find.textContaining("Today's digest"), findsOneWidget);
-    expect(find.textContaining('Progress'), findsWidgets);
+    expect(find.textContaining("TONIGHT'S NOTE"), findsOneWidget);
+    expect(find.textContaining('Waiting for you'), findsOneWidget);
+    expect(find.textContaining('Rules in one glance'), findsOneWidget);
   });
 
   testWidgets('the rules live together, away from the reading', (tester) async {

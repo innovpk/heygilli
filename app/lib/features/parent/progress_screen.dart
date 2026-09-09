@@ -15,9 +15,15 @@ import 'progress_charts.dart';
 /// parent what to *do*; the numbers underneath are there to back it up. No
 /// streaks and no screen-time scolding: minutes are reported, never judged.
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key, required this.kid});
+  const ProgressScreen({super.key, required this.kid, this.embedded = false});
 
   final Kid kid;
+
+  /// True when this is the Progress tab of a child's page rather than a screen
+  /// of its own. The tab already sits inside a ParentScaffold with the child's
+  /// name at the top of it, and a second scaffold would draw that header, the
+  /// rail and the back arrow all over again inside the first one.
+  final bool embedded;
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
@@ -62,47 +68,49 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _RangeRow(days: _days, onChanged: _setDays),
+        Expanded(
+          child: FutureBuilder<Analytics>(
+            future: _future,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return LoadError(snap.error!, onRetry: _reload);
+              }
+              final a = snap.data;
+              if (a == null) {
+                return const Center(
+                  child: CircularProgressIndicator(color: HgColors.mango),
+                );
+              }
+              return FutureBuilder<List<RevisitConcept>>(
+                future: _revisits,
+                builder: (context, revisits) => FutureBuilder<List<WordSeed>>(
+                  future: _words,
+                  builder: (context, words) => _Body(
+                    analytics: a,
+                    kid: widget.kid,
+                    // An empty list until it arrives, and an empty list if
+                    // it never does: the rest of the screen is worth more
+                    // than a spinner over it.
+                    revisits: revisits.data ?? const [],
+                    words: words.data ?? const [],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+    if (widget.embedded) return body;
     return ParentScaffold(
       subtitle: 'Progress',
       title: widget.kid.nickname,
       actions: const [GilliMini(size: 48)],
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _RangeRow(days: _days, onChanged: _setDays),
-          Expanded(
-            child: FutureBuilder<Analytics>(
-              future: _future,
-              builder: (context, snap) {
-                if (snap.hasError) {
-                  return LoadError(snap.error!, onRetry: _reload);
-                }
-                final a = snap.data;
-                if (a == null) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: HgColors.mango),
-                  );
-                }
-                return FutureBuilder<List<RevisitConcept>>(
-                  future: _revisits,
-                  builder: (context, revisits) => FutureBuilder<List<WordSeed>>(
-                    future: _words,
-                    builder: (context, words) => _Body(
-                      analytics: a,
-                      kid: widget.kid,
-                      // An empty list until it arrives, and an empty list if
-                      // it never does: the rest of the screen is worth more
-                      // than a spinner over it.
-                      revisits: revisits.data ?? const [],
-                      words: words.data ?? const [],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 }

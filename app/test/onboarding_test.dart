@@ -68,7 +68,8 @@ void main() {
     });
     await pumpWide(tester, KidDetailScreen(kid: kid));
 
-    expect(selectedTab(tester), 2);
+    // Channels is the fourth tab now that Progress has one of its own.
+    expect(selectedTab(tester), 3);
     expect(find.text('Suggest channels for Abu'), findsOneWidget);
   });
 

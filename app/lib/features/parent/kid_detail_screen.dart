@@ -8,9 +8,8 @@ import '../../core/theme.dart';
 import '../../main.dart';
 import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
-import 'digest_screen.dart';
-import 'history_screen.dart';
 import 'inbox_screen.dart';
+import 'kid_overview.dart';
 import 'parent_home.dart';
 import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
@@ -35,7 +34,7 @@ class KidDetailScreen extends StatefulWidget {
 
 class _KidDetailScreenState extends State<KidDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 3, vsync: this);
+  late final TabController _tabs = TabController(length: 4, vsync: this);
 
   /// How many channel tiles this page shows before handing over to the review
   /// screen.
@@ -62,7 +61,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   void _openOnChannelsIfEmpty() {
     _channels
         .then((list) {
-          if (mounted && list.isEmpty) _tabs.animateTo(2);
+          if (mounted && list.isEmpty) _tabs.animateTo(3);
         })
         .catchError((_) {
           // A channel list that would not load says nothing about which tab
@@ -379,163 +378,67 @@ class _KidDetailScreenState extends State<KidDetailScreen>
           //
           // Split by question rather than by feature — what happened, what
           // is allowed, and what they can watch.
-          TabBar(
-            controller: _tabs,
-            labelColor: HgColors.ink,
-            unselectedLabelColor: HgColors.brown,
-            indicatorColor: HgColors.mango,
-            indicatorWeight: 3,
-            tabs: const [
-              Tab(text: 'How it is going'),
-              Tab(text: 'Rules'),
-              Tab(text: 'Channels'),
-            ],
+          // A segmented control on a paper track rather than an underlined
+          // tab bar: four labels, and the selected one is filled so it reads
+          // as a switch that has been thrown rather than as a heading that
+          // happens to be underlined.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: HgColors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TabBar(
+                  controller: _tabs,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelColor: HgColors.cream,
+                  unselectedLabelColor: HgColors.brown,
+                  labelStyle: HgText.display(size: 17, color: HgColors.cream),
+                  unselectedLabelStyle: HgText.display(
+                    size: 17,
+                    color: HgColors.brown,
+                  ),
+                  splashBorderRadius: BorderRadius.circular(11),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: HgColors.ink,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  tabs: const [
+                    Tab(text: 'Overview'),
+                    Tab(text: 'Progress'),
+                    Tab(text: 'Rules'),
+                    Tab(text: 'Channels'),
+                  ],
+                ),
+              ),
+            ),
           ),
           Expanded(
             child: TabBarView(
               controller: _tabs,
               children: [
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                  children: [
-                    PCard(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => DigestScreen(kid: kid),
-                        ),
-                      ),
-                      child: Row(
-                        spacing: 14,
-                        children: [
-                          const Icon(
-                            Icons.auto_stories_rounded,
-                            color: HgColors.brown,
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Today's digest",
-                                  style: HgText.display(
-                                    size: 22,
-                                    color: HgColors.ink,
-                                  ),
-                                ),
-                                Text(
-                                  kid.band == AgeBand.b4to6
-                                      ? 'Words said, words heard, one thing to try'
-                                      : 'Understood, shaky, one question for dinner',
-                                  style: HgText.body(
-                                    size: 14,
-                                    color: HgColors.brown,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: HgColors.brown,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    PCard(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProgressScreen(kid: kid),
-                        ),
-                      ),
-                      child: Row(
-                        spacing: 14,
-                        children: [
-                          const Icon(
-                            Icons.insights_rounded,
-                            color: HgColors.brown,
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Progress',
-                                  style: HgText.display(
-                                    size: 22,
-                                    color: HgColors.ink,
-                                  ),
-                                ),
-                                Text(
-                                  kid.band == AgeBand.b4to6
-                                      ? 'Minutes, words coming back, what to try'
-                                      : 'Minutes, what stuck, what needs another look',
-                                  style: HgText.body(
-                                    size: 14,
-                                    color: HgColors.brown,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: HgColors.brown,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Only says anything once a parent has ticked history on an import.
-                    // Shown anyway, because the empty state is where they find out the
-                    // option exists and that it is off.
-                    PCard(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => HistoryScreen(kid: kid),
-                        ),
-                      ),
-                      child: Row(
-                        spacing: 14,
-                        children: [
-                          const Icon(
-                            Icons.history_rounded,
-                            color: HgColors.brown,
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'What they actually watched',
-                                  style: HgText.display(
-                                    size: 22,
-                                    color: HgColors.ink,
-                                  ),
-                                ),
-                                Text(
-                                  'How much came from channels nobody chose. Only if '
-                                  'you asked for it during an import',
-                                  style: HgText.body(
-                                    size: 14,
-                                    color: HgColors.brown,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: HgColors.brown,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Sits above the time settings because it is the one that decides
-                    // what reaches this child at all, rather than for how long.
-                  ],
+                // Today, rather than four cards each saying "there is
+                // something behind me". The note a parent came to read was one
+                // screen deeper than the screen they landed on, every evening.
+                KidOverview(
+                  kid: kid,
+                  onSeeProgress: () => _tabs.animateTo(1),
+                  onChangeRules: () => _tabs.animateTo(2),
+                  onSeeInbox: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const InboxScreen()),
+                  ),
                 ),
+                // Was a pushed screen reached from a card; it is a tab now, so
+                // a parent comparing this week with the note beside it does not
+                // have to leave and come back.
+                ProgressScreen(kid: kid, embedded: true),
                 ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                   children: [
