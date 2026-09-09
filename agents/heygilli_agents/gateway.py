@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import ask, breaks, coach, drift, history, question_bank, revisit, words
+from . import ask, breaks, coach, drift, history, known, question_bank, revisit, words
 from . import starter_channels as starter_channels_data
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
@@ -1789,6 +1789,10 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         video, session.age_band, session.language
     )
     if kid is not None:
+        # First, because the two that follow both act on indices: a question the
+        # child already got right is replaced here, and revisit then has the
+        # same plan shape to place its own question into.
+        plan = await asyncio.to_thread(known.swap_known, plan, kid, store, video)
         # For this session only: the cached plan is shared by every household and
         # a revisit belongs to one child (PROTOCOL.md "Revisiting a shaky concept").
         plan = await asyncio.to_thread(revisit.seed, plan, kid, store, video, session.id)
