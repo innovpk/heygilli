@@ -34,6 +34,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
   int _days = 14;
   late Future<Analytics> _future = _load();
 
+  /// The Takeout import, when there has been one. Null both when there has not
+  /// and when the gateway cannot answer, and the section simply does not
+  /// appear — there is nothing honest to say about watching that happened
+  /// before this app, without the export that measured it.
+  late Future<HistoryInsight?> _history = context
+      .read<AppState>()
+      .gateway
+      .history(widget.kid.id)
+      .catchError((_) => null);
+
   /// Which shaky concepts a later session has quietly come back to. Loaded
   /// separately because it does not move with the day range: a revisit is
   /// about a concept, not about a window.
@@ -89,14 +99,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 future: _revisits,
                 builder: (context, revisits) => FutureBuilder<List<WordSeed>>(
                   future: _words,
-                  builder: (context, words) => _Body(
-                    analytics: a,
-                    kid: widget.kid,
-                    // An empty list until it arrives, and an empty list if
-                    // it never does: the rest of the screen is worth more
-                    // than a spinner over it.
-                    revisits: revisits.data ?? const [],
-                    words: words.data ?? const [],
+                  builder: (context, words) => FutureBuilder<HistoryInsight?>(
+                    future: _history,
+                    builder: (context, history) => _Body(
+                      analytics: a,
+                      kid: widget.kid,
+                      // An empty list until it arrives, and an empty list
+                      // if it never does: the rest of the screen is worth
+                      // more than a spinner over it.
+                      revisits: revisits.data ?? const [],
+                      words: words.data ?? const [],
+                      history: history.data,
+                    ),
                   ),
                 ),
               );
@@ -165,14 +179,92 @@ class _Body extends StatelessWidget {
     required this.kid,
     this.revisits = const [],
     this.words = const [],
+    this.history,
   });
 
   final Analytics analytics;
   final Kid kid;
   final List<RevisitConcept> revisits;
   final List<WordSeed> words;
+  final HistoryInsight? history;
 
   bool get _preReader => kid.band == AgeBand.b4to6;
+
+  /// What watching looked like before this app, from the parent's own export.
+  ///
+  /// The "before" number is measured: `unsubscribedShare` is the share of the
+  /// imported history that came from channels the child does not follow. The
+  /// "since" number is zero by construction rather than by measurement —
+  /// nothing reaches a child from a channel the parent has not approved, and
+  /// search, when it is on at all, only searches inside those.
+  ///
+  /// Nothing at all without an import. There is no honest thing to say about
+  /// watching that happened before this app without the export that measured
+  /// it, and a card with an invented percentage in it would be worse than no
+  /// card in a product whose whole claim is that it does not guess.
+  Widget? _watchedBefore() {
+    final h = history;
+    if (h == null || h.videos == 0) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: _Section(
+        label: 'What they actually watched',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 8,
+          children: [
+            Text(
+              'From the ${h.videos} '
+              '${h.videos == 1 ? "video" : "videos"} in the export you '
+              'brought across. Only the totals were kept — the '
+              'video-by-video list was read on your device and discarded.',
+              style: HgText.body(size: 14, color: HgColors.brown),
+            ),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Before HeyGilli: ',
+                    style: HgText.body(
+                      size: 15,
+                      color: HgColors.ink,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        '${h.unsubscribedPercent}% of watching came from '
+                        'channels not on the list.',
+                    style: HgText.body(size: 15, color: HgColors.ink),
+                  ),
+                ],
+              ),
+            ),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Since: ',
+                    style: HgText.body(
+                      size: 15,
+                      color: HgColors.green,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        '0%. Nothing reaches ${kid.nickname} from a channel '
+                        'you have not approved.',
+                    style: HgText.body(size: 15, color: HgColors.ink),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +290,7 @@ class _Body extends StatelessWidget {
               hint: 'Tap a bar for that day',
             ),
           ),
+          ?_watchedBefore(),
           if (a.channels.isNotEmpty) ...[
             const SizedBox(height: 16),
             _Section(
