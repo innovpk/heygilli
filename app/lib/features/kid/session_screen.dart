@@ -826,7 +826,7 @@ class _SessionScreenState extends State<SessionScreen> {
     }
     final card = ((w - 16 - 2 * PickCards.gap) / 3).floorToDouble();
     return _StageSizes(
-      gilli: _videoSmall ? (h * 0.3).clamp(96.0, 132.0) : 64,
+      gilli: _isPaused ? (h * 0.3).clamp(96.0, 132.0) : 64,
       mic: 108,
       card: card.clamp(120.0, 150.0),
     );
@@ -843,19 +843,6 @@ class _SessionScreenState extends State<SessionScreen> {
   /// True whenever the video is stopped for a question. Layout keys off this:
   /// playing = video as large as possible, Gilli small; paused = video
   /// shrinks, Gilli and the answer area grow (SPEC 6.2, 6.3).
-  /// The video is drawn small, with Gilli beside it.
-  ///
-  /// Gilli's pause does this because the question needs the screen. A child's
-  /// pause does it for a different reason: a paused embed draws YouTube's own
-  /// panel over the frame — "More videos", a thumbnail, "Watch on YouTube" —
-  /// and no player parameter turns that off. It cannot be covered either; the
-  /// terms are the reason the question strip lives under the player and not on
-  /// it. What is left is to make the frame it appears on small, and give the
-  /// screen to the squirrel instead. It is inert regardless — nothing in that
-  /// panel can be tapped — but a shelf of other videos is an advertisement for
-  /// leaving, and a four-year-old should not be reading one.
-  bool get _videoSmall => _isPaused || _childPaused;
-
   bool get _isPaused => switch (_phase) {
     _Phase.paused ||
     _Phase.asking ||
@@ -940,7 +927,7 @@ class _SessionScreenState extends State<SessionScreen> {
             const anim = Duration(milliseconds: 350);
 
             if (wide) {
-              if (!_videoSmall) {
+              if (!_isPaused) {
                 // Playing: the video takes everything above a slim bar that
                 // holds the exit arrow and a small Gilli. Nothing is drawn
                 // over the video itself.
