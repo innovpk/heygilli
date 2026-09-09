@@ -19,7 +19,8 @@ class QuestionTrack extends StatelessWidget {
     required this.durationS,
     required this.questionTimes,
     required this.askedCount,
-    this.onSeek,
+    this.onScrub,
+    this.onScrubEnd,
   });
 
   /// Where the video is now, in seconds.
@@ -35,9 +36,14 @@ class QuestionTrack extends StatelessWidget {
   /// says which dots are behind the child.
   final int askedCount;
 
-  /// Where the child dragged to, in seconds. Null while Gilli has the video:
-  /// the strip still shows where they are, it just cannot be moved.
-  final ValueChanged<double>? onSeek;
+  /// Where the finger is now, in seconds — a preview, not a seek. Null while
+  /// Gilli has the video: the strip still shows where they are, it just cannot
+  /// be moved.
+  final ValueChanged<double>? onScrub;
+
+  /// The finger came off. No position: the last [onScrub] already said where
+  /// it was, and `DragEndDetails` does not carry one.
+  final VoidCallback? onScrubEnd;
 
   static const _height = 22.0;
   static const _barHeight = 6.0;
@@ -57,21 +63,27 @@ class QuestionTrack extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, box) {
             final w = box.maxWidth;
-            void seekAt(double dx) {
-              final at = (dx / w).clamp(0.0, 1.0) * durationS;
-              onSeek?.call(at);
-            }
+            double secondsAt(double dx) => (dx / w).clamp(0.0, 1.0) * durationS;
 
+            final enabled = onScrub != null && onScrubEnd != null;
             return GestureDetector(
               // The whole strip is the target, not the six-pixel bar: this is
               // dragged by a four-year-old with the video still playing.
               behavior: HitTestBehavior.opaque,
-              onTapDown: onSeek == null
-                  ? null
-                  : (d) => seekAt(d.localPosition.dx),
-              onHorizontalDragUpdate: onSeek == null
-                  ? null
-                  : (d) => seekAt(d.localPosition.dx),
+              // A tap is a scrub that starts and ends in the same place.
+              onTapDown: enabled
+                  ? (d) => onScrub!(secondsAt(d.localPosition.dx))
+                  : null,
+              onTapUp: enabled ? (_) => onScrubEnd!() : null,
+              onTapCancel: enabled ? onScrubEnd : null,
+              onHorizontalDragStart: enabled
+                  ? (d) => onScrub!(secondsAt(d.localPosition.dx))
+                  : null,
+              onHorizontalDragUpdate: enabled
+                  ? (d) => onScrub!(secondsAt(d.localPosition.dx))
+                  : null,
+              onHorizontalDragEnd: enabled ? (_) => onScrubEnd!() : null,
+              onHorizontalDragCancel: enabled ? onScrubEnd : null,
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,

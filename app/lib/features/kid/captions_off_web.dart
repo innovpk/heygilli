@@ -26,10 +26,7 @@ Future<void> hideCaptionsImpl(YoutubePlayerController controller) async {
       final window = frame?.contentWindow;
       if (window == null) continue;
       for (final call in calls) {
-        window.postMessage(
-          jsonEncode({'function': call}).toJS,
-          '*'.toJS,
-        );
+        window.postMessage(jsonEncode({'function': call}).toJS, '*'.toJS);
       }
     }
   } catch (e) {

@@ -7,7 +7,6 @@ import '../../core/models.dart';
 import '../../core/responsive.dart';
 import '../../core/theme.dart';
 
-
 /// Let the child choose their own picture.
 ///
 /// Theirs to change, not the parent's to assign: it is the one thing in the
@@ -92,11 +91,7 @@ class _AvatarPickerState extends State<_AvatarPicker> {
 }
 
 class _Face extends StatelessWidget {
-  const _Face({
-    required this.name,
-    required this.chosen,
-    required this.onTap,
-  });
+  const _Face({required this.name, required this.chosen, required this.onTap});
 
   final String name;
   final bool chosen;
@@ -116,9 +111,7 @@ class _Face extends StatelessWidget {
         decoration: BoxDecoration(
           color: HgColors.white,
           shape: BoxShape.circle,
-          border: chosen
-              ? Border.all(color: HgColors.mango, width: 4)
-              : null,
+          border: chosen ? Border.all(color: HgColors.mango, width: 4) : null,
         ),
         padding: const EdgeInsets.all(10),
         child: SvgPicture.asset('assets/icons/$name.svg'),

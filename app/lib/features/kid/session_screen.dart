@@ -121,8 +121,7 @@ bool showsPlayGlyph({
   required PlayerState state,
 }) {
   if (gilliHasVideo || onBreak || ended) return false;
-  final stalled =
-      state == PlayerState.unStarted || state == PlayerState.cued;
+  final stalled = state == PlayerState.unStarted || state == PlayerState.cued;
   return childPaused || stalled;
 }
 
@@ -229,6 +228,11 @@ class _SessionScreenState extends State<SessionScreen> {
   /// somebody deciding they want a moment.
   bool _childPaused = false;
 
+  /// A finger is on the question track. While it is, the strip shows where the
+  /// finger is rather than where the video is, and the player is left alone
+  /// until it lifts: one seek at the end instead of one per frame of a drag.
+  bool _scrubbing = false;
+
   /// Whether to draw the play glyph — the child paused, or nothing ever
   /// started. Never true while Gilli has the video.
   final _showPlay = ValueNotifier<bool>(false);
@@ -266,7 +270,10 @@ class _SessionScreenState extends State<SessionScreen> {
     _ytSub = _yt.stream.listen(_onPlayerValue);
     _posSub = _yt.videoStateStream.listen((s) {
       _positionS = s.position.inMilliseconds / 1000;
-      _position.value = _positionS;
+      // Not while a finger is on the strip. The player reports every 100ms and
+      // a seek takes longer than that to land, so following both at once is
+      // the thumb being dragged one way and yanked back the other.
+      if (!_scrubbing) _position.value = _positionS;
     });
     // Some webviews ignore autoplay; give the player one more push.
     _nudge = Timer(const Duration(seconds: 5), () {
@@ -415,24 +422,37 @@ class _SessionScreenState extends State<SessionScreen> {
     _syncPlayGlyph();
   }
 
-  /// A drag on the question track.
+  /// Where a drag would land, given the rules and where the video is.
+  double _scrubTarget(double wanted) => seekTargetFor(
+    wanted: wanted,
+    durationS: widget.video.durationS,
+    positionS: _positionS,
+    questionTimes: _questionTimes,
+    asked: _asked,
+  );
+
+  /// A finger moving along the question track.
   ///
-  /// Gated exactly like the tap: while Gilli has the video the strip still
-  /// shows where the child is, and moving it does nothing. The pause is the
-  /// question, and dragging out of one is the same as tapping out of it.
-  Future<void> _onSeek(double wanted) async {
+  /// Nothing is asked of the player here. The strip alone follows the finger,
+  /// clamped by the same rule the seek will use, so the thumb visibly refuses
+  /// to go past the next question rather than sliding there and springing
+  /// back. Gated like the tap: while Gilli has the video the strip shows the
+  /// position and does not move.
+  void _onScrub(double wanted) {
     if (_isPaused || _onBreak || _ended) return;
-    final target = seekTargetFor(
-      wanted: wanted,
-      durationS: widget.video.durationS,
-      positionS: _positionS,
-      questionTimes: _questionTimes,
-      asked: _asked,
-    );
-    // Moved here first so the bar follows the finger rather than waiting for
-    // the player to report back, which is a whole tick away.
+    _scrubbing = true;
+    _position.value = _scrubTarget(wanted);
+  }
+
+  /// The finger came off. One seek, to wherever the strip ended up.
+  Future<void> _onScrubEnd() async {
+    if (!_scrubbing) return;
+    _scrubbing = false;
+    if (_isPaused || _onBreak || _ended) return;
+    // `_position` was clamped on the way in by `_onScrub`, so this is already
+    // a legal place to be.
+    final target = _position.value;
     _positionS = target;
-    _position.value = target;
     await _yt.seekTo(seconds: target, allowSeekAhead: true);
   }
 
@@ -792,7 +812,8 @@ class _SessionScreenState extends State<SessionScreen> {
         durationS: widget.video.durationS,
         questionTimes: _questionTimes,
         askedCount: _asked,
-        onSeek: (_isPaused || _onBreak || _ended) ? null : _onSeek,
+        onScrub: (_isPaused || _onBreak || _ended) ? null : _onScrub,
+        onScrubEnd: (_isPaused || _onBreak || _ended) ? null : _onScrubEnd,
       ),
     ),
   );
@@ -802,13 +823,20 @@ class _SessionScreenState extends State<SessionScreen> {
     child: Stack(
       fit: StackFit.expand,
       children: [
-        KeyedSubtree(
-          key: _playerKey,
-          child: YoutubePlayer(
-            controller: _yt,
-            backgroundColor: HgColors.tealDeep,
-            enableFullScreenOnVerticalDrag: false,
-            autoFullScreen: false,
+        // The embed must never receive a pointer — that is the whole of
+        // `pointerEvents: none`. Saying it here as well is what lets the tap
+        // target below actually see a tap: on web the platform view is a DOM
+        // element sitting above Flutter's scene, and it swallowed every click
+        // before the gesture arena heard about it.
+        IgnorePointer(
+          child: KeyedSubtree(
+            key: _playerKey,
+            child: YoutubePlayer(
+              controller: _yt,
+              backgroundColor: HgColors.tealDeep,
+              enableFullScreenOnVerticalDrag: false,
+              autoFullScreen: false,
+            ),
           ),
         ),
         // Nothing is drawn here while the video plays: YouTube's terms forbid
@@ -821,8 +849,9 @@ class _SessionScreenState extends State<SessionScreen> {
             onTap: _onPlayerTap,
             child: ValueListenableBuilder<bool>(
               valueListenable: _showPlay,
-              builder: (context, show, _) =>
-                  show ? const Center(child: _PlayGlyph()) : const SizedBox.expand(),
+              builder: (context, show, _) => show
+                  ? const Center(child: _PlayGlyph())
+                  : const SizedBox.expand(),
             ),
           ),
         ),

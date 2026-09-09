@@ -296,15 +296,23 @@ class _Header extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                padding: kid.hasDrawableAvatar ? const EdgeInsets.all(12) : null,
+                padding: kid.hasDrawableAvatar
+                    ? const EdgeInsets.all(12)
+                    : null,
                 // Pre-readers get a star, not a letter: no glyphs to decode.
                 // A picture they chose replaces both.
                 child: kid.hasDrawableAvatar
                     ? SvgPicture.asset('assets/icons/${kid.avatar}.svg')
                     : preReader
-                    ? const Icon(Icons.star_rounded, size: 44, color: HgColors.teal)
+                    ? const Icon(
+                        Icons.star_rounded,
+                        size: 44,
+                        color: HgColors.teal,
+                      )
                     : Text(
-                        kid.nickname.isEmpty ? '?' : kid.nickname[0].toUpperCase(),
+                        kid.nickname.isEmpty
+                            ? '?'
+                            : kid.nickname[0].toUpperCase(),
                         style: HgText.display(size: 34, color: HgColors.teal),
                       ),
               ),
