@@ -234,13 +234,13 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: HgColors.ink,
+                        color: HgColors.white,
                       ),
                     )
                   : const Icon(Icons.check_rounded),
               label: Text(
                 'Allow $yes ${yes == 1 ? 'video' : 'videos'}',
-                style: HgText.body(color: HgColors.ink),
+                style: HgText.body(color: HgColors.white),
               ),
             ),
     );

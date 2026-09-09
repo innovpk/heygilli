@@ -94,10 +94,18 @@ class ParentScaffold extends StatelessWidget {
             // and the demo chip about 70 — and it only has to be close, since
             // being wrong costs a line break either way and never a clipped
             // control.
-            final painter = TextPainter(
-              text: TextSpan(text: title, style: HgText.display(size: 32)),
+            double widthOf(String text, TextStyle style) => (TextPainter(
+              text: TextSpan(text: text, style: style),
               textDirection: TextDirection.ltr,
-            )..layout();
+            )..layout()).width;
+            // The subtitle is measured too, and it is often the wider of the
+            // two: "Abu" fits beside anything, and "Age 5 | band 4 to 6"
+            // underneath it did not, so the child's own page set their age
+            // down three lines while the name sat comfortably above it.
+            final needs = [
+              widthOf(title, HgText.display(size: 32)),
+              if (subtitle != null) widthOf(subtitle!, HgText.label()),
+            ].reduce((a, b) => a > b ? a : b);
             final reserved =
                 (back == null ? 0 : 48) +
                 (isDemo ? 70 : 0) +
@@ -105,7 +113,7 @@ class ParentScaffold extends StatelessWidget {
                 24;
             final tight =
                 trailing.isNotEmpty &&
-                painter.width > constraints.maxWidth - reserved - 40;
+                needs > constraints.maxWidth - reserved - 40;
             final titleBlock = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

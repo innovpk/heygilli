@@ -172,7 +172,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: HgColors.ink,
+                  color: HgColors.white,
                 ),
               )
             : const Icon(Icons.search_rounded),
