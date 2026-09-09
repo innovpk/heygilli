@@ -255,10 +255,14 @@
     </li>
     <li>
       <strong>Spoken answers, as text — never as audio.</strong> When Gilli
-      asks a question and your child answers out loud, speech recognition
-      happens on the device itself. Only the recognized text (for example,
-      "giraffe") is sent to our server to check understanding; the audio
-      recording itself is not sent anywhere and is not retained by the app.
+      asks a question and your child answers out loud, only the recognized text
+      (for example, "giraffe") is sent to our server to check understanding.
+      The audio is never sent to us and we never retain it. Where the
+      recognition itself happens depends on the device: in the Android app it
+      happens on the device, so the audio does not leave it at all; in a web
+      browser it is performed by the browser, and Chrome does this by sending
+      the audio to Google under Google's terms rather than ours. If you would
+      rather no audio left the device, use the Android app.
     </li>
     <li>
       <strong>Words said and heard</strong> — short word lists (for example,
