@@ -170,7 +170,8 @@ class _InboxScreenState extends State<InboxScreen> {
                 children: [
                   const GilliMini(size: 96),
                   Text(
-                    'Nothing waiting',
+                    'All caught up. Nothing is waiting.',
+                    textAlign: TextAlign.center,
                     style: HgText.display(size: 24, color: HgColors.ink),
                   ),
                   Text(
@@ -368,14 +369,40 @@ class _PromptCard extends StatelessWidget {
                   prompt.subject,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: HgText.body(size: 15, color: HgColors.ink),
+                  style: HgText.body(
+                    size: 15,
+                    color: HgColors.ink,
+                    weight: FontWeight.w700,
+                  ),
                 ),
-                Text(
-                  [
-                    if (kidName.isNotEmpty) 'For $kidName',
-                    if (v != null) '${(v.durationS / 60).round()} min',
-                  ].join('  ·  '),
-                  style: HgText.body(size: 12, color: HgColors.muted),
+                // "For you" leads the meta line rather than sitting beside
+                // the title: the card is deliberately one compact row, and a
+                // pill up there took width the title did not have. Same words
+                // as the stamps on the landing page, so the same idea reads
+                // the same wherever a parent meets it.
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (prompt.isDecidable)
+                        TextSpan(
+                          text: 'For you',
+                          style: HgText.body(
+                            size: 12,
+                            color: HgColors.mango,
+                            weight: FontWeight.w800,
+                          ),
+                        ),
+                      TextSpan(
+                        text: [
+                          if (kidName.isNotEmpty) 'For $kidName',
+                          if (v != null) '${(v.durationS / 60).round()} min',
+                        ].map((part) => '  \u00b7  $part').join(),
+                        style: HgText.body(size: 12, color: HgColors.muted),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   prompt.drift != null
@@ -399,13 +426,13 @@ class _PromptCard extends StatelessWidget {
               spacing: 6,
               children: [
                 _Answer(
-                  label: 'Approve',
+                  label: 'Show it',
                   icon: Icons.check_rounded,
                   filled: true,
                   onPressed: busy ? null : onApprove,
                 ),
                 _Answer(
-                  label: 'Hide',
+                  label: 'Not this one',
                   icon: Icons.close_rounded,
                   filled: false,
                   onPressed: busy ? null : onHide,

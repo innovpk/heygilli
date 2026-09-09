@@ -53,7 +53,7 @@ void main() {
     await setUpWith(tester, [5]);
     expect(find.text('Everyone  3'), findsNothing);
     expect(find.textContaining('Abeeha  '), findsNothing);
-    expect(find.text('Approve'), findsWidgets);
+    expect(find.text('Show it'), findsWidgets);
   });
 
   testWidgets('two children get a tab each, with a count', (tester) async {
@@ -67,13 +67,13 @@ void main() {
 
   testWidgets('choosing a child shows only their questions', (tester) async {
     await setUpWith(tester, [5, 8]);
-    final all = tester.widgetList(find.text('Approve')).length;
+    final all = tester.widgetList(find.text('Show it')).length;
 
     await tester.tap(find.text('Abeeha  1'));
     await tester.pump();
 
     expect(
-      tester.widgetList(find.text('Approve')).length,
+      tester.widgetList(find.text('Show it')).length,
       lessThan(all),
       reason: 'the other child\'s questions are still in the list',
     );
@@ -81,7 +81,7 @@ void main() {
     // And back to everyone.
     await tester.tap(find.text('Everyone  3'));
     await tester.pump();
-    expect(tester.widgetList(find.text('Approve')).length, all);
+    expect(tester.widgetList(find.text('Show it')).length, all);
   });
 
   testWidgets('a card does not repeat the child once you are in their tab', (

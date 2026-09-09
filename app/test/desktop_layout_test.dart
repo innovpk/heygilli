@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Abeeha'), findsOneWidget);
     // The inbox, whatever is in it. Counting the cards tied this test to how
     // many prompts the demo happens to ship, which is not what it is about.
-    expect(find.text('Approve'), findsWidgets);
+    expect(find.text('Show it'), findsWidgets);
   });
 
   testWidgets('two kids sit side by side once the window is wide enough', (
