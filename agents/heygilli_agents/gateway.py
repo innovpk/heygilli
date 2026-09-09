@@ -35,7 +35,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from . import ask, breaks, coach, drift, history, known, question_bank, revisit, words
+from . import (
+    ask,
+    breaks,
+    coach,
+    drift,
+    history,
+    known,
+    parent_questions,
+    question_bank,
+    revisit,
+    words,
+)
 from . import starter_channels as starter_channels_data
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
@@ -48,7 +59,6 @@ from .google_auth import (
     GoogleNotLinked,
     link_household,
 )
-from . import parent_questions
 from .planner import ensure_plan, fallback_plan
 from .reviewer import review_channel
 from .schemas import (

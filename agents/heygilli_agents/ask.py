@@ -60,6 +60,8 @@ you tell a parent that something is or is not in a video, go and look:
 - `search_transcript` searches the WHOLE transcript, not the part quoted here. Use it for any
   question about specific content: a word, a name, a product, a kind of event. Search the obvious
   words and a couple of near ones — for "is the dog hurt?", try "hurt", "vet", "hospital", "died".
+  Pass the `video id` from the evidence below. The `channel id` is a different thing and searching
+  by it reads nothing at all.
 
   Read its `searched_whole_video`, and report it exactly:
     true  — every word anyone has of this video was searched. A word that did not turn up is not
@@ -112,8 +114,15 @@ def ask_agent(model=None) -> Agent:
 
 def _evidence(video: Video, status: str, reason: str, excerpt: str, policy: Policy | None) -> str:
     parts = [
+        # The video id is here because `search_transcript` needs one and the
+        # model can only pass what it can see. Without this line the channel id
+        # was the only id-shaped string in the prompt, and it got passed as the
+        # video id — a `watch?v=UC...` URL that no source can resolve, so every
+        # search came back empty and the answer was written off the excerpt
+        # alone. Label both, so neither can stand in for the other.
+        f"video id: {video.id}",
         f"title: {video.title}",
-        f"channel: {video.channel_id}",
+        f"channel id: {video.channel_id}",
         f"length: {video.duration_s // 60} min {video.duration_s % 60} s"
         if video.duration_s
         else "length: nobody could look it up",

@@ -177,6 +177,39 @@ def test_an_empty_question_costs_nothing(monkeypatch) -> None:
     assert ask.answer_about_video(Video(id="v"), "   ").answered_from == "nothing"
 
 
+def test_a_channel_id_is_refused_before_anything_is_fetched(transcripted) -> None:
+    """The Explainer passed one in production, because the prompt showed it the
+    channel id and no video id. `watch?v=UC...` resolves nowhere: captions raise
+    and Gemini answers 400. Refusing on the shape costs nothing and says which
+    id was wrong, so an empty result is never read back as an absence."""
+    out = evidence.search_transcript("UCRFIPG2u1DxKLNuE3y2SjHA", "sponsor")
+    assert out["searched_whole_video"] is False
+    assert "channel id" in out["error"]
+
+
+def test_a_real_video_id_is_not_caught_by_that(transcripted) -> None:
+    # 11 characters, so it cannot match the 24-character channel pattern.
+    assert "error" not in evidence.search_transcript("vol0000001", "lava")
+
+
+def test_the_evidence_names_both_ids(transcripted) -> None:
+    """`search_transcript` needs a video id, and the model can only pass what it
+    can see. Both ids labelled, so neither can stand in for the other."""
+    seen: dict = {}
+
+    def capture(model_name: str, text: str) -> dict:
+        seen["prompt"] = text
+        return {"answer": "ok", "answered_from": ""}
+
+    ask.answer_about_video(
+        Video(id="vol0000001", channel_id="UCRFIPG2u1DxKLNuE3y2SjHA", title="Volcanoes"),
+        "Is anything scary in it?",
+        agent=make_agent("explainer", "s", model=FakeModel(canned=capture)),
+    )
+    assert "video id: vol0000001" in seen["prompt"]
+    assert "channel id: UCRFIPG2u1DxKLNuE3y2SjHA" in seen["prompt"]
+
+
 def test_the_evidence_carries_the_decision_and_the_household(transcripted) -> None:
     """What was decided and what the family said are the two things a "why was
     this flagged?" question is actually about."""

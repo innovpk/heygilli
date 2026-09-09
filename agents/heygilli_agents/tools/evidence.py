@@ -13,6 +13,7 @@ minutes, which is all I was given".
 from __future__ import annotations
 
 import logging
+import re
 
 from strands import tool
 
@@ -23,6 +24,10 @@ log = logging.getLogger(__name__)
 
 MAX_HITS = 12
 CONTEXT_CHARS = 220
+
+#: A YouTube channel id: "UC" and 22 more. A video id is 11 characters and can
+#: never match this, so the test is exact rather than a guess at shape.
+CHANNEL_ID = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 
 
 def _stamp(seconds: float) -> str:
@@ -54,6 +59,21 @@ def search_transcript(video_id: str, phrase: str) -> dict:
     needle = (phrase or "").strip().lower()
     if not needle:
         return {"found": False, "hits": [], "source": "none", "searched_whole_video": False}
+    # Caught here rather than let through, because a channel id builds a
+    # `watch?v=UC...` URL that no source can resolve: captions raise, Gemini
+    # answers 400 INVALID_ARGUMENT, and both cost a round trip to learn what the
+    # id itself already said. Saying which id was wrong lets the model retry
+    # with the right one instead of reading an empty result as an absence.
+    if CHANNEL_ID.match(video_id or ""):
+        log.warning("search_transcript called with channel id %s, not a video id", video_id)
+        return {
+            "found": False,
+            "hits": [],
+            "source": "none",
+            "searched_whole_video": False,
+            "error": f"{video_id} is a channel id, not a video id. Nothing was searched. "
+                     "Call this again with the `video id` given in the evidence.",
+        }
     try:
         tr = fetch_transcript(video_id)
     except TranscriptsBlocked as e:
