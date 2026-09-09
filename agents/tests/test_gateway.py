@@ -945,3 +945,32 @@ def test_a_hello_without_the_flag_still_asks_by_voice(
         while (msg := ws.receive_json())["t"] != "ask":
             pass
         assert msg["input"] == "voice"
+
+
+def test_a_parent_decision_keeps_the_reason_the_screening_wrote(
+    client: TestClient, auth: dict, store: LocalStore
+) -> None:
+    """The parent changes the status, not what is in the video.
+
+    The reason is the only sentence saying what was read and why, on a card
+    whose whole job is to explain itself. It used to be overwritten with
+    "parent decided", which explains nothing and reads as a bug.
+    """
+    kid = client.post(
+        "/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]}, headers=hdr(auth)
+    ).json()
+    store.put_video(VIDEO)
+    screened = "Calm throughout, but it asks viewers to subscribe near the end."
+    store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "ask_parent", screened)
+
+    r = client.post(
+        f"/kids/{kid['id']}/review",
+        json={"approve": [VIDEO.id], "hide": []},
+        headers=hdr(auth),
+    )
+    assert r.status_code == 200
+
+    entry = store.list_kid_videos(auth["_hid"], kid["id"])[VIDEO.id]
+    assert entry["status"] == "approve"
+    assert entry["reason"] == screened, "the screening's words survive the decision"
+    assert entry["decided_by"] == "parent", "and it is still recorded who decided"

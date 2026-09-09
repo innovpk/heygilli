@@ -1609,7 +1609,7 @@ def review_decide(kid_id: str, body: ReviewIn, hid: str = Depends(household)) ->
         if kid.age_band and kid.age_band not in video.screening.age_ok:
             video.screening.age_ok.append(kid.age_band)
         store.put_video(video)
-        store.set_kid_video(hid, kid_id, video_id, "approve", "parent decided")
+        store.set_kid_video(hid, kid_id, video_id, "approve", "", decided_by="parent")
         settle(video_id, "approve")
         for language in kid.languages:
             ensure_plan(
@@ -1622,7 +1622,7 @@ def review_decide(kid_id: str, body: ReviewIn, hid: str = Depends(household)) ->
             )
 
     for video_id in hide:
-        store.set_kid_video(hid, kid_id, video_id, "hide", "parent decided")
+        store.set_kid_video(hid, kid_id, video_id, "hide", "", decided_by="parent")
         settle(video_id, "hide")
 
     return {"approved": len(approve), "hidden": len(hide)}
@@ -1646,7 +1646,7 @@ def parent_decide(prompt_id: str, body: DecisionIn, hid: str = Depends(household
         # DELETE the parent makes themselves (PROTOCOL.md "Channel drift").
         log.info("parent read the drift card %s for kid %s", p.id, p.kid_id)
         return {"ok": True}
-    store.set_kid_video(hid, p.kid_id, p.video.id, body.decision, "parent decided")
+    store.set_kid_video(hid, p.kid_id, p.video.id, body.decision, "", decided_by="parent")
     if body.decision == "approve":
         video = store.get_video(p.video.id) or p.video
         video.age_ok = True

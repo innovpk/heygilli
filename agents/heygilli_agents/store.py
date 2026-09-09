@@ -198,8 +198,29 @@ class Store(ABC):
         d = self.get(GLOBAL, "video", video_id)
         return Video.model_validate(d) if d else None
 
-    def set_kid_video(self, household: str, kid_id: str, video_id: str, status: str, reason: str) -> None:
-        self.put(household, f"kidvideo@{kid_id}", video_id, {"status": status, "reason": reason})
+    def set_kid_video(
+        self,
+        household: str,
+        kid_id: str,
+        video_id: str,
+        status: str,
+        reason: str,
+        decided_by: str = "",
+    ) -> None:
+        """`decided_by="parent"` keeps the reason already stored.
+
+        A parent changes the status, not what is in the video. Overwriting the
+        screening reason with "parent decided" threw away the only sentence
+        that said what had been read and why, and put two words in its place
+        on a card whose whole job is to explain itself.
+        """
+        if decided_by == "parent":
+            existing = self.get(household, f"kidvideo@{kid_id}", video_id) or {}
+            reason = existing.get("reason") or reason
+        entry: dict[str, Any] = {"status": status, "reason": reason}
+        if decided_by:
+            entry["decided_by"] = decided_by
+        self.put(household, f"kidvideo@{kid_id}", video_id, entry)
 
     def list_kid_videos(self, household: str, kid_id: str) -> dict[str, dict[str, Any]]:
         return {d["_id"]: d for d in self.list(household, f"kidvideo@{kid_id}")}
