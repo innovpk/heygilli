@@ -44,7 +44,9 @@ class _HiddenScreenState extends State<HiddenScreen> {
       setState(() => _queue = _load());
       messenger.showSnackBar(
         SnackBar(
-          content: Text('${item.video.title} is on ${widget.kid.nickname}\'s shelf.'),
+          content: Text(
+            '${item.video.title} is on ${widget.kid.nickname}\'s shelf.',
+          ),
         ),
       );
     } catch (e) {
@@ -74,7 +76,8 @@ class _HiddenScreenState extends State<HiddenScreen> {
           ];
           if (hidden.isEmpty) {
             return _Note(
-              text: 'Nothing has been kept from ${widget.kid.nickname} yet. '
+              text:
+                  'Nothing has been kept from ${widget.kid.nickname} yet. '
                   'When Gilli hides a video, it will be here with its reason.',
             );
           }
@@ -134,7 +137,10 @@ class _HiddenScreenState extends State<HiddenScreen> {
                                 video: item.video,
                                 channelTitle: item.channelTitle,
                               ),
-                              icon: const Icon(Icons.help_outline_rounded, size: 18),
+                              icon: const Icon(
+                                Icons.help_outline_rounded,
+                                size: 18,
+                              ),
                               label: const Text('Ask about this'),
                               style: TextButton.styleFrom(
                                 foregroundColor: HgColors.ink,

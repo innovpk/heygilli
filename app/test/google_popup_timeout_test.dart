@@ -19,10 +19,16 @@ void main() {
     fakeAsync((async) {
       GoogleSignInPlatform.instance = _SilentPlatform();
       GoogleAuthResult? result;
-      GoogleAuth(serverClientId: 'test-client').signIn().then((r) => result = r);
+      GoogleAuth(
+        serverClientId: 'test-client',
+      ).signIn().then((r) => result = r);
 
       async.elapse(GoogleAuth.popupWait - const Duration(seconds: 1));
-      expect(result, isNull, reason: 'gave up while a person was still reading');
+      expect(
+        result,
+        isNull,
+        reason: 'gave up while a person was still reading',
+      );
 
       async.elapse(const Duration(seconds: 2));
       expect(result, isA<GoogleAuthFailed>());
@@ -37,7 +43,10 @@ void main() {
   test('the wait is long enough for a person to read a consent screen', () {
     // Account chooser, then the unverified-app warning while the project is
     // in review, then consent. A minute is not enough for that.
-    expect(GoogleAuth.popupWait, greaterThanOrEqualTo(const Duration(minutes: 2)));
+    expect(
+      GoogleAuth.popupWait,
+      greaterThanOrEqualTo(const Duration(minutes: 2)),
+    );
   });
 }
 

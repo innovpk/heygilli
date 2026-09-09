@@ -11,10 +11,28 @@ library;
 /// The server checks the same names before storing one; this list is what a
 /// child is *offered*, not what is trusted.
 const kidAvatars = <String>[
-  'cat', 'dog', 'duck', 'frog', 'lion', 'monkey',
-  'elephant', 'giraffe', 'bird', 'butterfly', 'fish', 'cow',
-  'squirrel', 'rocket', 'star', 'sun', 'moon', 'flower',
-  'boat', 'train', 'tree', 'mango',
+  'cat',
+  'dog',
+  'duck',
+  'frog',
+  'lion',
+  'monkey',
+  'elephant',
+  'giraffe',
+  'bird',
+  'butterfly',
+  'fish',
+  'cow',
+  'squirrel',
+  'rocket',
+  'star',
+  'sun',
+  'moon',
+  'flower',
+  'boat',
+  'train',
+  'tree',
+  'mango',
 ];
 
 /// The three bands drive everything downstream: question types, whether text

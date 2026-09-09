@@ -63,7 +63,9 @@ class _HgCtaState extends State<HgCta> {
         : _hover
         ? 4.0
         : 3.0;
-    final lift = !enabled || _down ? Offset.zero : const Offset(-1, -1) * (depth - 3);
+    final lift = !enabled || _down
+        ? Offset.zero
+        : const Offset(-1, -1) * (depth - 3);
 
     final content = Row(
       mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,

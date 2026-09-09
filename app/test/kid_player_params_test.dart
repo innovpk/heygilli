@@ -16,7 +16,11 @@ void main() {
   });
 
   test('nothing on the player invites a child somewhere else', () {
-    expect(kidPlayerParams.showVideoAnnotations, isFalse, reason: 'cards link out');
+    expect(
+      kidPlayerParams.showVideoAnnotations,
+      isFalse,
+      reason: 'cards link out',
+    );
     expect(kidPlayerParams.strictRelatedVideos, isTrue);
     expect(kidPlayerParams.showFullscreenButton, isFalse);
   });

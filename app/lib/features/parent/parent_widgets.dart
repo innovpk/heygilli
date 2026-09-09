@@ -8,6 +8,7 @@ import '../../core/demo_badge.dart';
 import '../../core/google_auth.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import '../../main.dart';
 
 /// Cream phone surface for every parent screen (design/Phone*.dc.html).
 /// The kid side stays deep teal; the parent side is a normal light app.
@@ -106,7 +107,10 @@ class ParentScaffold extends StatelessWidget {
               body: SafeArea(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [header, Expanded(child: body)],
+                  children: [
+                    header,
+                    Expanded(child: body),
+                  ],
                 ),
               ),
             );
@@ -160,83 +164,153 @@ class ParentScaffold extends StatelessWidget {
   }
 }
 
-/// The left rail shown by [ParentScaffold] once the window is wide enough.
-/// A destination list plus, optionally, whatever the phone build would have
-/// put in the header actions — the sign-out and device menu need a home on
-/// the rail too, or they exist on phone only.
-class ParentSidebar extends StatelessWidget {
-  const ParentSidebar({
+/// The household rail: who is in it, and what is waiting.
+///
+/// The parent side used to be a page per child reached through a list, with
+/// two tabs at the bottom. Which child you were looking at was a thing you had
+/// to remember, and moving between them meant going back to the list first.
+/// The rail makes both standing facts: every child is on screen at once, the
+/// one being read is highlighted, and switching is one tap from anywhere.
+///
+/// It is passed to [ParentScaffold] by every parent screen rather than owned by
+/// one of them, so the frame does not disappear the moment a parent opens a
+/// child. Shown only at [HgLayout.wideBreakpoint] and up — a rail on a phone is
+/// a page of navigation.
+class HouseholdSidebar extends StatelessWidget {
+  const HouseholdSidebar({
     super.key,
-    required this.destinations,
-    required this.selectedIndex,
-    required this.onSelect,
-    this.footer,
+    required this.selectedKidId,
+    required this.onKid,
+    required this.onInbox,
+    required this.onKids,
+    required this.onAddKid,
+    this.inboxSelected = false,
   });
 
-  final List<({IconData icon, String label})> destinations;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-  final Widget? footer;
+  /// The child whose page is open, or null on the kids list and the inbox.
+  final String? selectedKidId;
+  final ValueChanged<Kid> onKid;
+  final VoidCallback onInbox;
+  final VoidCallback onKids;
+  final VoidCallback onAddKid;
+  final bool inboxSelected;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 232,
-    decoration: const BoxDecoration(
-      color: HgColors.white,
-      // The rail no longer has a card's edge to end it, so it draws its own
-      // hairline. Without it the white simply stops and the eye reads a gap
-      // rather than a boundary.
-      border: Border(right: BorderSide(color: HgColors.line)),
-    ),
-    // Even on both sides: the selected item's highlight pill is drawn by
-    // _SidebarItem right up to this padding, so an uneven inset here reads as
-    // the highlight sitting closer to one edge than the other.
-    padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            spacing: 10,
-            children: [
-              SvgPicture.asset('assets/gilli.svg', width: 32, height: 32),
-              Flexible(
-                child: Text(
-                  'HeyGilli',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: HgText.display(size: 20, color: HgColors.ink),
+  Widget build(BuildContext context) {
+    final kids = context.select<AppState, List<Kid>>((s) => s.kids);
+    final waiting = context.select<AppState, int>((s) => s.waiting);
+    final parent = context.select<AppState, String?>(
+      (s) => s.settings.parentName,
+    );
+    final isDemo = context.select<AppState, bool>((s) => s.isDemo);
+
+    return Container(
+      width: 240,
+      decoration: const BoxDecoration(
+        color: HgColors.white,
+        border: Border(right: BorderSide(color: HgColors.line, width: 2)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+      // Every row in here is an InkWell, and an InkWell needs a Material to
+      // splash onto. The rail is drawn by a Container rather than a Card, so it
+      // has to supply one itself — without it the rail throws on first build
+      // and takes the page's layout down with it.
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: onKids,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: Row(
+                  spacing: 10,
+                  children: [
+                    SvgPicture.asset('assets/gilli.svg', width: 36, height: 36),
+                    Flexible(
+                      child: Text(
+                        'HeyGilli',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HgText.display(size: 24, color: HgColors.ink),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            if (isDemo)
+              const Padding(
+                padding: EdgeInsets.only(left: 4, top: 8),
+                child: DemoBadge(),
+              ),
+            const SizedBox(height: 22),
+            const _RailEyebrow('Kids'),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final kid in kids)
+                    _KidRow(
+                      kid: kid,
+                      selected: kid.id == selectedKidId,
+                      onTap: () => onKid(kid),
+                    ),
+                  _AddKidRow(onTap: onAddKid),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const _RailEyebrow('Household'),
+            _RailRow(
+              icon: Icons.inbox_outlined,
+              label: 'Inbox',
+              selected: inboxSelected,
+              onTap: onInbox,
+              // Hidden at zero: a badge reading "0" invites a parent to go and
+              // check something that is not there.
+              trailing: waiting == 0 ? null : _CountPill(waiting),
+            ),
+            const Divider(color: HgColors.line, height: 24),
+            if (parent != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, bottom: 2),
+                child: Text(
+                  parent,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.body(size: 14, color: HgColors.ink),
+                ),
+              ),
+            const _SignOutLink(),
+          ],
         ),
-        const SizedBox(height: 28),
-        for (var i = 0; i < destinations.length; i++)
-          _SidebarItem(
-            icon: destinations[i].icon,
-            label: destinations[i].label,
-            selected: i == selectedIndex,
-            onTap: () => onSelect(i),
-          ),
-        const Spacer(),
-        ?footer,
-      ],
-    ),
+      ),
+    );
+  }
+}
+
+class _RailEyebrow extends StatelessWidget {
+  const _RailEyebrow(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+    child: Text(text.toUpperCase(), style: HgText.label(color: HgColors.mango)),
   );
 }
 
-class _SidebarItem extends StatelessWidget {
-  const _SidebarItem({
-    required this.icon,
-    required this.label,
+class _KidRow extends StatelessWidget {
+  const _KidRow({
+    required this.kid,
     required this.selected,
     required this.onTap,
   });
 
-  final IconData icon;
-  final String label;
+  final Kid kid;
   final bool selected;
   final VoidCallback onTap;
 
@@ -244,23 +318,39 @@ class _SidebarItem extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Material(
-      color: selected ? HgColors.mango.withValues(alpha: 0.35) : Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
+      color: selected ? HgColors.cream : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
-            spacing: 12,
+            spacing: 10,
             children: [
-              Icon(icon, color: HgColors.ink, size: 22),
-              Text(
-                label,
-                style: HgText.body(
-                  size: 15,
-                  color: HgColors.ink,
-                ).copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+              KidAvatar(kid: kid, size: 34),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      kid.nickname,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HgText.body(
+                        size: 15,
+                        color: HgColors.ink,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Age ${kid.age} \u00b7 band ${kid.band.label}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HgText.body(size: 12, color: HgColors.brown),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -268,6 +358,206 @@ class _SidebarItem extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _AddKidRow extends StatelessWidget {
+  const _AddKidRow({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          spacing: 10,
+          children: [
+            // Dashed, and the same 34 as a child's avatar, so it reads as the
+            // empty place in the row of children rather than as a button that
+            // happens to be nearby.
+            const DottedCircle(size: 34),
+            Text(
+              'Add a kid',
+              style: HgText.body(size: 15, color: HgColors.brown),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _RailRow extends StatelessWidget {
+  const _RailRow({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? HgColors.cream : Colors.transparent,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        child: Row(
+          spacing: 12,
+          children: [
+            Icon(icon, color: HgColors.ink, size: 22),
+            Expanded(
+              child: Text(
+                label,
+                style: HgText.body(
+                  size: 15,
+                  color: HgColors.ink,
+                  weight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill(this.count);
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: const BoxDecoration(
+      color: HgColors.mango,
+      borderRadius: BorderRadius.all(Radius.circular(999)),
+    ),
+    child: Text(
+      '$count',
+      style: HgText.body(
+        size: 12,
+        color: HgColors.white,
+        weight: FontWeight.w800,
+      ),
+    ),
+  );
+}
+
+/// A dashed ring. Flutter has no dashed border, so it is painted: short arcs
+/// with the same length skipped between them.
+class DottedCircle extends StatelessWidget {
+  const DottedCircle({super.key, this.size = 34});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: const _DottedCirclePainter(),
+    child: SizedBox(
+      width: size,
+      height: size,
+      child: const Icon(Icons.add_rounded, size: 18, color: HgColors.brown),
+    ),
+  );
+}
+
+class _DottedCirclePainter extends CustomPainter {
+  const _DottedCirclePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = HgColors.muted
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final rect = Rect.fromCircle(
+      center: Offset(size.width / 2, size.height / 2),
+      radius: size.width / 2 - 1,
+    );
+    const dash = 0.34; // radians drawn, then the same again skipped
+    for (var a = 0.0; a < 6.28; a += dash * 2) {
+      canvas.drawArc(rect, a, dash, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// "Sign out", set as a link under the parent's name at the foot of the rail.
+class _SignOutLink extends StatelessWidget {
+  const _SignOutLink();
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: TextButton(
+      onPressed: () => confirmSignOut(context),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        'Sign out',
+        style: HgText.body(
+          size: 13,
+          color: HgColors.brown,
+        ).copyWith(decoration: TextDecoration.underline),
+      ),
+    ),
+  );
+}
+
+/// Confirms, signs out, and returns to the parent root.
+///
+/// Shared by the rail and the phone's account menu, because it is the same
+/// decision and a parent should not learn two different things about what
+/// signing out costs depending on the width of their window. Nothing is
+/// deleted, and saying so is the reason this asks rather than just doing it.
+Future<void> confirmSignOut(BuildContext context) async {
+  final state = context.read<AppState>();
+  final navigator = Navigator.of(context);
+  final yes = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: HgColors.white,
+      title: Text('Sign out?', style: HgText.display(size: 22)),
+      content: Text(
+        'Your children, their channels and everything they have watched stay '
+        'on your household. Signing in again brings it all back.',
+        style: HgText.body(size: 15, color: HgColors.brown),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Stay'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Sign out'),
+        ),
+      ],
+    ),
+  );
+  if (yes != true) return;
+  await state.signOut();
+  navigator.pushNamedAndRemoveUntil(Routes.parent, (_) => false);
 }
 
 /// White rounded card, matching `.card` in the mockups.
@@ -308,16 +598,27 @@ class KidAvatar extends StatelessWidget {
   final Kid kid;
   final double size;
 
+  /// One colour per child, so two siblings are told apart at a glance in the
+  /// rail and on a card. Rust and pine-green only: a third hue would be a
+  /// colour the rest of the app does not have.
+  static const _palette = [HgColors.mango, HgColors.green];
+
+  /// Stable for the life of the child, because it is derived from the id
+  /// rather than from their position in a list — a child added above them
+  /// must not repaint everybody below.
+  static Color colourFor(Kid kid) {
+    if (kid.id.isEmpty) return _palette.first;
+    final sum = kid.id.codeUnits.fold(0, (a, b) => a + b);
+    return _palette[sum % _palette.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final initial = kid.nickname.isEmpty ? '?' : kid.nickname[0].toUpperCase();
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: HgColors.mango,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: colourFor(kid), shape: BoxShape.circle),
       alignment: Alignment.center,
       // A face the child picked, or their initial when they have not picked
       // one. The name is checked by the server against a fixed list before it
@@ -328,9 +629,10 @@ class KidAvatar extends StatelessWidget {
               width: size * 0.66,
               height: size * 0.66,
             )
+          // White, not ink: both avatar colours are dark fills.
           : Text(
               initial,
-              style: HgText.display(size: size * 0.5, color: HgColors.teal),
+              style: HgText.display(size: size * 0.5, color: HgColors.white),
             ),
     );
   }

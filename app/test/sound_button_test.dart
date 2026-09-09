@@ -9,11 +9,12 @@ import 'package:heygilli/features/kid/session_screen.dart';
 /// a child is left in front of a video with no sound and no way to say what is
 /// wrong. This button is the difference between that and one tap.
 void main() {
-  Widget host(ValueNotifier<bool> needsSound, VoidCallback onTap) => MaterialApp(
-    home: Scaffold(
-      body: SoundButton(needsSound: needsSound, onTap: onTap),
-    ),
-  );
+  Widget host(ValueNotifier<bool> needsSound, VoidCallback onTap) =>
+      MaterialApp(
+        home: Scaffold(
+          body: SoundButton(needsSound: needsSound, onTap: onTap),
+        ),
+      );
 
   testWidgets('stays out of the way when the sound came back on', (
     tester,

@@ -64,7 +64,13 @@ void main() {
   });
 
   testWidgets('answered questions are filled in', (tester) async {
-    await show(tester, positionS: 300, durationS: 600, times: [90, 270, 450], asked: 2);
+    await show(
+      tester,
+      positionS: 300,
+      durationS: 600,
+      times: [90, 270, 450],
+      asked: 2,
+    );
     // Two behind them, one still to come.
     expect(find.byIcon(Icons.check_rounded), findsNWidgets(2));
   });
@@ -87,7 +93,13 @@ void main() {
     tester,
   ) async {
     // The player reports a position a shade past the duration at the very end.
-    await show(tester, positionS: 900, durationS: 600, times: [300], width: 400);
+    await show(
+      tester,
+      positionS: 900,
+      durationS: 600,
+      times: [300],
+      width: 400,
+    );
     final fill = tester.widgetList<Container>(find.byType(Container)).toList();
     expect(fill, isNotEmpty);
     // Nothing threw, and the dot is still on the strip.
@@ -95,7 +107,13 @@ void main() {
   });
 
   testWidgets('it says out loud what it shows', (tester) async {
-    await show(tester, positionS: 300, durationS: 600, times: [90, 270, 450], asked: 1);
+    await show(
+      tester,
+      positionS: 300,
+      durationS: 600,
+      times: [90, 270, 450],
+      asked: 1,
+    );
     expect(
       find.bySemanticsLabel('3 questions in this video, 1 answered so far'),
       findsOneWidget,

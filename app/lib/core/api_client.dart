@@ -244,8 +244,9 @@ class ApiClient implements Gateway {
       );
 
   @override
-  Future<void> deleteKid(String kidId, String confirmNickname) async =>
-      _delete('/kids/$kidId?confirm=${Uri.encodeQueryComponent(confirmNickname)}');
+  Future<void> deleteKid(String kidId, String confirmNickname) async => _delete(
+    '/kids/$kidId?confirm=${Uri.encodeQueryComponent(confirmNickname)}',
+  );
 
   @override
   Future<void> deleteHousehold() async => _delete('/me?confirm=DELETE');
@@ -255,9 +256,8 @@ class ApiClient implements Gateway {
     required String band,
     List<String> topics = const [],
   }) async => StarterChannels.fromJson(
-    await _get(
-      '/starter-channels?band=$band&topics=${topics.join(',')}',
-    ) as Map<String, dynamic>,
+    await _get('/starter-channels?band=$band&topics=${topics.join(',')}')
+        as Map<String, dynamic>,
   );
 
   @override
@@ -279,9 +279,8 @@ class ApiClient implements Gateway {
   Future<List<KidPrompt>> savePrompts(
     String kidId,
     List<String> disabled,
-  ) async => _readPrompts(
-    await _put('/kids/$kidId/prompts', {'disabled': disabled}),
-  );
+  ) async =>
+      _readPrompts(await _put('/kids/$kidId/prompts', {'disabled': disabled}));
 
   static List<KidPrompt> _readPrompts(dynamic body) => [
     for (final p in (body as Map<String, dynamic>)['prompts'] as List)
@@ -301,13 +300,14 @@ class ApiClient implements Gateway {
     String? avatar,
   }) async => Kid.fromJson(
     await _patch('/kids/$kidId', {
-      'avatar': ?avatar,
-      // Only what the parent actually changed: the server treats an absent
-      // field as "leave it alone", so sending nulls would blank them.
-      'nickname': ?nickname,
-      'age': ?age,
-      'languages': ?languages,
-    }) as Map<String, dynamic>,
+          'avatar': ?avatar,
+          // Only what the parent actually changed: the server treats an absent
+          // field as "leave it alone", so sending nulls would blank them.
+          'nickname': ?nickname,
+          'age': ?age,
+          'languages': ?languages,
+        })
+        as Map<String, dynamic>,
   );
 
   @override
@@ -563,9 +563,13 @@ class ApiClient implements Gateway {
   }) => _post('/kids/$kidId/review', {'approve': approve, 'hide': hide});
 
   @override
-  Future<List<ParentQuestion>> parentQuestions(String kidId, String videoId) async {
+  Future<List<ParentQuestion>> parentQuestions(
+    String kidId,
+    String videoId,
+  ) async {
     final r = await _get('/kids/$kidId/videos/$videoId/questions');
-    final list = (r as Map<String, dynamic>)['questions'] as List<dynamic>? ?? [];
+    final list =
+        (r as Map<String, dynamic>)['questions'] as List<dynamic>? ?? [];
     return [
       for (final q in list) ParentQuestion.fromJson(q as Map<String, dynamic>),
     ];
@@ -580,10 +584,11 @@ class ApiClient implements Gateway {
     bool yesNo = false,
   }) async => ParentQuestion.fromJson(
     await _post('/kids/$kidId/videos/$videoId/questions', {
-      'text': text,
-      if (tSec != null) 't_sec': tSec,
-      'yes_no': yesNo,
-    }) as Map<String, dynamic>,
+          'text': text,
+          if (tSec != null) 't_sec': tSec,
+          'yes_no': yesNo,
+        })
+        as Map<String, dynamic>,
   );
 
   @override
@@ -601,11 +606,12 @@ class ApiClient implements Gateway {
     List<(String, String)> history = const [],
   }) async => VideoAnswer.fromJson(
     await _post('/kids/$kidId/videos/$videoId/ask', {
-      'question': question,
-      'history': [
-        for (final (q, a) in history) [q, a],
-      ],
-    }) as Map<String, dynamic>,
+          'question': question,
+          'history': [
+            for (final (q, a) in history) [q, a],
+          ],
+        })
+        as Map<String, dynamic>,
   );
 }
 

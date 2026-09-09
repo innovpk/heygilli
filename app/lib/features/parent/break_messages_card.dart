@@ -258,7 +258,7 @@ class _BreakMessagesCardState extends State<BreakMessagesCard> {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
-                        color: HgColors.ink,
+                        color: HgColors.white,
                       ),
                     )
                   : Text(

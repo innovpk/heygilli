@@ -13,7 +13,8 @@ List<String> _layers(WidgetTester tester) => tester
 /// The rotation/scale actually applied to a named layer this frame.
 Matrix4 _transformAbove(WidgetTester tester, String asset) {
   final svg = find.byWidgetPredicate(
-    (w) => w is SvgPicture && (w.bytesLoader as SvgAssetLoader).assetName == asset,
+    (w) =>
+        w is SvgPicture && (w.bytesLoader as SvgAssetLoader).assetName == asset,
   );
   return tester
       .widgetList<Transform>(

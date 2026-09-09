@@ -101,6 +101,39 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _waiting = 0;
+
+  /// How many videos are waiting on a parent, across the household.
+  ///
+  /// The rail shows it as a count beside Inbox, which is the only place a
+  /// parent finds out there is anything to decide without going and looking.
+  /// Cached rather than fetched per frame: the rail is on every parent screen
+  /// and the inbox is a network call.
+  int get waiting => _waiting;
+
+  /// Called after anything that could change the count — a decision taken, a
+  /// screening run, the inbox opened. Failure is silent on purpose: a rail
+  /// that cannot count is a rail with no badge, not an error in front of
+  /// somebody who was doing something else.
+  Future<void> refreshWaiting() async {
+    try {
+      final inbox = await gateway.inbox();
+      if (inbox.length == _waiting) return;
+      _waiting = inbox.length;
+      notifyListeners();
+    } catch (_) {
+      // Leave the last known count standing.
+    }
+  }
+
+  /// Adjusts the count without a round trip, for the screen that just made the
+  /// decision and already knows one fewer is waiting.
+  void waitingDecided() {
+    if (_waiting == 0) return;
+    _waiting--;
+    notifyListeners();
+  }
+
   Future<Kid> addKid({
     required String nickname,
     required int age,

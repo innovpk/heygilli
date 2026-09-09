@@ -279,7 +279,7 @@ class _TakeoutImportScreenState extends State<TakeoutImportScreen> {
           icon: const Icon(Icons.folder_open_rounded),
           label: Text(
             _reading ? 'Reading the export' : 'Choose the Takeout zip',
-            style: HgText.body(size: 17, color: HgColors.ink),
+            style: HgText.body(size: 17, color: HgColors.white),
           ),
         ),
       ),

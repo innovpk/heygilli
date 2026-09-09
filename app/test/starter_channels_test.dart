@@ -115,7 +115,10 @@ void main() {
 
     expect(find.text('SciShow Kids'), findsOneWidget);
     expect(find.text('Danny Go!'), findsNothing);
-    expect(tester.widgetList(find.byType(CheckboxListTile)).length, lessThan(before));
+    expect(
+      tester.widgetList(find.byType(CheckboxListTile)).length,
+      lessThan(before),
+    );
   });
 
   testWidgets('the chosen channels are added, and only those', (tester) async {
@@ -205,8 +208,16 @@ void _existingHousehold() {
     final row = tester.widget<CheckboxListTile>(
       find.widgetWithText(CheckboxListTile, 'Danny Go!'),
     );
-    expect(row.value, isTrue, reason: 'they have it; showing it unticked is a lie');
-    expect(row.onChanged, isNull, reason: 'nothing useful happens on tapping it');
+    expect(
+      row.value,
+      isTrue,
+      reason: 'they have it; showing it unticked is a lie',
+    );
+    expect(
+      row.onChanged,
+      isNull,
+      reason: 'nothing useful happens on tapping it',
+    );
   });
 
   testWidgets('select all means only what they do not already have', (
@@ -290,7 +301,9 @@ void _search() {
     }
     expect(find.text('Crash Course Kids'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(CheckboxListTile, 'Crash Course Kids'));
+    await tester.tap(
+      find.widgetWithText(CheckboxListTile, 'Crash Course Kids'),
+    );
     await tester.pump();
     await tester.tap(find.text('Add 1 channel'));
     for (var i = 0; i < 8; i++) {
@@ -310,7 +323,11 @@ void _search() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(gateway.searches, isEmpty, reason: 'searched while they were typing');
+    expect(
+      gateway.searches,
+      isEmpty,
+      reason: 'searched while they were typing',
+    );
 
     await tester.tap(find.text('Search'));
     for (var i = 0; i < 6; i++) {

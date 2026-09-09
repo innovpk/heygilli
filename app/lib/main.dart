@@ -230,7 +230,7 @@ class _CannotConnect extends StatelessWidget {
                     onPressed: onRetry,
                     child: Text(
                       'Try again',
-                      style: HgText.body(size: 17, color: HgColors.ink),
+                      style: HgText.body(size: 17, color: HgColors.white),
                     ),
                   ),
                 ),

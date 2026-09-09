@@ -70,7 +70,10 @@ void main() {
     await tester.tap(find.text('Does it try to sell them something?'));
     await settle(tester);
 
-    expect(find.textContaining('sponsor read about three minutes in'), findsOneWidget);
+    expect(
+      find.textContaining('sponsor read about three minutes in'),
+      findsOneWidget,
+    );
     // The question stays on screen: an answer with no question above it is a
     // paragraph a parent has to reverse-engineer.
     expect(find.text('Does it try to sell them something?'), findsOneWidget);

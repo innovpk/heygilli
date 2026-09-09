@@ -100,7 +100,7 @@ void main() {
     // means leaving for Google and waiting on an email, is a quiet link.
     final add = tester.widget<FilledButton>(
       find.ancestor(
-        of: find.text('Add a kid'),
+        of: find.text('Add your first kid'),
         matching: find.byType(FilledButton),
       ),
     );
@@ -114,12 +114,10 @@ void main() {
     );
   });
 
-  testWidgets('adding a kid carries on into setting them up', (
-    tester,
-  ) async {
+  testWidgets('adding a kid carries on into setting them up', (tester) async {
     await pumpWide(tester, const ParentHome());
 
-    await tester.tap(find.text('Add a kid'));
+    await tester.tap(find.text('Add your first kid'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Abu');
     await tester.pumpAndSettle();

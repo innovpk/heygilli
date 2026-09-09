@@ -68,8 +68,14 @@ void main() {
     // Not a nine-year-old's question.
     expect(find.text('Explain it to a friend'), findsNothing);
 
-    final switches = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile));
-    expect(switches.length, greaterThan(4), reason: 'one question is not a bank');
+    final switches = tester.widgetList<SwitchListTile>(
+      find.byType(SwitchListTile),
+    );
+    expect(
+      switches.length,
+      greaterThan(4),
+      reason: 'one question is not a bank',
+    );
     expect(
       switches.every((s) => s.value),
       isTrue,

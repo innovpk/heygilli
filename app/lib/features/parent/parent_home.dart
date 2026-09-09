@@ -42,7 +42,7 @@ class _ParentHomeState extends State<ParentHome> {
       body: _tab == 0 ? const _KidsTab() : const InboxScreen(),
       floating: _tab == 0
           ? FloatingActionButton.extended(
-              onPressed: () => _addKid(context),
+              onPressed: () => addKidFlow(context),
               backgroundColor: HgColors.mango,
               foregroundColor: HgColors.white,
               icon: const Icon(Icons.add_rounded),
@@ -65,13 +65,13 @@ class _ParentHomeState extends State<ParentHome> {
           ),
         ],
       ),
-      sidebar: ParentSidebar(
-        selectedIndex: _tab,
-        onSelect: (i) => setState(() => _tab = i),
-        destinations: const [
-          (icon: Icons.face_outlined, label: 'Kids'),
-          (icon: Icons.inbox_outlined, label: 'Inbox'),
-        ],
+      sidebar: HouseholdSidebar(
+        selectedKidId: null,
+        inboxSelected: _tab == 1,
+        onKids: () => setState(() => _tab = 0),
+        onInbox: () => setState(() => _tab = 1),
+        onKid: (kid) => openKid(context, kid),
+        onAddKid: () => addKidFlow(context),
       ),
     );
   }
@@ -90,7 +90,7 @@ class _ParentHomeState extends State<ParentHome> {
 /// Every step can be left. A parent who stops after the first has a child with
 /// rules and no channels, which is a coherent thing to be halfway through, and
 /// each step is reachable again from the child's page.
-Future<void> _addKid(BuildContext context) async {
+Future<void> addKidFlow(BuildContext context) async {
   final kid = await showAddKidSheet(context);
   if (kid == null || !context.mounted) return;
   final navigator = Navigator.of(context);
@@ -117,6 +117,24 @@ Future<void> _addKid(BuildContext context) async {
   await navigator.push(
     MaterialPageRoute(builder: (_) => KidDetailScreen(kid: kid)),
   );
+}
+
+/// Opens one child's page.
+///
+/// `replace` when the move came from the rail: a parent flicking between two
+/// children would otherwise leave a route behind for each one, and Back would
+/// walk them through every child they had looked at instead of returning to
+/// the list.
+void openKid(BuildContext context, Kid kid, {bool replace = false}) {
+  final route = MaterialPageRoute<void>(
+    builder: (_) => KidDetailScreen(kid: kid),
+  );
+  final navigator = Navigator.of(context);
+  if (replace && navigator.canPop()) {
+    navigator.pushReplacement(route);
+  } else {
+    navigator.push(route);
+  }
 }
 
 class _KidsTab extends StatelessWidget {
@@ -153,11 +171,15 @@ class _KidsTab extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: FilledButton.icon(
-                  onPressed: () => _addKid(context),
+                  onPressed: () => addKidFlow(context),
                   icon: const Icon(Icons.add_rounded, size: 22),
+                  // Not "Add a kid": the rail carries that label permanently,
+                  // and with no children on the household both were on screen
+                  // at once saying the same thing. This one only ever appears
+                  // when there is nobody yet, so it can say so.
                   label: Text(
-                    'Add a kid',
-                    style: HgText.body(size: 16, color: HgColors.ink),
+                    'Add your first kid',
+                    style: HgText.body(size: 16, color: HgColors.white),
                   ),
                 ),
               ),
@@ -226,9 +248,7 @@ class _KidCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PCard(
       padding: const EdgeInsets.all(16),
-      onTap: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => KidDetailScreen(kid: kid))),
+      onTap: () => openKid(context, kid),
       child: Row(
         spacing: 16,
         children: [
@@ -295,7 +315,11 @@ class _AccountMenu extends StatelessWidget {
     final set = await showPinGate(context);
     messenger.showSnackBar(
       SnackBar(
-        content: Text(set ? 'New PIN saved.' : 'PIN cleared. The next one you type becomes the PIN.'),
+        content: Text(
+          set
+              ? 'New PIN saved.'
+              : 'PIN cleared. The next one you type becomes the PIN.',
+        ),
       ),
     );
   }
@@ -403,36 +427,6 @@ class _AccountMenu extends StatelessWidget {
     }
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    final state = context.read<AppState>();
-    final navigator = Navigator.of(context);
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: HgColors.white,
-        title: Text('Sign out?', style: HgText.display(size: 22)),
-        content: Text(
-          'Your children, their channels and everything they have watched stay '
-          'on your household. Signing in again brings it all back.',
-          style: HgText.body(size: 15, color: HgColors.brown),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Stay'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
-    await state.signOut();
-    navigator.pushNamedAndRemoveUntil(Routes.parent, (_) => false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -491,7 +485,7 @@ class _AccountMenu extends StatelessWidget {
           ),
         ),
         PopupMenuItem<VoidCallback>(
-          value: () => _signOut(context),
+          value: () => confirmSignOut(context),
           child: Text(
             'Sign out',
             style: HgText.body(size: 15, color: HgColors.coral),

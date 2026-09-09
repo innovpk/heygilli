@@ -236,7 +236,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 3,
-                            color: HgColors.ink,
+                            color: HgColors.white,
                           ),
                         )
                       : Text(

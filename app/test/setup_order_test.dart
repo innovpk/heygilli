@@ -51,7 +51,7 @@ void main() {
     tester,
   ) async {
     await pumpWide(tester, const ParentHome());
-    await tester.tap(find.text('Add a kid'));
+    await tester.tap(find.text('Add your first kid'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Abu');
     await tester.pumpAndSettle();
@@ -71,7 +71,7 @@ void main() {
     tester,
   ) async {
     await pumpWide(tester, const ParentHome());
-    await tester.tap(find.text('Add a kid'));
+    await tester.tap(find.text('Add your first kid'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Abu');
     await tester.pumpAndSettle();
@@ -94,7 +94,7 @@ void main() {
 
   testWidgets('and then it shows what it found', (tester) async {
     await pumpWide(tester, const ParentHome());
-    await tester.tap(find.text('Add a kid'));
+    await tester.tap(find.text('Add your first kid'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Abu');
     await tester.pumpAndSettle();

@@ -158,10 +158,7 @@ void main() {
       File('${tmp.path}/notes.txt').writeAsStringSync('hello');
       final notZip = TakeoutZip.path('notes.txt', '${tmp.path}/notes.txt');
 
-      expect(
-        () => slimTakeout(notZip),
-        throwsA(isA<NotATakeoutExport>()),
-      );
+      expect(() => slimTakeout(notZip), throwsA(isA<NotATakeoutExport>()));
     });
   });
 

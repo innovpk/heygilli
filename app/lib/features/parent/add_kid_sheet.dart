@@ -50,6 +50,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
     text: widget.editing?.nickname ?? widget.initialNickname,
   );
   late int _age = widget.editing?.age ?? 5;
+
   /// Urdu is not offered for now, so there is nothing left to pick between
   /// and no picker. A child added today speaks English; one added when there
   /// were two keeps whatever they were given, because a screen that no longer
@@ -82,11 +83,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
       final languages = _languages;
       final state = context.read<AppState>();
       final kid = existing == null
-          ? await state.addKid(
-              nickname: name,
-              age: _age,
-              languages: languages,
-            )
+          ? await state.addKid(nickname: name, age: _age, languages: languages)
           : await state.editKid(
               existing.id,
               nickname: name,
@@ -118,7 +115,9 @@ class _AddKidSheetState extends State<_AddKidSheet> {
         spacing: 14,
         children: [
           Text(
-            widget.editing == null ? 'Add a kid' : 'Edit ${widget.editing!.nickname}',
+            widget.editing == null
+                ? 'Add a kid'
+                : 'Edit ${widget.editing!.nickname}',
             style: HgText.display(size: 28, color: HgColors.ink),
           ),
           Text('NICKNAME (NO REAL NAMES NEEDED)', style: HgText.label()),

@@ -166,7 +166,9 @@ class _SignInScreenState extends State<SignInScreen> {
                         child: Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 400),
-                            child: PCard(child: _card(canUseGoogle, tight: true)),
+                            child: PCard(
+                              child: _card(canUseGoogle, tight: true),
+                            ),
                           ),
                         ),
                       ),
@@ -189,10 +191,7 @@ class _SignInScreenState extends State<SignInScreen> {
     spacing: 16,
     children: [
       if (tight)
-        Text(
-          'Sign in',
-          style: HgText.display(size: 30, color: HgColors.ink),
-        ),
+        Text('Sign in', style: HgText.display(size: 30, color: HgColors.ink)),
       _signInControl(canUseGoogle),
       if (!tight)
         Text(

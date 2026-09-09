@@ -69,7 +69,11 @@ void main() {
     await openChannels(tester);
 
     final button = find.text('Look for new videos now');
-    expect(button, findsOneWidget, reason: 'a household stuck empty has nothing to press without it');
+    expect(
+      button,
+      findsOneWidget,
+      reason: 'a household stuck empty has nothing to press without it',
+    );
 
     await tester.tap(button);
     for (var i = 0; i < 6; i++) {

@@ -26,26 +26,32 @@ void main() {
     child: const MaterialApp(home: SignInScreen()),
   );
 
-  test('the household name is generated, not a name a person would pick', () async {
-    // The server hashes this into the household id. "test" or a first name is
-    // a household the next person who picks it walks straight into.
-    final name = await settings.ensureTrialHousehold();
-    expect(name, startsWith('trial-'));
-    expect(
-      name.length,
-      greaterThanOrEqualTo(38),
-      reason: 'too short to be unguessable',
-    );
-    expect(RegExp(r'^trial-[0-9a-f]{32}$').hasMatch(name), isTrue);
-  });
+  test(
+    'the household name is generated, not a name a person would pick',
+    () async {
+      // The server hashes this into the household id. "test" or a first name is
+      // a household the next person who picks it walks straight into.
+      final name = await settings.ensureTrialHousehold();
+      expect(name, startsWith('trial-'));
+      expect(
+        name.length,
+        greaterThanOrEqualTo(38),
+        reason: 'too short to be unguessable',
+      );
+      expect(RegExp(r'^trial-[0-9a-f]{32}$').hasMatch(name), isTrue);
+    },
+  );
 
-  test('coming back lands in the same household, not a new empty one', () async {
-    final first = await settings.ensureTrialHousehold();
-    expect(await settings.ensureTrialHousehold(), first);
+  test(
+    'coming back lands in the same household, not a new empty one',
+    () async {
+      final first = await settings.ensureTrialHousehold();
+      expect(await settings.ensureTrialHousehold(), first);
 
-    // A fresh LocalSettings over the same storage: the next app launch.
-    expect((await LocalSettings.load()).trialHousehold, first);
-  });
+      // A fresh LocalSettings over the same storage: the next app launch.
+      expect((await LocalSettings.load()).trialHousehold, first);
+    },
+  );
 
   test('a different device is a different household', () async {
     final mine = await settings.ensureTrialHousehold();

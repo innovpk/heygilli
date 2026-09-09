@@ -96,7 +96,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       onSelected: _busy
                           ? null
                           : (on) => setState(
-                              () => on ? _picked.add(t.id) : _picked.remove(t.id),
+                              () =>
+                                  on ? _picked.add(t.id) : _picked.remove(t.id),
                             ),
                       selectedColor: HgColors.mango,
                       checkmarkColor: HgColors.white,
@@ -135,14 +136,16 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  for (final a in snap.data?.breakActivities ?? const <StarterTopic>[])
+                  for (final a
+                      in snap.data?.breakActivities ?? const <StarterTopic>[])
                     FilterChip(
                       label: Text(a.label),
                       selected: _breaks.contains(a.id),
                       onSelected: _busy
                           ? null
                           : (on) => setState(
-                              () => on ? _breaks.add(a.id) : _breaks.remove(a.id),
+                              () =>
+                                  on ? _breaks.add(a.id) : _breaks.remove(a.id),
                             ),
                       selectedColor: HgColors.mango,
                       checkmarkColor: HgColors.white,

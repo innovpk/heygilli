@@ -61,9 +61,7 @@ void main() {
 
     final heading = tester.getRect(find.text('SciShow Kids')).top;
     final other = tester.getRect(find.text('Danny Go!')).top;
-    final volcanoes = tester
-        .getRect(find.textContaining('Volcanoes'))
-        .top;
+    final volcanoes = tester.getRect(find.textContaining('Volcanoes')).top;
     final goosebumps = tester.getRect(find.textContaining('Goosebumps')).top;
     final lava = tester.getRect(find.textContaining('Floor Is Lava')).top;
 

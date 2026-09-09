@@ -68,7 +68,10 @@ class _InboxScreenState extends State<InboxScreen> {
   /// The dialog names the channel and the count, so "approve all" cannot mean
   /// something bigger than the parent thought.
   Future<void> _approveGroup(String channel, List<ParentPrompt> prompts) async {
-    final decidable = [for (final p in prompts) if (p.isDecidable) p];
+    final decidable = [
+      for (final p in prompts)
+        if (p.isDecidable) p,
+    ];
     if (decidable.isEmpty) return;
 
     final where = channel.isEmpty ? 'these channels' : channel;
@@ -189,7 +192,10 @@ class _InboxScreenState extends State<InboxScreen> {
         }
         final tabbed = kids.length > 1;
         final shown = tabbed && _onlyKid != null
-            ? [for (final p in list) if (p.kidId == _onlyKid) p]
+            ? [
+                for (final p in list)
+                  if (p.kidId == _onlyKid) p,
+              ]
             : list;
 
         final groups = <String, List<ParentPrompt>>{};
@@ -485,9 +491,7 @@ class _KidTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? HgColors.mango : HgColors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? HgColors.mango : HgColors.line,
-          ),
+          border: Border.all(color: selected ? HgColors.mango : HgColors.line),
         ),
         child: Text(
           '$label  $count',

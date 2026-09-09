@@ -24,7 +24,11 @@ void main() {
     gateway = _RecordingGateway();
     await gateway.signInDev('parent');
     app = AppState(gateway: gateway, settings: await LocalSettings.load());
-    await gateway.createKid(nickname: 'Abeeha', age: 6, languages: const ['en']);
+    await gateway.createKid(
+      nickname: 'Abeeha',
+      age: 6,
+      languages: const ['en'],
+    );
     await app.refreshKids();
   });
 
@@ -51,7 +55,9 @@ void main() {
     // subtitle also contains the word, and it is first in the tree.
     final button = find.descendant(
       of: find.byType(FilledButton),
-      matching: find.textContaining(RegExp(r'(Import \d+|import \d+|Try again)')),
+      matching: find.textContaining(
+        RegExp(r'(Import \d+|import \d+|Try again)'),
+      ),
     );
     expect(button, findsOneWidget, reason: 'no import button on the card');
     await tester.ensureVisible(button);
@@ -145,8 +151,10 @@ class _RecordingGateway extends FakeGateway {
         channelCount: 148,
         channels: [
           for (var i = 0; i < 148; i++)
-            TakeoutChannel(channelId: 'UC${i.toString().padLeft(22, '0')}',
-                title: 'Channel $i'),
+            TakeoutChannel(
+              channelId: 'UC${i.toString().padLeft(22, '0')}',
+              title: 'Channel $i',
+            ),
         ],
       ),
     ],
@@ -166,7 +174,8 @@ class _RecordingGateway extends FakeGateway {
     }
     return ImportResult(
       added: [
-        for (final id in channelIds) Channel(id: id, title: id, thumbUrl: '', approved: true),
+        for (final id in channelIds)
+          Channel(id: id, title: id, thumbUrl: '', approved: true),
       ],
     );
   }

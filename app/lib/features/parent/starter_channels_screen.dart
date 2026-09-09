@@ -83,7 +83,10 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
     final gateway = context.read<AppState>().gateway;
     final have = await gateway.channels(widget.kid.id);
     if (mounted) {
-      _already = {for (final c in have) if (c.approved) c.id};
+      _already = {
+        for (final c in have)
+          if (c.approved) c.id,
+      };
     }
     return gateway.starterChannels(
       band: widget.kid.band.wire,
@@ -106,7 +109,9 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
   }
 
   Future<void> _add(List<StarterChannel> channels) async {
-    final picked = channels.where((c) => _chosen.contains(c.channelId)).toList();
+    final picked = channels
+        .where((c) => _chosen.contains(c.channelId))
+        .toList();
     if (picked.isEmpty) return;
     setState(() {
       _adding = true;
@@ -120,11 +125,9 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
       // parent picked, which the screening needs and which a per-channel add
       // has nowhere to put, and it starts the Curator once instead of once
       // per channel over a gateway that may be asleep.
-      await state.gateway.importChannels(
-        widget.kid.id,
-        [for (final c in picked) c.channelId],
-        topics: _topics.toList(),
-      );
+      await state.gateway.importChannels(widget.kid.id, [
+        for (final c in picked) c.channelId,
+      ], topics: _topics.toList());
       messenger.showSnackBar(
         SnackBar(
           content: Text(

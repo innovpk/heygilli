@@ -64,7 +64,10 @@ class _PromptsCardState extends State<PromptsCard> {
     try {
       final saved = await context.read<AppState>().gateway.savePrompts(
         widget.kid.id,
-        [for (final p in list) if (!p.enabled) p.id],
+        [
+          for (final p in list)
+            if (!p.enabled) p.id,
+        ],
       );
       if (!mounted) return;
       setState(() {

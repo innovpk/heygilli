@@ -28,7 +28,11 @@ void main() {
   });
 
   Future<Kid> addKid(String name, int age) async {
-    final kid = await app.addKid(nickname: name, age: age, languages: const ['en']);
+    final kid = await app.addKid(
+      nickname: name,
+      age: age,
+      languages: const ['en'],
+    );
     return kid;
   }
 
@@ -76,17 +80,24 @@ void main() {
     expect(app.activeKid, isNull);
   });
 
-  test('deleting the household takes every child and ends the session', () async {
-    await addKid('Abu', 8);
-    await addKid('Zara', 5);
-    await app.settings.setKidDeviceId('kid_something');
+  test(
+    'deleting the household takes every child and ends the session',
+    () async {
+      await addKid('Abu', 8);
+      await addKid('Zara', 5);
+      await app.settings.setKidDeviceId('kid_something');
 
-    await app.deleteHousehold();
+      await app.deleteHousehold();
 
-    expect(app.kids, isEmpty);
-    expect(app.signedIn, isFalse, reason: 'a token for an account that is gone');
-    expect(app.settings.kidDeviceId, isNull);
-  });
+      expect(app.kids, isEmpty);
+      expect(
+        app.signedIn,
+        isFalse,
+        reason: 'a token for an account that is gone',
+      );
+      expect(app.settings.kidDeviceId, isNull);
+    },
+  );
 }
 
 /// What the parent sees while it happens.
@@ -105,7 +116,11 @@ void _feedback() {
       gateway = _SlowGateway();
       await gateway.signInDev('parent');
       app = AppState(gateway: gateway, settings: await LocalSettings.load());
-      await gateway.createKid(nickname: 'Abdul', age: 8, languages: const ['en']);
+      await gateway.createKid(
+        nickname: 'Abdul',
+        age: 8,
+        languages: const ['en'],
+      );
       await app.refreshKids();
       await app.settings.setPin('1234');
     });

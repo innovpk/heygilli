@@ -182,7 +182,7 @@ class _TimeLimitsCardState extends State<TimeLimitsCard> {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
-                        color: HgColors.ink,
+                        color: HgColors.white,
                       ),
                     )
                   : Text(

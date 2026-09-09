@@ -10,6 +10,8 @@ import 'break_messages_card.dart';
 import 'channel_reviews_screen.dart';
 import 'digest_screen.dart';
 import 'history_screen.dart';
+import 'inbox_screen.dart';
+import 'parent_home.dart';
 import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
@@ -67,6 +69,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
           // to open on; leave the parent where they landed.
         });
   }
+
   final _url = TextEditingController();
   bool _adding = false;
   bool _curating = false;
@@ -309,6 +312,21 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     final page = ParentScaffold(
       title: kid.nickname,
       subtitle: 'Age ${kid.age}  |  band ${kid.band.label}',
+      // The rail comes with the child's page rather than being left behind on
+      // the list. Switching child from here replaces this route instead of
+      // stacking another one on it.
+      sidebar: HouseholdSidebar(
+        selectedKidId: kid.id,
+        onKids: () => Navigator.of(context).maybePop(),
+        onInbox: () => Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InboxScreen()),
+        ),
+        onKid: (next) {
+          if (next.id == kid.id) return;
+          openKid(context, next, replace: true);
+        },
+        onAddKid: () => addKidFlow(context),
+      ),
       actions: [
         // The age is right there in the subtitle and used to be unchangeable:
         // no edit anywhere, and no delete either, so a child entered wrong
@@ -346,7 +364,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     icon: const Icon(Icons.play_arrow_rounded, size: 30),
                     label: Text(
                       'Enter kid mode',
-                      style: HgText.display(size: 22, color: HgColors.ink),
+                      style: HgText.display(size: 22, color: HgColors.white),
                     ),
                   ),
                 ),
@@ -605,7 +623,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                         icon: const Icon(Icons.auto_awesome, size: 22),
                         label: Text(
                           'Suggest channels for ${kid.nickname}',
-                          style: HgText.body(size: 15, color: HgColors.ink),
+                          style: HgText.body(size: 15, color: HgColors.white),
                         ),
                       ),
                     ),
@@ -622,7 +640,10 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                             builder: (_) => HiddenScreen(kid: kid),
                           ),
                         ),
-                        icon: const Icon(Icons.visibility_off_outlined, size: 22),
+                        icon: const Icon(
+                          Icons.visibility_off_outlined,
+                          size: 22,
+                        ),
                         label: Text(
                           'What was kept from ${kid.nickname}',
                           style: HgText.body(size: 15, color: HgColors.ink),
@@ -694,9 +715,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                         onPressed: _curating ? null : _curateNow,
                         icon: const Icon(Icons.refresh, size: 20),
                         label: Text(
-                          _curating
-                              ? 'Starting...'
-                              : 'Look for new videos now',
+                          _curating ? 'Starting...' : 'Look for new videos now',
                           style: HgText.body(size: 15, color: HgColors.ink),
                         ),
                         style: _importButtonStyle,

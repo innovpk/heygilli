@@ -15,18 +15,19 @@ void main() {
     icons = await IconLibrary.load();
   });
 
-  Widget host(List<PickOption> options, void Function(int) onPick) => MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: PickCards(
-          options: options,
-          icons: icons,
-          onPick: onPick,
-          showLabels: true,
+  Widget host(List<PickOption> options, void Function(int) onPick) =>
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: PickCards(
+              options: options,
+              icons: icons,
+              onPick: onPick,
+              showLabels: true,
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   const yesNo = [
     PickOption(iconId: 'icon_yes', label: 'yes'),

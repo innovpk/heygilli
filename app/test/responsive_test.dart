@@ -60,7 +60,11 @@ void main() {
     ];
 
     testWidgets('one column on a phone', (tester) async {
-      await pumpAt(tester, const Size(420, 1400), HgCardColumns(children: cards()));
+      await pumpAt(
+        tester,
+        const Size(420, 1400),
+        HgCardColumns(children: cards()),
+      );
       final one = tester.getRect(find.text('one'));
       final two = tester.getRect(find.text('two'));
       expect(two.top, greaterThan(one.bottom), reason: 'stacked, in order');
@@ -69,13 +73,18 @@ void main() {
     testWidgets('two columns once there is room for two readable ones', (
       tester,
     ) async {
-      await pumpAt(tester, const Size(1400, 1000), HgCardColumns(children: cards()));
+      await pumpAt(
+        tester,
+        const Size(1400, 1000),
+        HgCardColumns(children: cards()),
+      );
       final one = tester.getRect(find.text('one'));
       final two = tester.getRect(find.text('two'));
       expect(
         two.left,
         greaterThan(one.right),
-        reason: 'a parent should not scroll past one card to reach the next '
+        reason:
+            'a parent should not scroll past one card to reach the next '
             'on a window with room for both',
       );
       // Third goes back to the left column: filling in order, not by height.
@@ -90,7 +99,9 @@ void main() {
       await pumpAt(
         tester,
         const Size(1400, 1000),
-        const HgCardColumns(children: [SizedBox(height: 100, child: Text('only'))]),
+        const HgCardColumns(
+          children: [SizedBox(height: 100, child: Text('only'))],
+        ),
       );
       expect(tester.getRect(find.text('only')).width, greaterThan(600));
     });

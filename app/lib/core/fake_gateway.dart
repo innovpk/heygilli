@@ -776,7 +776,12 @@ class FakeGateway implements Gateway {
   /// Real wording lives in agents/heygilli_agents/question_bank.py.
   static const _bank = <String, List<List<String>>>{
     '4_6': [
-      ['p46_favourite_part', 'What was your favourite bit?', 'name_it', 'voice'],
+      [
+        'p46_favourite_part',
+        'What was your favourite bit?',
+        'name_it',
+        'voice',
+      ],
       ['p46_who_was_in_it', 'Who was in it?', 'name_it', 'voice'],
       ['p46_colour_seen', 'Name a colour you saw', 'name_it', 'voice'],
       ['p46_clap', 'Clap for the video', 'copy_it', 'copy'],
@@ -784,7 +789,12 @@ class FakeGateway implements Gateway {
       ['p46_happy_sad', 'Happy or sad?', 'name_it', 'voice'],
     ],
     '7_8': [
-      ['p78_favourite_part', 'What was your favourite part?', 'recall', 'voice'],
+      [
+        'p78_favourite_part',
+        'What was your favourite part?',
+        'recall',
+        'voice',
+      ],
       ['p78_one_new_thing', 'One thing you learned', 'recall', 'voice'],
       ['p78_what_happened_first', 'What happened first?', 'recall', 'voice'],
       ['p78_why_liked', 'Why did you like it?', 'why', 'voice'],
@@ -849,20 +859,55 @@ class FakeGateway implements Gateway {
     // A handful of the real list, enough to show the screen working. The
     // catalogue itself lives in agents/heygilli_agents/starter_channels.py.
     const all = <List<String>>[
-      ['UC3wCAOfSB0W9iuKDDtNJeGw', 'Danny Go!',
-       'Songs that get them up and moving between videos.', 'songs', '4_6|7_8'],
-      ['UCnBdzaRy-Ky9Vh54XJlFz1Q', 'Storyline Online',
-       'Picture books read aloud by actors, one book per video.', 'stories', '4_6|7_8'],
-      ['UCRFIPG2u1DxKLNuE3y2SjHA', 'SciShow Kids',
-       'One question answered per video, gently and with props.', 'science', '4_6|7_8'],
-      ['UCXVCgDuD_QCkI7gTKU7-tpg', 'Nat Geo Kids',
-       "Animal facts and footage from the magazine's children's arm.", 'animals', '4_6|7_8|9_11'],
-      ['UC5XMF3Inoi8R9nSI8ChOsdQ', 'Art for Kids Hub',
-       'Draw-along videos a child can follow with paper and a pen.', 'making', '4_6|7_8|9_11'],
-      ['UCPlwvN0w4qFSP1FllALB92w', 'Numberblocks',
-       'Numbers as characters. Counting without it feeling like counting.', 'school', '4_6'],
-      ['UCONtPx56PSebXJOxbFv-2jQ', 'Crash Course Kids',
-       'Primary-school science, one idea at a time.', 'science', '7_8|9_11'],
+      [
+        'UC3wCAOfSB0W9iuKDDtNJeGw',
+        'Danny Go!',
+        'Songs that get them up and moving between videos.',
+        'songs',
+        '4_6|7_8',
+      ],
+      [
+        'UCnBdzaRy-Ky9Vh54XJlFz1Q',
+        'Storyline Online',
+        'Picture books read aloud by actors, one book per video.',
+        'stories',
+        '4_6|7_8',
+      ],
+      [
+        'UCRFIPG2u1DxKLNuE3y2SjHA',
+        'SciShow Kids',
+        'One question answered per video, gently and with props.',
+        'science',
+        '4_6|7_8',
+      ],
+      [
+        'UCXVCgDuD_QCkI7gTKU7-tpg',
+        'Nat Geo Kids',
+        "Animal facts and footage from the magazine's children's arm.",
+        'animals',
+        '4_6|7_8|9_11',
+      ],
+      [
+        'UC5XMF3Inoi8R9nSI8ChOsdQ',
+        'Art for Kids Hub',
+        'Draw-along videos a child can follow with paper and a pen.',
+        'making',
+        '4_6|7_8|9_11',
+      ],
+      [
+        'UCPlwvN0w4qFSP1FllALB92w',
+        'Numberblocks',
+        'Numbers as characters. Counting without it feeling like counting.',
+        'school',
+        '4_6',
+      ],
+      [
+        'UCONtPx56PSebXJOxbFv-2jQ',
+        'Crash Course Kids',
+        'Primary-school science, one idea at a time.',
+        'science',
+        '7_8|9_11',
+      ],
     ];
     final wanted = topics.where((t) => t.isNotEmpty).toSet();
     return StarterChannels(
@@ -872,7 +917,10 @@ class FakeGateway implements Gateway {
         StarterTopic(id: 'science', label: 'Science and how things work'),
         StarterTopic(id: 'animals', label: 'Animals and nature'),
         StarterTopic(id: 'making', label: 'Drawing and making things'),
-        StarterTopic(id: 'school', label: 'Letters, numbers and school subjects'),
+        StarterTopic(
+          id: 'school',
+          label: 'Letters, numbers and school subjects',
+        ),
       ],
       breakActivities: const [
         StarterTopic(id: 'stretch', label: 'Have a stretch'),
@@ -909,7 +957,8 @@ class FakeGateway implements Gateway {
     final more = await starterChannels(band: '9_11');
     return [
       for (final c in {...all.channels, ...more.channels})
-        if (c.title.toLowerCase().contains(q) || c.blurb.toLowerCase().contains(q))
+        if (c.title.toLowerCase().contains(q) ||
+            c.blurb.toLowerCase().contains(q))
           c,
     ];
   }
@@ -1034,8 +1083,10 @@ class FakeGateway implements Gateway {
   final Map<String, List<ParentQuestion>> _parentQuestions = {};
 
   @override
-  Future<List<ParentQuestion>> parentQuestions(String kidId, String videoId) async =>
-      List.unmodifiable(_parentQuestions['$kidId/$videoId'] ?? const []);
+  Future<List<ParentQuestion>> parentQuestions(
+    String kidId,
+    String videoId,
+  ) async => List.unmodifiable(_parentQuestions['$kidId/$videoId'] ?? const []);
 
   @override
   Future<ParentQuestion> addParentQuestion(
@@ -1060,7 +1111,9 @@ class FakeGateway implements Gateway {
     String kidId,
     String videoId,
     String questionId,
-  ) async => _parentQuestions['$kidId/$videoId']?.removeWhere((q) => q.id == questionId);
+  ) async => _parentQuestions['$kidId/$videoId']?.removeWhere(
+    (q) => q.id == questionId,
+  );
 
   @override
   Future<VideoAnswer> askAboutVideo(
@@ -1072,12 +1125,15 @@ class FakeGateway implements Gateway {
     await _lag();
     final q = question.toLowerCase();
     if (q.trim().isEmpty) {
-      return const VideoAnswer(answer: 'Ask me something about this video.',
-          answeredFrom: 'nothing');
+      return const VideoAnswer(
+        answer: 'Ask me something about this video.',
+        answeredFrom: 'nothing',
+      );
     }
     if (q.contains('advert') || q.contains('sponsor') || q.contains('sell')) {
       return const VideoAnswer(
-        answer: 'There is a sponsor read about three minutes in — the presenter '
+        answer:
+            'There is a sponsor read about three minutes in — the presenter '
             'names a brand of lunch box and asks viewers to buy one. Nothing '
             'else in the words is selling anything.',
         answeredFrom: 'the words of the video',
@@ -1085,14 +1141,16 @@ class FakeGateway implements Gateway {
     }
     if (q.contains('scary') || q.contains('hurt') || q.contains('frighten')) {
       return const VideoAnswer(
-        answer: 'Nobody is hurt in it. The one moment that could sound alarming '
+        answer:
+            'Nobody is hurt in it. The one moment that could sound alarming '
             'is an eruption near the end, and the narrator says straight away '
             'that everyone got out safely.',
         answeredFrom: 'the words of the video',
       );
     }
     return const VideoAnswer(
-      answer: 'The words of the video do not settle that one. What they do cover '
+      answer:
+          'The words of the video do not settle that one. What they do cover '
           'is how lava forms and why some volcanoes erupt more often than '
           'others — ask me about any of that and I can be more use.',
       answeredFrom: 'the words of the video',
@@ -1104,10 +1162,30 @@ class FakeGateway implements Gateway {
     await _lag();
     final decided = _reviewDecided[kidId] ?? const <String, String>{};
     const seed = <(Video, String, String, String)>[
-      (_volcano, 'approve', 'Explains how volcanoes work. Suitable for the age band.', 'watched'),
-      (_ears, 'approve', 'Gentle science about hearing. Nothing you said to avoid.', 'watched'),
-      (_twinkle, 'ask_parent', 'A sponsor named in the description, which you said to ask about.', 'title only'),
-      (_ducks, 'hide', 'A live stream, so what it will show has not happened yet.', 'title only'),
+      (
+        _volcano,
+        'approve',
+        'Explains how volcanoes work. Suitable for the age band.',
+        'watched',
+      ),
+      (
+        _ears,
+        'approve',
+        'Gentle science about hearing. Nothing you said to avoid.',
+        'watched',
+      ),
+      (
+        _twinkle,
+        'ask_parent',
+        'A sponsor named in the description, which you said to ask about.',
+        'title only',
+      ),
+      (
+        _ducks,
+        'hide',
+        'A live stream, so what it will show has not happened yet.',
+        'title only',
+      ),
     ];
     return ReviewQueue(
       items: [
@@ -1149,7 +1227,10 @@ class FakeGateway implements Gateway {
     if (kid == null) return const [];
     final rows = kid.band == AgeBand.b4to6
         ? const [
-            HomeRow(title: 'New from your channels', videos: [_ducks, _twinkle]),
+            HomeRow(
+              title: 'New from your channels',
+              videos: [_ducks, _twinkle],
+            ),
             HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
           ]
         : const [
@@ -2053,27 +2134,25 @@ class FakeSession implements SessionSocket {
     final band = kid.band;
     final urdu = language == 'ur';
     final message = AskMessage(
-        q: index,
-        type: ask.type,
-        input: ask.input,
-        // Text is omitted for 4_6 exactly like the live gateway. The client
-        // then relies on tts_url or, in demo, on-device TTS of `speak`.
-        text: band == AgeBand.b4to6 ? null : ask.text,
-        // Bilingual kids 7+ get the Urdu line under the English question.
-        textUr: band == AgeBand.b4to6 || !urdu ? null : ask.textUr,
-        // Demo has no cloud TTS, so the client falls back to on-device TTS.
-        // `speak` carries the spoken line for 4_6 (proposed v1.1 field). It
-        // is English because most demo devices only ship an English voice.
-        speak: ask.text,
-        ttsUrl: '',
-        listenMs: band.defaultListenMs,
-        options: ask.options,
-        gesture: ask.input == QuestionInput.pick
-            ? Gesture.point
-            : Gesture.think,
-        // Only for a bilingual session. Seeding is opt-in by virtue of the
-        // language list, so an English-only kid is never offered one.
-        word: urdu ? ask.seed : null,
+      q: index,
+      type: ask.type,
+      input: ask.input,
+      // Text is omitted for 4_6 exactly like the live gateway. The client
+      // then relies on tts_url or, in demo, on-device TTS of `speak`.
+      text: band == AgeBand.b4to6 ? null : ask.text,
+      // Bilingual kids 7+ get the Urdu line under the English question.
+      textUr: band == AgeBand.b4to6 || !urdu ? null : ask.textUr,
+      // Demo has no cloud TTS, so the client falls back to on-device TTS.
+      // `speak` carries the spoken line for 4_6 (proposed v1.1 field). It
+      // is English because most demo devices only ship an English voice.
+      speak: ask.text,
+      ttsUrl: '',
+      listenMs: band.defaultListenMs,
+      options: ask.options,
+      gesture: ask.input == QuestionInput.pick ? Gesture.point : Gesture.think,
+      // Only for a bilingual session. Seeding is opt-in by virtue of the
+      // language list, so an English-only kid is never offered one.
+      word: urdu ? ask.seed : null,
     );
     _live = message;
     _repeats = 0;

@@ -309,7 +309,11 @@ abstract class Gateway {
   });
 
   /// `DELETE /kids/{id}/videos/{v}/questions/{q}`.
-  Future<void> removeParentQuestion(String kidId, String videoId, String questionId);
+  Future<void> removeParentQuestion(
+    String kidId,
+    String videoId,
+    String questionId,
+  );
 
   /// `GET /kids/{id}/review`: everything screened for this child, with what
   /// the Curator made of each one and how far the run has got.

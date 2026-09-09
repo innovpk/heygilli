@@ -24,7 +24,11 @@ void main() {
     final gateway = FakeGateway();
     await gateway.signInDev('parent');
     app = AppState(gateway: gateway, settings: await LocalSettings.load());
-    await gateway.createKid(nickname: 'Abeeha', age: 6, languages: const ['en']);
+    await gateway.createKid(
+      nickname: 'Abeeha',
+      age: 6,
+      languages: const ['en'],
+    );
     await gateway.createKid(nickname: 'Abu', age: 8, languages: const ['en']);
     await gateway.createKid(nickname: 'Zara', age: 9, languages: const ['en']);
     await app.refreshKids();
@@ -41,6 +45,12 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
+  // Every child's name is on screen twice once the rail exists — once in the
+  // rail, once on their card. These tests are about where the cards sit, so
+  // they ask the grid rather than the whole tree.
+  Finder inGrid(String name) =>
+      find.descendant(of: find.byType(GridView), matching: find.text(name));
+
   testWidgets('a phone-width window keeps the bottom tab bar, no rail', (
     tester,
   ) async {
@@ -49,7 +59,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(ParentSidebar), findsNothing);
+    expect(find.byType(HouseholdSidebar), findsNothing);
   });
 
   testWidgets('a desktop-width window shows the rail, not the bottom bar', (
@@ -59,7 +69,7 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pump();
 
-    expect(find.byType(ParentSidebar), findsOneWidget);
+    expect(find.byType(HouseholdSidebar), findsOneWidget);
     // Not just visually replaced: an invisible NavigationBar still eating
     // thumb-height at the bottom of a desktop window would be its own bug.
     expect(find.byType(NavigationBar), findsNothing);
@@ -71,17 +81,18 @@ void main() {
     await tester.pump();
 
     expect(find.text('Kids'), findsWidgets);
-    // FakeGateway seeds a real inbox prompt, so the switch is checked by what
-    // left rather than by an empty state: the kid grid is gone, replaced by
-    // whatever the inbox has (here, an actual Curator prompt to decide on).
-    expect(find.text('Abeeha'), findsOneWidget);
+    // Twice: once on her card in the grid, once in the rail, which lists every
+    // child on the household whatever page is open.
+    expect(find.text('Abeeha'), findsNWidgets(2));
 
     await tester.tap(find.text('Inbox').last);
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    expect(find.text('Abeeha'), findsNothing);
+    // Her card has gone with the grid; her name has not, because the rail is
+    // the frame and not part of the page. That is the whole point of it.
+    expect(find.text('Abeeha'), findsOneWidget);
     // The inbox, whatever is in it. Counting the cards tied this test to how
     // many prompts the demo happens to ship, which is not what it is about.
     expect(find.text('Approve'), findsWidgets);
@@ -99,8 +110,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(GridView), findsOneWidget);
-    final abeeha = tester.getTopLeft(find.text('Abeeha'));
-    final abu = tester.getTopLeft(find.text('Abu'));
+    final abeeha = tester.getTopLeft(inGrid('Abeeha'));
+    final abu = tester.getTopLeft(inGrid('Abu'));
     expect(
       abeeha.dy,
       closeTo(abu.dy, 2),
@@ -121,9 +132,9 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pump();
 
-    final abeeha = tester.getTopLeft(find.text('Abeeha'));
-    final abu = tester.getTopLeft(find.text('Abu'));
-    final zara = tester.getTopLeft(find.text('Zara'));
+    final abeeha = tester.getTopLeft(inGrid('Abeeha'));
+    final abu = tester.getTopLeft(inGrid('Abu'));
+    final zara = tester.getTopLeft(inGrid('Zara'));
     expect(abeeha.dy, closeTo(abu.dy, 2));
     expect(abeeha.dy, closeTo(zara.dy, 2));
     expect(
@@ -133,9 +144,7 @@ void main() {
     );
   });
 
-  testWidgets('one kid per row on a narrow window, unchanged', (
-    tester,
-  ) async {
+  testWidgets('one kid per row on a narrow window, unchanged', (tester) async {
     await resize(tester, 500);
     await tester.pumpWidget(host());
     await tester.pump();
@@ -146,8 +155,6 @@ void main() {
     expect(abeeha.dy, lessThan(abu.dy - 10));
   });
 }
-
-
 
 /// A screen pushed on top of the tab root — kid detail, digest, policy — is
 /// most of the app, and every one of them was a 560px phone column in the
@@ -231,13 +238,14 @@ void _railGeometry() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    final rail = tester.getRect(find.byType(ParentSidebar));
+    final rail = tester.getRect(find.byType(HouseholdSidebar));
     expect(rail.left, 0, reason: 'the rail is inset from the window edge');
     expect(rail.top, 0, reason: 'the rail does not start at the top');
     expect(
       rail.height,
       size.height,
-      reason: 'the rail stops short of the bottom of the window: got \${rail.height}',
+      reason:
+          'the rail stops short of the bottom of the window: got \${rail.height}',
     );
   });
 }

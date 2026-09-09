@@ -47,15 +47,25 @@ void main() {
     // circle — a bug the earlier tests could not see, because they only ever
     // checked names that were already in the offered list.
     const notChosen = Kid(
-      id: 'k', nickname: 'Abeeha', age: 7,
-      band: AgeBand.b7to8, languages: ['en'], avatar: 'gilli',
+      id: 'k',
+      nickname: 'Abeeha',
+      age: 7,
+      band: AgeBand.b7to8,
+      languages: ['en'],
+      avatar: 'gilli',
     );
     expect(notChosen.hasDrawableAvatar, isFalse);
 
     for (final name in kidAvatars) {
       expect(
-        Kid(id: 'k', nickname: 'A', age: 7, band: AgeBand.b7to8,
-            languages: const ['en'], avatar: name).hasDrawableAvatar,
+        Kid(
+          id: 'k',
+          nickname: 'A',
+          age: 7,
+          band: AgeBand.b7to8,
+          languages: const ['en'],
+          avatar: name,
+        ).hasDrawableAvatar,
         isTrue,
         reason: '$name is offered, so it must be drawable',
       );
@@ -64,8 +74,14 @@ void main() {
     // And a face this app has never heard of — one added on the server before
     // the asset ships — falls back rather than drawing nothing.
     expect(
-      const Kid(id: 'k', nickname: 'A', age: 7, band: AgeBand.b7to8,
-          languages: ['en'], avatar: 'unicorn').hasDrawableAvatar,
+      const Kid(
+        id: 'k',
+        nickname: 'A',
+        age: 7,
+        band: AgeBand.b7to8,
+        languages: ['en'],
+        avatar: 'unicorn',
+      ).hasDrawableAvatar,
       isFalse,
     );
   });
@@ -75,7 +91,11 @@ void main() {
     // face with no file is a blank circle on a child's screen — and a child
     // cannot report that.
     expect(kidAvatars, isNotEmpty);
-    expect(kidAvatars.toSet().length, kidAvatars.length, reason: 'duplicate face');
+    expect(
+      kidAvatars.toSet().length,
+      kidAvatars.length,
+      reason: 'duplicate face',
+    );
     for (final name in kidAvatars) {
       expect(
         File('assets/icons/$name.svg').existsSync(),

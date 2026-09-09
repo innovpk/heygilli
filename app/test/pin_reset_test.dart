@@ -19,25 +19,40 @@ void main() {
     app = AppState(gateway: gateway, settings: await LocalSettings.load());
   });
 
-  test('a PIN can be forgotten, and the gate then asks for a new one', () async {
-    await app.setPin('1234');
-    expect(app.hasPin, isTrue);
-    expect(app.checkPin('1234'), isTrue);
+  test(
+    'a PIN can be forgotten, and the gate then asks for a new one',
+    () async {
+      await app.setPin('1234');
+      expect(app.hasPin, isTrue);
+      expect(app.checkPin('1234'), isTrue);
 
-    await app.clearPin();
+      await app.clearPin();
 
-    expect(app.hasPin, isFalse, reason: 'the gate sets a new PIN when none is stored');
-    expect(app.checkPin('1234'), isFalse, reason: 'the old PIN must not still open it');
+      expect(
+        app.hasPin,
+        isFalse,
+        reason: 'the gate sets a new PIN when none is stored',
+      );
+      expect(
+        app.checkPin('1234'),
+        isFalse,
+        reason: 'the old PIN must not still open it',
+      );
 
-    await app.setPin('5678');
-    expect(app.checkPin('5678'), isTrue);
-    expect(app.checkPin('1234'), isFalse);
-  });
+      await app.setPin('5678');
+      expect(app.checkPin('5678'), isTrue);
+      expect(app.checkPin('1234'), isFalse);
+    },
+  );
 
   test('clearing the PIN leaves the rest of the household alone', () async {
     await app.setPin('1234');
     await app.settings.setParentName('Asma');
-    final kid = await app.addKid(nickname: 'Abu', age: 5, languages: const ['en']);
+    final kid = await app.addKid(
+      nickname: 'Abu',
+      age: 5,
+      languages: const ['en'],
+    );
     await app.setDeviceKid(kid);
 
     await app.clearPin();

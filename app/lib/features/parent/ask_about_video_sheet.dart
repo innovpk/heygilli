@@ -307,7 +307,8 @@ class _TurnView extends StatelessWidget {
           // time — and the server decides this, not the model.
           Text(
             switch (turn.answeredFrom) {
-              'the words of the video' => 'Answered from what is said in the video',
+              'the words of the video' =>
+                'Answered from what is said in the video',
               'the title and description only' =>
                 'Answered from the title and description only — nobody could read this one',
               _ => 'Answered from nothing readable',

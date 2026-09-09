@@ -41,7 +41,8 @@ void main() {
     expect(
       updated.band,
       AgeBand.b9to11,
-      reason: 'keeping the old band would screen an 11-year-old as a pre-reader',
+      reason:
+          'keeping the old band would screen an 11-year-old as a pre-reader',
     );
     // And the household list a screen reads from, not just the returned copy.
     expect(app.kids.single.band, AgeBand.b9to11);
@@ -55,7 +56,11 @@ void main() {
     final stored = app.kids.single;
     expect(stored.nickname, 'Abee');
     expect(stored.age, 5, reason: 'a name change must not reset the age');
-    expect(stored.maxVideoMinutes, 20, reason: 'limits the parent set must survive');
+    expect(
+      stored.maxVideoMinutes,
+      20,
+      reason: 'limits the parent set must survive',
+    );
     expect(stored.languages, ['en']);
   });
 
@@ -72,7 +77,9 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(find.textContaining('Age 5'), findsOneWidget);
+    // The rail states it too, now that it lists every child with their band,
+    // so this asks about the page's own header rather than the whole tree.
+    expect(find.textContaining('Age 5  |  band'), findsOneWidget);
     expect(
       find.byTooltip('Edit Abeeha'),
       findsOneWidget,

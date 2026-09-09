@@ -40,8 +40,10 @@ class SetupReviewScreen extends StatefulWidget {
 /// landed in a seven-year-old's science list this way. Hidden videos live on
 /// the "Kept from" screen, which exists to be argued with, and this screen
 /// points at it and says how many are there.
-List<ReviewItem> _suggested(ReviewQueue queue) =>
-    [for (final item in queue.items) if (item.status != 'hide') item];
+List<ReviewItem> _suggested(ReviewQueue queue) => [
+  for (final item in queue.items)
+    if (item.status != 'hide') item,
+];
 
 class _SetupReviewScreenState extends State<SetupReviewScreen> {
   /// Screening a channel's uploads is minutes of work, so the list arrives a
@@ -300,9 +302,7 @@ class _KeptNote extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => HiddenScreen(kid: kid),
-                ),
+                MaterialPageRoute<void>(builder: (_) => HiddenScreen(kid: kid)),
               ),
               child: Text('See what was kept, and why'),
             ),

@@ -37,8 +37,8 @@ void main() {
               device: 'test',
             )
             as SessionStarted;
-    socket = await gateway.openSession(started.session.sessionId)
-        as FakeSession;
+    socket =
+        await gateway.openSession(started.session.sessionId) as FakeSession;
     seen = [];
     sub = socket.messages.listen(seen.add);
   });
@@ -92,19 +92,22 @@ void main() {
     expect(seen.whereType<AskMessage>(), isEmpty);
   });
 
-  test('asking again for a question that is not the live one does nothing', () async {
-    final ask = await firstAsk();
-    seen.clear();
+  test(
+    'asking again for a question that is not the live one does nothing',
+    () async {
+      final ask = await firstAsk();
+      seen.clear();
 
-    socket.send(RepeatMessage(ask.q + 5));
-    await settle();
+      socket.send(RepeatMessage(ask.q + 5));
+      await settle();
 
-    expect(
-      seen.whereType<AskMessage>(),
-      isEmpty,
-      reason: 'a stale tap re-asked the question in front of the child',
-    );
-  });
+      expect(
+        seen.whereType<AskMessage>(),
+        isEmpty,
+        reason: 'a stale tap re-asked the question in front of the child',
+      );
+    },
+  );
 
   test('the answer after a repeat is scored as a first answer', () async {
     // A repeat that quietly counted as a miss would be worse than no repeat.

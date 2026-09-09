@@ -460,7 +460,7 @@ class _DriftCard extends StatelessWidget {
                     onPressed: onKeep,
                     child: Text(
                       'Keep it',
-                      style: HgText.body(size: 15, color: HgColors.ink),
+                      style: HgText.body(size: 15, color: HgColors.white),
                     ),
                   ),
                 ),

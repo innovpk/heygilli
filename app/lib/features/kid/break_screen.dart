@@ -456,7 +456,10 @@ class _DidItButton extends StatelessWidget {
           disabledBackgroundColor: HgColors.mango.withValues(alpha: 0.55),
           disabledForegroundColor: HgColors.white,
         ),
-        label: Text(label!, style: HgText.body(size: 18, color: HgColors.white)),
+        label: Text(
+          label!,
+          style: HgText.body(size: 18, color: HgColors.white),
+        ),
       ),
     );
   }

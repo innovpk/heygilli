@@ -62,10 +62,7 @@ void main() {
     await open(tester);
 
     // The Curator's reason for each, including the ones it settled itself.
-    expect(
-      find.textContaining('Explains how volcanoes work'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Explains how volcanoes work'), findsOneWidget);
     expect(
       find.textContaining('A sponsor named in the description'),
       findsOneWidget,
@@ -186,7 +183,6 @@ void main() {
   });
 }
 
-
 /// A gateway whose run never finishes, so the screen keeps polling.
 class _StillScreeningGateway extends FakeGateway {
   _StillScreeningGateway(this.inner);
@@ -212,7 +208,6 @@ class _StillScreeningGateway extends FakeGateway {
     List<String> hide = const [],
   }) => inner.reviewDecide(kidId, approve: approve, hide: hide);
 }
-
 
 /// A gateway whose lengths could not be looked up, as a household without a
 /// Google grant has.

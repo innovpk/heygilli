@@ -56,7 +56,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  Future<void> add(WidgetTester tester, String text, {bool yesNo = false}) async {
+  Future<void> add(
+    WidgetTester tester,
+    String text, {
+    bool yesNo = false,
+  }) async {
     await tester.enterText(find.byType(TextField), text);
     if (yesNo) {
       await tester.tap(find.byType(Switch));
@@ -68,7 +72,9 @@ void main() {
     }
   }
 
-  testWidgets('the parent\'s sentence is stored exactly as typed', (tester) async {
+  testWidgets('the parent\'s sentence is stored exactly as typed', (
+    tester,
+  ) async {
     await open(tester);
     await add(tester, 'What did the volcano do?');
 
@@ -85,7 +91,9 @@ void main() {
     expect(stored.single.yesNo, isTrue);
   });
 
-  testWidgets('it appears in the list once added, and the box clears', (tester) async {
+  testWidgets('it appears in the list once added, and the box clears', (
+    tester,
+  ) async {
     await open(tester);
     await add(tester, 'What did the volcano do?');
 
@@ -109,7 +117,9 @@ void main() {
     expect(await gateway.parentQuestions(kid.id, video.id), isEmpty);
   });
 
-  testWidgets('three is the most, and the box goes away at the limit', (tester) async {
+  testWidgets('three is the most, and the box goes away at the limit', (
+    tester,
+  ) async {
     await open(tester);
     for (var i = 0; i < 3; i++) {
       await add(tester, 'Question $i');

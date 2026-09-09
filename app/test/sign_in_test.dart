@@ -62,7 +62,10 @@ void main() {
     // exists only in the wide split panel, so this is what actually tells
     // the two layouts apart rather than just checking the buttons are there.
     expect(find.text('Sign in'), findsOneWidget);
-    expect(find.text('A buddy who watches YouTube with your kid'), findsNothing);
+    expect(
+      find.text('A buddy who watches YouTube with your kid'),
+      findsNothing,
+    );
     expect(
       find.text('A buddy who watches YouTube with your kid.'),
       findsOneWidget,
