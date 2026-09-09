@@ -11,6 +11,9 @@ import pytest
 
 from heygilli_agents import planner, question_bank
 from heygilli_agents.schemas import TYPES_FOR_BAND, Video
+from heygilli_agents.tools.icons import icon_ids
+
+ICON_IDS = icon_ids()
 
 
 def test_every_prompt_is_askable_in_the_band_it_claims() -> None:
@@ -22,10 +25,14 @@ def test_every_prompt_is_askable_in_the_band_it_claims() -> None:
         seen_ids.add(p.id)
         assert p.type in TYPES_FOR_BAND[p.band], f"{p.id} is a {p.type} in band {p.band}"
         assert p.text.get("en") and p.text.get("ur"), f"{p.id} is missing a language"
-        # A pre-reader is never shown text, so their questions are spoken and
-        # answered by voice or by doing something — never by reading options.
-        if p.band == "4_6":
-            assert p.input in ("voice", "copy"), f"{p.id} asks a pre-reader to read"
+        # A pre-reader is never shown text. That rules out reading, not
+        # tapping: `pick_it` is pictures, and the client draws no labels for
+        # this band. So the rule is that a pre-reader's pick has a picture on
+        # every card — a card with no icon behind it is a blank one.
+        if p.band == "4_6" and p.input == "pick":
+            assert p.options, f"{p.id} gives a pre-reader nothing to tap"
+            for o in p.options:
+                assert o.icon_id in ICON_IDS, f"{p.id} has no picture for {o.label}"
 
 
 def test_every_band_has_enough_that_a_child_is_not_asked_one_thing() -> None:

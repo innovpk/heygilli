@@ -421,7 +421,10 @@ def test_the_prompt_list_follows_the_child_s_age(client, auth) -> None:
     young = client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()
     assert young["age_band"] == "4_6"
     assert all(p["enabled"] for p in young["prompts"]), "on by default, or setup is a chore"
-    assert all(p["input"] in ("voice", "copy") for p in young["prompts"])
+    # Never by reading — but tapping a picture is not reading, and a child who
+    # will not talk today needs some way in.
+    assert all(p["input"] in ("voice", "copy", "pick") for p in young["prompts"])
+    assert any(p["input"] != "voice" for p in young["prompts"])
 
     client.patch(f"/kids/{kid['id']}", json={"age": 10}, headers=hdr(auth))
     older = client.get(f"/kids/{kid['id']}/prompts", headers=hdr(auth)).json()

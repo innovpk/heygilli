@@ -31,7 +31,7 @@ from collections.abc import Sequence
 
 from pydantic import BaseModel, Field
 
-from .schemas import AgeBand, Gesture, InputMode, Language, Question, QuestionType
+from .schemas import AgeBand, Gesture, InputMode, Language, Option, Question, QuestionType
 
 
 class Prompt(BaseModel):
@@ -55,6 +55,9 @@ class Prompt(BaseModel):
     model_line: dict[Language, str] = Field(default_factory=dict)
     #: A short label for the parent's list. Never spoken to the child.
     label: str = ""
+    #: The cards, for a prompt answered by tapping. None marked `correct` means
+    #: there is no right answer and any tap is a good one — see `score_pick`.
+    options: tuple[Option, ...] = ()
 
 
 #: The bank. Order is the order a parent sees, and the order questions are
@@ -192,6 +195,91 @@ PROMPTS: tuple[Prompt, ...] = (
               "ur": "کیا تم کسی اور کو یہ دیکھنے کا کہو گے؟ کیوں؟"},
         expected="yes or no, with a reason",
     ),
+
+    # --- Answered by tapping, in every band.
+    #
+    # The bank was five spoken questions per reader band, and with no
+    # transcript reachable from the deployed gateway the bank *is* the plan —
+    # so a child who does not want to talk, or cannot right now, met a session
+    # with no way in at all. None of these has a right answer, which is the
+    # whole point of them: nothing is marked `correct`, so `score_pick` accepts
+    # whatever the child taps and Gilli answers the opinion rather than marking
+    # it.
+    Prompt(
+        id="p46_feeling_pick",
+        band="4_6", type="pick_it", input="pick", gesture="think",
+        label="How did it make you feel?",
+        text={"en": "How did that make you feel?",
+              "ur": "اس سے تمہیں کیسا لگا؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_happy", label="happy"),
+            Option(icon_id="icon_sleepy", label="sleepy"),
+            Option(icon_id="icon_star", label="amazed"),
+        ),
+    ),
+    Prompt(
+        id="p46_watch_again",
+        band="4_6", type="yes_no", input="pick", gesture="cheer",
+        label="Watch one more like it?",
+        text={"en": "Would you like another one like that?",
+              "ur": "کیا تم ایسی ایک اور دیکھنا چاہو گے؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_yes", label="yes"),
+            Option(icon_id="icon_no", label="no"),
+        ),
+    ),
+    Prompt(
+        id="p78_feeling_pick",
+        band="7_8", type="pick_it", input="pick", gesture="think",
+        label="How did it make you feel?",
+        text={"en": "How did that video leave you feeling?",
+              "ur": "اس ویڈیو کے بعد تمہیں کیسا لگا؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_happy", label="happy"),
+            Option(icon_id="icon_sleepy", label="sleepy"),
+            Option(icon_id="icon_star", label="amazed"),
+        ),
+    ),
+    Prompt(
+        id="p78_learned_something",
+        band="7_8", type="yes_no", input="pick", gesture="think",
+        label="Did you learn something new?",
+        text={"en": "Did you learn something new in that one?",
+              "ur": "کیا تم نے اس میں کچھ نیا سیکھا؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_yes", label="yes"),
+            Option(icon_id="icon_no", label="no"),
+        ),
+    ),
+    Prompt(
+        id="p911_feeling_pick",
+        band="9_11", type="pick_it", input="pick", gesture="think",
+        label="How did it leave you feeling?",
+        text={"en": "How did that one leave you feeling?",
+              "ur": "اس ویڈیو کے بعد تمہیں کیسا لگا؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_happy", label="happy"),
+            Option(icon_id="icon_sleepy", label="sleepy"),
+            Option(icon_id="icon_star", label="amazed"),
+        ),
+    ),
+    Prompt(
+        id="p911_trying_to_sell",
+        band="9_11", type="yes_no", input="pick", gesture="think",
+        label="Was it selling something?",
+        text={"en": "Was that video trying to sell you something?",
+              "ur": "کیا وہ ویڈیو تمہیں کچھ بیچنے کی کوشش کر رہی تھی؟"},
+        expected="whichever one they tapped",
+        options=(
+            Option(icon_id="icon_yes", label="yes"),
+            Option(icon_id="icon_no", label="no"),
+        ),
+    ),
 )
 
 
@@ -253,16 +341,30 @@ def pick_many(
     # taking a slice, so two videos that happen to start near each other do not
     # come back with almost the same list.
     step = 1 + (int.from_bytes(digest[8:16], "big") % max(1, len(pool) - 1))
-    out: list[Prompt] = []
+    order: list[Prompt] = []
     seen: set[str] = set()
     for i in range(len(pool)):
         prompt = pool[(start + i * step) % len(pool)]
         if prompt.id in seen:
             continue
         seen.add(prompt.id)
-        out.append(prompt)
-        if len(out) == count:
-            break
+        order.append(prompt)
+
+    # Then spread across ways of answering, in that order.
+    #
+    # The stride alone gave a whole session of one mode: the reader bands are
+    # mostly spoken prompts, so three draws from a hash came back three
+    # questions to talk through — measured, on both of them — and the tap
+    # prompts sat in the bank never being asked. Taking the least-used mode
+    # each time keeps the per-video shuffle (which prompt of that mode) while
+    # making sure a child is not asked to do the same thing three times.
+    out: list[Prompt] = []
+    used: dict[str, int] = {}
+    while len(out) < count and order:
+        nxt = min(order, key=lambda p: (used.get(p.input, 0), order.index(p)))
+        out.append(nxt)
+        used[nxt.input] = used.get(nxt.input, 0) + 1
+        order.remove(nxt)
     return out
 
 
@@ -281,4 +383,9 @@ def as_question(prompt: Prompt, t_sec: int, language: Language) -> Question:
         expected=prompt.expected,
         gesture=prompt.gesture,
         model_line=prompt.model_line.get(language, "") or prompt.model_line.get("en", ""),
+        # Labels stay in English here on purpose: the client reads the word off
+        # the icon library, which carries both languages, so a card in an Urdu
+        # household is labelled from `shared/icons.json` rather than from a
+        # translation copied into this file.
+        options=list(prompt.options),
     )

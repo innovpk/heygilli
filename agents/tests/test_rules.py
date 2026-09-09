@@ -62,7 +62,11 @@ def test_pick_it_needs_three_distinct_real_icons_with_one_correct() -> None:
     assert rules.valid_pick(pick(200), ids)
     assert not rules.valid_pick(pick(200, ids=("icon_red", "icon_red", "icon_car")), ids)
     assert not rules.valid_pick(pick(200, correct=(True, True, False)), ids)
-    assert not rules.valid_pick(pick(200, correct=(False, False, False)), ids)
+    # None correct is an opinion, not a broken question: "how did that leave
+    # you feeling?" has no right answer, and `score_pick` accepts any card when
+    # nothing is marked. A model that forgets to mark one does not get here —
+    # `planner.repair_pick` empties those before the rules see them.
+    assert rules.valid_pick(pick(200, correct=(False, False, False)), ids)
     assert not rules.valid_pick(pick(200, ids=("icon_red", "icon_fish", "icon_unicorn_not_in_library")), ids)
     two = pick(200)
     two.options = two.options[:2]

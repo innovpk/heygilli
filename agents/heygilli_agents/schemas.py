@@ -19,6 +19,7 @@ QuestionType = Literal[
     "name_it", "copy_it", "pick_it",  # 4_6
     "recall", "why", "predict",  # 7_8
     "explain", "compare", "apply", "opinion",  # 9_11
+    "yes_no",  # every band
 ]
 InputMode = Literal["voice", "pick", "copy"]
 AnswerInput = Literal["voice", "pick", "copy", "none"]
@@ -26,10 +27,21 @@ Result = Literal["correct", "partial", "off_topic", "unclear", "silence"]
 Gesture = Literal["idle", "stretch", "shrink", "spin", "point", "roar", "think", "cheer"]
 QuestionFreq = Literal["normal", "gentle"]
 
+#: What each band may be asked, and — just as much — how they may answer.
+#:
+#: Every question above band 4_6 used to be answered by talking. That is one
+#: skill, tested over and over: a child who is shy, mid-mouthful, in a room
+#: with other people, or simply tired of hearing themselves is a child who
+#: stops answering, and a plan of six spoken questions has no other way in.
+#:
+#: So `pick_it` and `yes_no` are open to every band. They are not easier
+#: questions — "which of these three would you have done?" is a real question —
+#: they are the same thinking with a tap instead of a sentence. `mix` in
+#: `rules` is what stops a plan being all of one kind.
 TYPES_FOR_BAND: dict[str, tuple[str, ...]] = {
-    "4_6": ("name_it", "copy_it", "pick_it"),
-    "7_8": ("recall", "why", "predict"),
-    "9_11": ("explain", "compare", "apply", "opinion"),
+    "4_6": ("name_it", "copy_it", "pick_it", "yes_no"),
+    "7_8": ("recall", "why", "predict", "pick_it", "yes_no"),
+    "9_11": ("explain", "compare", "apply", "opinion", "pick_it", "yes_no"),
 }
 
 

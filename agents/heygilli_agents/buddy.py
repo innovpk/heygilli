@@ -74,10 +74,19 @@ def _norm(text: str) -> str:
 
 
 def score_pick(q: Question, option: int | None) -> Score:
+    """Which card they tapped, and whether there was a right one to tap.
+
+    A pick with nothing marked correct is a question with no right answer —
+    "how did that make you feel?", "would you watch another?" — and a child
+    cannot get one of those wrong. Without this it was graded like any other
+    pick, so every honest answer came back `off_topic` and Gilli replied to a
+    child's own opinion as though they had misunderstood the video.
+    """
     if option is None or not (0 <= option < len(q.options)):
         return Score(result="unclear")
     chosen = q.options[option]
-    result: Result = "correct" if chosen.correct else "off_topic"
+    asks_for_an_opinion = not any(o.correct for o in q.options)
+    result: Result = "correct" if (asks_for_an_opinion or chosen.correct) else "off_topic"
     return Score(result=result, paraphrase=chosen.label, word_said=None)
 
 

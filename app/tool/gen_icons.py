@@ -72,6 +72,19 @@ def blob(colour):
 
 
 SHAPES = {
+    # Yes and no. Not a concept like the others but an answer, so they are the
+    # two marks a child meets before they can read a word: a tick and a cross,
+    # on the green and coral already used for "went well" and "did not".
+    "yes": (
+        f'<circle cx="50" cy="50" r="38" fill="{GREEN_D}"/>'
+        f'<path d="M32 52 L45 65 L70 37" fill="none" stroke="{CREAM}" '
+        f'stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>'
+    ),
+    "no": (
+        f'<circle cx="50" cy="50" r="38" fill="{CORAL}"/>'
+        f'<path d="M36 36 L64 64 M64 36 L36 64" fill="none" stroke="{CREAM}" '
+        f'stroke-width="11" stroke-linecap="round"/>'
+    ),
     # animals
     "giraffe": (
         f'<rect x="58" y="22" width="14" height="52" rx="7" fill="{TAN}"/>'

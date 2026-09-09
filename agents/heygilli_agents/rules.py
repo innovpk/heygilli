@@ -12,6 +12,7 @@ from .schemas import (
     AgeBand,
     Gesture,
     InputMode,
+    Option,
     Question,
     QuestionFreq,
     QuestionType,
@@ -56,6 +57,18 @@ INPUT_FOR_TYPE: dict[str, InputMode] = {
     "name_it": "voice",
     "copy_it": "copy",
     "pick_it": "pick",
+    "yes_no": "pick",
+}
+
+#: A yes/no question is a pick with the options written here rather than by the
+#: model. The model says what is being asked and which way is right; it never
+#: gets to invent the two answers, so it cannot offer "yes", "no" and "maybe",
+#: or label them in a language the child does not read.
+YES_ID = "icon_yes"
+NO_ID = "icon_no"
+YES_NO_LABELS: dict[str, tuple[str, str]] = {
+    "en": ("yes", "no"),
+    "ur": ("ہاں", "نہیں"),
 }
 
 GESTURE_FOR_TYPE: dict[str, Gesture] = {
@@ -69,6 +82,7 @@ GESTURE_FOR_TYPE: dict[str, Gesture] = {
     "compare": "stretch",
     "apply": "spin",
     "opinion": "think",
+    "yes_no": "think",
 }
 
 
@@ -180,7 +194,18 @@ def enforce(
     for q in questions:
         if not type_allowed(band, q.type):
             continue
-        if band == "4_6":
+        if q.type == "yes_no":
+            # Already built — a bank prompt arrives with its two cards written
+            # by hand, and `expected` on those says "whichever one they
+            # tapped" because there is no right answer to a "would you watch
+            # another?". Rebuilding it from `expected` would throw it away.
+            if not is_yes_no_pair(q.options):
+                q = build_yes_no(q, language)
+                if q is None:
+                    continue
+            kept.append(q.model_copy(update={"input": "pick"}))
+            continue
+        if band == "4_6" or q.type in INPUT_FOR_TYPE:
             q = q.model_copy(update={"input": INPUT_FOR_TYPE[q.type]})
         if q.type == "pick_it" or q.input == "pick":
             if not valid_pick(q, icon_ids):
@@ -205,28 +230,137 @@ def enforce(
         kept = [q for q in kept if q.t_sec <= duration_s - END_MARGIN_S]
 
     gap = min_gap_s(band, freq)
-    spaced: list[Question] = []
-    for q in kept:
-        if spaced and q.t_sec - spaced[-1].t_sec < gap:
-            continue
-        spaced.append(q)
 
     # The target, not the ceiling. `max_questions` is the most SPEC 7.3 permits
     # (3 to 6 for a reader) and the Planner was happily filling it: six
     # questions in an eight-minute video, measured live — one every eighty
     # seconds, which is a comprehension test with a cartoon in the gaps. Three
     # is the bottom of that same SPEC range, so this stays inside it.
-    spaced = spaced[: target_questions(band, duration_s)]
-    return [_fill(q, band, language) for q in spaced]
+    chosen = select(kept, gap, target_questions(band, duration_s))
+    return [_fill(q, band, language) for q in chosen]
+
+
+def build_yes_no(q: Question, language: str) -> Question | None:
+    """A yes/no question with its two answers written here, not by the model.
+
+    The model supplies the question and says which way is right, in `expected`.
+    Everything else is fixed: two options, in this order, labelled in the
+    child's language, with the tick and cross from the icon library. A model
+    that returns three options, or labels them in English for an Urdu
+    household, or marks both correct, cannot express any of that through this
+    function — which is the point of it being a function.
+
+    None when `expected` is not a yes or a no, because there is then no correct
+    answer to mark and the question cannot be scored.
+    """
+    want = q.expected.strip().lower()
+    yes_words = {"yes", "true", "ہاں"}
+    no_words = {"no", "false", "نہیں"}
+    if want in yes_words:
+        correct_yes = True
+    elif want in no_words:
+        correct_yes = False
+    else:
+        return None
+    yes_label, no_label = YES_NO_LABELS.get(language, YES_NO_LABELS["en"])
+    return q.model_copy(
+        update={
+            "input": "pick",
+            "options": [
+                Option(icon_id=YES_ID, label=yes_label, correct=correct_yes),
+                Option(icon_id=NO_ID, label=no_label, correct=not correct_yes),
+            ],
+        }
+    )
+
+
+#: Which way of answering wins a dead heat. Talking carries the most — it is
+#: the one that grows vocabulary — so it takes a tie; the others are here so
+#: the order is decided rather than incidental.
+MODE_RANK: dict[str, int] = {"voice": 0, "pick": 1, "copy": 2}
+
+
+def select(questions: list[Question], gap: int, want: int) -> list[Question]:
+    """Choose which questions are asked: spaced by the band's gap, and mixed.
+
+    These two used to happen in that order and the second one never had
+    anything left to work with. Spacing kept whichever question came first and
+    dropped everything within the gap behind it, so by the time a mixing step
+    ran, the plan was already decided — and it was decided in favour of
+    whatever the model wrote first, which is nearly always a question you
+    answer by talking.
+
+    So the choice is made once. Walking forward in time, everything still
+    admissible under the gap is gathered; among those inside the next gap's
+    worth of video — near enough that taking one costs nothing in pacing — the
+    least-used way of answering wins, earliest first to break a tie.
+
+    The result is that three spoken candidates and one tap at roughly the same
+    moment yield the tap, and the plan a child meets asks them to talk, to
+    choose, and to say yes or no, rather than to talk three times.
+
+    It cannot invent variety. If every candidate is spoken, so is every
+    question — that has to be fixed where the questions are written.
+    """
+    if want <= 0:
+        return []
+    pool = sorted(questions, key=lambda q: q.t_sec)
+    chosen: list[Question] = []
+    used: dict[str, int] = {}
+
+    while len(chosen) < want:
+        if chosen:
+            floor = chosen[-1].t_sec + gap
+            eligible = [q for q in pool if q.t_sec >= floor]
+        else:
+            eligible = list(pool)
+        if not eligible:
+            break
+        # Strictly inside the gap: these are the candidates that taking the
+        # earliest would *exclude* anyway, so choosing among them by mode costs
+        # nothing. A candidate a full gap later is not an alternative, it is the
+        # next question — and treating it as an alternative traded a question
+        # for the mix, which is how a three-question plan came back with two.
+        soonest = eligible[0].t_sec
+        window = [q for q in eligible if q.t_sec < soonest + gap]
+        # Least-used mode first, then earliest, and only then a preference for
+        # talking. Time beats taste: pulling a later question forward to vary
+        # the mode would cost the pacing the gap exists to protect. The last
+        # term settles a genuine tie — two questions at the same second — where
+        # a spoken answer is worth more than a tap.
+        pick = min(
+            window,
+            key=lambda q: (used.get(q.input, 0), q.t_sec, MODE_RANK.get(q.input, 9)),
+        )
+        chosen.append(pick)
+        used[pick.input] = used.get(pick.input, 0) + 1
+        pool = [q for q in pool if q is not pick]
+
+    return chosen
+
+
+def is_yes_no_pair(options: list[Option]) -> bool:
+    """Whether these are already the two yes/no cards."""
+    return [o.icon_id for o in options] == [YES_ID, NO_ID]
 
 
 def valid_pick(q: Question, icon_ids: frozenset[str] | None) -> bool:
+    """Whether these cards can be put in front of a child.
+
+    Three distinct pictures the library actually has, and exactly one right
+    answer — *or* none at all. None is not a broken question: "how did that
+    leave you feeling?" has no right answer, and `score_pick` accepts any card
+    when nothing is marked. Requiring exactly one used to drop every one of
+    those on the floor, which is how a bank full of them stayed unasked.
+
+    Two marked correct is still wrong, and so is none of them being a picture.
+    """
     if len(q.options) != 3:
         return False
     ids = [o.icon_id for o in q.options]
     if len(set(ids)) != 3:
         return False
-    if sum(1 for o in q.options if o.correct) != 1:
+    if sum(1 for o in q.options if o.correct) > 1:
         return False
     return icon_ids is None or all(i in icon_ids for i in ids)
 

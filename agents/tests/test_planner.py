@@ -102,7 +102,10 @@ def test_prompt_states_the_band_contract() -> None:
     p = planner.plan_prompt(VIDEO, SEGMENTS, "4_6", "en", None)
     assert "first question no earlier than: 120s" in p
     assert "minimum gap between questions: 360s" in p
-    assert "maximum questions: 2" in p
+    # Asked for more than will be used: `rules.select` chooses among them for a
+    # mix of ways to answer, and it can only choose what it is given.
+    assert "questions that will be asked: 2" in p
+    assert "propose at least this many candidates: 6" in p
     assert "Never \"why\"" in p
     for banned in ("mock", "personal information", "scary"):
         assert banned in planner.PLANNER_SYSTEM_PROMPT

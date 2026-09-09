@@ -44,7 +44,7 @@ Hard rules, no exceptions:
 BAND_GUIDE = {
     "4_6": """
 Band 4 to 6 (pre-readers). Types allowed: name_it (single word by voice), copy_it (make a sound or
-a motion, never scored), pick_it (three pictures, exactly one correct).
+a motion, never scored), pick_it (three pictures, exactly one correct), yes_no.
 Goals: vocabulary, naming, colours, counting to 5, animal sounds, basic emotions, one-step instructions.
 Ask only about what is visible on the paused frame or heard in the last 30 seconds. Never "why".
 Short sentences, stretched key words ("looong"), lots of "let's". `expected` is ONE word.
@@ -53,13 +53,14 @@ never near-misses, and every option label must be a concept from the icon librar
 `model_line` is the sentence where the buddy says the answer word clearly once, e.g. "A giraffe! Gi-raffe."
 """,
     "7_8": """
-Band 7 to 8. Types allowed: recall, why, predict (sequence questions count as recall).
+Band 7 to 8. Types allowed: recall, why, predict (sequence questions count as recall), pick_it,
+yes_no.
 Goals: recall, cause and effect, prediction, sequencing, new words in context.
 Playful and curious; ask "what do you think?". `expected` is a short phrase; add 2-4 `variants`
 a child might say. `followup` is one extra fact to share after a correct answer.
 """,
     "9_11": """
-Band 9 to 11. Types allowed: explain, compare, apply, opinion (with a reason).
+Band 9 to 11. Types allowed: explain, compare, apply, opinion (with a reason), pick_it, yes_no.
 Goals: explanation, comparison, applying an idea elsewhere, forming an opinion with a reason,
 noticing when a video is trying to sell something. Drop all baby talk; talk like an older cousin
 who finds the topic genuinely interesting; mild humour is fine. `expected` is the gist of a good
@@ -74,6 +75,21 @@ the first-question threshold and the minimum gap you are given; never exceed the
 Use the transcript timestamps (seconds) for `t_sec`. Write in the requested language.
 Set `input` to voice/pick/copy, a `gesture` from idle|stretch|shrink|spin|point|roar|think|cheer,
 and leave `options` empty unless the type is pick_it.
+
+Vary how the child answers. Do not write a plan where every question is answered by talking: a
+child who is shy, tired, eating, or in a room with other people has no way into a plan like that,
+and it is the same skill tested over and over. Across the questions you propose, mix:
+  - spoken answers (name_it / recall / why / predict / explain / compare / apply / opinion),
+  - pick_it, three options with exactly one right — a real question, not a giveaway,
+  - yes_no, for a claim from the video that is plainly true or plainly false.
+
+For yes_no: write the question in `text`, set `expected` to exactly "yes" or "no", and leave
+`options` empty — the two answers are added for you. Never write a yes_no question whose answer is
+a matter of taste; "did you like it?" has no right answer and must be an opinion instead.
+
+Propose more questions than the maximum you are given, spread across these kinds and across the
+video. Which ones are used is decided after you answer, and a plan made only of spoken questions
+cannot be mixed afterwards — the variety has to be in what you propose.
 
 {SAFETY_RULES}
 """.strip()
@@ -94,8 +110,9 @@ def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Lan
         f"types allowed: {', '.join(TYPES_FOR_BAND[band])}\n"
         f"first question no earlier than: {t.first_question_s}s\n"
         f"minimum gap between questions: {rules.min_gap_s(band, freq)}s\n"
-        f"aim for exactly: {rules.target_questions(band, video.duration_s)} questions\n"
-        f"maximum questions: {rules.max_questions(band, video.duration_s)}\n"
+        f"questions that will be asked: {rules.target_questions(band, video.duration_s)}\n"
+        f"propose at least this many candidates: "
+        f"{2 * rules.target_questions(band, video.duration_s) + 2}\n"
         f"{BAND_GUIDE[band].strip()}\n\n"
         f"Transcript:\n{transcript_text(segments)}\n\n"
         f"Return the PlanDraft."
@@ -183,7 +200,13 @@ def repair_pick(q: Question, language: Language) -> Question:
             fixed.append(Option(icon_id=hit["id"], label=hit.get(language) or hit["en"], correct=o.correct))
     correct = [o for o in fixed if o.correct]
     if len(correct) != 1:
-        return q.model_copy(update={"options": fixed})  # rules.enforce will drop it
+        # Emptied rather than passed on. `valid_pick` now allows a pick with
+        # nothing marked correct, because an opinion question — "how did that
+        # leave you feeling?" — genuinely has no right answer. That is a thing
+        # the bank writes on purpose, not a thing a model gets to do by
+        # forgetting: a comprehension question with no correct card would tell
+        # a child they were right whatever they tapped.
+        return q.model_copy(update={"options": []})
     for icon_id in DISTRACTOR_POOL:
         if len(fixed) >= 3:
             break
@@ -264,7 +287,12 @@ def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -
     want = rules.target_questions(band, video.duration_s)
     if len(plan.questions) <= want:
         return plan
-    trimmed = plan.model_copy(update={"questions": plan.questions[:want]})
+    # Through `select`, not a slice: taking the first few keeps whatever the
+    # model happened to write first, and what it writes first is nearly always
+    # a spoken question. A cached plan trimmed that way is exactly the
+    # all-talking plan the mix exists to prevent.
+    kept = rules.select(plan.questions, rules.min_gap_s(band), want)
+    trimmed = plan.model_copy(update={"questions": kept})
     store.put_plan(trimmed)
     log.info(
         "trimmed cached plan for %s/%s from %d to %d",
