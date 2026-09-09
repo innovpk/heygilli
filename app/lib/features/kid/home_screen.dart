@@ -10,6 +10,7 @@ import '../../core/orientation.dart';
 import '../../core/protocol.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
+import 'kid_palette.dart';
 import '../../main.dart';
 import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
@@ -124,6 +125,18 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     if (mounted) _reload();
   }
 
+  /// The child changing the ground under everything.
+  ///
+  /// Written straight to this device's settings rather than to the household:
+  /// which light the room has is a fact about the room, and a sibling on the
+  /// same tablet gets their own answer.
+  Future<void> _flipGround(Kid kid) async {
+    final state = context.read<AppState>();
+    final now = state.settings.kidLikesDaylight(kid.id);
+    await state.settings.setKidLikesDaylight(kid.id, !now);
+    if (mounted) setState(() {});
+  }
+
   /// The child changing their own picture.
   ///
   /// Not behind the PIN: it is cosmetic and it is theirs. `editKid` refreshes
@@ -149,6 +162,25 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
       );
     }
     final showTitles = kid.band.showsVideoTitles;
+    // The ground is the child's own choice, kept per child on this device.
+    final palette =
+        context.select<AppState, bool>(
+          (s) => s.settings.kidLikesDaylight(kid.id),
+        )
+        ? KidPalette.dayTime
+        : KidPalette.nightTime;
+    return KidTheme(
+      palette: palette,
+      child: _build(context, kid, showTitles, palette),
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    Kid kid,
+    bool showTitles,
+    KidPalette palette,
+  ) {
     return PopScope(
       // Back never leaves kid mode; it opens the PIN gate instead. During a
       // break it does nothing at all: the break screen has its own PIN way
@@ -158,7 +190,7 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
         if (!didPop && !_onBreak) _tryExit();
       },
       child: Scaffold(
-        backgroundColor: HgColors.teal,
+        backgroundColor: palette.ground,
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, box) {
@@ -188,7 +220,15 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                         kid: kid,
                         onExit: _tryExit,
                         onPickAvatar: _pickAvatar,
+                        onFlipGround: () => _flipGround(kid),
                       ),
+                      // How much is left, said once, where a child can see it
+                      // without asking. Not a countdown: a number that only
+                      // moves when the screen reloads, because a ticking clock
+                      // on a shelf of videos is a thing to watch rather than a
+                      // fact to know.
+                      if (home != null && showTitles)
+                        _TimeLeftPill(state: home.state, kid: kid),
                       // Only when the parent turned it on, and never for a
                       // pre-reader: a child who cannot read cannot type, and a
                       // box they cannot use is one more thing to poke at.
@@ -206,9 +246,9 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                               );
                             }
                             if (home == null) {
-                              return const Center(
+                              return Center(
                                 child: CircularProgressIndicator(
-                                  color: HgColors.mango,
+                                  color: palette.accent,
                                 ),
                               );
                             }
@@ -262,9 +302,15 @@ class _Header extends StatelessWidget {
     required this.kid,
     required this.onExit,
     required this.onPickAvatar,
+    required this.onFlipGround,
   });
   final Kid kid;
   final VoidCallback onExit;
+
+  /// Day or night. The child's own choice, so it is not behind the PIN: it
+  /// changes nothing about what they may watch or for how long, and a gate on
+  /// it would say that it did.
+  final VoidCallback onFlipGround;
 
   /// Tapping their own picture. Passed in rather than done here so the screen
   /// can reload after it changes.
@@ -272,6 +318,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     final preReader = kid.band == AgeBand.b4to6;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
@@ -291,8 +338,8 @@ class _Header extends StatelessWidget {
               child: Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(
-                  color: HgColors.mango,
+                decoration: BoxDecoration(
+                  color: palette.accent,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -304,16 +351,12 @@ class _Header extends StatelessWidget {
                 child: kid.hasDrawableAvatar
                     ? SvgPicture.asset('assets/icons/${kid.avatar}.svg')
                     : preReader
-                    ? const Icon(
-                        Icons.star_rounded,
-                        size: 44,
-                        color: HgColors.teal,
-                      )
+                    ? Icon(Icons.star_rounded, size: 44, color: palette.ground)
                     : Text(
                         kid.nickname.isEmpty
                             ? '?'
                             : kid.nickname[0].toUpperCase(),
-                        style: HgText.display(size: 34, color: HgColors.teal),
+                        style: HgText.display(size: 34, color: palette.ground),
                       ),
               ),
             ),
@@ -323,12 +366,43 @@ class _Header extends StatelessWidget {
             Expanded(
               child: Text(
                 'Hi ${kid.nickname}',
-                style: HgText.display(size: 28),
+                style: HgText.display(size: 28, color: palette.onGround),
                 overflow: TextOverflow.ellipsis,
               ),
             )
           else
             const Spacer(),
+          Tooltip(
+            message: palette.dark ? 'Bright colours' : 'Dark colours',
+            child: Semantics(
+              button: true,
+              label: palette.dark
+                  ? 'Switch to bright colours'
+                  : 'Switch to dark colours',
+              child: Material(
+                color: palette.chip,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: onFlipGround,
+                  customBorder: const CircleBorder(),
+                  child: SizedBox(
+                    // 52, like the lock beside it: a four-year-old's finger
+                    // does not land inside 40.
+                    width: 52,
+                    height: 52,
+                    child: Icon(
+                      palette.dark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      size: 26,
+                      color: palette.onGround,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           // The way back to the parent. It was cream at 55% on teal and
           // nothing else — findable on a phone, invisible in the corner of a
           // wide window, and the first thing a parent hunts for. It is a
@@ -340,18 +414,18 @@ class _Header extends StatelessWidget {
           Tooltip(
             message: 'Parent',
             child: Material(
-              color: HgColors.cream.withValues(alpha: 0.14),
+              color: palette.chip,
               shape: const CircleBorder(),
               child: InkWell(
                 onTap: onExit,
                 customBorder: const CircleBorder(),
-                child: const SizedBox(
+                child: SizedBox(
                   width: 52,
                   height: 52,
                   child: Icon(
                     Icons.lock_outline_rounded,
                     size: 26,
-                    color: HgColors.cream,
+                    color: palette.onGround,
                   ),
                 ),
               ),
@@ -378,6 +452,7 @@ class _VideoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     final thumbHeight = thumbWidth * 9 / 16;
     final cardHeight = thumbHeight + (showTitles ? 52 : 0);
     return Padding(
@@ -391,7 +466,7 @@ class _VideoRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 row.title,
-                style: HgText.body(size: 16, color: HgColors.sky),
+                style: HgText.display(size: 24, color: palette.accent),
               ),
             ),
           SizedBox(
@@ -430,6 +505,7 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     final voice = context.read<GilliVoice>();
     return SizedBox(
       width: width,
@@ -451,11 +527,11 @@ class _Thumb extends StatelessWidget {
                   child: Image.network(
                     video.thumb,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const ColoredBox(
-                      color: HgColors.tealDeep,
+                    errorBuilder: (_, _, _) => ColoredBox(
+                      color: palette.tile,
                       child: Icon(
                         Icons.play_circle_fill_rounded,
-                        color: HgColors.mango,
+                        color: palette.accent,
                         size: 48,
                       ),
                     ),
@@ -491,21 +567,22 @@ class _SearchBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: TextField(
         onChanged: onChanged,
         textInputAction: TextInputAction.search,
-        style: HgText.body(size: 17, color: HgColors.cream),
-        cursorColor: HgColors.mango,
+        style: HgText.body(size: 17, color: palette.onGround),
+        cursorColor: palette.accent,
         decoration: InputDecoration(
           // Says where it looks, so a child is not hunting for something that
           // was never here.
           hintText: 'Find one of your videos',
-          hintStyle: HgText.body(size: 17, color: HgColors.sky),
-          prefixIcon: const Icon(Icons.search_rounded, color: HgColors.sky),
+          hintStyle: HgText.body(size: 17, color: palette.quiet),
+          prefixIcon: Icon(Icons.search_rounded, color: palette.quiet),
           filled: true,
-          fillColor: HgColors.ink.withValues(alpha: 0.35),
+          fillColor: palette.chip,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(999),
             borderSide: BorderSide.none,
@@ -528,26 +605,104 @@ class _NoMatches extends StatelessWidget {
   final Kid kid;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 10,
-        children: [
-          const GilliWidget(size: 110, gesture: Gesture.think),
-          Text(
-            'Nothing with that word',
-            textAlign: TextAlign.center,
-            style: HgText.display(size: 24),
-          ),
-          Text(
-            'Try another word, or clear it to see everything again.',
-            textAlign: TextAlign.center,
-            style: HgText.body(size: 16, color: HgColors.sky),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 10,
+          children: [
+            const GilliWidget(size: 110, gesture: Gesture.think),
+            Text(
+              'Nothing with that word',
+              textAlign: TextAlign.center,
+              style: HgText.display(size: 24),
+            ),
+            Text(
+              'Try another word, or clear it to see everything again.',
+              textAlign: TextAlign.center,
+              style: HgText.body(size: 16, color: palette.quiet),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// "35 minutes left today · next break in 12 minutes".
+///
+/// Readers only. A pre-reader cannot read it, and a number they cannot read
+/// sitting above their videos is decoration that takes up the shelf.
+class _TimeLeftPill extends StatelessWidget {
+  const _TimeLeftPill({required this.state, required this.kid});
+
+  final WatchState state;
+  final Kid kid;
+
+  String? get _text {
+    final parts = <String>[];
+    if (kid.dailyMinutes > 0 && state.minutesLeftToday > 0) {
+      parts.add(
+        '${state.minutesLeftToday} '
+        '${state.minutesLeftToday == 1 ? "minute" : "minutes"} left today',
+      );
+    }
+    if (kid.breakAfterMinutes > 0) {
+      final until = kid.breakAfterMinutes - state.continuousMinutes;
+      if (until > 0) {
+        parts.add(
+          'next break in $until '
+          '${until == 1 ? "minute" : "minutes"}',
+        );
+      }
+    }
+    // No limits set, or nothing left to say. Silence beats a pill reading
+    // "unlimited", which is an answer to a question nobody asked.
+    return parts.isEmpty ? null : parts.join(' \u00b7 ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
+    final text = _text;
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: palette.card,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 10,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: HgColors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HgText.display(size: 20, color: palette.onGround),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

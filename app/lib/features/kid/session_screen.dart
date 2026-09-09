@@ -18,6 +18,7 @@ import '../../core/theme.dart';
 import 'break_screen.dart';
 import 'captions_off.dart';
 import 'gilli_widget.dart';
+import 'kid_palette.dart';
 import 'mic_button.dart';
 import 'pick_cards.dart';
 import 'question_track.dart';
@@ -175,6 +176,14 @@ class _SessionScreenState extends State<SessionScreen> {
     autoPlay: true,
     params: kidPlayerParams,
   );
+
+  /// The ground this child chose, read once for the life of the session. The
+  /// chip that changes it lives on the home screen, which this sits on top of,
+  /// so it cannot change underneath a session in progress.
+  late final KidPalette _palette =
+      context.read<AppState>().settings.kidLikesDaylight(_kid.id)
+      ? KidPalette.dayTime
+      : KidPalette.nightTime;
 
   final _ears = KidEars();
   GilliVoice get _voice => context.read<GilliVoice>();
@@ -888,7 +897,7 @@ class _SessionScreenState extends State<SessionScreen> {
             key: _playerKey,
             child: YoutubePlayer(
               controller: _yt,
-              backgroundColor: HgColors.tealDeep,
+              backgroundColor: _palette.tile,
               enableFullScreenOnVerticalDrag: false,
               autoFullScreen: false,
             ),
@@ -916,8 +925,18 @@ class _SessionScreenState extends State<SessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The same ground the child chose on the home screen. Read here rather
+    // than passed in, because a session can be opened from more than one place
+    // and a video that arrives on the wrong ground is worse than no choice.
+    final palette = context.read<AppState>().settings.kidLikesDaylight(_kid.id)
+        ? KidPalette.dayTime
+        : KidPalette.nightTime;
+    return KidTheme(palette: palette, child: _build(context, palette));
+  }
+
+  Widget _build(BuildContext context, KidPalette palette) {
     return Scaffold(
-      backgroundColor: HgColors.teal,
+      backgroundColor: palette.ground,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, box) {
@@ -1130,12 +1149,12 @@ class _SessionScreenState extends State<SessionScreen> {
     final showText = _band.showsQuestionText;
     switch (_phase) {
       case _Phase.connecting:
-        return const SizedBox(
+        return SizedBox(
           width: 28,
           height: 28,
           child: CircularProgressIndicator(
             strokeWidth: 3,
-            color: HgColors.mango,
+            color: _palette.accent,
           ),
         );
       case _Phase.error:
@@ -1147,7 +1166,7 @@ class _SessionScreenState extends State<SessionScreen> {
               Text(
                 _errorText ?? 'Something went wrong.',
                 textAlign: TextAlign.center,
-                style: HgText.body(color: HgColors.sky),
+                style: HgText.body(color: _palette.quiet),
               ),
             FilledButton.icon(
               onPressed: () => Navigator.of(context).maybePop(),
@@ -1261,7 +1280,7 @@ class _SessionScreenState extends State<SessionScreen> {
               Text(
                 seed.gloss,
                 textAlign: TextAlign.center,
-                style: HgText.body(size: 18, color: HgColors.sky),
+                style: HgText.body(size: 18, color: _palette.quiet),
               ),
           ],
         ),
@@ -1304,7 +1323,7 @@ class _SessionScreenState extends State<SessionScreen> {
               ? 'You said: $partial'
               : (_ears.listening ? 'Listening...' : 'Hold the mic and tell me'),
           textAlign: TextAlign.center,
-          style: HgText.body(size: 18, color: HgColors.sky),
+          style: HgText.body(size: 18, color: _palette.quiet),
         ),
       );
     }
@@ -1350,6 +1369,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 16, 4),
       child: Row(
@@ -1360,7 +1380,7 @@ class _TopBar extends StatelessWidget {
             iconSize: 30,
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: const Icon(Icons.arrow_back_rounded),
-            color: HgColors.cream,
+            color: palette.onGround,
             tooltip: 'Home',
           ),
           if (title != null)
@@ -1369,7 +1389,7 @@ class _TopBar extends StatelessWidget {
                 title!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: HgText.body(size: 16, color: HgColors.sky),
+                style: HgText.body(size: 16, color: palette.quiet),
               ),
             )
           else
@@ -1406,8 +1426,8 @@ class _NextUpCard extends StatelessWidget {
           errorBuilder: (_, _, _) => Container(
             width: 148,
             height: 83,
-            color: HgColors.tealDeep,
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white70),
+            color: HgColors.teal,
+            child: const Icon(Icons.play_arrow_rounded, color: HgColors.cream),
           ),
         ),
       ),
@@ -1465,9 +1485,10 @@ class SoundButton extends StatelessWidget {
                   color: HgColors.mango,
                   borderRadius: BorderRadius.circular(24),
                 ),
+                // White, not ink: ink on rust is 2.6:1.
                 child: const Icon(
                   Icons.volume_off_rounded,
-                  color: HgColors.ink,
+                  color: HgColors.white,
                   size: 26,
                 ),
               ),
@@ -1504,6 +1525,7 @@ class _WatchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
@@ -1511,9 +1533,9 @@ class _WatchBar extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onHome,
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_rounded,
-              color: HgColors.cream,
+              color: palette.onGround,
               size: 28,
             ),
           ),
@@ -1524,7 +1546,7 @@ class _WatchBar extends StatelessWidget {
                 title!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: HgText.body(size: 16, color: HgColors.sky),
+                style: HgText.body(size: 16, color: palette.quiet),
               ),
             )
           else
@@ -1548,6 +1570,7 @@ class _SayItAgainButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     if (!showText) {
       return SizedBox(
         width: 76,
@@ -1555,9 +1578,9 @@ class _SayItAgainButton extends StatelessWidget {
         child: IconButton.filled(
           onPressed: onPressed,
           style: IconButton.styleFrom(
-            backgroundColor: HgColors.tealDeep,
-            foregroundColor: HgColors.cream,
-            disabledBackgroundColor: HgColors.tealDeep,
+            backgroundColor: palette.chip,
+            foregroundColor: palette.onGround,
+            disabledBackgroundColor: palette.chip,
           ),
           icon: const Icon(Icons.replay_rounded, size: 40),
           tooltip: 'Say it again',
@@ -1571,11 +1594,11 @@ class _SayItAgainButton extends StatelessWidget {
         icon: const Icon(Icons.replay_rounded, size: 24),
         label: Text(
           'Say it again',
-          style: HgText.body(size: 17, color: HgColors.cream),
+          style: HgText.body(size: 17, color: palette.onGround),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: HgColors.cream,
-          side: const BorderSide(color: HgColors.sky, width: 2),
+          foregroundColor: palette.onGround,
+          side: BorderSide(color: palette.quiet, width: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(26),
           ),

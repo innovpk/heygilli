@@ -62,6 +62,7 @@ class LocalSettings {
   static const _tokenKey = 'auth_token';
   static const _parentNameKey = 'parent_name';
   static const _kidDeviceKey = 'kid_device_kid_id';
+  static const _daylightKey = 'kid_daylight_';
   static const _trialKey = 'trial_household';
 
   String? get pin => _prefs.getString(_pinKey);
@@ -106,6 +107,19 @@ class LocalSettings {
   Future<void> setKidDeviceId(String? kidId) => kidId == null || kidId.isEmpty
       ? _prefs.remove(_kidDeviceKey)
       : _prefs.setString(_kidDeviceKey, kidId);
+
+  /// Whether this child picked the light ground for kid mode.
+  ///
+  /// Per child and per device, like the device owner above: two siblings
+  /// sharing a tablet get their own answer, and the choice does not follow
+  /// them onto a screen in a different room with different light. Absent means
+  /// the dark ground, which is the default and always was.
+  bool kidLikesDaylight(String kidId) =>
+      _prefs.getBool('$_daylightKey$kidId') ?? false;
+
+  Future<void> setKidLikesDaylight(String kidId, bool daylight) => daylight
+      ? _prefs.setBool('$_daylightKey$kidId', true)
+      : _prefs.remove('$_daylightKey$kidId');
 
   /// The household name used by the without-Google path, kept so that closing
   /// the app and coming back lands in the same household rather than a new

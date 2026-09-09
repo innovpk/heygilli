@@ -9,6 +9,7 @@ import '../../core/models.dart';
 import '../../core/protocol.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
+import 'kid_palette.dart';
 import '../gate/pin_gate.dart';
 import 'gilli_widget.dart';
 
@@ -186,12 +187,13 @@ class _BreakScreenState extends State<BreakScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     final voice = context.watch<GilliVoice>();
     return PopScope(
       // A break a child can back out of is not a break.
       canPop: false,
       child: Scaffold(
-        backgroundColor: HgColors.teal,
+        backgroundColor: palette.ground,
         body: SafeArea(
           child: Stack(
             children: [
@@ -267,7 +269,7 @@ class _BreakScreenState extends State<BreakScreen> {
                     minHeight: 48,
                   ),
                   icon: const Icon(Icons.lock_outline_rounded),
-                  color: HgColors.cream.withValues(alpha: 0.4),
+                  color: palette.quiet,
                   tooltip: 'Parent',
                 ),
               ),
@@ -279,6 +281,7 @@ class _BreakScreenState extends State<BreakScreen> {
   }
 
   Widget _panel(Widget ring) {
+    final palette = KidPalette.of(context);
     if (_preReader) {
       // No text anywhere on this screen for band 4_6: the task was spoken and
       // Gilli is acting it out. One picture button says "I did it".
@@ -305,7 +308,7 @@ class _BreakScreenState extends State<BreakScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('Break time', style: HgText.body(size: 15, color: HgColors.sky)),
+        Text('Break time', style: HgText.body(size: 15, color: palette.quiet)),
         const SizedBox(height: 8),
         Flexible(
           child: SingleChildScrollView(
@@ -334,7 +337,7 @@ class _BreakScreenState extends State<BreakScreen> {
                     (widget.breakPeriod.isFirm
                         ? 'The video comes back when the timer runs out.'
                         : 'Tap when you are done and the video comes back.'),
-                style: HgText.body(size: 14, color: HgColors.sky),
+                style: HgText.body(size: 14, color: palette.quiet),
               ),
             ),
           ],
@@ -366,6 +369,7 @@ class _BreakTimer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
     final left = secondsLeft.clamp(0, total);
     return Semantics(
       label: 'Time left in the break',
@@ -386,8 +390,8 @@ class _BreakTimer extends StatelessWidget {
                   value: v,
                   strokeWidth: size * 0.09,
                   strokeCap: StrokeCap.round,
-                  color: HgColors.mango,
-                  backgroundColor: HgColors.tealDeep,
+                  color: palette.accent,
+                  backgroundColor: palette.chip,
                 ),
               ),
             ),
@@ -399,7 +403,7 @@ class _BreakTimer extends StatelessWidget {
               Icon(
                 Icons.directions_run_rounded,
                 size: size * 0.4,
-                color: HgColors.cream,
+                color: palette.onGround,
               ),
           ],
         ),
@@ -528,7 +532,10 @@ class _DayDoneScreenState extends State<DayDoneScreen> {
                 Text(
                   'Gilli will be here again tomorrow morning.',
                   textAlign: TextAlign.center,
-                  style: HgText.body(size: 17, color: HgColors.sky),
+                  style: HgText.body(
+                    size: 17,
+                    color: KidPalette.of(context).quiet,
+                  ),
                 ),
               ],
             ],
