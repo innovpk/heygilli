@@ -14,7 +14,7 @@ class DemoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: HgColors.coral,
+        color: HgColors.accentTint,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text('demo', style: HgText.body(size: 12, color: HgColors.cream)),

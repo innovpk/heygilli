@@ -77,7 +77,7 @@ class _PinGateScreenState extends State<PinGateScreen> {
                   hint,
                   textAlign: TextAlign.center,
                   style: HgText.body(
-                    color: _hint == null ? HgColors.sky : HgColors.coral,
+                    color: _hint == null ? HgColors.sky : HgColors.accentTint,
                   ),
                 ),
                 const SizedBox(height: 24),

@@ -1323,7 +1323,11 @@ class _SessionScreenState extends State<SessionScreen> {
     }
     if (showText && _errorText != null) {
       children.add(
-        Text(_errorText!, style: HgText.body(size: 13, color: HgColors.coral)),
+        Text(
+          _errorText!,
+          // The kid ground is pine; rust is 2.2:1 on it.
+          style: HgText.body(size: 13, color: HgColors.accentTint),
+        ),
       );
     }
 

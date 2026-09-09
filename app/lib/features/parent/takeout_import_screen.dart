@@ -445,7 +445,7 @@ class _HistoryOptIn extends StatelessWidget {
             value: value,
             onChanged: onChanged == null ? null : (v) => onChanged!(v ?? false),
             activeColor: HgColors.mango,
-            checkColor: HgColors.ink,
+            checkColor: HgColors.white,
             side: const BorderSide(color: HgColors.brown, width: 2),
           ),
           Expanded(

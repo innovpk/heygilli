@@ -225,7 +225,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
           : FloatingActionButton.extended(
               onPressed: _saving ? null : _save,
               backgroundColor: HgColors.mango,
-              foregroundColor: HgColors.ink,
+              foregroundColor: HgColors.white,
               icon: _saving
                   ? const SizedBox(
                       width: 18,

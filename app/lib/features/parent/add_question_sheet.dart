@@ -242,7 +242,7 @@ class _AddQuestionSheetState extends State<AddQuestionSheet> {
                   onPressed: _busy ? null : _add,
                   style: FilledButton.styleFrom(
                     backgroundColor: HgColors.mango,
-                    foregroundColor: HgColors.ink,
+                    foregroundColor: HgColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text(_busy ? 'Saving…' : 'Add it'),

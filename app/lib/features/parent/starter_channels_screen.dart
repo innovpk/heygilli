@@ -237,7 +237,7 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
                     selected: _topics.contains(t.id),
                     onSelected: (on) => _toggleTopic(t.id, on),
                     selectedColor: HgColors.mango,
-                    checkmarkColor: HgColors.ink,
+                    checkmarkColor: HgColors.white,
                   ),
               ],
             ),
@@ -352,7 +352,7 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
               }
             }),
       activeColor: HgColors.mango,
-      checkColor: HgColors.ink,
+      checkColor: HgColors.white,
       contentPadding: EdgeInsets.zero,
       title: Text(c.title, style: HgText.body(size: 16, color: HgColors.ink)),
       subtitle: Text(

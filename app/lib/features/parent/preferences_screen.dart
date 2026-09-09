@@ -99,7 +99,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                               () => on ? _picked.add(t.id) : _picked.remove(t.id),
                             ),
                       selectedColor: HgColors.mango,
-                      checkmarkColor: HgColors.ink,
+                      checkmarkColor: HgColors.white,
                     ),
                 ],
               ),
@@ -145,7 +145,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                               () => on ? _breaks.add(a.id) : _breaks.remove(a.id),
                             ),
                       selectedColor: HgColors.mango,
-                      checkmarkColor: HgColors.ink,
+                      checkmarkColor: HgColors.white,
                     ),
                 ],
               ),
@@ -162,7 +162,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       floating: FloatingActionButton.extended(
         onPressed: _busy ? null : _go,
         backgroundColor: HgColors.mango,
-        foregroundColor: HgColors.ink,
+        foregroundColor: HgColors.white,
         icon: _busy
             ? const SizedBox(
                 width: 18,

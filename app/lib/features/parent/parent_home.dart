@@ -44,9 +44,9 @@ class _ParentHomeState extends State<ParentHome> {
           ? FloatingActionButton.extended(
               onPressed: () => _addKid(context),
               backgroundColor: HgColors.mango,
-              foregroundColor: HgColors.ink,
+              foregroundColor: HgColors.white,
               icon: const Icon(Icons.add_rounded),
-              label: Text('Add kid', style: HgText.body(color: HgColors.ink)),
+              label: Text('Add kid', style: HgText.body(color: HgColors.white)),
             )
           : null,
       bottom: NavigationBar(

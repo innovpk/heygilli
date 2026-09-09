@@ -257,7 +257,7 @@ class _AskAboutVideoSheetState extends State<AskAboutVideoSheet> {
                     onPressed: _asking ? null : () => _ask(_field.text),
                     style: IconButton.styleFrom(
                       backgroundColor: HgColors.mango,
-                      foregroundColor: HgColors.ink,
+                      foregroundColor: HgColors.white,
                       minimumSize: const Size(48, 48),
                     ),
                     icon: const Icon(Icons.arrow_upward_rounded),

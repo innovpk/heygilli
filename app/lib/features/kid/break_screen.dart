@@ -440,7 +440,7 @@ class _DidItButton extends StatelessWidget {
               shape: const CircleBorder(),
               padding: EdgeInsets.zero,
               disabledBackgroundColor: HgColors.mango.withValues(alpha: 0.55),
-              disabledForegroundColor: HgColors.ink,
+              disabledForegroundColor: HgColors.white,
             ),
             child: icon,
           ),
@@ -454,9 +454,9 @@ class _DidItButton extends StatelessWidget {
         icon: icon,
         style: FilledButton.styleFrom(
           disabledBackgroundColor: HgColors.mango.withValues(alpha: 0.55),
-          disabledForegroundColor: HgColors.ink,
+          disabledForegroundColor: HgColors.white,
         ),
-        label: Text(label!, style: HgText.body(size: 18, color: HgColors.ink)),
+        label: Text(label!, style: HgText.body(size: 18, color: HgColors.white)),
       ),
     );
   }
