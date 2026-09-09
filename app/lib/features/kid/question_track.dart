@@ -21,6 +21,7 @@ class QuestionTrack extends StatelessWidget {
     required this.askedCount,
     this.onScrub,
     this.onScrubEnd,
+    this.scrubbing = false,
   });
 
   /// Where the video is now, in seconds.
@@ -45,9 +46,24 @@ class QuestionTrack extends StatelessWidget {
   /// it was, and `DragEndDetails` does not carry one.
   final VoidCallback? onScrubEnd;
 
-  static const _height = 22.0;
+  /// A finger is on the strip. Two things change: the fill stops being
+  /// animated, because the only thing slower than a finger is a tween chasing
+  /// one, and the thumb grows so it can be seen under the finger holding it.
+  final bool scrubbing;
+
+  // A four-year-old drags this on a moving video, so the target is much taller
+  // than the bar it draws.
+  static const _height = 34.0;
   static const _barHeight = 6.0;
   static const _dot = 12.0;
+  static const _thumb = 16.0;
+  static const _thumbHeld = 24.0;
+
+  /// The player reports its position every 100ms, so an un-animated fill
+  /// advances in visible steps on a short video. Tweening between reports at
+  /// the same rate turns the steps back into movement. Linear, because
+  /// anything with easing in it reads as the video changing speed.
+  static const _catchUp = Duration(milliseconds: 110);
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +115,9 @@ class QuestionTrack extends StatelessWidget {
                   // How far the child has got.
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: scrubbing ? Duration.zero : _catchUp,
+                      curve: Curves.linear,
                       height: _barHeight,
                       width: w * progress,
                       decoration: BoxDecoration(
@@ -114,6 +132,30 @@ class QuestionTrack extends StatelessWidget {
                       done: i < askedCount,
                       size: _dot,
                       width: w,
+                    ),
+                  // Last, so a question dot never paints over the thing the
+                  // finger is holding.
+                  if (onScrub != null)
+                    AnimatedPositioned(
+                      duration: scrubbing ? Duration.zero : _catchUp,
+                      curve: Curves.linear,
+                      left:
+                          (w * progress) -
+                          (scrubbing ? _thumbHeld : _thumb) / 2,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        curve: Curves.easeOut,
+                        width: scrubbing ? _thumbHeld : _thumb,
+                        height: scrubbing ? _thumbHeld : _thumb,
+                        decoration: BoxDecoration(
+                          color: HgColors.sky,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: HgColors.tealDeep,
+                            width: 2,
+                          ),
+                        ),
+                      ),
                     ),
                 ],
               ),

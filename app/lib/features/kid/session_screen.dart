@@ -231,7 +231,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// A finger is on the question track. While it is, the strip shows where the
   /// finger is rather than where the video is, and the player is left alone
   /// until it lifts: one seek at the end instead of one per frame of a drag.
-  bool _scrubbing = false;
+  final _scrubbing = ValueNotifier<bool>(false);
 
   /// Whether to draw the play glyph — the child paused, or nothing ever
   /// started. Never true while Gilli has the video.
@@ -273,7 +273,7 @@ class _SessionScreenState extends State<SessionScreen> {
       // Not while a finger is on the strip. The player reports every 100ms and
       // a seek takes longer than that to land, so following both at once is
       // the thumb being dragged one way and yanked back the other.
-      if (!_scrubbing) _position.value = _positionS;
+      if (!_scrubbing.value) _position.value = _positionS;
     });
     // Some webviews ignore autoplay; give the player one more push.
     _nudge = Timer(const Duration(seconds: 5), () {
@@ -349,6 +349,7 @@ class _SessionScreenState extends State<SessionScreen> {
     }
     _needsSound.dispose();
     _showPlay.dispose();
+    _scrubbing.dispose();
     _ears.dispose();
     _voice.stop();
     _yt.close();
@@ -440,14 +441,14 @@ class _SessionScreenState extends State<SessionScreen> {
   /// position and does not move.
   void _onScrub(double wanted) {
     if (_isPaused || _onBreak || _ended) return;
-    _scrubbing = true;
+    _scrubbing.value = true;
     _position.value = _scrubTarget(wanted);
   }
 
   /// The finger came off. One seek, to wherever the strip ended up.
   Future<void> _onScrubEnd() async {
-    if (!_scrubbing) return;
-    _scrubbing = false;
+    if (!_scrubbing.value) return;
+    _scrubbing.value = false;
     if (_isPaused || _onBreak || _ended) return;
     // `_position` was clamped on the way in by `_onScrub`, so this is already
     // a legal place to be.
@@ -805,15 +806,19 @@ class _SessionScreenState extends State<SessionScreen> {
   /// YouTube's rules and those forbid overlays during playback.
   Widget _trackStrip() => Padding(
     padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-    child: ValueListenableBuilder<double>(
-      valueListenable: _position,
-      builder: (context, seconds, _) => QuestionTrack(
-        positionS: seconds,
-        durationS: widget.video.durationS,
-        questionTimes: _questionTimes,
-        askedCount: _asked,
-        onScrub: (_isPaused || _onBreak || _ended) ? null : _onScrub,
-        onScrubEnd: (_isPaused || _onBreak || _ended) ? null : _onScrubEnd,
+    child: ValueListenableBuilder<bool>(
+      valueListenable: _scrubbing,
+      builder: (context, scrubbing, _) => ValueListenableBuilder<double>(
+        valueListenable: _position,
+        builder: (context, seconds, _) => QuestionTrack(
+          positionS: seconds,
+          durationS: widget.video.durationS,
+          questionTimes: _questionTimes,
+          askedCount: _asked,
+          scrubbing: scrubbing,
+          onScrub: (_isPaused || _onBreak || _ended) ? null : _onScrub,
+          onScrubEnd: (_isPaused || _onBreak || _ended) ? null : _onScrubEnd,
+        ),
       ),
     ),
   );
