@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../core/break_activities.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
@@ -43,20 +44,15 @@ const _topicIcons = {
   'making': 'flower',
   'school': 'bus',
 };
-const _breakIcons = {
-  'stretch': 'tree',
-  'jump': 'star',
-  'water': 'water',
-  'window': 'sun',
-  'draw': 'triangle',
-  'tidy': 'house',
-  'walk': 'leaf',
-  'pet': 'cat',
-};
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
   final _picked = <String>{};
-  final _breaks = <String>{};
+
+  /// Two gentle ones start ticked. With nothing picked, a break is Gilli
+  /// saying "break time" and nothing else, and a child left with no idea what
+  /// to do waits it out. These are still the parent's choice: ticked in front
+  /// of them, and one tap to untick.
+  final _breaks = <String>{'stretch', 'water'};
   late final Future<StarterChannels> _data = context
       .read<AppState>()
       .gateway
@@ -166,7 +162,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                               'do. Gilli says those when the video pauses.',
                           children: _tiles(
                             data?.breakActivities ?? const [],
-                            _breakIcons,
+                            breakActivityIcons,
                             _breaks,
                           ),
                         ),

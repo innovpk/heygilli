@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../core/break_activities.dart';
 import '../../core/gateway.dart';
 import '../../core/models.dart';
 import '../../core/protocol.dart';
@@ -224,6 +226,9 @@ class _BreakScreenState extends State<BreakScreen> {
                     // a running figure, with nothing to read.
                     showDigits: !_preReader,
                     size: _preReader ? ringSize * 1.25 : ringSize,
+                    // What Gilli asked for, as a picture: a pre-reader hears
+                    // "star jumps" once and then has only this screen.
+                    activityIcon: breakActivityIcons[_message?.activity],
                   );
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
@@ -355,12 +360,16 @@ class _BreakTimer extends StatelessWidget {
     required this.total,
     required this.showDigits,
     required this.size,
+    this.activityIcon,
   });
 
   final int secondsLeft;
   final int total;
   final bool showDigits;
   final double size;
+
+  /// The icon for the activity Gilli asked for, when the line came from one.
+  final String? activityIcon;
 
   static String clock(int seconds) {
     final s = seconds.clamp(0, 59 * 60 + 59);
@@ -397,6 +406,12 @@ class _BreakTimer extends StatelessWidget {
             ),
             if (showDigits)
               Text(clock(left), style: HgText.display(size: size * 0.26))
+            else if (activityIcon != null)
+              // The activity itself, where there is one to show.
+              SizedBox.square(
+                dimension: size * 0.46,
+                child: SvgPicture.asset('assets/icons/$activityIcon.svg'),
+              )
             else
               // A picture of movement rather than a number a 4-year-old
               // cannot read.

@@ -698,6 +698,10 @@ class BreakMessage(BaseModel):
     id: str = Field(default_factory=lambda: new_id("msg"))
     text: str = Field(description="Shown to bands 7_8 and 9_11")
     spoken: str = Field(default="", description="What Gilli says aloud; the whole message for band 4_6")
+    #: The setup pick this line was built from, when it was built from one
+    #: ("jump", "water"). A pre-reader reads nothing on the break screen, so
+    #: the client shows this activity's picture; a parent's own line has none.
+    activity: str = ""
 
     def say(self) -> str:
         return self.spoken.strip() or self.text.strip()

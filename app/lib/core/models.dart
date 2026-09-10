@@ -352,11 +352,20 @@ class KidPrompt {
 }
 
 class BreakMessage {
-  const BreakMessage({this.id = '', this.text = '', this.spoken = ''});
+  const BreakMessage({
+    this.id = '',
+    this.text = '',
+    this.spoken = '',
+    this.activity = '',
+  });
 
   final String id;
   final String text;
   final String spoken;
+
+  /// The setup pick this line was built from ("jump"), or empty for a line a
+  /// parent wrote. A pre-reader is shown its picture on the break screen.
+  final String activity;
 
   /// What Gilli says out loud. Falls back to the text so a saved line is never
   /// silent for a pre-reader, who sees nothing on screen.
@@ -366,9 +375,15 @@ class BreakMessage {
     id: '${j['id'] ?? ''}',
     text: j['text'] as String? ?? '',
     spoken: j['spoken'] as String? ?? '',
+    activity: j['activity'] as String? ?? '',
   );
 
-  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'spoken': spoken};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'spoken': spoken,
+    if (activity.isNotEmpty) 'activity': activity,
+  };
 }
 
 /// An active break. Nothing plays while one of these exists.

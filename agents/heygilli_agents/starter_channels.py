@@ -234,7 +234,9 @@ def break_messages(activities: list[str] | tuple[str, ...]) -> list[dict]:
         label = _BREAK_LABELS.get(key)
         if not label:
             continue
-        out.append({"text": f"Break time. {label}?", "spoken": f"Break time. {label}?"})
+        out.append(
+            {"text": f"Break time. {label}?", "spoken": f"Break time. {label}?", "activity": key}
+        )
     return out
 
 

@@ -140,9 +140,10 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('What should Gilli suggest at a break?'), findsOneWidget);
-    await tester.tap(find.text('Star jumps'));
+    // Stretch and water start ticked. Untick one, tick another.
+    await tester.tap(find.text('Have a stretch'));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Get a drink of water'));
+    await tester.tap(find.text('Star jumps'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.textContaining('Find videos'));
     for (var i = 0; i < 8; i++) {
@@ -151,7 +152,7 @@ void main() {
 
     // A break that says "time for a break" and stops the video leaves a child
     // looking at a still frame, which is the moment it is waited out instead.
-    expect(gateway.breakPicks[kid.id], ['jump', 'water']);
+    expect(gateway.breakPicks[kid.id], ['water', 'jump']);
   });
 
   testWidgets('picking nothing still goes looking', (tester) async {
