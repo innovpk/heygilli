@@ -288,11 +288,13 @@
   .demo, .demo .sc, .demo .veil { position: absolute; inset: 0; }
   .vid-art { position: absolute; left: 50%; top: 14%; width: 44cqw; transform: translateX(-50%); }
   .vbar { position: absolute; left: 5%; right: 5%; bottom: 6%; height: 1.6cqw; border-radius: 99px; background: rgba(30,58,52,.25); }
-  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 15s linear infinite; }
+  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 24s linear infinite; }
   .vbar i { position: absolute; top: 50%; width: 2.6cqw; height: 2.6cqw; margin: -1.3cqw 0 0 -1.3cqw; border-radius: 50%; border: .5cqw solid var(--paper); background: var(--ink); }
-  .demo .sc { opacity: 0; animation: dScene 15s infinite backwards; }
-  .demo .s2 { animation-delay: 3s; } .demo .s3 { animation-delay: 6s; }
-  .demo .s4 { animation-delay: 9s; } .demo .s5 { animation-delay: 12s; }
+  .demo .sc { opacity: 0; animation: dScene 24s infinite backwards; }
+  .demo .p2 { animation-delay: 3s; } .demo .p3 { animation-delay: 6s; }
+  .demo .s1 { animation-delay: 9s; } .demo .s2 { animation-delay: 12s; }
+  .demo .s3 { animation-delay: 15s; } .demo .s4 { animation-delay: 18s; }
+  .demo .s5 { animation-delay: 21s; }
   .demo .veil { background: rgba(30,58,52,.5); }
   .dtag { position: absolute; left: 3.5%; top: 5%; background: rgba(244,250,248,.94); color: var(--ink);
           font-family: var(--display); font-size: 3.4cqw; padding: .8cqw 2.4cqw; border-radius: 99px; }
@@ -313,8 +315,28 @@
   .dbreak .t { font-family: var(--display); font-size: 5cqw; }
   .dbreak .a { font-size: 3.4cqw; }
   .dbreak .a span { display: inline-block; background: var(--bg); border-radius: 99px; padding: .6cqw 2cqw; margin: 0 .8cqw .8cqw 0; }
-  @keyframes dScene { 0% { opacity: 0; } 3% { opacity: 1; } 17% { opacity: 1; } 20%, 100% { opacity: 0; } }
-  @keyframes dPlay { from { width: 6%; } to { width: 78%; } }
+  .pscreen { position: absolute; inset: 0; background: var(--bg); padding: 10.5cqw 4cqw 3cqw; color: var(--ink); }
+  .phead { font-family: var(--display); font-size: 4.4cqw; margin-bottom: 2cqw; }
+  .prow { display: flex; align-items: center; gap: 2.4cqw; background: var(--paper); border-radius: 2cqw;
+          padding: 1.4cqw 2cqw; margin-bottom: 1.6cqw; font-size: 3.3cqw; }
+  .prow .l { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pseg { display: flex; gap: .8cqw; background: var(--bg); border-radius: 99px; padding: .6cqw; }
+  .pseg i { font-style: normal; font-size: 3cqw; padding: .6cqw 2cqw; border-radius: 99px; color: rgba(30,58,52,.6); }
+  .pseg i.fine { background: var(--ink); color: var(--bg); }
+  .pseg i.ask { background: var(--accent); color: #fff; }
+  .prow img { width: 12cqw; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 1cqw; flex: none; }
+  .prow .l2 { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .prow .l2 > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* pwhy, not why: .why is the "Why not YouTube Kids?" section's grid, and
+     the reason line was inheriting its padding and turning into one. */
+  .prow .pwhy { font-size: 2.7cqw; color: rgba(30,58,52,.7); }
+  .pst { flex: none; font-family: var(--display); font-size: 3cqw; padding: .5cqw 2cqw; border-radius: 99px; color: #fff; }
+  .pst.fits { background: var(--fits); } .pst.foryou { background: var(--accent); }
+  .pst.read { background: var(--bg); color: var(--ink); display: flex; align-items: center; gap: 1cqw; }
+  .pst.read b { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: var(--accent); animation: gBlink 1s infinite; }
+  @keyframes dScene { 0% { opacity: 0; } 2% { opacity: 1; } 10.5% { opacity: 1; } 12.5%, 100% { opacity: 0; } }
+  /* Still while the parent scenes cover the video, then playing. */
+  @keyframes dPlay { 0%, 37.5% { width: 6%; } 100% { width: 78%; } }
   .tv-cap {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 12px; padding: 0 4px; color: var(--bg); font-size: 12px; gap: 12px;
@@ -702,12 +724,36 @@
              the real question kinds (voice, picture cards, yes or no) and a
              real break activity. Not a recording, so nothing here claims to
              be one; every scene is something the app does. -->
-        <div class="demo" role="img" aria-label="A HeyGilli session: the video pauses, and Gilli asks a question by voice, then with picture cards, then yes or no, and later calls a movement break.">
+        <div class="demo" role="img" aria-label="How HeyGilli works: a parent sets rules, every new upload is read against them and either shown or sent to the parent, then the child watches while Gilli asks questions by voice, with picture cards and yes or no, and calls a movement break.">
           <div aria-hidden="true">
             <div class="vid-art"><svg viewBox="0 0 100 100"><path d="M6 88 L36 30 h28 L94 88 Z" fill="#a8471f"/><path d="M36 30 h28 l-4 -6 q-10 -4 -20 0 Z" fill="#e4572e"/><path d="M48 30 v30 q-6 10 0 18 M56 30 v22 q6 8 0 16" stroke="#f5a524" stroke-width="5" fill="none" stroke-linecap="round"/><g fill="#f5a524"><circle cx="30" cy="16" r="4"/><circle cx="72" cy="12" r="5"/><circle cx="50" cy="8" r="3"/></g><circle cx="52" cy="24" r="10" fill="#e4572e"/></svg></div>
             <div class="vbar"><span class="fill"></span><i style="left:38%"></i><i style="left:72%"></i></div>
           </div>
-          <div class="sc s1" aria-hidden="true"><span class="dtag">Watching along</span></div>
+          <!-- The parent's half first: the rule, the reading, the result. The
+               three videos and their verdicts are real screener output — the
+               "Try it yourself" section's precomputed answers for exactly
+               these settings (unboxing: ask me; sponsors, scares: fine). A
+               preference never hides a video, so the result is "Fits" or
+               "For you", never "hidden". -->
+          <div class="sc p1" aria-hidden="true"><div class="pscreen">
+            <div class="phead">Abu's rules</div>
+            <div class="prow"><span class="l">Unboxing and toy hauls</span><span class="pseg"><i>Fine</i><i class="ask">Ask me</i></span></div>
+            <div class="prow"><span class="l">Sponsors and merch</span><span class="pseg"><i class="fine">Fine</i><i>Ask me</i></span></div>
+            <div class="prow"><span class="l">Mild scares</span><span class="pseg"><i class="fine">Fine</i><i>Ask me</i></span></div>
+          </div><span class="dtag">You set the rules</span></div>
+          <div class="sc p2" aria-hidden="true"><div class="pscreen">
+            <div class="phead">New uploads</div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/z_C29eXmo7k/hqdefault.jpg" alt="" loading="lazy"><span class="l">Ryan's World</span><span class="pst read"><b></b>Reading</span></div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/67LFeTgFv3Y/hqdefault.jpg" alt="" loading="lazy"><span class="l">Mark Rober</span><span class="pst read"><b></b>Reading</span></div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/Sk2XlM_uP7A/hqdefault.jpg" alt="" loading="lazy"><span class="l">Cocomelon</span><span class="pst read"><b></b>Reading</span></div>
+          </div><span class="dtag">Every upload is read</span></div>
+          <div class="sc p3" aria-hidden="true"><div class="pscreen">
+            <div class="phead">What Abu will see</div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/z_C29eXmo7k/hqdefault.jpg" alt="" loading="lazy"><span class="l2"><span>Ryan's World</span><span class="pwhy">An unboxing — you said ask me</span></span><span class="pst foryou">For you</span></div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/67LFeTgFv3Y/hqdefault.jpg" alt="" loading="lazy"><span class="l">Mark Rober</span><span class="pst foryou">For you</span></div>
+            <div class="prow"><img src="https://i.ytimg.com/vi/Sk2XlM_uP7A/hqdefault.jpg" alt="" loading="lazy"><span class="l">Cocomelon</span><span class="pst fits">Fits</span></div>
+          </div><span class="dtag">Shown, or sent to you</span></div>
+          <div class="sc s1" aria-hidden="true"><span class="dtag">Your child watches</span></div>
           <div class="sc s2" aria-hidden="true"><div class="veil"></div><span class="dtag">Asks by voice</span><div class="dg"><svg viewBox="0 0 180 180"><use href="#gilli-art"/></svg></div>
             <div class="dsay">Why did the lava come out?</div>
             <div class="dmic"><b></b>Listening…</div></div>
@@ -723,7 +769,7 @@
         </div>
       </div>
       <div class="tv-cap">
-        <span>A session with Gilli</span>
+        <span>How HeyGilli works</span>
         <span><span class="dot"></span>Gilli is watching along</span>
       </div>
     </div>
