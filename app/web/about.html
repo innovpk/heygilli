@@ -330,30 +330,6 @@
     font-family: var(--display); font-size: 18px; --r: -3deg;
   }
 
-  /* ---------- screened shelf ---------- */
-  .shelf {
-    padding: 18px 0 28px; overflow: hidden; background: var(--paper);
-    border-top: 2px dashed rgba(30, 58, 52, .2);
-    border-bottom: 2px dashed rgba(30, 58, 52, .2);
-  }
-  .shelf-head {
-    display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
-    max-width: 1100px; margin: 0 auto; padding: 0 56px 14px;
-  }
-  .shelf-head .h { font-family: var(--display); font-size: 22px; }
-  .shelf-head .n { font-size: 13px; color: rgba(30, 58, 52, .7); }
-  .track { display: flex; gap: 18px; width: max-content; animation: gMarquee 38s linear infinite; }
-  .shelf:hover .track { animation-play-state: paused; }
-  .tile { width: 220px; flex: none; position: relative; }
-  .tile img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; display: block; }
-  .tile .t { font-size: 12px; margin-top: 6px; font-weight: 600; }
-  .tile .pill {
-    position: absolute; top: 8px; left: 8px; color: #fff;
-    font-family: var(--display); font-size: 12px; padding: 3px 9px; border-radius: 999px;
-  }
-  .pill.fits { background: var(--fits); }
-  .pill.foryou { background: var(--accent); }
-
   /* ---------- three steps ---------- */
   .steps-sec { padding: 60px 56px 40px; position: relative; max-width: 1100px; margin: 0 auto; }
   /* The dashed rule runs behind the numerals so the three read as one line of
@@ -509,7 +485,6 @@
     50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
   }
   @keyframes gBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-  @keyframes gMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   @keyframes gSpin { to { transform: rotate(360deg); } }
 
   .hero > div:first-child { animation: gUp .7s ease-out both; }
@@ -564,7 +539,7 @@
   }
 
   @media (max-width: 640px) {
-    .wrap, .bar, .hero, .steps-sec, .try-sec, .buddy, .why, .faq-sec, .shelf-head { padding-left: 20px; padding-right: 20px; }
+    .wrap, .bar, .hero, .steps-sec, .try-sec, .buddy, .why, .faq-sec { padding-left: 20px; padding-right: 20px; }
     .bar-right a:not(.bar-pill) { display: none; }
     .bar-pill { min-height: 44px; display: flex; align-items: center; }
     .hero { padding-top: 8px; }
@@ -574,8 +549,8 @@
     .cta-row .btn { font-size: 20px; padding: 15px 24px; }
 
     /* The two floating cards go: on a phone they are a desktop flourish
-       turned into two more thumbnails between the reader and the shelf,
-       which is the same six videos again. */
+       turned into two more thumbnails between the reader and the next
+       section. */
     .scene { margin-top: 20px; }
     .card1, .card2 { display: none; }
     .tv { padding: 10px 10px 14px; border-radius: 18px; }
@@ -584,12 +559,6 @@
     .say { font-size: 16px; --r: 0deg; }
     .note { --r: -1.5deg; align-self: center; width: auto; max-width: 300px; }
 
-    .shelf { padding-bottom: 22px; }
-    .track { width: auto; animation: none; overflow-x: auto; gap: 12px; padding: 0 20px 6px; scroll-snap-type: x mandatory; }
-    .track > * { scroll-snap-align: start; }
-    .tile { width: 160px; }
-    .tile .t { font-size: 11px; }
-    .track > .dup { display: none; }
 
     .steps { grid-template-columns: 1fr; gap: 16px; }
     .step .num { width: 44px; height: 44px; font-size: 24px; border-width: 4px; }
@@ -726,30 +695,6 @@
     </div>
 
     <div class="say">What happened to the volcano?</div>
-  </div>
-</div>
-
-<div class="shelf">
-  <div class="shelf-head">
-    <div class="h">Screened this week, from channels you approved</div>
-    <div class="n">Nothing here was written by hand.</div>
-  </div>
-  <div class="track">
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/0jKoOUZ1GBM/hqdefault.jpg" alt=""><div class="t">Every Kind of Volcano</div><span class="pill fits">Fits</span></div>
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/A4YIpGQiD3w/hqdefault.jpg" alt=""><div class="t">How Do Bees Make Honey?</div><span class="pill fits">Fits</span></div>
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/8qdYCpSW2eY/hqdefault.jpg" alt=""><div class="t">The Biggest Volcano Ever is in Space!</div><span class="pill foryou">For you</span></div>
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/YR4wtGWK7eE/hqdefault.jpg" alt=""><div class="t">Hawai'i: Land of Volcanoes</div><span class="pill fits">Fits</span></div>
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/uES_6CIgle0/hqdefault.jpg" alt=""><div class="t">How Do Bees Make Honey? · Dr. Binocs</div><span class="pill foryou">For you</span></div>
-    <div class="tile"><img loading="lazy" src="https://i.ytimg.com/vi/_ebd7k_lUAs/hqdefault.jpg" alt=""><div class="t">Igneous Rocks Used to Be Liquid!</div><span class="pill fits">Fits</span></div>
-    <!-- The second copy is what makes -50% land exactly where 0 started. It is
-         decorative repetition, so it is hidden from assistive tech and from
-         the mobile scroller, which does not loop. -->
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/0jKoOUZ1GBM/hqdefault.jpg" alt=""><div class="t">Every Kind of Volcano</div><span class="pill fits">Fits</span></div>
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/A4YIpGQiD3w/hqdefault.jpg" alt=""><div class="t">How Do Bees Make Honey?</div><span class="pill fits">Fits</span></div>
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/8qdYCpSW2eY/hqdefault.jpg" alt=""><div class="t">The Biggest Volcano Ever is in Space!</div><span class="pill foryou">For you</span></div>
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/YR4wtGWK7eE/hqdefault.jpg" alt=""><div class="t">Hawai'i: Land of Volcanoes</div><span class="pill fits">Fits</span></div>
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/uES_6CIgle0/hqdefault.jpg" alt=""><div class="t">How Do Bees Make Honey? · Dr. Binocs</div><span class="pill foryou">For you</span></div>
-    <div class="tile dup" aria-hidden="true"><img loading="lazy" src="https://i.ytimg.com/vi/_ebd7k_lUAs/hqdefault.jpg" alt=""><div class="t">Igneous Rocks Used to Be Liquid!</div><span class="pill fits">Fits</span></div>
   </div>
 </div>
 
