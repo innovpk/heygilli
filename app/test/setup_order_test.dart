@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heygilli/core/hg_cta.dart';
 import 'package:heygilli/core/app_state.dart';
 import 'package:heygilli/core/fake_gateway.dart';
 import 'package:heygilli/core/models.dart';
@@ -106,6 +107,9 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
+    // Two questions, one at a time: Next to the second, then go.
+    await tester.tap(find.text('Next'));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Find videos'));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 300));
@@ -131,7 +135,11 @@ void main() {
     });
     await pumpWide(tester, PreferencesScreen(kid: kid));
 
-    expect(find.text('WHEN THE SCREEN PAUSES'), findsOneWidget);
+    // Its own question, after what the child is into.
+    expect(find.text('What is Abu into?'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('What should Gilli suggest at a break?'), findsOneWidget);
     await tester.tap(find.text('Star jumps'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Get a drink of water'));
@@ -160,11 +168,12 @@ void main() {
 
     // "I do not know yet" is the commonest answer during setup and must not be
     // met with a dead button.
+    // Neither question will hold them there with nothing picked.
+    expect(tester.widget<HgCta>(find.byType(HgCta)).onPressed, isNotNull);
+    await tester.tap(find.text('Next'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Find videos'), findsOneWidget);
-    final fab = tester.widget<FloatingActionButton>(
-      find.byType(FloatingActionButton),
-    );
-    expect(fab.onPressed, isNotNull);
+    expect(tester.widget<HgCta>(find.byType(HgCta)).onPressed, isNotNull);
   });
 
   testWidgets('a parent who is not ready to answer is not held there', (
