@@ -238,13 +238,13 @@ Voice-over:
 
 ### 15. Close. 4:41 to 4:51
 
-On screen: SLIDE with repo URL, live demo or APK link, two builder.aws post titles, "Built on Strands Agents SDK and Amazon Bedrock for Agents for Humans".
+On screen: SLIDE with repo URL, live demo or APK link, the three builder.aws post titles, "Built on Strands Agents SDK and Amazon Bedrock for Agents for Humans".
 
 Record: SLIDE.
 
 Voice-over:
 
-> HeyGilli. Repo, test build, and two write-ups on builder.aws in the description.
+> HeyGilli. Repo, test build, and a three-part write-up on builder.aws in the description.
 
 ---
 

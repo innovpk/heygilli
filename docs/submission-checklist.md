@@ -23,7 +23,7 @@ Per SPEC section 14. Items that affect the submission only:
 
 - [ ] Day 2: Planner producing plans for the three demo videos. Save the raw outputs; they are the honest fixtures for demo mode.
 - [ ] Day 3: first full Buddy turn on the tablet. Record it with `scrcpy` even if rough; it is backup footage.
-- [ ] Day 4: real 4-year-old test. Write the numbers down the same day (turns asked, utterances heard, partial or better). They go into `docs/blog-2-child-speech.md` where it says `[TBD from testing]`.
+- [ ] Day 4: real 4-year-old test. Write the numbers down the same day (turns asked, utterances heard, partial or better). Kept for the team; the blog series does not cite them.
 - [ ] Day 5: Curator Graph, borderline push staged, Digest both cards. AgentCore Runtime attempt; hard stop end of day, fall back to in-process on App Runner and say so in README.
 - [ ] Day 6: kid-mode home, phone kid mode, gestures. TV only if everything above is done.
 - [ ] Decide the second provider for the swap beat: Anthropic direct (default plan) or OpenAI.
@@ -31,11 +31,11 @@ Per SPEC section 14. Items that affect the submission only:
 ## Thursday 11 September
 
 - [x] ~~Credits form closes 12:00 PM PT.~~ Done; credits received 9 September.
-- [ ] Provider eval run on Bedrock and the second provider. Record pass and fail counts; fill `[TBD from testing]` in `docs/blog-1-strands-design.md`.
+- [ ] Provider eval run on Bedrock and the second provider. Record pass and fail counts; `docs/blog-2-strands-design.md` and `docs/blog-3-trust.md` quote them.
 - [ ] Second child test if possible.
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
 - [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
-- [ ] Publish builder.aws post 1: `docs/blog-1-strands-design.md`. Title must contain "Agents for Humans". Remove every `[TBD]`. Save the URL.
+- [ ] Publish builder.aws series, parts 1 to 3: `docs/blog-1-concept.md`, `docs/blog-2-strands-design.md`, `docs/blog-3-trust.md`. Every title contains "Agents for Humans". Save the three URLs.
 - [ ] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality.
 
 ## Friday 12 September: record
@@ -46,14 +46,13 @@ Per SPEC section 14. Items that affect the submission only:
 - [ ] Digest cards recorded from real session data of the day.
 - [ ] Build the release APK for the test build. Install it on a device that has never had a debug build and run the click path once.
 - [ ] Live demo link check: if the gateway is deployed (AgentCore or App Runner), hit it from a phone on mobile data. If not, the test build plus README is the testing access.
-- [ ] Publish builder.aws post 2: `docs/blog-2-child-speech.md`. Title must contain "Agents for Humans". Numbers from the child test filled in, or the sentences removed. Save the URL.
 
 ## Saturday 13 September: submit
 
 Do these in order.
 
 1. [ ] Edit the video to under 5:00. Subtitles on the Urdu beat. Export 1080p.
-2. [ ] Upload to YouTube as **public**. Title: "HeyGilli: an AI co-watching buddy for kids' YouTube (Agents for Humans hackathon)". Description: repo, test build, both builder.aws links, one line on what is not built. Copy the URL.
+2. [ ] Upload to YouTube as **public**. Title: "HeyGilli: an AI co-watching buddy for kids' YouTube (Agents for Humans hackathon)". Description: repo, test build, the three builder.aws links, one line on what is not built. Copy the URL.
 3. [ ] Upload the test APK somewhere public and stable (GitHub Release on the repo is simplest: `gh release create v0.1.0-hackathon build/app/outputs/flutter-apk/app-release.apk --title "HeyGilli hackathon build" --notes "Android 12+. See docs/demo-runbook.md."`). Copy the URL.
 4. [ ] Final commit of README, docs, and diagram. No secrets in the repo: `git grep -nE 'AKIA|sk-ant-|AIza' -- . ':!*.md'` returns nothing. `.env` is gitignored.
 5. [ ] **Flip the repo to public:**
@@ -71,7 +70,7 @@ Do these in order.
    - [ ] Image gallery: `docs/architecture.png`, two or three tablet and phone screenshots, one digest card
    - [ ] Track: Everyday Agents
    - [ ] AWS Builder ID
-   - [ ] builder.aws post URLs (two)
+   - [ ] builder.aws post URLs (three)
    - [ ] Testing instructions
    - [ ] Third-party integrations disclosure
    - [ ] Pre-existing work disclosure (new projects only rule)
@@ -102,8 +101,7 @@ Do these in order.
 | AWS Builder ID | in Devpost form | [ ] |
 | Third-party disclosure | in Devpost form | [ ] |
 | English materials | all docs English; Urdu only inside the demo, subtitled | [x] |
-| builder.aws post 1, "Agents for Humans" in title | [ ] URL | [ ] |
-| builder.aws post 2, "Agents for Humans" in title | [ ] URL | [ ] |
+| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [ ] three URLs | [ ] |
 | Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [ ] |
 | Live demo link (optional) | [ ] URL | [ ] |
 
