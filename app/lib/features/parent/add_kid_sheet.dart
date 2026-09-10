@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -6,7 +7,7 @@ import '../../core/models.dart';
 import '../../core/responsive.dart';
 import '../../core/theme.dart';
 
-/// Bottom sheet: nickname, age (sets the band live), languages.
+/// Bottom sheet: nickname, a starting picture, age (sets the band live).
 ///
 /// Returns the kid that was created, or null if the sheet was dismissed. The
 /// Takeout import needs the kid back, because a Takeout profile carries no age
@@ -62,6 +63,15 @@ class _AddKidSheetState extends State<_AddKidSheet> {
   bool _busy = false;
   String? _error;
 
+  /// The picture the parent picks as a starting point, or null for none (the
+  /// child's initial is shown). Optional, and not the last word: the picture
+  /// is the one thing in the app that belongs to the child, and they can
+  /// change it themselves in kid mode — this only saves them starting blank.
+  late String? _avatar = switch (widget.editing?.avatar) {
+    final String a when kidAvatars.contains(a) => a,
+    _ => null,
+  };
+
   @override
   void dispose() {
     _nickname.dispose();
@@ -83,12 +93,19 @@ class _AddKidSheetState extends State<_AddKidSheet> {
       final languages = _languages;
       final state = context.read<AppState>();
       final kid = existing == null
-          ? await state.addKid(nickname: name, age: _age, languages: languages)
+          ? await state.addKid(
+              nickname: name,
+              age: _age,
+              languages: languages,
+              avatar: _avatar,
+            )
           : await state.editKid(
               existing.id,
               nickname: name,
               age: _age,
               languages: languages,
+              // Only when it changed: null leaves the picture as it was.
+              avatar: _avatar == existing.avatar ? null : _avatar,
             );
       if (mounted) Navigator.of(context).pop(kid);
     } catch (e) {
@@ -128,6 +145,55 @@ class _AddKidSheetState extends State<_AddKidSheet> {
             style: HgText.body(size: 18, color: HgColors.ink),
             decoration: const InputDecoration(
               hintText: 'What you call them at home',
+            ),
+          ),
+          Text('PICTURE (THEY CAN CHANGE IT)', style: HgText.label()),
+          // One scrolling row, not the kid picker's grid: this sheet already
+          // holds a name, an age and a button, and a grid would push the
+          // button off a phone.
+          SizedBox(
+            height: 56,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: kidAvatars.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (_, i) {
+                final name = kidAvatars[i];
+                final on = _avatar == name;
+                return Semantics(
+                  label: name,
+                  button: true,
+                  selected: on,
+                  child: InkWell(
+                    key: ValueKey('avatar-$name'),
+                    customBorder: const CircleBorder(),
+                    // Tapping the chosen one again clears it while adding.
+                    // When editing it stays: null means "unchanged" to the
+                    // gateway, so there is no way to send "none" back.
+                    onTap: _busy
+                        ? null
+                        : () => setState(
+                            () => _avatar = on && widget.editing == null
+                                ? null
+                                : name,
+                          ),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: HgColors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: on ? HgColors.mango : HgColors.line,
+                          width: on ? 3 : 1.5,
+                        ),
+                      ),
+                      child: SvgPicture.asset('assets/icons/$name.svg'),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           Text('AGE', style: HgText.label()),

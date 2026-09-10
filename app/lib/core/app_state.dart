@@ -142,16 +142,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// `avatar` is the picture the parent chose while adding them, if any. The
+  /// gateway's create takes no avatar, and its edit does and checks it against
+  /// the fixed list — so the child is made first and the picture set second.
+  ///
+  /// A picture that fails to save does not undo the child: it is cosmetic,
+  /// the child can choose one themselves in kid mode, and losing the profile a
+  /// parent just typed over a picture would be the wrong way round.
   Future<Kid> addKid({
     required String nickname,
     required int age,
     required List<String> languages,
+    String? avatar,
   }) async {
-    final kid = await gateway.createKid(
+    var kid = await gateway.createKid(
       nickname: nickname,
       age: age,
       languages: languages,
     );
+    if (avatar != null && avatar.isNotEmpty) {
+      try {
+        kid = await gateway.editKid(kid.id, avatar: avatar);
+      } catch (e) {
+        debugPrint('[addKid] picture not saved for ${kid.id}: $e');
+      }
+    }
     await refreshKids();
     return kid;
   }
