@@ -6,6 +6,9 @@ import 'package:heygilli/core/models.dart';
 import 'package:heygilli/core/settings.dart';
 import 'package:heygilli/core/speech.dart';
 import 'package:heygilli/features/kid/break_screen.dart';
+import 'package:heygilli/features/kid/games/catch_gilli_game.dart';
+import 'package:heygilli/features/kid/games/find_gilli_game.dart';
+import 'package:heygilli/features/kid/games/play_screen.dart';
 import 'package:heygilli/features/kid/home_screen.dart';
 import 'package:heygilli/features/kid/nothing_yet_screen.dart';
 import 'package:heygilli/features/parent/channel_reviews_screen.dart';
@@ -207,6 +210,50 @@ void main() {
       ) async {
         app.enterKidMode(reader);
         final found = await render(tester, s.value, c.value());
+        expect(found, isEmpty, reason: found.join('\n'));
+      });
+    }
+  }
+
+  // Gilli's games. Their rounds run on timers a disposed widget cannot
+  // cancel, so each case unmounts and runs them out before it ends.
+  final gameCases = <String, Widget Function()>{
+    'play picker': () => PlayScreen(kid: reader),
+    'play picker (pre-reader)': () => PlayScreen(kid: preReader),
+    'find gilli': () => Scaffold(
+      body: FindGilliGame(
+        kid: reader,
+        onBack: () {},
+        onAgain: () {},
+        onHome: () {},
+      ),
+    ),
+    'find gilli (pre-reader)': () => Scaffold(
+      body: FindGilliGame(
+        kid: preReader,
+        onBack: () {},
+        onAgain: () {},
+        onHome: () {},
+      ),
+    ),
+    'catch gilli': () => Scaffold(
+      body: CatchGilliGame(
+        kid: reader,
+        onBack: () {},
+        onAgain: () {},
+        onHome: () {},
+      ),
+    ),
+  };
+
+  for (final c in gameCases.entries) {
+    for (final s in kidSizes.entries) {
+      testWidgets('${c.key} at ${s.key} ${s.value.width.toInt()}w', (
+        tester,
+      ) async {
+        final found = await render(tester, s.value, c.value());
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 10));
         expect(found, isEmpty, reason: found.join('\n'));
       });
     }

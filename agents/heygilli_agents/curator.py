@@ -313,7 +313,10 @@ def decide(
         f"Return the CuratorDecision. Hide anything not in a language above."
     )
     try:
-        decided = structured(agent, prompt, CuratorDecision)
+        decided = structured(
+            agent, prompt, CuratorDecision,
+            context={"title": video.title, "description": video.description},
+        )
         decided = decided.model_copy(update={"reason": tidy_reason(decided.reason)})
         return apply_wanted(apply_policy(decided, policy), wanted_topics)
     except LLMError as e:

@@ -165,6 +165,8 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
             "kind": "suggestion",
             "text": "Steady watching this fortnight. Try asking about volcanoes on the way to school.",
         }
+    if model_name == "PlayDraft":
+        return {"level": 2, "line": "Hee hee! Can you find me this time?"}
     if model_name == "DigestNarrative":
         return {
             "understood": ["why ice melts"],

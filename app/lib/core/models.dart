@@ -1090,14 +1090,27 @@ class Video {
   };
 }
 
+/// One row on the kid shelf: a channel's videos, under its picture.
 class HomeRow {
-  const HomeRow({required this.title, required this.videos});
+  const HomeRow({
+    required this.title,
+    required this.videos,
+    this.channelId = '',
+    this.thumb = '',
+  });
 
   final String title;
   final List<Video> videos;
+  final String channelId;
+
+  /// The channel's picture, or its newest video's when it has none. How a
+  /// pre-reader, who sees no row titles, tells one row from the next.
+  final String thumb;
 
   factory HomeRow.fromJson(Map<String, dynamic> j) => HomeRow(
     title: j['title'] as String? ?? '',
+    channelId: j['channel_id'] as String? ?? '',
+    thumb: j['thumb_url'] as String? ?? '',
     videos: (j['videos'] as List? ?? const [])
         .map((v) => Video.fromJson(v as Map<String, dynamic>))
         .toList(),

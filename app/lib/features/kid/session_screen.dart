@@ -177,13 +177,8 @@ class _SessionScreenState extends State<SessionScreen> {
     params: kidPlayerParams,
   );
 
-  /// The ground this child chose, read once for the life of the session. The
-  /// chip that changes it lives on the home screen, which this sits on top of,
-  /// so it cannot change underneath a session in progress.
-  late final KidPalette _palette =
-      context.read<AppState>().settings.kidLikesDaylight(_kid.id)
-      ? KidPalette.dayTime
-      : KidPalette.nightTime;
+  /// Kid mode's one ground, the same as the shelf this sits on top of.
+  final KidPalette _palette = KidPalette.nightTime;
 
   final _ears = KidEars();
   GilliVoice get _voice => context.read<GilliVoice>();
@@ -925,12 +920,8 @@ class _SessionScreenState extends State<SessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The same ground the child chose on the home screen. Read here rather
-    // than passed in, because a session can be opened from more than one place
-    // and a video that arrives on the wrong ground is worse than no choice.
-    final palette = context.read<AppState>().settings.kidLikesDaylight(_kid.id)
-        ? KidPalette.dayTime
-        : KidPalette.nightTime;
+    // Kid mode's one ground, the same as the shelf.
+    const palette = KidPalette.nightTime;
     return KidTheme(palette: palette, child: _build(context, palette));
   }
 

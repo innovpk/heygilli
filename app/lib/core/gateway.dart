@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'analytics.dart';
 import 'models.dart';
+import 'play.dart';
 import 'session_socket.dart';
 
 /// Everything the client needs from the backend, in one interface.
@@ -322,6 +323,15 @@ abstract class Gateway {
   /// What Gilli makes of a video or channel link, read against this child's
   /// answers. A few a day per household; changes nothing the child can see.
   Future<LinkCheck> checkLink(String kidId, String url);
+
+  /// `POST /kids/{id}/play`: the next round of one of Gilli's games, decided
+  /// by the Playmate agent from how the rounds so far went. 409 during a
+  /// break or once the day is spent, like watching.
+  Future<PlayTurn> playTurn(
+    String kidId,
+    PlayGame game,
+    List<PlayRound> rounds,
+  );
 
   /// `POST /kids/{id}/review`: the parent's answers, in one go. Whole
   /// channels are approved at a time, so one call per video would be a screen

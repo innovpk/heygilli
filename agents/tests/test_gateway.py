@@ -55,7 +55,7 @@ def test_kids_channels_home(client: TestClient, auth: dict, store: LocalStore, m
 
     home = client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()
     assert home == {
-        "rows": [{"title": "New for you", "videos": []}],
+        "rows": [],  # one row per channel with videos; none yet
         # Off unless a parent turned it on for this child.
         "searchable": False,
         # Nothing is being let past a limit this household has not set.
@@ -203,8 +203,39 @@ def test_search_is_off_until_a_parent_turns_it_on(client: TestClient, auth: dict
     # A query from a child whose parent has not enabled it changes nothing.
     home = client.get(f"/kids/{kid['id']}/home?q=zzzznotmatching", headers=hdr(auth)).json()
     assert home["searchable"] is False
-    assert home["rows"][0]["title"] == "New for you"
+    # Its channel is not on this child's list, so it sits in the catch-all row.
+    assert home["rows"][0]["title"] == "More to watch"
     assert [v["id"] for v in home["rows"][0]["videos"]] == [VIDEO.id]
+
+
+def test_the_shelf_is_grouped_by_channel_newest_first(client: TestClient, auth: dict, store) -> None:
+    from heygilli_agents.schemas import Channel
+
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    hid = auth["_hid"]
+    store.put_channel(hid, kid["id"], Channel(id="UCsongs", title="Super Simple Songs", thumb_url="songs.jpg"))
+    store.put_channel(hid, kid["id"], Channel(id="UCsci", title="SciShow Kids"))
+    videos = [
+        ("song_old00001", "UCsongs", "2026-09-01"),
+        ("sci_new000001", "UCsci", "2026-09-09"),
+        ("song_new00001", "UCsongs", "2026-09-05"),
+        ("loose0000001", "UCelsewhere", "2026-09-10"),
+    ]
+    for vid, cid, day in videos:
+        store.put_video(VIDEO.model_copy(update={
+            "id": vid, "channel_id": cid, "published_at": day, "thumb_url": f"{vid}.jpg",
+        }))
+        store.set_kid_video(hid, kid["id"], vid, "approve", "ok")
+
+    rows = client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"]
+
+    # The channel with the newest upload first; the one from nowhere last.
+    assert [r["title"] for r in rows] == ["SciShow Kids", "Super Simple Songs", "More to watch"]
+    assert [v["id"] for v in rows[1]["videos"]] == ["song_new00001", "song_old00001"]
+    # The channel's own picture, or its newest video's when it has none.
+    assert rows[1]["thumb_url"] == "songs.jpg"
+    assert rows[0]["thumb_url"] == "sci_new000001.jpg"
+    assert rows[0]["channel_id"] == "UCsci" and rows[2]["channel_id"] == ""
 
 
 def test_a_parent_can_turn_it_on_and_it_filters_their_own_shelf(

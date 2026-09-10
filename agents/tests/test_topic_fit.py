@@ -70,7 +70,7 @@ class _Recorder:
     def __init__(self) -> None:
         self.prompt = ""
 
-    def __call__(self, agent, prompt, schema):
+    def __call__(self, agent, prompt, schema, **_):
         self.prompt = prompt
         return CuratorDecision(decision="approve", reason="fine")
 

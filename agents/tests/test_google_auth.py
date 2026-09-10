@@ -308,7 +308,7 @@ def test_import_adds_only_new_channels_and_screens_them_in_the_background(
     assert sorted(c["id"] for c in listed) == ["UC_sci", "UC_zoo"]
     assert all(c["approved"] for c in listed)
     # Importing a channel approves no video: the home row stays empty until the Curator says so.
-    assert client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"][0]["videos"] == []
+    assert client.get(f"/kids/{kid['id']}/home", headers=hdr(auth)).json()["rows"] == []
 
 
 def test_import_of_an_unknown_channel_still_succeeds(

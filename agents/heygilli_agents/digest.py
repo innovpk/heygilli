@@ -89,7 +89,12 @@ def run_digest(kid: Kid, date: str, store: Store, agent: Agent | None = None) ->
         + "\n\nReturn the DigestNarrative."
     )
     try:
-        narrative = structured(agent or digest_agent(), prompt, DigestNarrative)
+        narrative = structured(
+            agent or digest_agent(), prompt, DigestNarrative,
+            # What the questions actually used, so a digest cannot claim a
+            # child heard a word none of them asked.
+            context={"words": sorted(words_heard | set(digest.words_said))},
+        )
     except LLMError as e:
         log.warning("digest model failed for %s: %s", kid.id, e)
         narrative = DigestNarrative(dinner_prompt="Ask what they watched today.")

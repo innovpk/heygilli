@@ -20,6 +20,7 @@ class GilliWidget extends StatefulWidget {
     this.gestureTick = 0,
     this.talking = false,
     this.listening = false,
+    this.asleep = false,
     this.background = HgColors.cream,
   });
 
@@ -28,6 +29,10 @@ class GilliWidget extends StatefulWidget {
   final int gestureTick;
   final bool talking;
   final bool listening;
+
+  /// Eyes shut, head tipped, breathing slow and deep, and Zs drifting up.
+  /// Gestures and talking wait until he is awake again.
+  final bool asleep;
   final Color? background;
 
   @override
@@ -72,7 +77,7 @@ class _GilliWidgetState extends State<GilliWidget>
                 ],
               ),
             ),
-          if (widget.listening) _ListenHalo(size: s),
+          if (widget.listening && !widget.asleep) _ListenHalo(size: s),
           Positioned(
             bottom: s * 0.04,
             child: TweenAnimationBuilder<double>(
@@ -85,23 +90,35 @@ class _GilliWidgetState extends State<GilliWidget>
                 animation: _breathe,
                 builder: (context, child) => Transform(
                   alignment: Alignment.bottomCenter,
-                  transform: _matrix(widget.gesture, t, _breathe.value),
+                  transform: _matrix(
+                    widget.asleep ? Gesture.idle : widget.gesture,
+                    t,
+                    _breathe.value,
+                    asleep: widget.asleep,
+                  ),
                   child: child,
                 ),
                 child: child,
               ),
               child: _GilliBody(
                 size: s * 0.86,
-                talking: widget.talking,
+                talking: widget.talking && !widget.asleep,
                 gesture: widget.gesture,
+                asleep: widget.asleep,
               ),
             ),
           ),
-          if (widget.talking)
+          if (widget.talking && !widget.asleep)
             Positioned(
               right: s * 0.02,
               top: s * 0.28,
               child: _SoundWave(height: s * 0.28),
+            ),
+          if (widget.asleep)
+            Positioned(
+              right: -s * 0.08,
+              top: -s * 0.12,
+              child: _Snore(key: const Key('gilli-snore'), size: s * 0.42),
             ),
         ],
       ),
@@ -109,11 +126,21 @@ class _GilliWidgetState extends State<GilliWidget>
   }
 
   /// t runs 0 → 1 once per gesture; `pulse` is sin(pi t): 0 → 1 → 0.
-  static Matrix4 _matrix(Gesture g, double t, double breathe) {
+  static Matrix4 _matrix(
+    Gesture g,
+    double t,
+    double breathe, {
+    bool asleep = false,
+  }) {
     final pulse = math.sin(math.pi * t);
     final m = Matrix4.identity();
-    // Breathing: barely-there vertical scale.
-    m.scaleByDouble(1, 1 + 0.015 * breathe, 1, 1);
+    // Breathing: barely-there vertical scale, slow and deep when asleep.
+    m.scaleByDouble(1, 1 + (asleep ? 0.05 : 0.015) * breathe, 1, 1);
+    if (asleep) {
+      // Head tipped over to one side, the way a nap looks.
+      m.rotateZ(0.12);
+      return m;
+    }
     switch (g) {
       case Gesture.idle:
         break;
@@ -188,6 +215,77 @@ class _SoundWaveState extends State<_SoundWave>
   }
 }
 
+/// Three Zs drifting up and away while Gilli sleeps.
+///
+/// Drawn, not typed: a pre-reader sees no letters anywhere in the app, and a
+/// zigzag floating off a sleeping squirrel reads as sleep without them.
+class _Snore extends StatefulWidget {
+  const _Snore({super.key, required this.size});
+  final double size;
+
+  @override
+  State<_Snore> createState() => _SnoreState();
+}
+
+class _SnoreState extends State<_Snore> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2800),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => CustomPaint(
+        size: Size.square(widget.size),
+        painter: _SnorePainter(_c.value),
+      ),
+    ),
+  );
+}
+
+class _SnorePainter extends CustomPainter {
+  _SnorePainter(this.t);
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    for (var i = 0; i < 3; i++) {
+      // Each Z is a third of a cycle behind the last: born low and small,
+      // growing and fading as it rises.
+      final p = (t + i / 3) % 1;
+      final z = w * (0.16 + 0.16 * p);
+      final x = w * (0.08 + 0.5 * p);
+      final y = w * (0.86 - 0.7 * p) - z;
+      final paint = Paint()
+        ..color = HgColors.mango.withValues(alpha: math.sin(math.pi * p))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.5, z * 0.2)
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(
+        Path()
+          ..moveTo(x, y)
+          ..lineTo(x + z, y)
+          ..lineTo(x, y + z)
+          ..lineTo(x + z, y + z),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SnorePainter old) => old.t != t;
+}
+
 /// Pulsing ring behind Gilli while the mic is open.
 class _ListenHalo extends StatefulWidget {
   const _ListenHalo({required this.size});
@@ -239,11 +337,13 @@ class _GilliBody extends StatefulWidget {
     required this.size,
     required this.talking,
     required this.gesture,
+    this.asleep = false,
   });
 
   final double size;
   final bool talking;
   final Gesture gesture;
+  final bool asleep;
 
   @override
   State<_GilliBody> createState() => _GilliBodyState();
@@ -306,7 +406,7 @@ class _GilliBodyState extends State<_GilliBody> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final s = widget.size;
     // A roar holds the mouth open; otherwise it follows the talk cycle.
-    final roaring = widget.gesture == Gesture.roar;
+    final roaring = widget.gesture == Gesture.roar && !widget.asleep;
 
     return SizedBox(
       width: s,
@@ -314,7 +414,8 @@ class _GilliBodyState extends State<_GilliBody> with TickerProviderStateMixin {
       child: AnimatedBuilder(
         animation: Listenable.merge([_sway, _blink, _talk]),
         builder: (context, _) {
-          final sway = (_sway.value - 0.5) * 2; // -1 → 1
+          // A sleeping tail barely stirs.
+          final sway = (_sway.value - 0.5) * 2 * (widget.asleep ? 0.25 : 1);
           final open = roaring || _talk.value > 0.5;
           return Stack(
             fit: StackFit.expand,
@@ -340,7 +441,7 @@ class _GilliBodyState extends State<_GilliBody> with TickerProviderStateMixin {
               _layer('head', s),
               // Blink: squash the eyes vertically about their own centre.
               Transform.scale(
-                scaleY: _eyeOpen(_blink.value),
+                scaleY: widget.asleep ? 0.08 : _eyeOpen(_blink.value),
                 alignment: const Alignment(0.07, -0.27),
                 child: _layer('eyes', s),
               ),

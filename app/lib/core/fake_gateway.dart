@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'analytics.dart';
@@ -7,6 +8,7 @@ import 'break_activities.dart';
 import 'demo_catalogue.dart';
 import 'gateway.dart';
 import 'models.dart';
+import 'play.dart';
 import 'protocol.dart';
 import 'session_socket.dart';
 
@@ -1339,23 +1341,27 @@ class FakeGateway implements Gateway {
     if (kid == null) return const [];
     final rows =
         (kid.band == AgeBand.b4to6
+                // One row per channel, as the real gateway groups them.
                 ? const [
                     HomeRow(
-                      title: 'New from your channels',
+                      title: 'Super Simple Songs',
                       videos: [_ducks, _twinkle],
                     ),
-                    HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
+                    HomeRow(title: 'SciShow Kids', videos: [_ears, _volcano]),
                   ]
                 : const [
+                    HomeRow(title: 'SciShow Kids', videos: [_volcano, _ears]),
                     HomeRow(
-                      title: 'New from your channels',
-                      videos: [_volcano, _ears],
+                      title: 'Super Simple Songs',
+                      videos: [_twinkle, _ducks],
                     ),
-                    HomeRow(title: 'Keep watching', videos: [_twinkle, _ducks]),
                   ])
             .map(
               (row) => HomeRow(
                 title: row.title,
+                // Standing in for the channel's picture, as the gateway does
+                // when a channel has none.
+                thumb: row.videos.first.thumb,
                 videos: [
                   for (final v in row.videos)
                     if (_onShelf(kidId, v)) v,
@@ -1973,6 +1979,29 @@ class FakeGateway implements Gateway {
   Future<void> decide(String promptId, String decision) async {
     await _lag();
     _inbox.removeWhere((p) => p.id == promptId);
+  }
+
+  /// The last round handed out, so a test can find the tree Gilli is behind.
+  PlayTurn? lastPlayTurn;
+  int _playSeed = 3;
+
+  @override
+  Future<PlayTurn> playTurn(
+    String kidId,
+    PlayGame game,
+    List<PlayRound> rounds,
+  ) async {
+    await _lag();
+    final band =
+        _kids.where((k) => k.id == kidId).firstOrNull?.band ?? AgeBand.b7to8;
+    // The rule the real gateway falls back to, seeded so a run can be replayed.
+    return lastPlayTurn = PlayTurn.local(
+      game,
+      rounds,
+      band,
+      rng: Random(_playSeed++),
+      roundsLeftToday: 40,
+    );
   }
 
   Future<void> _lag() =>

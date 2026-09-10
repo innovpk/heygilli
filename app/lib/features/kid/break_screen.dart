@@ -14,6 +14,7 @@ import '../../core/theme.dart';
 import 'kid_palette.dart';
 import '../gate/pin_gate.dart';
 import 'gilli_widget.dart';
+import 'sleepy_gilli.dart';
 
 /// The break: Gilli stops the video and reads out the line this child's
 /// parent wrote for break time.
@@ -533,10 +534,17 @@ class _DayDoneScreenState extends State<DayDoneScreen> {
             mainAxisSize: MainAxisSize.min,
             spacing: 12,
             children: [
-              GilliWidget(
+              // Says goodnight, then nods off. Waking him gets a sleepy
+              // goodnight, never a game: there is no more play today either.
+              SleepyGilli(
+                kid: widget.kid,
                 size: (box.maxHeight * 0.44).clamp(90.0, 180.0),
-                gesture: Gesture.idle,
+                dozeAfter: const Duration(seconds: 6),
                 talking: voice.speaking,
+                wakeLines: const [
+                  'Yawn... night night. See you tomorrow!',
+                  'Shh, Gilli is sleepy. See you in the morning!',
+                ],
               ),
               if (showText) ...[
                 Text(

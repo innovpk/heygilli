@@ -36,6 +36,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from . import (
+    agent_audit,
     ask,
     breaks,
     coach,
@@ -43,8 +44,10 @@ from . import (
     history,
     known,
     parent_questions,
+    playmate,
     question_bank,
     revisit,
+    tracing,
     words,
 )
 from . import starter_channels as starter_channels_data
@@ -100,8 +103,8 @@ from .tools.screening import MAX_DURATION_S, blocked_for_everyone
 from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import (
     SearchUnavailable,
-    fetch_video_meta,
     fetch_uploads,
+    fetch_video_meta,
     resolve_channel_url,
     video_id_from_url,
 )
@@ -139,6 +142,8 @@ app = FastAPI(title="HeyGilli gateway", version="1.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"], allow_credentials=False
 )
+# Every agent call from here on is traced in full (see tracing.py).
+tracing.setup_tracing()
 TTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/tts", StaticFiles(directory=str(TTS_DIR)), name="tts")
 
@@ -163,6 +168,46 @@ def household(authorization: str = Header(default="")) -> str:
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(401, "missing bearer token")
     return verify(token)
+
+
+class _AgentScope:
+    """Whose agent calls these are, so each trace knows its household and child.
+
+    Plain ASGI rather than `@app.middleware`, so the scope also covers the
+    background tasks a request starts (the Curator runs in one) and the whole
+    of a session's WebSocket. The household comes from the bearer token, or
+    the socket's `token` query; the child from a `/kids/{id}/...` path. An
+    unreadable token is not this middleware's to refuse: the endpoint's own
+    dependency still does that.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        token = ""
+        for key, value in scope.get("headers") or []:
+            if key == b"authorization":
+                kind, _, rest = value.decode("latin-1").partition(" ")
+                token = rest if kind.lower() == "bearer" else ""
+        if not token:
+            from urllib.parse import parse_qs
+
+            token = (parse_qs(scope.get("query_string", b"").decode()).get("token") or [""])[0]
+        hid = ""
+        if token:
+            with contextlib.suppress(HTTPException):
+                hid = verify(token)
+        parts = scope.get("path", "").split("/")
+        kid = parts[2] if len(parts) > 2 and parts[1] == "kids" else ""
+        with tracing.scope(hid, kid):
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(_AgentScope)
 
 
 class DevAuthIn(BaseModel):
@@ -792,6 +837,12 @@ def _curate_in_background(kid: Kid) -> None:
         run_curator(kid, get_store())
     except Exception as e:  # noqa: BLE001 - background job; the import itself already succeeded
         log.warning("background curation failed for kid %s: %s", kid.id, e)
+    try:
+        # Look back over what the agents have done in this household and fix
+        # what the rules now say was wrong, before the parent's review shows it.
+        agent_audit.audit_household(kid.household_id)
+    except Exception as e:  # noqa: BLE001 - the audit is a second look, never a reason to fail
+        log.warning("agent audit failed for household %s: %s", kid.household_id, e)
     finally:
         _curating.discard(kid.id)
 
@@ -1185,6 +1236,43 @@ def channels_drift_check(body: ChannelReviewsIn, hid: str = Depends(household)) 
     return {"drifted": drifted, "checked": checked}
 
 
+def _rows_by_channel(approved: list[Video], channels: dict) -> list[dict]:
+    """One row per channel, the channel with the newest upload first.
+
+    The shelf used to be a single "New for you" row, and for a pre-reader,
+    who sees no row titles, it was one undifferentiated strip. A channel is a
+    group a child already knows ("the volcano one", "the songs one"), and it
+    has a picture, so the row can be told apart without reading.
+
+    `approved` is newest first, so the first time a channel appears is its
+    newest video, and dicts keep that order. A video whose channel is not on
+    this child's list (a single video allowed from a checked link) goes into
+    one "More to watch" row at the end rather than a nameless row each.
+    """
+    groups: dict[str, list[Video]] = {}
+    for v in approved:
+        groups.setdefault(v.channel_id if v.channel_id in channels else "", []).append(v)
+    rows = []
+    for cid, vids in groups.items():
+        if not cid:
+            continue
+        c = channels[cid]
+        rows.append({
+            "title": c.title or "More to watch",
+            "channel_id": cid,
+            "thumb_url": c.thumb_url or vids[0].thumb_url,
+            "videos": [v.public() for v in vids],
+        })
+    if loose := groups.get(""):
+        rows.append({
+            "title": "More to watch",
+            "channel_id": "",
+            "thumb_url": loose[0].thumb_url,
+            "videos": [v.public() for v in loose],
+        })
+    return rows
+
+
 @app.get("/kids/{kid_id}/home")
 def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
     """The rows, plus whether watching is allowed at all right now.
@@ -1251,9 +1339,7 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
         hits = [v for v in approved if query in f"{v.title} {v.description}".lower()]
         rows = [{"title": f"Found {len(hits)}", "videos": [v.public() for v in hits[:24]]}]
     else:
-        rows = [{"title": "New for you", "videos": [v.public() for v in approved[:12]]}]
-        if len(approved) > 12:
-            rows.append({"title": "More to watch", "videos": [v.public() for v in approved[12:]]})
+        rows = _rows_by_channel(approved, {c.id: c for c in store.list_channels(hid, kid_id)})
 
     state = _watch_state(hid, kid)
     return {
@@ -1609,7 +1695,7 @@ def check_link(kid_id: str, body: CheckIn, hid: str = Depends(household)) -> dic
     else:
         try:
             info = resolve_channel_url(url)
-        except Exception as e:  # noqa: BLE001 - any failure here is "not a link we can read"
+        except Exception as e:
             raise HTTPException(400, f"could not find a video or channel at that link: {e}") from e
         channel = {
             "id": info["channel_id"],
@@ -1618,7 +1704,7 @@ def check_link(kid_id: str, body: CheckIn, hid: str = Depends(household)) -> dic
         }
         try:
             uploads = fetch_uploads(info["channel_id"], CHECKS_PER_DAY)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise HTTPException(502, f"could not read that channel's videos: {type(e).__name__}") from e
         ids = [u["id"] for u in uploads][:CHECKS_PER_DAY]
 
@@ -1663,6 +1749,81 @@ def check_link(kid_id: str, body: CheckIn, hid: str = Depends(household)) -> dic
         "checks_left": left,
         "checks_per_day": CHECKS_PER_DAY,
     }
+
+
+def _play_key(kid_id: str) -> str:
+    return f"{kid_id}#{datetime.now(UTC).date().isoformat()}"
+
+
+@app.post("/kids/{kid_id}/play")
+def play(kid_id: str, body: playmate.PlayIn, hid: str = Depends(household)) -> dict:
+    """The next round of one of Gilli's games, or the end of it.
+
+    The Playmate agent decides how hard the round is and what Gilli says; the
+    code clamps the numbers per age band, picks where he hides, and counts the
+    rounds. A game is five rounds and a day is `ROUNDS_PER_DAY`, so games stay
+    a pause between videos. They follow the same gate as watching: during a
+    break or once the day is spent there are no games either.
+    """
+    kid = _kid(hid, kid_id)
+    state = _watch_state(hid, kid)
+    if not state.watching_allowed:
+        raise _blocked(state)
+    store = get_store()
+    key = _play_key(kid_id)
+    used = int((store.get(hid, "play_rounds", key) or {}).get("used", 0))
+    left = max(0, playmate.ROUNDS_PER_DAY - used)
+    agent = None if len(body.rounds) >= playmate.ROUNDS_PER_GAME or not left else playmate.playmate_agent()
+    turn = playmate.next_turn(kid, body, left, agent=agent)
+    if not turn.done:
+        store.put(hid, "play_rounds", key, {"used": used + 1})
+        turn.rounds_left_today = left - 1
+    turn.tts_url = synthesize(turn.line, playmate.language_of(kid), slow=playmate.band_of(kid) == "4_6")
+    log.info("play %s round %d level %d by %s", body.game, turn.round, turn.level, turn.decided_by)
+    return turn.model_dump()
+
+
+# --- what the agents did -------------------------------------------------------------------------------
+
+
+@app.get("/agents/report")
+def agents_report(days: int = 7, kid_id: str = "", hid: str = Depends(household)) -> dict:
+    """Every agent call in this household: counts per agent, what the
+    guardrails caught, and what was done about it. `kid_id` narrows it to one
+    child (plus calls that were about no child in particular)."""
+    if kid_id:
+        _kid(hid, kid_id)
+    return agent_audit.report(hid, kid_id, max(1, min(days, agent_audit.KEEP_DAYS)))
+
+
+@app.post("/agents/audit")
+def agents_audit(hid: str = Depends(household)) -> dict:
+    """Look back over what the agents did here, fix what was wrong, say what changed."""
+    return {"fixed": agent_audit.audit_household(hid), "report": agent_audit.report(hid)}
+
+
+@app.get("/agents/traces/{trace_id}")
+def agent_trace(trace_id: str, hid: str = Depends(household)) -> dict:
+    """One agent call in full: every span, the prompt and the answer, the
+    tokens, the guardrail events. Only this household's; the child's own
+    words were never written."""
+    doc = get_store().get(hid, "trace", trace_id)
+    if not doc:
+        raise HTTPException(404, "no such trace")
+    return doc
+
+
+@app.get("/ops/agents")
+def ops_agents(days: int = 7, x_ops_token: str = Header(default="")) -> dict:
+    """Every household's incidents, for whoever runs the service.
+
+    Behind `HEYGILLI_OPS_TOKEN`, and answers 404 without it so the route does
+    not advertise itself.
+    """
+    expected = os.getenv("HEYGILLI_OPS_TOKEN", "")
+    if not expected or not hmac.compare_digest(x_ops_token, expected):
+        raise HTTPException(404, "Not Found")
+    return agent_audit.ops_report(max(1, min(days, agent_audit.KEEP_DAYS)))
 
 
 class ParentQuestionIn(BaseModel):

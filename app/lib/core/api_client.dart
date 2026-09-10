@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'analytics.dart';
 import 'gateway.dart';
 import 'models.dart';
+import 'play.dart';
 import 'session_socket.dart';
 
 /// REST + WebSocket client for the Python gateway (docs/PROTOCOL.md).
@@ -560,6 +561,26 @@ class ApiClient implements Gateway {
       LinkCheck.fromJson(
         await _post('/kids/$kidId/check', {'url': url}) as Map<String, dynamic>,
       );
+
+  @override
+  Future<PlayTurn> playTurn(
+    String kidId,
+    PlayGame game,
+    List<PlayRound> rounds,
+  ) async {
+    final turn = PlayTurn.fromJson(
+      await _post('/kids/$kidId/play', {
+            'game': game.wire,
+            'rounds': [for (final r in rounds) r.toJson()],
+          })
+          as Map<String, dynamic>,
+    );
+    // Relative, like every other tts url the protocol hands back.
+    final url = turn.ttsUrl;
+    return url.isEmpty || url.startsWith('http')
+        ? turn
+        : turn.withTtsUrl('$baseUrl$url');
+  }
 
   @override
   Future<void> reviewDecide(

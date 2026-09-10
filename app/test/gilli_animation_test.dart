@@ -125,4 +125,35 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
   });
+
+  group('asleep', () {
+    Widget sleeping({bool talking = false}) => MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: GilliWidget(size: 200, asleep: true, talking: talking),
+        ),
+      ),
+    );
+
+    testWidgets('his eyes stay shut and Zs drift up', (tester) async {
+      await tester.pumpWidget(sleeping());
+      for (var i = 0; i < 44; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(
+          _transformAbove(tester, 'assets/gilli/eyes.svg').entry(1, 1),
+          lessThan(0.2),
+          reason: 'his eyes opened in his sleep',
+        );
+      }
+      expect(find.byKey(const Key('gilli-snore')), findsOneWidget);
+    });
+
+    testWidgets('a sleeping Gilli does not talk', (tester) async {
+      await tester.pumpWidget(sleeping(talking: true));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 80));
+        expect(_layers(tester), isNot(contains('assets/gilli/mouth_open.svg')));
+      }
+    });
+  });
 }

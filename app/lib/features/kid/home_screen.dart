@@ -16,9 +16,11 @@ import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
 import 'avatar_picker.dart';
 import 'break_screen.dart';
+import 'games/play_screen.dart';
 import 'gilli_widget.dart';
 import 'nothing_yet_screen.dart';
 import 'session_screen.dart';
+import 'sleepy_gilli.dart';
 
 /// Kid home: rows of thumbnails from the kid's approved channels only.
 /// No search, no recommendations (SPEC 6.2). Band 4_6 sees pictures only;
@@ -115,6 +117,25 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     Navigator.of(context).pushNamedAndRemoveUntil(Routes.parent, (_) => false);
   }
 
+  /// Gilli in the header, so a touch anywhere on the shelf keeps him awake.
+  final _gilli = GlobalKey<SleepyGilliState>();
+
+  /// Tapping Gilli once he is awake. Games follow the same gate as videos:
+  /// the header only offers this while watching is allowed.
+  Future<void> _openGames(Kid kid, KidPalette palette) async {
+    context.read<GilliVoice>().stop();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KidTheme(
+          palette: palette,
+          child: PlayScreen(kid: kid),
+        ),
+      ),
+    );
+    // A break may have come due while they played.
+    if (mounted) _reload();
+  }
+
   Future<void> _open(Video video) async {
     context.read<GilliVoice>().stop();
     await Navigator.of(
@@ -123,18 +144,6 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     // Coming back may mean the session ended, or that a break ran and is now
     // over: either way the watch state has moved on.
     if (mounted) _reload();
-  }
-
-  /// The child changing the ground under everything.
-  ///
-  /// Written straight to this device's settings rather than to the household:
-  /// which light the room has is a fact about the room, and a sibling on the
-  /// same tablet gets their own answer.
-  Future<void> _flipGround(Kid kid) async {
-    final state = context.read<AppState>();
-    final now = state.settings.kidLikesDaylight(kid.id);
-    await state.settings.setKidLikesDaylight(kid.id, !now);
-    if (mounted) setState(() {});
   }
 
   /// The child changing their own picture.
@@ -162,13 +171,9 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
       );
     }
     final showTitles = kid.band.showsVideoTitles;
-    // The ground is the child's own choice, kept per child on this device.
-    final palette =
-        context.select<AppState, bool>(
-          (s) => s.settings.kidLikesDaylight(kid.id),
-        )
-        ? KidPalette.dayTime
-        : KidPalette.nightTime;
+    // One ground for kid mode. There was a day/night switch in the header;
+    // it was one more thing on a shelf that is for picking a video.
+    const palette = KidPalette.nightTime;
     return KidTheme(
       palette: palette,
       child: _build(context, kid, showTitles, palette),
@@ -213,78 +218,85 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
                       onFinished: _reload,
                     );
                   }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _Header(
-                        kid: kid,
-                        onExit: _tryExit,
-                        onPickAvatar: _pickAvatar,
-                        onFlipGround: () => _flipGround(kid),
-                      ),
-                      // How much is left, said once, where a child can see it
-                      // without asking. Not a countdown: a number that only
-                      // moves when the screen reloads, because a ticking clock
-                      // on a shelf of videos is a thing to watch rather than a
-                      // fact to know.
-                      if (home != null && showTitles)
-                        _TimeLeftPill(state: home.state, kid: kid),
-                      // Only when the parent turned it on, and never for a
-                      // pre-reader: a child who cannot read cannot type, and a
-                      // box they cannot use is one more thing to poke at.
-                      if (kid.searchEnabled && kid.band.showsVideoTitles)
-                        _SearchBox(onChanged: _search),
-                      Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            if (snap.hasError) {
-                              return Center(
-                                child: FilledButton(
-                                  onPressed: _reload,
-                                  child: const Text('Try again'),
-                                ),
-                              );
-                            }
-                            if (home == null) {
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  color: palette.accent,
-                                ),
-                              );
-                            }
-                            // Out of minutes: a calm end to the day, not an
-                            // empty shelf a child keeps tapping at.
-                            if (!home.state.watchingAllowed) {
-                              return DayDoneScreen(kid: kid);
-                            }
-                            // Nothing approved yet — every new profile starts
-                            // here, and the Curator may still be working. An
-                            // empty ListView renders literally nothing, which
-                            // a child cannot tell apart from a broken app.
-                            if (home.rows.every((r) => r.videos.isEmpty)) {
-                              // A search that found nothing is not an empty
-                              // shelf: there is something to change, and the
-                              // box has to stay on screen to change it.
-                              return _query.isEmpty
-                                  ? NothingYetScreen(kid: kid)
-                                  : _NoMatches(kid: kid);
-                            }
-                            return ListView(
-                              padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                              children: [
-                                for (final row in home.rows)
-                                  _VideoRow(
-                                    row: row,
-                                    showTitles: showTitles,
-                                    thumbWidth: thumbWidth,
-                                    onOpen: _open,
-                                  ),
-                              ],
-                            );
-                          },
+                  return Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (_) => _gilli.currentState?.stir(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Header(
+                          kid: kid,
+                          gilliKey: _gilli,
+                          onExit: _tryExit,
+                          onPickAvatar: _pickAvatar,
+                          onPlay: home != null && home.state.watchingAllowed
+                              ? () => _openGames(kid, palette)
+                              : null,
                         ),
-                      ),
-                    ],
+                        // How much is left, said once, where a child can see it
+                        // without asking. Not a countdown: a number that only
+                        // moves when the screen reloads, because a ticking clock
+                        // on a shelf of videos is a thing to watch rather than a
+                        // fact to know.
+                        if (home != null && showTitles)
+                          _TimeLeftPill(state: home.state, kid: kid),
+                        // Only when the parent turned it on, and never for a
+                        // pre-reader: a child who cannot read cannot type, and a
+                        // box they cannot use is one more thing to poke at.
+                        if (kid.searchEnabled && kid.band.showsVideoTitles)
+                          _SearchBox(onChanged: _search),
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              if (snap.hasError) {
+                                return Center(
+                                  child: FilledButton(
+                                    onPressed: _reload,
+                                    child: const Text('Try again'),
+                                  ),
+                                );
+                              }
+                              if (home == null) {
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    color: palette.accent,
+                                  ),
+                                );
+                              }
+                              // Out of minutes: a calm end to the day, not an
+                              // empty shelf a child keeps tapping at.
+                              if (!home.state.watchingAllowed) {
+                                return DayDoneScreen(kid: kid);
+                              }
+                              // Nothing approved yet — every new profile starts
+                              // here, and the Curator may still be working. An
+                              // empty ListView renders literally nothing, which
+                              // a child cannot tell apart from a broken app.
+                              if (home.rows.every((r) => r.videos.isEmpty)) {
+                                // A search that found nothing is not an empty
+                                // shelf: there is something to change, and the
+                                // box has to stay on screen to change it.
+                                return _query.isEmpty
+                                    ? NothingYetScreen(kid: kid)
+                                    : _NoMatches(kid: kid);
+                              }
+                              return ListView(
+                                padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                                children: [
+                                  for (final row in home.rows)
+                                    _VideoRow(
+                                      row: row,
+                                      showTitles: showTitles,
+                                      thumbWidth: thumbWidth,
+                                      onOpen: _open,
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
@@ -300,17 +312,18 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.kid,
+    required this.gilliKey,
     required this.onExit,
     required this.onPickAvatar,
-    required this.onFlipGround,
+    required this.onPlay,
   });
   final Kid kid;
+  final GlobalKey<SleepyGilliState> gilliKey;
   final VoidCallback onExit;
 
-  /// Day or night. The child's own choice, so it is not behind the PIN: it
-  /// changes nothing about what they may watch or for how long, and a gate on
-  /// it would say that it did.
-  final VoidCallback onFlipGround;
+  /// The games button. Null when there is nothing to play, and then there is
+  /// no button: games follow the same gate as videos.
+  final VoidCallback? onPlay;
 
   /// Tapping their own picture. Passed in rather than done here so the screen
   /// can reload after it changes.
@@ -361,7 +374,10 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          const GilliWidget(size: 72),
+          // He naps when nobody is touching the screen, and a pinch (a tap,
+          // a click, or two fingers) wakes him. Pinching him does nothing
+          // else: the games have their own button.
+          SleepyGilli(key: gilliKey, kid: kid, size: 72),
           if (!preReader)
             Expanded(
               child: Text(
@@ -372,36 +388,36 @@ class _Header extends StatelessWidget {
             )
           else
             const Spacer(),
-          Tooltip(
-            message: palette.dark ? 'Bright colours' : 'Dark colours',
-            child: Semantics(
-              button: true,
-              label: palette.dark
-                  ? 'Switch to bright colours'
-                  : 'Switch to dark colours',
-              child: Material(
-                color: palette.chip,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  onTap: onFlipGround,
-                  customBorder: const CircleBorder(),
-                  child: SizedBox(
-                    // 52, like the lock beside it: a four-year-old's finger
-                    // does not land inside 40.
-                    width: 52,
-                    height: 52,
-                    child: Icon(
-                      palette.dark
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      size: 26,
-                      color: palette.onGround,
+          // Gilli's games. Mango, not the quiet chip colour of the lock: this
+          // one is for the child, and it should look like it.
+          if (onPlay != null)
+            Tooltip(
+              message: 'Games',
+              child: Semantics(
+                button: true,
+                label: 'Play a game with Gilli',
+                child: Material(
+                  key: const Key('play-games'),
+                  color: HgColors.mango,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: onPlay,
+                    customBorder: const CircleBorder(),
+                    child: const SizedBox(
+                      // 52, like the lock beside it: a four-year-old's finger
+                      // does not land inside 40.
+                      width: 52,
+                      height: 52,
+                      child: Icon(
+                        Icons.sports_esports_rounded,
+                        size: 28,
+                        color: HgColors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           const SizedBox(width: 8),
           // The way back to the parent. It was cream at 55% on teal and
           // nothing else — findable on a phone, invisible in the corner of a
@@ -452,7 +468,6 @@ class _VideoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = KidPalette.of(context);
     final thumbHeight = thumbWidth * 9 / 16;
     final cardHeight = thumbHeight + (showTitles ? 52 : 0);
     return Padding(
@@ -461,14 +476,7 @@ class _VideoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 10,
         children: [
-          if (showTitles)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                row.title,
-                style: HgText.display(size: 24, color: palette.accent),
-              ),
-            ),
+          _RowHeader(row: row, showTitle: showTitles),
           SizedBox(
             height: cardHeight,
             child: ListView.separated(
@@ -484,6 +492,64 @@ class _VideoRow extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Which channel a row is: the channel's picture, and its name for readers.
+///
+/// A pre-reader gets the picture alone, a little larger. Without it their
+/// shelf was one long strip of thumbnails with nothing to say where the songs
+/// stopped and the volcanoes started.
+class _RowHeader extends StatelessWidget {
+  const _RowHeader({required this.row, required this.showTitle});
+
+  final HomeRow row;
+  final bool showTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
+    final size = showTitle ? 40.0 : 52.0;
+    final fallback = ColoredBox(
+      color: palette.tile,
+      child: Icon(
+        Icons.video_library_rounded,
+        color: palette.accent,
+        size: size * 0.5,
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        spacing: 12,
+        children: [
+          Semantics(
+            label: row.title,
+            child: ClipOval(
+              child: SizedBox.square(
+                dimension: size,
+                child: row.thumb.isEmpty
+                    ? fallback
+                    : Image.network(
+                        row.thumb,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => fallback,
+                      ),
+              ),
+            ),
+          ),
+          if (showTitle)
+            Flexible(
+              child: Text(
+                row.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HgText.display(size: 24, color: palette.accent),
+              ),
+            ),
         ],
       ),
     );

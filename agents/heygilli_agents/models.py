@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-ROLES = ("curator", "planner", "buddy", "digest", "reviewer", "coach", "explainer")
+ROLES = ("curator", "planner", "buddy", "digest", "reviewer", "coach", "explainer", "playmate")
 # Verified in us-east-1 via `aws bedrock list-inference-profiles`; needs the account's
 # Anthropic use-case form approved. Nova Pro is the key-free fallback that works today.
 DEFAULT = "bedrock:us.anthropic.claude-sonnet-4-6"
