@@ -68,7 +68,7 @@ void main() {
   ) async {
     await openChannels(tester);
 
-    final button = find.text('Look for new videos now');
+    final button = find.text('Check for new videos');
     expect(
       button,
       findsOneWidget,
@@ -86,7 +86,7 @@ void main() {
     tester,
   ) async {
     await openChannels(tester);
-    await tester.tap(find.text('Look for new videos now'));
+    await tester.tap(find.text('Check for new videos'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }

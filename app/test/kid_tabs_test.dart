@@ -92,10 +92,12 @@ void main() {
     await tester.tap(find.text('Channels'));
     await tester.pumpAndSettle();
 
-    expect(find.text('CHANNELS'), findsOneWidget);
-    expect(
-      find.textContaining("Import Abu's YouTube Kids channels"),
-      findsOneWidget,
-    );
+    expect(find.textContaining('CHANNELS'), findsOneWidget);
+    // Every way to add is behind one button, not four on the page.
+    expect(find.textContaining('YouTube Kids'), findsNothing);
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import from YouTube Kids'), findsOneWidget);
+    expect(find.text('Suggest channels for Abu'), findsOneWidget);
   });
 }

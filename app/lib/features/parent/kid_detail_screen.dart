@@ -15,7 +15,6 @@ import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
-import 'hidden_screen.dart';
 import 'setup_review_screen.dart';
 import 'starter_channels_screen.dart';
 import 'policy_screen.dart';
@@ -41,13 +40,6 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   static const _previewCount = 8;
 
   /// Shared by the two import buttons so they read as one pair of options.
-  static final _importButtonStyle = OutlinedButton.styleFrom(
-    foregroundColor: HgColors.ink,
-    backgroundColor: HgColors.white,
-    side: const BorderSide(color: HgColors.line, width: 2),
-    shape: const StadiumBorder(),
-    textStyle: HgText.body(size: 16, color: HgColors.ink),
-  );
 
   late Future<List<Channel>> _channels = _load();
 
@@ -297,6 +289,218 @@ class _KidDetailScreenState extends State<KidDetailScreen>
     if (changed ?? false) _reload();
   }
 
+  /// The Channels tab.
+  ///
+  /// It was four big buttons, a URL box, a refresh button with a paragraph
+  /// under it and a review card, all before the channels themselves. Now it is
+  /// the one thing a parent comes here to check — what the child will see —
+  /// then the channels, with a single way to add more.
+  Widget _channelsTab(Kid kid) => ListView(
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+    children: [
+      // Shown, hidden, and what Gilli kept back with its reasons are all on
+      // the one screen now, so this used to be two buttons.
+      PCard(
+        onTap: _reviewVideos,
+        child: Row(
+          spacing: 14,
+          children: [
+            const Icon(Icons.fact_check_outlined, color: HgColors.brown),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'What ${kid.nickname} will see',
+                    style: HgText.display(size: 22, color: HgColors.ink),
+                  ),
+                  Text(
+                    'Shown and hidden videos, and why',
+                    style: HgText.body(size: 14, color: HgColors.brown),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+          ],
+        ),
+      ),
+      // HeyGilli checks on its own; this is for when a parent does not want
+      // to wait. What it does is said in the message it shows, not here.
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: _curating ? null : _curateNow,
+          icon: const Icon(Icons.refresh, size: 18),
+          label: Text(_curating ? 'Starting...' : 'Check for new videos'),
+          style: TextButton.styleFrom(foregroundColor: HgColors.ink),
+        ),
+      ),
+      const SizedBox(height: 12),
+      FutureBuilder<List<Channel>>(
+        future: _channels,
+        builder: (context, snap) {
+          if (snap.hasError) return LoadError(snap.error!, onRetry: _reload);
+          final list = snap.data;
+          if (list == null) {
+            return const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: CircularProgressIndicator(color: HgColors.mango),
+              ),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 10,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      list.isEmpty ? 'CHANNELS' : 'CHANNELS · ${list.length}',
+                      style: HgText.label(),
+                    ),
+                  ),
+                  if (list.isNotEmpty)
+                    FilledButton.icon(
+                      onPressed: _adding ? null : _showAddSheet,
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      label: const Text('Add'),
+                    ),
+                ],
+              ),
+              Text(
+                'Only videos from these channels reach ${kid.nickname}.',
+                style: HgText.body(size: 14, color: HgColors.brown),
+              ),
+              if (_error != null)
+                Text(_error!, style: HgText.body(color: HgColors.coral)),
+              if (list.isEmpty) ...[
+                // With nothing yet, suggestions first: the one way in that
+                // asks nothing of the parent.
+                SizedBox(
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: _startFromSuggestions,
+                    icon: const Icon(Icons.auto_awesome, size: 22),
+                    label: Text(
+                      'Suggest channels for ${kid.nickname}',
+                      style: HgText.body(size: 15, color: HgColors.white),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _showAddSheet,
+                  style: TextButton.styleFrom(foregroundColor: HgColors.ink),
+                  child: const Text('Or add one yourself'),
+                ),
+              ] else ...[
+                // Only a first handful here. A Takeout import can leave 153
+                // channels on a kid and every tile in this Column is built at
+                // once; the review screen is the lazily built list.
+                for (final c in list.take(_previewCount))
+                  _ChannelTile(channel: c, onTap: _openReviews),
+                SizedBox(
+                  height: 48,
+                  child: TextButton(
+                    onPressed: _openReviews,
+                    style: TextButton.styleFrom(
+                      foregroundColor: HgColors.brown,
+                    ),
+                    child: Text(
+                      list.length > _previewCount
+                          ? 'See all ${list.length}'
+                          : 'Review these channels',
+                      style: HgText.body(size: 15, color: HgColors.brown),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    ],
+  );
+
+  /// Every way to add a channel, in one sheet instead of four buttons.
+  Future<void> _showAddSheet() async {
+    final kid = _edited ?? widget.kid;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: HgColors.cream,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.viewInsetsOf(sheet).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 10,
+            children: [
+              Text(
+                'Add channels',
+                style: HgText.display(size: 26, color: HgColors.ink),
+              ),
+              _AddOption(
+                icon: Icons.auto_awesome,
+                title: 'Suggest channels for ${kid.nickname}',
+                subtitle: 'Picked for their age and what they like',
+                onTap: () => Navigator.of(sheet).pop('suggest'),
+              ),
+              _AddOption(
+                icon: Icons.folder_zip_outlined,
+                title: 'Import from YouTube Kids',
+                subtitle: 'From a Google Takeout export',
+                onTap: () => Navigator.of(sheet).pop('import'),
+              ),
+              const SizedBox(height: 4),
+              Text('OR PASTE A LINK', style: HgText.label()),
+              Row(
+                spacing: 10,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _url,
+                      keyboardType: TextInputType.url,
+                      style: HgText.body(size: 15, color: HgColors.ink),
+                      decoration: const InputDecoration(
+                        hintText: 'Channel, @handle or video link',
+                      ),
+                      onSubmitted: (_) => Navigator.of(sheet).pop('paste'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(sheet).pop('paste'),
+                      child: const Text('Add'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'suggest':
+        await _startFromSuggestions();
+      case 'import':
+        await _importFromTakeout();
+      case 'paste':
+        await _addChannel();
+    }
+  }
+
   void _enterKidMode() {
     context.read<AppState>().enterKidMode(widget.kid);
     // Replace the whole stack: from here the only way back is the PIN gate.
@@ -515,236 +719,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                     const SizedBox(height: 24),
                   ],
                 ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                  children: [
-                    Text('CHANNELS', style: HgText.label()),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Only videos from these channels ever reach ${kid.nickname}. '
-                      'Start from suggestions if you are not sure, bring across a '
-                      'YouTube Kids profile from a Takeout export, or paste a '
-                      'channel, @handle or video URL.',
-                      style: HgText.body(size: 14, color: HgColors.brown),
-                    ),
-                    const SizedBox(height: 12),
-                    // First, because it is the only one that asks nothing of
-                    // the parent. Takeout means requesting an export from
-                    // Google and waiting for it, and importing an account
-                    // means handing one over before they know they want this
-                    // — strange things to ask of somebody who has just
-                    // arrived, and the reason an empty app stayed empty.
-                    SizedBox(
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: _startFromSuggestions,
-                        icon: const Icon(Icons.auto_awesome, size: 22),
-                        label: Text(
-                          'Suggest channels for ${kid.nickname}',
-                          style: HgText.body(size: 15, color: HgColors.white),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Screening that only shows its successes has to be taken
-                    // on trust. The child is never told a video was hidden,
-                    // which is right for them and wrong for the person who
-                    // set the rules.
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => HiddenScreen(kid: kid),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.visibility_off_outlined,
-                          size: 22,
-                        ),
-                        label: Text(
-                          'What was kept from ${kid.nickname}',
-                          style: HgText.body(size: 15, color: HgColors.ink),
-                        ),
-                        style: _importButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Screening takes minutes, so the parent who left while it
-                    // was still running needs a way back to the list rather
-                    // than a one-time screen they can miss.
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: _reviewVideos,
-                        icon: const Icon(Icons.fact_check_outlined, size: 22),
-                        label: Text(
-                          'Review what Gilli screened',
-                          style: HgText.body(size: 15, color: HgColors.ink),
-                        ),
-                        style: _importButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: _importFromTakeout,
-                        icon: const Icon(Icons.folder_zip_outlined, size: 22),
-                        label: Text(
-                          "Import ${kid.nickname}'s YouTube Kids channels",
-                          style: HgText.body(size: 15, color: HgColors.ink),
-                        ),
-                        style: _importButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      spacing: 10,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _url,
-                            keyboardType: TextInputType.url,
-                            style: HgText.body(size: 15, color: HgColors.ink),
-                            decoration: const InputDecoration(
-                              hintText: 'https://youtube.com/@SciShowKids',
-                            ),
-                            onSubmitted: (_) => _addChannel(),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 52,
-                          child: FilledButton(
-                            onPressed: _adding ? null : _addChannel,
-                            child: const Text('Add'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 8),
-                      Text(_error!, style: HgText.body(color: HgColors.coral)),
-                    ],
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _curating ? null : _curateNow,
-                        icon: const Icon(Icons.refresh, size: 20),
-                        label: Text(
-                          _curating ? 'Starting...' : 'Look for new videos now',
-                          style: HgText.body(size: 15, color: HgColors.ink),
-                        ),
-                        style: _importButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'HeyGilli checks these channels on its own. Use this when '
-                      "${kid.nickname}'s videos have not appeared yet, or when "
-                      'some of them say "read: the title only" — this goes back '
-                      'and reads those properly, so the questions come from '
-                      'what is said in them.',
-                      style: HgText.body(size: 13, color: HgColors.muted),
-                    ),
-                    const SizedBox(height: 14),
-                    FutureBuilder<List<Channel>>(
-                      future: _channels,
-                      builder: (context, snap) {
-                        if (snap.hasError) {
-                          return LoadError(snap.error!, onRetry: _reload);
-                        }
-                        final list = snap.data;
-                        if (list == null) {
-                          return const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: HgColors.mango,
-                              ),
-                            ),
-                          );
-                        }
-                        if (list.isEmpty) {
-                          return Text(
-                            'No channels yet.',
-                            style: HgText.body(color: HgColors.muted),
-                          );
-                        }
-                        return Column(
-                          spacing: 10,
-                          children: [
-                            // The way through a big imported pile. Shown with the count
-                            // because 153 is the number that makes it worth opening.
-                            PCard(
-                              onTap: _openReviews,
-                              child: Row(
-                                spacing: 14,
-                                children: [
-                                  const Icon(
-                                    Icons.fact_check_outlined,
-                                    color: HgColors.brown,
-                                  ),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'What these channels show',
-                                          style: HgText.display(
-                                            size: 22,
-                                            color: HgColors.ink,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Review all ${list.length} and drop the ones '
-                                          'you do not want',
-                                          style: HgText.body(
-                                            size: 14,
-                                            color: HgColors.brown,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: HgColors.brown,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Only a first handful here. A Takeout import can leave 153
-                            // channels on a kid, and this page is a Column inside a
-                            // ListView: every tile would be built at once. The review
-                            // screen is the lazily built list.
-                            for (final c in list.take(_previewCount))
-                              _ChannelTile(channel: c),
-                            if (list.length > _previewCount)
-                              SizedBox(
-                                height: 48,
-                                child: TextButton(
-                                  onPressed: _openReviews,
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: HgColors.brown,
-                                  ),
-                                  child: Text(
-                                    'and ${list.length - _previewCount} more',
-                                    style: HgText.body(
-                                      size: 15,
-                                      color: HgColors.brown,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                _channelsTab(kid),
               ],
             ),
           ),
@@ -784,13 +759,55 @@ class _KidDetailScreenState extends State<KidDetailScreen>
   }
 }
 
+/// One way to add channels, in the add sheet.
+class _AddOption extends StatelessWidget {
+  const _AddOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => PCard(
+    onTap: onTap,
+    padding: const EdgeInsets.all(14),
+    child: Row(
+      spacing: 14,
+      children: [
+        Icon(icon, color: HgColors.mango),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: HgText.body(size: 16, color: HgColors.ink)),
+              Text(
+                subtitle,
+                style: HgText.body(size: 13, color: HgColors.muted),
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded, color: HgColors.brown),
+      ],
+    ),
+  );
+}
+
 class _ChannelTile extends StatelessWidget {
-  const _ChannelTile({required this.channel});
+  const _ChannelTile({required this.channel, this.onTap});
   final Channel channel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return PCard(
+      onTap: onTap,
       padding: const EdgeInsets.all(12),
       child: Row(
         spacing: 12,
