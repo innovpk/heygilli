@@ -13,6 +13,7 @@ import '../../core/models.dart';
 import '../../core/protocol.dart';
 import '../../core/session_socket.dart';
 import '../../core/settings.dart';
+import '../../core/sounds.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import 'break_screen.dart';
@@ -699,6 +700,7 @@ class _SessionScreenState extends State<SessionScreen> {
     _listenWindow?.cancel();
     await _ears.stopListening();
     if (!mounted) return;
+    if (reply.result.celebrates) KidSounds.instance.cheer();
     setState(() {
       _reply = reply;
       _gesture = reply.gesture;
@@ -1201,7 +1203,7 @@ class _SessionScreenState extends State<SessionScreen> {
                 alignment: WrapAlignment.center,
                 children: [
                   for (final v in _nextUp)
-                    _NextUpCard(video: v, onTap: () => _openNext(v)),
+                    _NextUpCard(video: v, onTap: tapping(() => _openNext(v))),
                 ],
               ),
             SizedBox(
@@ -1338,7 +1340,7 @@ class _SessionScreenState extends State<SessionScreen> {
       children.add(
         _SayItAgainButton(
           showText: showText,
-          onPressed: _repeatPending || _answered ? null : _onRepeat,
+          onPressed: _repeatPending || _answered ? null : withTap(_onRepeat),
         ),
       );
     }

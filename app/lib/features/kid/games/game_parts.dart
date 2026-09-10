@@ -8,6 +8,7 @@ import '../../../core/gateway.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
+import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
@@ -99,7 +100,7 @@ class KidRoundButton extends StatelessWidget {
         color: filled ? HgColors.mango : palette.chip,
         shape: const CircleBorder(),
         child: InkWell(
-          onTap: onTap,
+          onTap: withTap(onTap),
           customBorder: const CircleBorder(),
           child: SizedBox.square(
             dimension: size,

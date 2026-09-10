@@ -9,6 +9,7 @@ import '../../../core/app_state.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
+import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
@@ -232,7 +233,10 @@ class _CatchGilliGameState extends State<CatchGilliGame> {
               child: GestureDetector(
                 key: const Key('catch-gilli'),
                 behavior: HitTestBehavior.opaque,
-                onTapDown: (_) => _catch(),
+                onTapDown: (_) {
+                  KidSounds.instance.tap();
+                  _catch();
+                },
                 child: TweenAnimationBuilder<double>(
                   key: ValueKey('pop-$_pop'),
                   tween: Tween(begin: 0, end: 1),

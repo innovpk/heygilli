@@ -9,6 +9,7 @@ import '../../core/break_activities.dart';
 import '../../core/gateway.dart';
 import '../../core/models.dart';
 import '../../core/protocol.dart';
+import '../../core/sounds.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import 'kid_palette.dart';
@@ -300,7 +301,7 @@ class _BreakScreenState extends State<BreakScreen> {
           _DidItButton(
             done: _acked,
             label: null,
-            onPressed: _acked ? null : _iDidIt,
+            onPressed: _acked ? null : withTap(_iDidIt),
           ),
         ],
       );
@@ -333,7 +334,7 @@ class _BreakScreenState extends State<BreakScreen> {
             _DidItButton(
               done: _acked,
               label: _acked ? 'Nice one' : 'I did it',
-              onPressed: _acked ? null : _iDidIt,
+              onPressed: _acked ? null : withTap(_iDidIt),
             ),
             Expanded(
               child: Text(

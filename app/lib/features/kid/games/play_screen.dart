@@ -6,6 +6,7 @@ import '../../../core/app_state.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
+import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
@@ -141,7 +142,7 @@ class _PlayScreenState extends State<PlayScreen> {
                         key: const Key('game-find'),
                         label: 'Find Gilli',
                         showLabel: readers,
-                        onTap: () => _pick(PlayGame.findGilli),
+                        onTap: tapping(() => _pick(PlayGame.findGilli)),
                         picture: SizedBox.square(
                           dimension: pic,
                           child: Stack(
@@ -172,7 +173,7 @@ class _PlayScreenState extends State<PlayScreen> {
                         key: const Key('game-catch'),
                         label: 'Catch Gilli',
                         showLabel: readers,
-                        onTap: () => _pick(PlayGame.catchGilli),
+                        onTap: tapping(() => _pick(PlayGame.catchGilli)),
                         picture: SizedBox.square(
                           dimension: pic,
                           child: Stack(

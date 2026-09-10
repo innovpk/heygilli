@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/protocol.dart';
+import '../../core/sounds.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import 'gilli_widget.dart';
@@ -132,6 +133,7 @@ class SleepyGilliState extends State<SleepyGilli> {
   /// A tap, a click or a squeeze. Asleep, it wakes him; awake, he squishes
   /// up the way anyone does when pinched, and squeaks about it.
   Future<void> pinch() async {
+    KidSounds.instance.tap();
     if (_asleep) return wake();
     _armDoze();
     if (_talking) return; // one squeak at a time

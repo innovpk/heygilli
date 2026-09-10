@@ -8,6 +8,7 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/orientation.dart';
 import '../../core/protocol.dart';
+import '../../core/sounds.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
 import 'kid_palette.dart';
@@ -352,7 +353,7 @@ class _Header extends StatelessWidget {
             label: 'Change your picture',
             button: true,
             child: InkWell(
-              onTap: () => onPickAvatar(kid),
+              onTap: withTap(() => onPickAvatar(kid)),
               borderRadius: BorderRadius.circular(999),
               child: Container(
                 width: 72,
@@ -407,7 +408,7 @@ class _Header extends StatelessWidget {
                   color: HgColors.mango,
                   shape: const CircleBorder(),
                   child: InkWell(
-                    onTap: onPlay,
+                    onTap: withTap(onPlay),
                     customBorder: const CircleBorder(),
                     child: const SizedBox(
                       // 52, like the lock beside it: a four-year-old's finger
@@ -585,7 +586,7 @@ class _Thumb extends StatelessWidget {
         button: true,
         label: video.title,
         child: GestureDetector(
-          onTap: () => onOpen(video),
+          onTap: withTap(() => onOpen(video)),
           // SPEC 6.3: title read aloud on focus. On touch, focus is a hold.
           onLongPress: () => voice.say(url: '', fallbackText: video.title),
           child: Column(

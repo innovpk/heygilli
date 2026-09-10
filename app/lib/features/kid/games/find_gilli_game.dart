@@ -8,6 +8,7 @@ import '../../../core/app_state.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
+import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../gilli_widget.dart';
 import 'game_parts.dart';
@@ -230,7 +231,10 @@ class _TreeState extends State<_Tree> with SingleTickerProviderStateMixin {
         behavior: HitTestBehavior.opaque,
         // Down, not up: a small hand lifts slowly and a mouse click should
         // feel instant.
-        onTapDown: (_) => widget.onTap(),
+        onTapDown: (_) {
+          KidSounds.instance.tap();
+          widget.onTap();
+        },
         child: SizedBox(
           width: s,
           height: s,

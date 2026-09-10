@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/icon_library.dart';
 import '../../core/protocol.dart';
+import '../../core/sounds.dart';
 import '../../core/theme.dart';
 
 /// Three cream cards for a pick-it question. One tap answers; there is no
@@ -61,6 +62,7 @@ class _PickCardsState extends State<PickCards> {
           dimmed: _picked != null && _picked != i,
           onTap: widget.enabled && _picked == null
               ? () {
+                  KidSounds.instance.tap();
                   setState(() => _picked = i);
                   widget.onPick(i);
                 }
