@@ -1512,6 +1512,11 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
                 "video": video.public(),
                 "status": entry.get("status", ""),
                 "reason": entry.get("reason", ""),
+                # Short tags a parent skims before the reason: what it is about,
+                # and what gave the screening pause. Verdicts from before the
+                # tags existed fall back to the video's own screening topics.
+                "topics": entry.get("topics") or list(video.screening.topics),
+                "concerns": entry.get("concerns", []),
                 "channel_title": titles.get(video.channel_id, video.channel_id),
                 # What it was judged on. A video read on its title alone is not
                 # a weaker opinion, it is a different one, and the parent

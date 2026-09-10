@@ -39,7 +39,10 @@ hide: anything scary, violent, gross-out, sexualised, hateful, product-pushing, 
 ask_parent: borderline for the band (mildly intense, older themes, a sponsor segment, health or
 body topics), or you simply cannot tell from the title, description and transcript excerpt.
 
-Decide alone on clear cases; ask the parent only on borderline ones. Give up to 3 topic tags.
+Decide alone on clear cases; ask the parent only on borderline ones. Give up to 3 topic tags
+(what it is about) and up to 3 `concerns` (what gave you pause; empty when nothing did). A parent
+skims these before reading `reason`, so a concern is a real one or none at all — never one
+invented to balance a verdict.
 
 `approve` is the ordinary answer for a video that is on topic, calm and suitable for the band, and
 most good videos are. `ask_parent` is for something that genuinely gave you pause — not a way of
@@ -81,6 +84,31 @@ preference in `reason`. Leave `policy_id` empty when the policy had nothing to d
 
 {SAFETY_RULES}
 """.strip()
+
+
+#: A tag is something a parent skims beside a switch, so it has to be short
+#: enough to skim. Enforced here rather than trusted to the prompt, like every
+#: other rule the Curator's output has to meet.
+MAX_TAGS = 3
+MAX_TAG_CHARS = 28
+
+
+def clean_tags(tags) -> list[str]:
+    """At most three, each short, capitalised, and no two the same."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in tags or []:
+        tag = " ".join(str(raw).split()).strip(" .,;:-")
+        if not tag or len(tag) > MAX_TAG_CHARS or len(tag.split()) > 4:
+            continue  # a sentence is not a tag
+        tag = tag[0].upper() + tag[1:]
+        if tag.lower() in seen:
+            continue
+        seen.add(tag.lower())
+        out.append(tag)
+        if len(out) >= MAX_TAGS:
+            break
+    return out
 
 
 class CuratorReport(BaseModel):
@@ -379,7 +407,9 @@ def run_curator(
                 transcript_source=tr["source"],
                 wanted_topics=kid.topics,
             )
-            video.screening.topics = decision.topics
+            topics = clean_tags(decision.topics)
+            concerns = clean_tags(decision.concerns)
+            video.screening.topics = topics
             video.screening.reason = decision.reason
             video.transcript_source = tr["source"]
             entry = {**video.public(), "reason": decision.reason}
@@ -402,7 +432,10 @@ def run_curator(
                 store.put_video(video)
                 notify_parent(kid.household_id, kid.id, video, decision.reason)
                 report.ask_parent.append(entry)
-            store.set_kid_video(kid.household_id, kid.id, video.id, decision.decision, decision.reason)
+            store.set_kid_video(
+                kid.household_id, kid.id, video.id, decision.decision, decision.reason,
+                topics=topics, concerns=concerns,
+            )
 
     if not no_transcripts:
         report.reread = reread_titles_only(kid, store, planner)

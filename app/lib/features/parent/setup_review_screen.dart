@@ -62,6 +62,28 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
   /// a call per video would be a screen full of spinners.
   final _approved = <String, bool>{};
 
+  /// Which tab is open: what the child will see, or what they will not.
+  bool _showingShown = true;
+
+  /// A switch flipped moves its card to the other tab, which from where the
+  /// parent is looking means it vanishes. Saying where it went, with a way
+  /// back, is what keeps that from reading as a card deleted by a slip.
+  void _flip(ReviewItem item, bool approved) {
+    setState(() => _approved[item.video.id] = approved);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 3),
+        content: Text(approved ? 'Moved to Shown' : 'Moved to Hidden'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => setState(() => _approved[item.video.id] = !approved),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -181,13 +203,39 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                 ),
               ],
             ),
-            for (final item in suggested)
+            const SizedBox(height: 4),
+            _Tabs(
+              shown: yes,
+              hidden: suggested.length - yes,
+              showingShown: _showingShown,
+              onChanged: (v) => setState(() => _showingShown = v),
+            ),
+            if (!suggested.any(
+              (i) =>
+                  (_approved[i.video.id] ?? i.startsApproved) == _showingShown,
+            ))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  _showingShown
+                      ? 'Nothing is set to be shown yet.'
+                      // Not "Nothing is hidden" when the screening kept some
+                      // back: those are hidden too, and listed just below.
+                      : kept > 0
+                      ? 'Nothing here is switched off.'
+                      : 'Nothing is hidden.',
+                  style: HgText.body(size: 14, color: HgColors.brown),
+                ),
+              ),
+            for (final item in suggested.where(
+              (i) =>
+                  (_approved[i.video.id] ?? i.startsApproved) == _showingShown,
+            ))
               _ReviewCard(
+                key: ValueKey(item.video.id),
                 item: item,
                 approved: _approved[item.video.id] ?? item.startsApproved,
-                onChanged: _saving
-                    ? null
-                    : (v) => setState(() => _approved[item.video.id] = v),
+                onChanged: _saving ? null : (v) => _flip(item, v),
                 onAsk: () => AskAboutVideoSheet.open(
                   context,
                   kidId: widget.kid.id,
@@ -201,7 +249,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                   videoTitle: item.video.title,
                 ),
               ),
-            if (kept > 0) ...[
+            if (kept > 0 && !_showingShown) ...[
               const SizedBox(height: 16),
               _KeptNote(kid: widget.kid, kept: kept),
             ],
@@ -315,8 +363,101 @@ class _KeptNote extends StatelessWidget {
   }
 }
 
-class _ReviewCard extends StatelessWidget {
+/// Shown / Hidden, as a segmented switch. The counts are live, so a parent
+/// flipping switches in one tab watches the other tab's number move.
+class _Tabs extends StatelessWidget {
+  const _Tabs({
+    required this.shown,
+    required this.hidden,
+    required this.showingShown,
+    required this.onChanged,
+  });
+
+  final int shown;
+  final int hidden;
+  final bool showingShown;
+  final ValueChanged<bool> onChanged;
+
+  Widget _segment(String label, bool on, VoidCallback onTap) => Expanded(
+    child: Semantics(
+      button: true,
+      selected: on,
+      child: Material(
+        color: on ? HgColors.ink : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(11),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: HgText.display(
+                size: 16,
+                color: on ? HgColors.cream : HgColors.brown,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: HgColors.white,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        _segment('Shown ($shown)', showingShown, () => onChanged(true)),
+        _segment('Hidden ($hidden)', !showingShown, () => onChanged(false)),
+      ],
+    ),
+  );
+}
+
+enum _TagKind { asked, concern, topic, titleOnly }
+
+/// One short tag. Concerns and "asked you" are rust, because they are why a
+/// video is where it is; topics are quiet, because they only say what it is.
+class _Tag extends StatelessWidget {
+  const _Tag(this.text, this.kind);
+
+  final String text;
+  final _TagKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color fill, Color edge, Color ink) = switch (kind) {
+      _TagKind.asked => (HgColors.mango, HgColors.mango, HgColors.white),
+      _TagKind.concern => (HgColors.white, HgColors.mango, HgColors.mango),
+      _TagKind.topic => (HgColors.cream, HgColors.cream, HgColors.ink),
+      _TagKind.titleOnly => (HgColors.white, HgColors.coral, HgColors.coral),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: fill,
+        border: Border.all(color: edge, width: 1.5),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: HgText.body(size: 12.5, color: ink, weight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _ReviewCard extends StatefulWidget {
   const _ReviewCard({
+    super.key,
     required this.item,
     required this.approved,
     required this.onChanged,
@@ -335,7 +476,30 @@ class _ReviewCard extends StatelessWidget {
   final VoidCallback onAddQuestion;
 
   @override
+  State<_ReviewCard> createState() => _ReviewCardState();
+}
+
+class _ReviewCardState extends State<_ReviewCard> {
+  ReviewItem get item => widget.item;
+
+  bool get _hasTags => item.topics.isNotEmpty || item.concerns.isNotEmpty;
+
+  /// The reason sits behind "Why" once there are tags to skim instead — three
+  /// lines of prose per video is what made this list hard going. A verdict from
+  /// before the tags existed has nothing else to show, so it opens by default.
+  late bool _open = !_hasTags;
+
+  @override
   Widget build(BuildContext context) {
+    final titleOnly = item.read == 'title only';
+    final tags = <Widget>[
+      if (item.status == 'ask_parent') const _Tag('Asked you', _TagKind.asked),
+      for (final c in item.concerns) _Tag(c, _TagKind.concern),
+      for (final t in item.topics) _Tag(t, _TagKind.topic),
+      // A video read on its title alone is a different judgement from one read
+      // on what is said in it, and the person deciding should be told which.
+      if (titleOnly) const _Tag('Title only', _TagKind.titleOnly),
+    ];
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: PCard(
@@ -348,10 +512,8 @@ class _ReviewCard extends StatelessWidget {
               spacing: 12,
               children: [
                 // `thumb`, not `thumbUrl`: the server sends a URL only
-                // sometimes, and `thumb` falls back to YouTube's own
-                // thumbnail for the id. Checking `thumbUrl` left every video
-                // without one showing no picture at all — the preview a
-                // parent uses to recognise what they are approving.
+                // sometimes, and `thumb` falls back to YouTube's own thumbnail
+                // for the id.
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: Image.network(
@@ -381,22 +543,40 @@ class _ReviewCard extends StatelessWidget {
                   ),
                 ),
                 Switch(
-                  value: approved,
-                  onChanged: onChanged,
+                  value: widget.approved,
+                  onChanged: widget.onChanged,
                   activeTrackColor: HgColors.mango,
                 ),
               ],
             ),
-            Text(
-              item.reason,
-              style: HgText.body(size: 14, color: HgColors.brown),
-            ),
+            if (tags.isNotEmpty)
+              Wrap(spacing: 6, runSpacing: 6, children: tags),
+            if (_open)
+              Text(
+                item.reason,
+                style: HgText.body(size: 14, color: HgColors.brown),
+              ),
             // The screening answers the question it thought of. This is for
             // the one the parent actually has.
             Wrap(
               children: [
+                if (_hasTags)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _open = !_open),
+                    icon: Icon(
+                      _open
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 18,
+                    ),
+                    label: Text(_open ? 'Hide why' : 'Why'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: HgColors.ink,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 TextButton.icon(
-                  onPressed: onAsk,
+                  onPressed: widget.onAsk,
                   icon: const Icon(Icons.help_outline_rounded, size: 18),
                   label: const Text('Ask about this'),
                   style: TextButton.styleFrom(
@@ -405,7 +585,7 @@ class _ReviewCard extends StatelessWidget {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: onAddQuestion,
+                  onPressed: widget.onAddQuestion,
                   icon: const Icon(Icons.add_comment_outlined, size: 18),
                   label: const Text('Add a question'),
                   style: TextButton.styleFrom(
@@ -414,20 +594,6 @@ class _ReviewCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-            // Not a footnote. A video read on its title alone is a different
-            // judgement from one read on what is said in it, and the person
-            // deciding is the one who should be told which they are looking at.
-            Text(
-              item.read == 'title only'
-                  ? 'Read: the title and description only'
-                  : 'Read: what is said in the video',
-              style: HgText.body(
-                size: 12,
-                color: item.read == 'title only'
-                    ? HgColors.coral
-                    : HgColors.muted,
-              ),
             ),
           ],
         ),

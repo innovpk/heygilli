@@ -1551,6 +1551,8 @@ class ReviewItem {
     required this.reason,
     required this.channelTitle,
     required this.read,
+    this.topics = const [],
+    this.concerns = const [],
   });
 
   factory ReviewItem.fromJson(Map<String, dynamic> j) => ReviewItem(
@@ -1559,9 +1561,18 @@ class ReviewItem {
     reason: j['reason'] as String? ?? '',
     channelTitle: j['channel_title'] as String? ?? '',
     read: j['read'] as String? ?? '',
+    topics: [for (final t in j['topics'] as List? ?? const []) '$t'],
+    concerns: [for (final c in j['concerns'] as List? ?? const []) '$c'],
   );
 
   final Video video;
+
+  /// What the video is about, as the screening tagged it. At most three, short.
+  final List<String> topics;
+
+  /// What gave the screening pause, as short tags — empty when nothing did.
+  /// What a parent skims before deciding whether the reason is worth reading.
+  final List<String> concerns;
 
   /// What the Curator decided: `approve`, `hide` or `ask_parent`.
   final String status;

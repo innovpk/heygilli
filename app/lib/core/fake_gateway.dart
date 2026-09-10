@@ -1161,41 +1161,51 @@ class FakeGateway implements Gateway {
   Future<ReviewQueue> reviewQueue(String kidId) async {
     await _lag();
     final decided = _reviewDecided[kidId] ?? const <String, String>{};
-    const seed = <(Video, String, String, String)>[
+    const seed = <(Video, String, String, String, List<String>, List<String>)>[
       (
         _volcano,
         'approve',
         'Explains how volcanoes work. Suitable for the age band.',
         'watched',
+        ['Volcanoes', 'Earth science'],
+        <String>[],
       ),
       (
         _ears,
         'approve',
         'Gentle science about hearing. Nothing you said to avoid.',
         'watched',
+        ['Hearing', 'Human body'],
+        <String>[],
       ),
       (
         _twinkle,
         'ask_parent',
         'A sponsor named in the description, which you said to ask about.',
         'title only',
+        ['Nursery rhymes'],
+        ['Sponsor'],
       ),
       (
         _ducks,
         'hide',
         'A live stream, so what it will show has not happened yet.',
         'title only',
+        ['Animals'],
+        ['Live stream'],
       ),
     ];
     return ReviewQueue(
       items: [
-        for (final (video, status, reason, read) in seed)
+        for (final (video, status, reason, read, topics, concerns) in seed)
           ReviewItem(
             video: video,
             status: decided[video.id] ?? status,
             reason: reason,
             channelTitle: 'Demo channel',
             read: read,
+            topics: topics,
+            concerns: concerns,
           ),
       ],
       screened: seed.length,

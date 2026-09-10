@@ -207,6 +207,8 @@ class Store(ABC):
         status: str,
         reason: str,
         decided_by: str = "",
+        topics: list[str] | None = None,
+        concerns: list[str] | None = None,
     ) -> None:
         """`decided_by="parent"` keeps the reason already stored.
 
@@ -215,10 +217,19 @@ class Store(ABC):
         that said what had been read and why, and put two words in its place
         on a card whose whole job is to explain itself.
         """
+        existing: dict[str, Any] = {}
         if decided_by == "parent":
             existing = self.get(household, f"kidvideo@{kid_id}", video_id) or {}
             reason = existing.get("reason") or reason
         entry: dict[str, Any] = {"status": status, "reason": reason}
+        # The screening's tags describe the video, as its reason does, so a
+        # parent flipping the switch keeps them rather than wiping them.
+        kept_topics = topics if topics is not None else existing.get("topics")
+        kept_concerns = concerns if concerns is not None else existing.get("concerns")
+        if kept_topics:
+            entry["topics"] = list(kept_topics)
+        if kept_concerns:
+            entry["concerns"] = list(kept_concerns)
         if decided_by:
             entry["decided_by"] = decided_by
         self.put(household, f"kidvideo@{kid_id}", video_id, entry)

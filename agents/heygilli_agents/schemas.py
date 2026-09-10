@@ -925,6 +925,12 @@ class CuratorDecision(BaseModel):
                     "the title."
     )
     topics: list[str] = Field(default_factory=list)
+    concerns: list[str] = Field(
+        default_factory=list,
+        description="Up to 3 short tags, one to three words each, naming what gave you pause — "
+                    "'Mildly scary', 'Sponsor segment', 'Older theme'. Empty when nothing did; "
+                    "an approved video usually has none.",
+    )
     policy_id: str = Field(
         default="",
         description="If this decision turns on one of the household's own policy answers, "

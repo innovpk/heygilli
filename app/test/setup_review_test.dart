@@ -15,6 +15,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// the parent — in the inbox, later, in a different part of the app. So the
 /// child's screen stayed empty and the list the parent eventually found never
 /// said what it had not asked about.
+///
+/// The list is split into two tabs — what the child will see, and what they
+/// will not — and each card leads with short tags a parent can skim, with the
+/// screening's reason one tap away behind "Why".
 void main() {
   late AppState app;
   late FakeGateway gateway;
@@ -48,6 +52,14 @@ void main() {
     }
   }
 
+  /// Switches tab by its label, whatever the count beside it says.
+  Future<void> tab(WidgetTester tester, String name) async {
+    await tester.tap(find.textContaining('$name ('));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+  }
+
   Finder switchFinder(WidgetTester tester, String title) => find.descendant(
     of: find.ancestor(of: find.text(title), matching: find.byType(Row)).first,
     matching: find.byType(Switch),
@@ -56,31 +68,68 @@ void main() {
   Switch switchFor(WidgetTester tester, String title) =>
       tester.widget<Switch>(switchFinder(tester, title));
 
-  testWidgets('every suggestion is shown, not only the questions', (
+  testWidgets('every suggestion is on one of the two tabs', (tester) async {
+    await open(tester);
+
+    // What the Curator approved starts under Shown...
+    expect(find.text('Every Kind of Volcano'), findsOneWidget);
+    expect(find.text('How Ears Let Us Hear the World'), findsOneWidget);
+    expect(find.text('Twinkle Twinkle Little Star'), findsNothing);
+
+    // ...and what it asked about starts under Hidden, switched off.
+    await tab(tester, 'Hidden');
+    expect(find.text('Twinkle Twinkle Little Star'), findsOneWidget);
+    expect(find.text('Every Kind of Volcano'), findsNothing);
+  });
+
+  testWidgets('the tags are there to skim, the reason is one tap away', (
     tester,
   ) async {
     await open(tester);
 
-    // The Curator's reason for each, including the ones it settled itself.
+    // Tags without opening anything.
+    expect(find.text('Volcanoes'), findsOneWidget);
+    // The paragraph is folded away until asked for.
+    expect(find.textContaining('Explains how volcanoes work'), findsNothing);
+
+    await tester.tap(find.text('Why').first);
+    await tester.pump();
     expect(find.textContaining('Explains how volcanoes work'), findsOneWidget);
+    expect(find.text('Hide why'), findsOneWidget);
+  });
+
+  testWidgets('a question the Curator raised says so, and says why', (
+    tester,
+  ) async {
+    await open(tester);
+    await tab(tester, 'Hidden');
+
+    // What gave it pause, as a tag, and that it was left to the parent.
+    expect(find.text('Asked you'), findsOneWidget);
+    expect(find.text('Sponsor'), findsOneWidget);
+
+    await tester.tap(find.text('Why'));
+    await tester.pump();
     expect(
       find.textContaining('A sponsor named in the description'),
       findsOneWidget,
     );
   });
 
-  testWidgets('what Gilli kept back is counted here, not offered here', (
+  testWidgets('what Gilli kept back is counted under Hidden, not offered', (
     tester,
   ) async {
     // A hidden video is the opposite of a suggestion. Listing it with its
     // switch off asked a question nobody posed, and made "Allow all" mean
     // "allow the things we kept back too" — which is how a two-hour film
     // reached a seven-year-old's science list. It belongs on the screen built
-    // for arguing with, and this one says how many are there.
+    // for arguing with, and the Hidden tab says how many are there.
     await open(tester);
+    expect(find.textContaining('1 more video was kept back'), findsNothing);
 
-    expect(find.textContaining('A live stream'), findsNothing);
+    await tab(tester, 'Hidden');
     expect(find.text('Five Little Ducks'), findsNothing);
+    expect(find.textContaining('A live stream'), findsNothing);
     expect(find.textContaining('1 more video was kept back'), findsOneWidget);
     expect(find.text('See what was kept, and why'), findsOneWidget);
   });
@@ -113,14 +162,43 @@ void main() {
     // Approved starts on, a question starts off — a parent who agrees with
     // all of it has nothing to do but confirm.
     expect(switchFor(tester, 'Every Kind of Volcano').value, isTrue);
+    await tab(tester, 'Hidden');
     expect(switchFor(tester, 'Twinkle Twinkle Little Star').value, isFalse);
   });
 
-  testWidgets('what it was judged on is on the card', (tester) async {
+  testWidgets('a title-only judgement is flagged; a watched one needs no tag', (
+    tester,
+  ) async {
+    // A video read on its title alone is a different judgement from one read
+    // on what is said in it, and the person deciding is the one who should be
+    // told which they are looking at.
     await open(tester);
+    expect(find.text('Title only'), findsNothing);
 
-    expect(find.text('Read: what is said in the video'), findsWidgets);
-    expect(find.text('Read: the title and description only'), findsOneWidget);
+    await tab(tester, 'Hidden');
+    expect(find.text('Title only'), findsOneWidget);
+  });
+
+  testWidgets('flipping a switch moves the card, and Undo brings it back', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(find.text('Shown (2)'), findsOneWidget);
+    expect(find.text('Hidden (1)'), findsOneWidget);
+
+    await tester.tap(switchFinder(tester, 'Every Kind of Volcano'));
+    await tester.pump();
+    expect(find.text('Every Kind of Volcano'), findsNothing);
+    expect(find.text('Shown (1)'), findsOneWidget);
+    expect(find.text('Hidden (2)'), findsOneWidget);
+    expect(find.text('Moved to Hidden'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Every Kind of Volcano'), findsOneWidget);
+    expect(find.text('Shown (2)'), findsOneWidget);
+    expect(find.text('Hidden (1)'), findsOneWidget);
   });
 
   testWidgets('the count on the button follows the switches', (tester) async {
@@ -147,6 +225,8 @@ void main() {
     // Not pumpAndSettle: the run never finishes, so the screen keeps polling
     // and there is no settled frame to wait for.
     await tester.pump(const Duration(milliseconds: 400));
+    // Switched off, so it now lives under Hidden.
+    await tab(tester, 'Hidden');
     expect(switchFor(tester, 'Every Kind of Volcano').value, isFalse);
 
     // Past the poll interval, so a refresh has certainly landed.
