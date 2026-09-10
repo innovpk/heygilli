@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1000" viewBox="0 0 1500 1000" font-family="Helvetica, Arial, sans-serif">
+  <!-- Who decides what: the trust model behind HeyGilli. -->
+  <defs>
+    <style>
+      .h1 { font-size: 30px; font-weight: 700; fill: #1E3A34; }
+      .sub { font-size: 15px; fill: #607974; }
+      .ch { font-size: 22px; font-weight: 700; fill: #1E3A34; }
+      .cs { font-size: 13.5px; fill: #607974; }
+      .t { font-size: 14px; fill: #1E3A34; }
+      .tm { font-size: 12.5px; fill: #607974; }
+      .w { font-size: 18px; font-weight: 700; fill: #FFFFFF; }
+      .wt { font-size: 14px; fill: #FFFFFF; }
+      .agent { fill: #FBE8E1; stroke: #B8452A; stroke-width: 1.8; }
+      .rule { fill: #FFFFFF; stroke: #B8452A; stroke-width: 1.8; stroke-dasharray: 7 5; }
+      .parent { fill: #DCEEEA; stroke: #1E3A34; stroke-width: 1.8; }
+      .dot { fill: #B8452A; }
+      .dotp { fill: #1E3A34; }
+    </style>
+  </defs>
+  <rect width="1500" height="1000" fill="#F4FAF8"/>
+
+  <text x="40" y="54" class="h1">Who decides what</text>
+  <text x="40" y="82" class="sub">Agents make the judgement calls. Anything that must never go wrong is code. Anything that is a family's choice goes to the parent.</text>
+
+  <!-- Agents -->
+  <rect x="40" y="110" width="460" height="700" rx="16" class="agent"/>
+  <text x="64" y="148" class="ch">The agents judge</text>
+  <text x="64" y="170" class="cs">seven Strands agents, each with its own model setting</text>
+
+  <circle cx="70" cy="212" r="5" class="dot"/>
+  <text x="84" y="217" class="t">Is this upload fine for this family?</text>
+  <text x="84" y="236" class="tm">Curator</text>
+  <circle cx="70" cy="282" r="5" class="dot"/>
+  <text x="84" y="287" class="t">What to ask, and at which second</text>
+  <text x="84" y="306" class="tm">Planner</text>
+  <circle cx="70" cy="352" r="5" class="dot"/>
+  <text x="84" y="357" class="t">Was that answer right, and what to say back</text>
+  <text x="84" y="376" class="tm">Buddy</text>
+  <circle cx="70" cy="422" r="5" class="dot"/>
+  <text x="84" y="427" class="t">What a parent should hear about today</text>
+  <text x="84" y="446" class="tm">Digest</text>
+  <circle cx="70" cy="492" r="5" class="dot"/>
+  <text x="84" y="497" class="t">What a channel really publishes, and whether</text>
+  <text x="84" y="516" class="t">it has started to drift</text>
+  <text x="84" y="535" class="tm">Reviewer</text>
+  <circle cx="70" cy="581" r="5" class="dot"/>
+  <text x="84" y="586" class="t">Drafts of household questions and break</text>
+  <text x="84" y="605" class="t">lines, for the parent to edit and save</text>
+  <text x="84" y="624" class="tm">Coach</text>
+  <circle cx="70" cy="670" r="5" class="dot"/>
+  <text x="84" y="675" class="t">Answers about one video, from its transcript,</text>
+  <text x="84" y="694" class="t">and says so when it cannot tell</text>
+  <text x="84" y="713" class="tm">Explainer</text>
+  <text x="64" y="780" class="tm">A model call that fails falls back to a fixed, safe answer.</text>
+
+  <!-- Code -->
+  <rect x="520" y="110" width="460" height="700" rx="16" class="rule"/>
+  <text x="544" y="148" class="ch">The code enforces</text>
+  <text x="544" y="170" class="cs">rules no model is asked about, and none can overrule</text>
+
+  <circle cx="550" cy="212" r="5" class="dot"/>
+  <text x="564" y="217" class="t">Alarming words and live streams are hidden</text>
+  <text x="564" y="236" class="t">for everyone; over 35 minutes needs a parent</text>
+  <circle cx="550" cy="282" r="5" class="dot"/>
+  <text x="564" y="287" class="t">Only approved videos reach a child; a child's</text>
+  <text x="564" y="306" class="t">search never reaches YouTube</text>
+  <circle cx="550" cy="352" r="5" class="dot"/>
+  <text x="564" y="357" class="t">Question types and spacing for each age band;</text>
+  <text x="564" y="376" class="t">no text at all for ages 5–6</text>
+  <circle cx="550" cy="422" r="5" class="dot"/>
+  <text x="564" y="427" class="t">Daily minutes and breaks; a parent PIN to</text>
+  <text x="564" y="446" class="t">leave kid mode</text>
+  <circle cx="550" cy="492" r="5" class="dot"/>
+  <text x="564" y="497" class="t">"Allow all" never lets through what Gilli</text>
+  <text x="564" y="516" class="t">kept back</text>
+  <circle cx="550" cy="562" r="5" class="dot"/>
+  <text x="564" y="567" class="t">Three link checks a day per household</text>
+  <circle cx="550" cy="612" r="5" class="dot"/>
+  <text x="564" y="617" class="t">Nothing a child says is stored: only a score</text>
+  <text x="564" y="636" class="t">and a ten-word paraphrase</text>
+  <circle cx="550" cy="682" r="5" class="dot"/>
+  <text x="564" y="687" class="t">The official YouTube embed: ads untouched,</text>
+  <text x="564" y="706" class="t">nothing drawn over a playing video</text>
+
+  <!-- Parent -->
+  <rect x="1000" y="110" width="460" height="700" rx="16" class="parent"/>
+  <text x="1024" y="148" class="ch">The parent decides</text>
+  <text x="1024" y="170" class="cs">asked only when it is genuinely their call</text>
+
+  <circle cx="1030" cy="212" r="5" class="dotp"/>
+  <text x="1044" y="217" class="t">What is fine in this house: a few questions,</text>
+  <text x="1044" y="236" class="t">each one skippable</text>
+  <circle cx="1030" cy="282" r="5" class="dotp"/>
+  <text x="1044" y="287" class="t">What the child likes, and what to do at a</text>
+  <text x="1044" y="306" class="t">break</text>
+  <circle cx="1030" cy="352" r="5" class="dotp"/>
+  <text x="1044" y="357" class="t">Every video Gilli asked about, and any verdict</text>
+  <text x="1044" y="376" class="t">they disagree with, either way</text>
+  <circle cx="1030" cy="422" r="5" class="dotp"/>
+  <text x="1044" y="427" class="t">Allowing one checked video, or a whole</text>
+  <text x="1044" y="446" class="t">channel</text>
+  <circle cx="1030" cy="492" r="5" class="dotp"/>
+  <text x="1044" y="497" class="t">The words Gilli says at a break, and whether</text>
+  <text x="1044" y="516" class="t">the break is firm</text>
+  <circle cx="1030" cy="562" r="5" class="dotp"/>
+  <text x="1044" y="567" class="t">What to do about a drifting channel; HeyGilli</text>
+  <text x="1044" y="586" class="t">never removes one on its own</text>
+  <circle cx="1030" cy="632" r="5" class="dotp"/>
+  <text x="1044" y="637" class="t">The daily limit, and how long a break lasts</text>
+
+  <!-- Child band -->
+  <rect x="40" y="840" width="1420" height="120" rx="16" fill="#1E3A34"/>
+  <text x="64" y="878" class="w">The child sees only the result</text>
+  <text x="64" y="906" class="wt">Approved videos on a shelf, Gilli's voice at a natural break, pictures or words to suit their age, and a break with something to do.</text>
+  <text x="64" y="930" class="wt">No search, no recommendations, no verdicts, and no text at all for a 5-year-old.</text>
+</svg>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1000" viewBox="0 0 1500 1000" font-family="Helvetica, Arial, sans-serif">
+  <!-- How a video reaches a child's shelf. Matches agents/heygilli_agents (curator.py, tools/screening.py). -->
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1E3A34"/>
+    </marker>
+    <style>
+      .h1 { font-size: 30px; font-weight: 700; fill: #1E3A34; }
+      .sub { font-size: 15px; fill: #607974; }
+      .ph { font-size: 18px; font-weight: 700; fill: #1E3A34; }
+      .ps { font-size: 13px; fill: #607974; }
+      .bt { font-size: 16px; font-weight: 700; fill: #1E3A34; }
+      .t { font-size: 13.5px; fill: #1E3A34; }
+      .tb { font-size: 13.5px; font-weight: 700; fill: #1E3A34; }
+      .w { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+      .wt { font-size: 13.5px; fill: #FFFFFF; }
+      .rt { font-size: 16px; font-weight: 700; fill: #B8452A; }
+      .panel { fill: #DCEEEA; stroke: #1E3A34; stroke-width: 1.5; }
+      .agent { fill: #FBE8E1; stroke: #B8452A; stroke-width: 1.5; }
+      .rule { fill: #FFFFFF; stroke: #B8452A; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .box { fill: #FFFFFF; stroke: #1E3A34; stroke-width: 1.2; }
+      .num { fill: #B8452A; }
+      .numt { font-size: 14px; font-weight: 700; fill: #FFFFFF; }
+      .line { stroke: #1E3A34; stroke-width: 1.8; fill: none; }
+    </style>
+  </defs>
+  <rect width="1500" height="1000" fill="#F4FAF8"/>
+
+  <text x="40" y="54" class="h1">How a video reaches a child's shelf</text>
+  <text x="40" y="82" class="sub">Every upload is read against the rules everyone gets, then against what this family said. Nothing reaches the child until a parent has said yes.</text>
+
+  <!-- Column A -->
+  <rect x="40" y="110" width="250" height="360" rx="14" class="panel"/>
+  <text x="58" y="140" class="ph">Where videos come from</text>
+  <text x="58" y="176" class="tb">Channels the parent allowed</text>
+  <text x="58" y="196" class="t">newest uploads, from the</text>
+  <text x="58" y="215" class="t">channel's RSS feed</text>
+  <text x="58" y="251" class="tb">Setup</text>
+  <text x="58" y="271" class="t">channels picked for the</text>
+  <text x="58" y="290" class="t">child's age and the topics</text>
+  <text x="58" y="309" class="t">they like</text>
+  <text x="58" y="345" class="tb">A link the parent checks</text>
+  <text x="58" y="365" class="t">a video or a channel they</text>
+  <text x="58" y="384" class="t">found themselves, read before</text>
+  <text x="58" y="403" class="t">they allow it (3 a day)</text>
+
+  <path d="M 290 290 L 308 290" class="line" marker-end="url(#a)"/>
+
+  <!-- Column B -->
+  <rect x="312" y="110" width="262" height="360" rx="14" class="panel"/>
+  <circle cx="336" cy="135" r="13" class="num"/><text x="331.5" y="140" class="numt">1</text>
+  <text x="358" y="141" class="ph">Read it</text>
+  <text x="330" y="176" class="tb">Title, description, length</text>
+  <text x="330" y="196" class="t">length from the YouTube</text>
+  <text x="330" y="215" class="t">Data API</text>
+  <text x="330" y="251" class="tb">Transcript</text>
+  <text x="330" y="271" class="t">public captions, else Gemini</text>
+  <text x="330" y="290" class="t">given the video's URL, else</text>
+  <text x="330" y="309" class="t">the title and description</text>
+  <text x="330" y="345" class="tb">Read on the title alone?</text>
+  <text x="330" y="365" class="t">The parent is told so, as a</text>
+  <text x="330" y="384" class="t">"Title only" tag, instead of a</text>
+  <text x="330" y="403" class="t">verdict that pretends otherwise</text>
+
+  <path d="M 574 290 L 592 290" class="line" marker-end="url(#a)"/>
+
+  <!-- Column C -->
+  <rect x="596" y="110" width="280" height="360" rx="14" class="rule"/>
+  <circle cx="620" cy="135" r="13" class="num"/><text x="615.5" y="140" class="numt">2</text>
+  <text x="642" y="141" class="ph">Rules for everyone</text>
+  <text x="614" y="160" class="ps">enforced in code, never asked of a model</text>
+  <text x="614" y="192" class="tb">Hidden</text>
+  <text x="614" y="212" class="t">• alarming words: horror, gore,</text>
+  <text x="614" y="231" class="t">   18+, cursed …</text>
+  <text x="614" y="250" class="t">• live streams</text>
+  <text x="614" y="269" class="t">• over 35 minutes, under 45 s</text>
+  <text x="614" y="288" class="t">• not in a language the child</text>
+  <text x="614" y="307" class="t">   speaks</text>
+  <text x="614" y="343" class="tb">Asked about</text>
+  <text x="614" y="363" class="t">• prank, challenge, unboxing,</text>
+  <text x="614" y="382" class="t">   sponsored, gambling …</text>
+  <text x="614" y="418" class="t">Everything else goes on to the</text>
+  <text x="614" y="437" class="t">Curator</text>
+
+  <path d="M 876 290 L 894 290" class="line" marker-end="url(#a)"/>
+
+  <!-- Column D -->
+  <rect x="898" y="110" width="280" height="360" rx="14" class="agent"/>
+  <circle cx="922" cy="135" r="13" class="num"/><text x="917.5" y="140" class="numt">3</text>
+  <text x="944" y="141" class="ph">Curator agent</text>
+  <text x="916" y="160" class="ps">Strands Agents SDK, structured output</text>
+  <text x="916" y="192" class="tb">Reads it against this family</text>
+  <text x="916" y="212" class="t">age band and languages, the</text>
+  <text x="916" y="231" class="t">household's answers, the</text>
+  <text x="916" y="250" class="t">topics the child likes</text>
+  <text x="916" y="286" class="tb">Returns</text>
+  <text x="916" y="306" class="t">approve, hide or ask the parent,</text>
+  <text x="916" y="325" class="t">a one-line reason, and short</text>
+  <text x="916" y="344" class="t">topic and concern tags</text>
+  <text x="916" y="380" class="tb">A preference is not a rule</text>
+  <text x="916" y="400" class="t">off-topic goes to the parent as</text>
+  <text x="916" y="419" class="t">a question; it is never hidden</text>
+  <text x="916" y="438" class="t">for that alone</text>
+
+  <path d="M 1178 290 L 1196 290" class="line" marker-end="url(#a)"/>
+
+  <!-- Column E -->
+  <rect x="1200" y="110" width="260" height="360" rx="14" class="panel"/>
+  <circle cx="1224" cy="135" r="13" class="num"/><text x="1219.5" y="140" class="numt">4</text>
+  <text x="1246" y="141" class="ph">The parent decides</text>
+  <text x="1218" y="160" class="ps">the review screen</text>
+  <text x="1218" y="192" class="tb">Shown and Hidden tabs</text>
+  <text x="1218" y="212" class="t">tags to skim: Asked you,</text>
+  <text x="1218" y="231" class="t">Kept by Gilli, Sponsor,</text>
+  <text x="1218" y="250" class="t">Title only; the reason one tap</text>
+  <text x="1218" y="269" class="t">away</text>
+  <text x="1218" y="305" class="tb">Ask about this video</text>
+  <text x="1218" y="325" class="t">answered from its transcript</text>
+  <text x="1218" y="344" class="t">by the Explainer agent</text>
+  <text x="1218" y="380" class="tb">Allow all</text>
+  <text x="1218" y="400" class="t">never lets through what</text>
+  <text x="1218" y="419" class="t">Gilli kept back; the parent</text>
+  <text x="1218" y="438" class="t">can still switch one on</text>
+
+  <!-- Row: once allowed -->
+  <circle cx="54" cy="512" r="13" class="num"/><text x="49.5" y="517" class="numt">5</text>
+  <text x="76" y="518" class="ph">Once it is allowed</text>
+
+  <rect x="40" y="540" width="440" height="104" rx="12" class="agent"/>
+  <text x="58" y="568" class="bt">Planner agent</text>
+  <text x="58" y="592" class="t">2–3 questions, sized to the video's length,</text>
+  <text x="58" y="612" class="t">at natural breaks, per age band and language</text>
+
+  <path d="M 480 592 L 516 592" class="line" marker-end="url(#a)"/>
+
+  <rect x="520" y="540" width="440" height="104" rx="12" class="rule"/>
+  <text x="538" y="568" class="bt">Rules check, in code</text>
+  <text x="538" y="592" class="t">question types and spacing for each age band;</text>
+  <text x="538" y="612" class="t">no text for ages 5–6; pictures from a fixed library</text>
+
+  <path d="M 960 592 L 996 592" class="line" marker-end="url(#a)"/>
+
+  <rect x="1000" y="540" width="460" height="104" rx="12" class="box"/>
+  <text x="1018" y="568" class="bt">The child's shelf</text>
+  <text x="1018" y="592" class="t">only approved videos, under the length ceiling,</text>
+  <text x="1018" y="612" class="t">with their questions ready before play</text>
+
+  <!-- Row: outcomes -->
+  <text x="40" y="700" class="ph">Where each verdict lands</text>
+
+  <rect x="40" y="718" width="440" height="92" rx="12" fill="#2F7D5B"/>
+  <text x="58" y="750" class="w">Approved</text>
+  <text x="58" y="776" class="wt">on the shelf once the parent confirms,</text>
+  <text x="58" y="795" class="wt">with its questions</text>
+
+  <rect x="520" y="718" width="440" height="92" rx="12" fill="#FFFFFF" stroke="#B8452A" stroke-width="2"/>
+  <text x="538" y="750" class="rt">Asked you</text>
+  <text x="538" y="776" class="t">under Hidden with its switch off, until the</text>
+  <text x="538" y="795" class="t">parent flips it; the reason says why it asked</text>
+
+  <rect x="1000" y="718" width="460" height="92" rx="12" fill="#B8452A"/>
+  <text x="1018" y="750" class="w">Kept by Gilli</text>
+  <text x="1018" y="776" class="wt">hidden, and never offered to "Allow all";</text>
+  <text x="1018" y="795" class="wt">the parent can still switch it on by hand</text>
+
+  <!-- Footer -->
+  <rect x="40" y="850" width="1420" height="110" rx="12" class="box"/>
+  <text x="58" y="882" class="bt">When it runs</text>
+  <text x="58" y="908" class="t">Screening starts when a parent acts: adding a channel, finishing setup, tapping "Check for new videos", or checking a link.</text>
+  <text x="58" y="930" class="t">It takes minutes, so the review screen fills in as videos are read, and it says how many are done. None of it changes what a child can see</text>
+  <text x="58" y="950" class="t">until a parent allows it.</text>
+</svg>
