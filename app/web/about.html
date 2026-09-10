@@ -214,26 +214,6 @@
     margin-bottom: 10px;
   }
 
-  /* A hard-shadow CTA. The shadow is a solid offset rather than a blur so it
-     reads as drawn rather than rendered, which is the whole register here. */
-  .btn {
-    display: inline-block;
-    background: var(--accent);
-    color: #fff;
-    font-family: var(--display);
-    font-size: 22px;
-    padding: 14px 28px;
-    border-radius: 14px;
-    box-shadow: 3px 3px 0 var(--ink);
-    text-decoration: none;
-    transition: transform .15s, box-shadow .15s;
-  }
-  .btn:hover, .btn:focus-visible {
-    transform: translate(-2px, -2px);
-    box-shadow: 5px 5px 0 var(--ink);
-  }
-  .btn-ink { background: var(--ink); color: var(--bg); box-shadow: none; }
-  .btn-ink:hover, .btn-ink:focus-visible { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 rgba(30, 58, 52, .35); }
 
   /* ---------- nav ---------- */
   .bar {
@@ -265,8 +245,6 @@
     width: calc(100% + 8px); height: 14px;
   }
   .hero-sub { font-size: 19px; line-height: 1.5; margin: 0 0 28px; max-width: 460px; }
-  .cta-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-  .cta-note { font-size: 14px; color: rgba(30, 58, 52, .75); }
 
   /* The hero scene. Absolutely positioned on desktop so the pieces overlap
      the way a pile of things on a table does; it unstacks into ordinary flow
@@ -491,8 +469,6 @@
   /* ---------- close ---------- */
   .close { padding: 56px; text-align: center; background: var(--accent); color: #fff; }
   .close h2 { font-size: 44px; line-height: 1.1; margin: 0 0 20px; }
-  .close .btn { background: var(--ink); color: var(--bg); box-shadow: none; }
-  .close .btn:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 rgba(0, 0, 0, .25); }
   .close-links { margin-top: 28px; font-size: 13px; opacity: .9; display: flex; gap: 18px; justify-content: center; }
   .close-links a { color: #fff; }
 
@@ -572,8 +548,6 @@
     .hero { padding-top: 8px; }
     .hero h1 { font-size: 40px; line-height: 1.05; }
     .hero-sub { font-size: 16px; }
-    .cta-row { flex-direction: column; align-items: stretch; text-align: center; }
-    .cta-row .btn { font-size: 20px; padding: 15px 24px; }
 
     .scene { margin-top: 20px; }
     .tv { padding: 10px 10px 14px; border-radius: 18px; }
@@ -616,7 +590,6 @@
 
     .close { padding: 44px 20px; }
     .close h2 { font-size: 32px; }
-    .close .btn { display: block; }
   }
 </style>
 </head>
@@ -668,10 +641,6 @@
       Pick the channels. Say what you're fine with. Every new upload is read
       against that before your child sees it — and a buddy watches along.
     </p>
-    <div class="cta-row">
-      <a class="btn" href="/app/">Try it free</a>
-      <span class="cta-note">No Google account. No card.</span>
-    </div>
   </div>
 
   <div class="scene">
@@ -952,7 +921,6 @@
 
 <div class="close">
   <h2>More freedom for them, without giving up your say.</h2>
-  <a class="btn" href="/app/">Try it free</a>
   <div class="close-links">
     <a href="privacy.html">Privacy</a>
     <a href="terms.html">Terms</a>
