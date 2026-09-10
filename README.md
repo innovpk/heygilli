@@ -12,7 +12,7 @@ Built for the **Agents for Humans** hackathon (AWS × Devpost), Everyday Agents 
 |---|---|
 | Only parent-approved channels, official YouTube embed, no search, no recommendations | Add channels by URL; kid profile with nickname and age, no child PII |
 | At a natural break the video pauses and Gilli asks by voice | The agent screens every new upload in the background and asks the parent only about borderline ones |
-| A 4-year-old answers with one word or a tap on one of three pictures; Gilli always models the answer word | A nightly two-line digest: words said for pre-readers, understood and shaky for older kids, one thing to ask at dinner |
+| A 5-year-old answers with one word or a tap on one of three pictures; Gilli always models the answer word | A nightly two-line digest: words said for pre-readers, understood and shaky for older kids, one thing to ask at dinner |
 | A 9-year-old answers in a sentence, in English or Urdu | Leaving kid mode needs the parent PIN |
 | Kid mode is landscape and locks to the app | A Progress screen: minutes a day, whether questions are being answered, words coming back, what needs another look |
 | When the day's minutes run out the video stops and Gilli reads out a line **the parent wrote**; no line, and the break is simply quiet | Write those lines yourself. Gilli can draft some, but a draft reaches a child only after you save it, and whether the break holds is your setting |
@@ -183,15 +183,18 @@ Full demo click path: [docs/demo-runbook.md](docs/demo-runbook.md). Agent servic
 
 Nine-day build for the 14 September 2026 deadline.
 
-**Verified:** 367 backend tests and 249 client tests, both offline; `flutter analyze` clean. The
-Planner on a real SciShow Kids video via its public captions; the Curator screening real uploads
-from two channels; a full live session turn on Bedrock with Polly audio. The client runs live
-against the gateway on **all three platforms** — Android emulator, iPhone 17 Pro simulator and
-Chrome — and in demo mode.
+**Live:** the site and web app at https://heygilli.com (the app at `/app/`, a no-login screening
+demo at `/try`), the gateway on Render with DynamoDB storage and Bedrock models.
 
-The five agent features added after the core loop (household policy, opt-in watch history, channel
-drift, revisits, Urdu word seeding) are specified in `docs/PROTOCOL.md` v1.7, described in SPEC 7.6,
-and were each walked through on a device against the running gateway rather than only in tests.
+**Verified:** 617 backend tests and 562 client tests, both offline; `flutter analyze` clean. The
+Planner on a real SciShow Kids video via its public captions; the Curator screening real uploads;
+a full live session turn on Bedrock with Polly audio. The client runs against the gateway on
+Android, the iPhone simulator and the web.
+
+Added after the core loop: household policy, opt-in watch history, channel drift, revisits and
+Urdu word seeding (specified in `docs/PROTOCOL.md`, SPEC 7.6); then setup as a short
+questionnaire, a review screen with Shown and Hidden tabs and skimmable tags, break activities the
+parent picks, and "check before you allow" for a video or channel a parent found themselves.
 
 **Anthropic models on Bedrock are still gated** on this account pending the use-case form, so the
 interim default is Amazon Nova Pro and every feature falls back to a deterministic built-in when a
@@ -199,7 +202,7 @@ model call fails. Nothing in the product is currently showing Anthropic output. 
 one environment variable.
 
 **Not built:** Google TV layout, AgentCore Runtime deployment (documented in `agents/README.md`),
-Gemini transcript path (no key on the build machine), EventBridge schedules. Google sign-in on the
+EventBridge schedules. Google sign-in on the
 web reaches Google's own "not available on this platform" path — google_sign_in's web plugin wants a
 rendered button rather than the phone flow — so a browser run uses demo mode or a gateway token.
 
