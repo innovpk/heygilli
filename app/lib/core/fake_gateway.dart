@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'analytics.dart';
+import 'api_client.dart' show ApiException;
 import 'break_activities.dart';
 import 'demo_catalogue.dart';
 import 'gateway.dart';
@@ -1249,6 +1250,71 @@ class FakeGateway implements Gateway {
     for (final id in approve) {
       decided[id] = 'approve';
     }
+  }
+
+  /// Demo checks: the same three a day the gateway allows, so the limit can be
+  /// seen doing its job. Looking again at a checked video is free.
+  static const _checksPerDay = 3;
+  int _checksUsed = 0;
+  final _checked = <String>{};
+
+  @override
+  Future<LinkCheck> checkLink(String kidId, String url) async {
+    await _lag();
+    final isVideo =
+        url.contains('watch?v=') ||
+        url.contains('youtu.be/') ||
+        url.contains('/shorts/');
+    final found = isVideo
+        ? const [_twinkle]
+        : const [_volcano, _ears, _twinkle];
+    const reasons = {
+      'approve': 'Explains how it works, at a level that suits the age band.',
+      'ask_parent':
+          'A sponsor named in the description, which you said to ask about.',
+      'hide': 'A live stream, so what it will show has not happened yet.',
+    };
+    final left = _checksPerDay - _checksUsed;
+    final fresh = [
+      for (final v in found)
+        if (!_checked.contains(v.id)) v,
+    ];
+    if (fresh.isNotEmpty && left <= 0 && fresh.length == found.length) {
+      throw ApiException(
+        429,
+        '{"detail": "That is all $_checksPerDay checks for today. More tomorrow."}',
+      );
+    }
+    final read = [...found.where(_checked.contains.call), ...fresh.take(left)];
+    final newlyRead = fresh.take(left).length;
+    _checksUsed += newlyRead;
+    _checked.addAll(read.map((v) => v.id));
+    return LinkCheck(
+      isChannel: !isVideo,
+      channelId: isVideo ? '' : 'UCdemo',
+      channelTitle: isVideo ? '' : 'Demo channel',
+      items: [
+        for (final v in read)
+          ReviewItem(
+            video: v,
+            status: _seedStatus(v),
+            reason: reasons[_seedStatus(v)]!,
+            channelTitle: 'Demo channel',
+            read: 'watched',
+            topics: identical(v, _twinkle)
+                ? const ['Nursery rhymes']
+                : const ['Science'],
+            concerns: identical(v, _twinkle) ? const ['Sponsor'] : const [],
+          ),
+      ],
+      onShelf: {
+        for (final v in read)
+          if (_onShelf(kidId, v)) v.id,
+      },
+      notRead: fresh.length - newlyRead,
+      checksLeft: _checksPerDay - _checksUsed,
+      perDay: _checksPerDay,
+    );
   }
 
   /// The Curator's verdict on each demo video before a parent says anything,

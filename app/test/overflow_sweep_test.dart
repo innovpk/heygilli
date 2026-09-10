@@ -17,6 +17,7 @@ import 'package:heygilli/features/parent/kid_detail_screen.dart';
 import 'package:heygilli/features/parent/parent_home.dart';
 import 'package:heygilli/features/parent/parent_widgets.dart';
 import 'package:heygilli/features/parent/policy_screen.dart';
+import 'package:heygilli/features/parent/check_link_screen.dart';
 import 'package:heygilli/features/parent/preferences_screen.dart';
 import 'package:heygilli/features/parent/progress_screen.dart';
 import 'package:heygilli/features/parent/setup_review_screen.dart';
@@ -165,6 +166,7 @@ void main() {
         'hidden': (() => HiddenScreen(kid: reader), null),
         'policy (setup)': (() => PolicyScreen(kid: reader, setup: true), null),
         'preferences': (() => PreferencesScreen(kid: reader), null),
+        'check link': (() => CheckLinkScreen(kid: reader), null),
         'setup review': (() => SetupReviewScreen(kid: reader), null),
         'starter channels': (() => StarterChannelsScreen(kid: reader), null),
         'channel reviews': (() => ChannelReviewsScreen(kid: reader), null),

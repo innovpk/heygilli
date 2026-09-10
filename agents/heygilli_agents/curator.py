@@ -442,6 +442,85 @@ def run_curator(
     return report
 
 
+def check_videos(
+    kid: Kid,
+    store: Store,
+    video_ids: Sequence[str],
+    uploads: Sequence[dict] = (),
+    curator: Agent | None = None,
+) -> list[dict]:
+    """Read videos a parent found themselves, against this family's answers.
+
+    The same judgement the scheduled run makes, for a video or channel the
+    parent pasted rather than one from a channel they already allowed. It
+    changes nothing a child can see: no kid-video entry is written, so the
+    shelf is exactly as it was. The parent allows one afterwards through the
+    review endpoint, the same as any other.
+
+    Returns `{"video", "status", "reason", "topics", "concerns"}` per id, in
+    the order asked. `uploads` are the feed entries a channel check already
+    has, so their titles and dates are not fetched a second time.
+    """
+    curator = curator or curator_agent()
+    policy = store.get_policy(kid.household_id, kid.id)
+    feed = {u["id"]: u for u in uploads}
+    videos: list[Video] = []
+    for vid in video_ids:
+        video = store.get_video(vid)
+        if video is None:
+            if vid in feed:
+                video = Video(**feed[vid])
+            else:
+                meta = fetch_video_meta(vid)
+                video = Video(
+                    id=vid,
+                    channel_id=meta.get("channel_id", ""),
+                    title=meta.get("title", "") or vid,
+                    duration_s=meta.get("duration_s", 0),
+                    thumb_url=meta.get("thumb_url", ""),
+                )
+        videos.append(video)
+    lengths = fetch_durations([v.id for v in videos if not v.duration_s])
+
+    out: list[dict] = []
+    for video in videos:
+        video.duration_s = video.duration_s or lengths.get(video.id, 0)
+        try:
+            tr = fetch_transcript(video.id)
+        except TranscriptsBlocked as e:
+            # Read on the title and description, and said so: the item goes
+            # back marked "title only", as it does on the scheduled run.
+            log.warning("no transcript for checked video %s: %s", video.id, e)
+            tr = _NO_TRANSCRIPT
+        excerpt = transcript_text(tr["segments"][:40], max_chars=1500) or "(no transcript)"
+        decision = decide(
+            video,
+            kid.age_band or "7_8",
+            curator,
+            excerpt,
+            policy,
+            languages=kid.languages,
+            transcript_source=tr["source"],
+            wanted_topics=kid.topics,
+        )
+        topics = clean_tags(decision.topics)
+        concerns = clean_tags(decision.concerns)
+        video.screening.topics = topics
+        video.screening.reason = decision.reason
+        video.transcript_source = tr["source"]
+        store.put_video(video)
+        out.append(
+            {
+                "video": video,
+                "status": decision.decision,
+                "reason": decision.reason,
+                "topics": topics,
+                "concerns": concerns,
+            }
+        )
+    return out
+
+
 #: How many already-screened videos one run will go back to. A re-read is a
 #: transcript fetch and a Planner call each, and new uploads are the point of
 #: the run, so this is what is left over rather than the whole backlog.

@@ -13,6 +13,7 @@ import 'kid_overview.dart';
 import 'parent_home.dart';
 import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
+import 'check_link_screen.dart';
 import 'parent_widgets.dart';
 import 'prompts_card.dart';
 import 'setup_review_screen.dart';
@@ -455,6 +456,12 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                 onTap: () => Navigator.of(sheet).pop('suggest'),
               ),
               _AddOption(
+                icon: Icons.fact_check_outlined,
+                title: 'Check a video or channel',
+                subtitle: 'See what Gilli makes of it before you allow it',
+                onTap: () => Navigator.of(sheet).pop('check'),
+              ),
+              _AddOption(
                 icon: Icons.folder_zip_outlined,
                 title: 'Import from YouTube Kids',
                 subtitle: 'From a Google Takeout export',
@@ -496,6 +503,11 @@ class _KidDetailScreenState extends State<KidDetailScreen>
         await _startFromSuggestions();
       case 'import':
         await _importFromTakeout();
+      case 'check':
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => CheckLinkScreen(kid: kid)),
+        );
+        if (mounted) _reload();
       case 'paste':
         await _addChannel();
     }

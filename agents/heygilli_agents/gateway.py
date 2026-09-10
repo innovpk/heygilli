@@ -50,7 +50,7 @@ from . import (
 from . import starter_channels as starter_channels_data
 from .analytics import DEFAULT_DAYS, run_analytics
 from .buddy import SessionEngine
-from .curator import run_curator
+from .curator import check_videos, run_curator
 from .digest import run_digest
 from .google_auth import (
     GoogleAuthError,
@@ -101,7 +101,9 @@ from .tools.tts import TTS_DIR, synthesize
 from .tools.youtube import (
     SearchUnavailable,
     fetch_video_meta,
+    fetch_uploads,
     resolve_channel_url,
+    video_id_from_url,
 )
 from .tools.youtube import search_channels as search_youtube_channels
 from .tools.youtube import search_key_source as youtube_search_key_source
@@ -1543,6 +1545,123 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
             1 for i in items if not i["video"].get("duration_s")
         ),
         "max_minutes": MAX_DURATION_S // 60,
+    }
+
+
+# --- checking a video or channel the parent found -------------------------------------------
+
+#: Videos a household may have read on request each day. Each one is a
+#: transcript fetch and a model call on an allowance every household shares,
+#: so it is small on purpose. A video already read for this child costs
+#: nothing to look at again.
+CHECKS_PER_DAY = 3
+
+
+class CheckIn(BaseModel):
+    url: str = Field(min_length=1, max_length=500)
+
+
+def _check_key(kid_id: str, video_id: str) -> str:
+    return f"{kid_id}__{video_id}"
+
+
+def _checks_used(hid: str) -> tuple[str, int]:
+    day = datetime.now(UTC).date().isoformat()
+    row = get_store().get(hid, "video_check_quota", day) or {}
+    return day, int(row.get("used", 0))
+
+
+def _check_item(video: Video, verdict: dict, channel_title: str, on_shelf: bool) -> dict:
+    """The review list's item shape, so the app draws a checked video the same way."""
+    return {
+        "video": video.public(),
+        "status": verdict.get("status", ""),
+        "reason": verdict.get("reason", ""),
+        "topics": verdict.get("topics") or list(video.screening.topics),
+        "concerns": verdict.get("concerns", []),
+        "channel_title": channel_title,
+        "read": "title only" if video.transcript_source in ("", "none") else "watched",
+        "on_shelf": on_shelf,
+    }
+
+
+@app.post("/kids/{kid_id}/check")
+def check_link(kid_id: str, body: CheckIn, hid: str = Depends(household)) -> dict:
+    """What Gilli makes of a video or channel, before the parent allows anything.
+
+    A parent who finds something themselves — a video a friend sent, a channel
+    they have heard of — had one way to learn what HeyGilli thought of it:
+    allow the whole channel and wait for the screening. This reads it against
+    their own answers first. A video link reads that video; a channel link
+    reads its newest uploads, as many as today's checks allow.
+
+    Nothing changes for the child. Allowing one afterwards goes through
+    `POST /kids/{id}/review`, and adding the channel through
+    `POST /kids/{id}/channels`, exactly as before.
+    """
+    kid = _kid(hid, kid_id)
+    store = get_store()
+    url = body.url.strip()
+    channel: dict | None = None
+    uploads: list[dict] = []
+    if vid := video_id_from_url(url):
+        ids = [vid]
+    else:
+        try:
+            info = resolve_channel_url(url)
+        except Exception as e:  # noqa: BLE001 - any failure here is "not a link we can read"
+            raise HTTPException(400, f"could not find a video or channel at that link: {e}") from e
+        channel = {
+            "id": info["channel_id"],
+            "title": info.get("title", "") or info["channel_id"],
+            "thumb_url": info.get("thumb_url", ""),
+        }
+        try:
+            uploads = fetch_uploads(info["channel_id"], CHECKS_PER_DAY)
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(502, f"could not read that channel's videos: {type(e).__name__}") from e
+        ids = [u["id"] for u in uploads][:CHECKS_PER_DAY]
+
+    titles = {c.id: c.title or c.id for c in store.list_channels(hid, kid_id)}
+    seen = store.list_kid_videos(hid, kid_id)
+    items: list[dict] = []
+    fresh: list[str] = []
+    for v in ids:
+        # Already read for this child, by a run or an earlier check: free.
+        known = seen.get(v) or store.get(hid, "video_checks", _check_key(kid_id, v))
+        video = store.get_video(v)
+        if known and video:
+            title = channel["title"] if channel else titles.get(video.channel_id, "")
+            items.append(_check_item(video, known, title, seen.get(v, {}).get("status") == "approve"))
+        else:
+            fresh.append(v)
+
+    day, used = _checks_used(hid)
+    left = max(0, CHECKS_PER_DAY - used)
+    if fresh and not left and not items:
+        raise HTTPException(
+            429, f"That is all {CHECKS_PER_DAY} checks for today. More tomorrow."
+        )
+    to_read = fresh[:left]
+    if to_read:
+        for r in check_videos(kid, store, to_read, uploads):
+            video = r.pop("video")
+            store.put(hid, "video_checks", _check_key(kid_id, video.id), r)
+            title = channel["title"] if channel else titles.get(video.channel_id, "")
+            items.append(_check_item(video, r, title, False))
+        store.put(hid, "video_check_quota", day, {"used": used + len(to_read)})
+        left -= len(to_read)
+
+    order = {v: i for i, v in enumerate(ids)}
+    items.sort(key=lambda i: order.get(i["video"]["id"], len(order)))
+    return {
+        "kind": "channel" if channel else "video",
+        "channel": channel,
+        "items": items,
+        #: Found but not read, because today's checks ran out part way.
+        "not_read": len(fresh) - len(to_read),
+        "checks_left": left,
+        "checks_per_day": CHECKS_PER_DAY,
     }
 
 

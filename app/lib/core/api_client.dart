@@ -556,6 +556,12 @@ class ApiClient implements Gateway {
   );
 
   @override
+  Future<LinkCheck> checkLink(String kidId, String url) async =>
+      LinkCheck.fromJson(
+        await _post('/kids/$kidId/check', {'url': url}) as Map<String, dynamic>,
+      );
+
+  @override
   Future<void> reviewDecide(
     String kidId, {
     List<String> approve = const [],

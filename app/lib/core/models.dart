@@ -1775,3 +1775,58 @@ class ParentPrompt {
 
 List<String> _strings(Object? v) =>
     (v as List? ?? const []).map((e) => '$e').toList();
+
+/// What Gilli made of a video or channel a parent pasted, before anything was
+/// allowed (`POST /kids/{id}/check`). Nothing here has reached the child.
+class LinkCheck {
+  const LinkCheck({
+    required this.isChannel,
+    this.channelId = '',
+    this.channelTitle = '',
+    this.channelThumb = '',
+    this.items = const [],
+    this.onShelf = const {},
+    this.notRead = 0,
+    this.checksLeft = 0,
+    this.perDay = 3,
+  });
+
+  factory LinkCheck.fromJson(Map<String, dynamic> j) {
+    final channel = (j['channel'] as Map?)?.cast<String, dynamic>();
+    final raw = [
+      for (final i in j['items'] as List? ?? const [])
+        (i as Map).cast<String, dynamic>(),
+    ];
+    return LinkCheck(
+      isChannel: j['kind'] == 'channel',
+      channelId: channel?['id'] as String? ?? '',
+      channelTitle: channel?['title'] as String? ?? '',
+      channelThumb: channel?['thumb_url'] as String? ?? '',
+      items: [for (final i in raw) ReviewItem.fromJson(i)],
+      onShelf: {
+        for (final i in raw)
+          if (i['on_shelf'] == true) '${(i['video'] as Map)['id']}',
+      },
+      notRead: (j['not_read'] as num?)?.toInt() ?? 0,
+      checksLeft: (j['checks_left'] as num?)?.toInt() ?? 0,
+      perDay: (j['checks_per_day'] as num?)?.toInt() ?? 3,
+    );
+  }
+
+  /// A channel link, read through its newest uploads; otherwise one video.
+  final bool isChannel;
+  final String channelId;
+  final String channelTitle;
+  final String channelThumb;
+
+  /// The videos read, in the review list's shape.
+  final List<ReviewItem> items;
+
+  /// Ids already on the child's shelf.
+  final Set<String> onShelf;
+
+  /// Found but not read, because today's checks ran out part way.
+  final int notRead;
+  final int checksLeft;
+  final int perDay;
+}

@@ -319,6 +319,10 @@ abstract class Gateway {
   /// the Curator made of each one and how far the run has got.
   Future<ReviewQueue> reviewQueue(String kidId);
 
+  /// What Gilli makes of a video or channel link, read against this child's
+  /// answers. A few a day per household; changes nothing the child can see.
+  Future<LinkCheck> checkLink(String kidId, String url);
+
   /// `POST /kids/{id}/review`: the parent's answers, in one go. Whole
   /// channels are approved at a time, so one call per video would be a screen
   /// full of spinners over a gateway that may be asleep.
