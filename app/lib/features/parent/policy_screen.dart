@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import 'parent_widgets.dart';
+import 'question_widgets.dart';
 
 /// What this household actually wants (PROTOCOL "Household policy"), saved
 /// with `PUT /kids/{id}/policy`.
@@ -150,6 +151,113 @@ class _PolicyScreenState extends State<PolicyScreen> {
     }
   }
 
+  /// Which page of the setup questionnaire is showing. One past the last
+  /// question is the page for the parent's own words.
+  int _step = 0;
+
+  void _choose(PolicyQuestion q, PolicyChoice c) => setState(() {
+    // Tapping the choice again clears it: a parent who answered by accident
+    // can get back to unanswered, which is a different thing from "fine".
+    if (_choices[q.id] == c) {
+      _choices.remove(q.id);
+    } else {
+      _choices[q.id] = c;
+    }
+  });
+
+  /// Setup asks one question to a page. As a list of cards it was a wall a
+  /// parent scrolled past; one at a time, each is a thing to decide, and
+  /// "Skip this one" says out loud that skipping is allowed.
+  ///
+  /// Settings keeps the list: a parent who comes back is looking for one
+  /// answer to change, and paging through the rest to find it is slower.
+  Widget _questionnaire(List<PolicyQuestion> questions) {
+    final name = widget.kid.nickname;
+    final pages = questions.length + 1;
+    final step = _step.clamp(0, pages - 1);
+    final last = step == pages - 1;
+    final q = last ? null : questions[step];
+    final chosen = q == null ? null : _choices[q.id];
+
+    return PopScope(
+      // Back goes to the previous question rather than out of setup, so an
+      // answer being corrected does not cost the others.
+      canPop: step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && step > 0) setState(() => _step = step - 1);
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: q != null
+                ? QuestionPage(
+                    key: ValueKey('policy-${q.id}'),
+                    step: step,
+                    of: pages,
+                    question: q.question,
+                    // Always shown. A question a parent cannot trace back to
+                    // their own child's channels is a question from nowhere.
+                    hint: q.why.isNotEmpty
+                        ? q.why
+                        : 'Gilli did not say which channels prompted this one.',
+                    children: [
+                      AnswerGrid(
+                        children: [
+                          for (final option in q.options)
+                            AnswerTile(
+                              label: option.label,
+                              chosen: chosen == option,
+                              onTap: _saving ? null : () => _choose(q, option),
+                            ),
+                        ],
+                      ),
+                      if (chosen != null) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          chosen.effect,
+                          style: HgText.body(size: 14, color: HgColors.brown),
+                        ),
+                      ],
+                    ],
+                  )
+                : QuestionPage(
+                    key: const ValueKey('policy-notes'),
+                    step: step,
+                    of: pages,
+                    question: 'Anything else, in your own words?',
+                    hint:
+                        'Anything the questions missed, said as you would to '
+                        'a person. Or leave it empty.',
+                    children: [
+                      _NotesField(
+                        controller: _notes,
+                        onChanged: () => setState(() {}),
+                      ),
+                    ],
+                  ),
+          ),
+          QuestionBottomBar(
+            error: _error,
+            showBack: step > 0,
+            onBack: _saving ? null : () => setState(() => _step = step - 1),
+            label: last
+                ? 'Save and go on'
+                : chosen == null
+                ? 'Skip this one'
+                : 'Next',
+            busy: _saving,
+            onNext: last
+                // Nothing answered is still an answer, so the last page goes
+                // on either way; it only saves when there is something to.
+                ? (_dirty ? _save : () => Navigator.of(context).pop(true))
+                : () => setState(() => _step = step + 1),
+            footnote: "All of this can be changed later from $name's page.",
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = widget.kid.nickname;
@@ -186,6 +294,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
               if (!ids.contains(a.id))
                 PolicyQuestion(id: a.id, question: a.question),
           ];
+          if (widget.setup) {
+            return _questionnaire([...loaded.questions.questions, ...extras]);
+          }
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
@@ -448,31 +559,48 @@ class _NotesCard extends StatelessWidget {
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: controller,
-            onChanged: (_) => onChanged(),
-            maxLines: null,
-            minLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-            style: HgText.body(size: 15, color: HgColors.ink),
-            decoration: InputDecoration(
-              hintText:
-                  'We keep Fridays for family viewing. Nothing about '
-                  'weight or diets, please.',
-              hintStyle: HgText.body(size: 15, color: HgColors.muted),
-              filled: true,
-              fillColor: HgColors.cream,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
+          _NotesField(controller: controller, onChanged: onChanged),
         ],
+      ),
+    );
+  }
+}
+
+/// The box itself, on its own so the setup questionnaire can give it a page.
+class _NotesField extends StatelessWidget {
+  const _NotesField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: (_) => onChanged(),
+      maxLines: null,
+      minLines: 3,
+      textCapitalization: TextCapitalization.sentences,
+      style: HgText.body(size: 15, color: HgColors.ink),
+      decoration: InputDecoration(
+        hintText:
+            'We keep Fridays for family viewing. Nothing about '
+            'weight or diets, please.',
+        hintStyle: HgText.body(size: 15, color: HgColors.muted),
+        filled: true,
+        fillColor: HgColors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: HgColors.line, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: HgColors.mango, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
       ),
     );
   }

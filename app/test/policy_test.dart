@@ -213,6 +213,114 @@ void main() {
     expect(find.textContaining('Weighs'), findsOneWidget);
   });
 
+  group('while setting a child up', () {
+    // Setup asks one question to a page; it pops when done, so it is opened
+    // from a page underneath rather than as the app's only route.
+    Future<void> openSetup(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppState>.value(
+          value: app,
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<bool>(
+                      builder: (_) => PolicyScreen(kid: kid, setup: true),
+                    ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await settle(tester);
+    }
+
+    Future<void> next(WidgetTester tester, String label) async {
+      await tester.tap(find.text(label));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('one question to a page, and skipping is offered', (
+      tester,
+    ) async {
+      await openSetup(tester);
+
+      expect(find.text(questions.first.question), findsOneWidget);
+      expect(find.text(questions[1].question), findsNothing);
+      expect(
+        find.text('QUESTION 1 OF ${questions.length + 1}'),
+        findsOneWidget,
+      );
+      // Still said where it came from, on its own page.
+      expect(find.text(questions.first.why), findsOneWidget);
+      expect(find.text('Skip this one'), findsOneWidget);
+
+      await tester.tap(find.text('Fine'));
+      await tester.pump();
+      expect(find.text('Next'), findsOneWidget);
+    });
+
+    testWidgets('a skipped question is saved as no answer at all', (
+      tester,
+    ) async {
+      await openSetup(tester);
+
+      await tester.tap(find.text('Rather not'));
+      await tester.pump();
+      await next(tester, 'Next');
+      for (var i = 1; i < questions.length; i++) {
+        await next(tester, 'Skip this one');
+      }
+      expect(find.text('Anything else, in your own words?'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'No gambling ads.');
+      await tester.pump();
+      await next(tester, 'Save and go on');
+      await settle(tester);
+
+      expect(saved().answers, hasLength(1));
+      expect(saved().answers.single.id, questions.first.id);
+      expect(saved().answers.single.choice, PolicyChoice.ratherNot);
+      expect(saved().notes, 'No gambling ads.');
+      expect(find.text('open'), findsOneWidget, reason: 'setup moved on');
+    });
+
+    testWidgets('going back keeps the answer given', (tester) async {
+      await openSetup(tester);
+
+      await tester.tap(find.text('Rather not'));
+      await tester.pump();
+      // The strongest answer still leaves the decision with the parent, and
+      // the page says so where they are deciding.
+      expect(find.textContaining('come to your inbox'), findsOneWidget);
+      await next(tester, 'Next');
+      await next(tester, 'Back');
+
+      expect(find.text(questions.first.question), findsOneWidget);
+      expect(find.textContaining('come to your inbox'), findsOneWidget);
+    });
+
+    testWidgets('answering nothing goes on, and saves nothing', (tester) async {
+      await openSetup(tester);
+
+      for (var i = 0; i < questions.length; i++) {
+        await next(tester, 'Skip this one');
+      }
+      await next(tester, 'Save and go on');
+      await settle(tester);
+
+      expect(find.text('open'), findsOneWidget);
+      expect(saved().isEmpty, isTrue);
+    });
+  });
+
   group('Policy wire types', () {
     test('an unanswered question has no choice to read', () {
       expect(PolicyChoice.fromWire(null), isNull);
