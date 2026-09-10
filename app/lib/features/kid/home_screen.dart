@@ -104,7 +104,13 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     super.initState();
     // Best-effort screen pinning; the PIN gate is the real exit control.
     ScreenOrientation.kidMode();
-    WidgetsBinding.instance.addPostFrameCallback((_) => LockMode.start());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      LockMode.start();
+      // A notice from the parent's side ("Moved to Shown · Undo") must not
+      // follow them in: a notice with an action stays until dismissed, and a
+      // child would be the one left to tap Undo.
+      if (mounted) ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+    });
   }
 
   Future<void> _tryExit() async {

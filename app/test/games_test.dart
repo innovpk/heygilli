@@ -156,6 +156,38 @@ void main() {
     });
   });
 
+  testWidgets("a parent's notice does not follow them into kid mode", (
+    tester,
+  ) async {
+    app.enterKidMode(reader);
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Moved to Shown'),
+                  action: SnackBarAction(label: 'Undo', onPressed: () {}),
+                ),
+              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const KidHomeScreen()));
+            },
+            child: const Text('go'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('go'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('Moved to Shown'), findsNothing);
+    expect(find.text('Undo'), findsNothing);
+  });
+
   group('games', () {
     testWidgets('the games button opens his games; pinching Gilli does not', (
       tester,
