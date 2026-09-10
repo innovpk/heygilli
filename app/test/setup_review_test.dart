@@ -108,7 +108,7 @@ void main() {
     expect(find.text('Asked you'), findsOneWidget);
     expect(find.text('Sponsor'), findsOneWidget);
 
-    await tester.tap(find.text('Why'));
+    await tester.tap(find.text('Why').first);
     await tester.pump();
     expect(
       find.textContaining('A sponsor named in the description'),
@@ -116,22 +116,33 @@ void main() {
     );
   });
 
-  testWidgets('what Gilli kept back is counted under Hidden, not offered', (
+  testWidgets('what Gilli kept back is listed under Hidden, and says so', (
     tester,
   ) async {
-    // A hidden video is the opposite of a suggestion. Listing it with its
-    // switch off asked a question nobody posed, and made "Allow all" mean
-    // "allow the things we kept back too" — which is how a two-hour film
-    // reached a seven-year-old's science list. It belongs on the screen built
-    // for arguing with, and the Hidden tab says how many are there.
+    // It used to sit behind a link under the Hidden tab, which is one tap
+    // away from the tab that was already called Hidden.
     await open(tester);
-    expect(find.textContaining('1 more video was kept back'), findsNothing);
+    expect(find.text('Five Little Ducks'), findsNothing);
 
     await tab(tester, 'Hidden');
-    expect(find.text('Five Little Ducks'), findsNothing);
-    expect(find.textContaining('A live stream'), findsNothing);
-    expect(find.textContaining('1 more video was kept back'), findsOneWidget);
-    expect(find.text('See what was kept, and why'), findsOneWidget);
+    expect(find.text('Five Little Ducks'), findsOneWidget);
+    expect(find.text('Kept by Gilli'), findsOneWidget);
+    expect(find.text('Live stream'), findsOneWidget);
+    expect(switchFor(tester, 'Five Little Ducks').value, isFalse);
+  });
+
+  testWidgets('"Allow all" never lets through what Gilli kept back', (
+    tester,
+  ) async {
+    // "Allow all" meaning "allow the things we kept back too" is how a
+    // two-hour film reached a seven-year-old's science list.
+    await open(tester);
+    await tester.tap(find.text('Allow all'));
+    await tester.pumpAndSettle();
+
+    await tab(tester, 'Hidden');
+    expect(find.text('Five Little Ducks'), findsOneWidget);
+    expect(switchFor(tester, 'Five Little Ducks').value, isFalse);
   });
 
   testWidgets('a ceiling that could not run on some of them says so', (
@@ -176,21 +187,24 @@ void main() {
     expect(find.text('Title only'), findsNothing);
 
     await tab(tester, 'Hidden');
-    expect(find.text('Title only'), findsOneWidget);
+    // The one it asked about, and the one it kept back: both read on the
+    // title alone.
+    expect(find.text('Title only'), findsNWidgets(2));
   });
 
   testWidgets('flipping a switch moves the card, and Undo brings it back', (
     tester,
   ) async {
     await open(tester);
+    // Hidden counts what Gilli kept back as well as what is switched off.
     expect(find.text('Shown (2)'), findsOneWidget);
-    expect(find.text('Hidden (1)'), findsOneWidget);
+    expect(find.text('Hidden (2)'), findsOneWidget);
 
     await tester.tap(switchFinder(tester, 'Every Kind of Volcano'));
     await tester.pump();
     expect(find.text('Every Kind of Volcano'), findsNothing);
     expect(find.text('Shown (1)'), findsOneWidget);
-    expect(find.text('Hidden (2)'), findsOneWidget);
+    expect(find.text('Hidden (3)'), findsOneWidget);
     expect(find.text('Moved to Hidden'), findsOneWidget);
 
     await tester.pumpAndSettle();
@@ -198,7 +212,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Every Kind of Volcano'), findsOneWidget);
     expect(find.text('Shown (2)'), findsOneWidget);
-    expect(find.text('Hidden (1)'), findsOneWidget);
+    expect(find.text('Hidden (2)'), findsOneWidget);
   });
 
   testWidgets('the count on the button follows the switches', (tester) async {

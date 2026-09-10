@@ -8,7 +8,6 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import 'add_question_sheet.dart';
 import 'ask_about_video_sheet.dart';
-import 'hidden_screen.dart';
 import 'parent_widgets.dart';
 
 /// What the child will actually see, before they see it.
@@ -32,14 +31,15 @@ class SetupReviewScreen extends StatefulWidget {
   State<SetupReviewScreen> createState() => _SetupReviewScreenState();
 }
 
-/// The suggestions, which is not everything that was screened.
+/// The suggestions: what "Allow all" and "Reject all" act on.
 ///
-/// A video Gilli hid is the opposite of a suggestion, and putting it here with
-/// its switch off asked the parent to answer a question nobody posed — worse,
-/// "Allow all" then meant "allow the things we kept back too". A two-hour film
-/// landed in a seven-year-old's science list this way. Hidden videos live on
-/// the "Kept from" screen, which exists to be argued with, and this screen
-/// points at it and says how many are there.
+/// Not everything screened. A video Gilli kept back is listed under Hidden
+/// with its switch off and a "Kept by Gilli" tag, but it is never seeded into
+/// the answers, so "Allow all" cannot mean "allow the things we kept back
+/// too" — which is how a two-hour film once landed in a seven-year-old's
+/// science list. A parent can still switch one on by hand. They used to be
+/// behind a link under the tab instead, one tap away from the tab that was
+/// already called Hidden.
 List<ReviewItem> _suggested(ReviewQueue queue) => [
   for (final item in queue.items)
     if (item.status != 'hide') item,
@@ -152,9 +152,9 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final queue = _queue;
-    final suggested = queue == null ? const <ReviewItem>[] : _suggested(queue);
-    final kept = queue == null ? 0 : queue.items.length - suggested.length;
-    final yes = _approved.values.where((v) => v).length;
+    final items = queue?.items ?? const <ReviewItem>[];
+    bool on(ReviewItem i) => _approved[i.video.id] ?? i.startsApproved;
+    final yes = items.where(on).length;
     return ParentScaffold(
       title: 'What ${widget.kid.nickname} will see',
       body: switch ((queue, _error)) {
@@ -164,7 +164,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
         (null, _) => const Center(
           child: CircularProgressIndicator(color: HgColors.mango),
         ),
-        (final ReviewQueue q, _) when suggested.isEmpty => _Message(
+        (final ReviewQueue q, _) when items.isEmpty => _Message(
           text: q.stillScreening
               ? 'Reading the first uploads from ${q.channels} '
                     '${q.channels == 1 ? 'channel' : 'channels'}. This takes a '
@@ -206,35 +206,25 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
             const SizedBox(height: 4),
             _Tabs(
               shown: yes,
-              hidden: suggested.length - yes,
+              hidden: items.length - yes,
               showingShown: _showingShown,
               onChanged: (v) => setState(() => _showingShown = v),
             ),
-            if (!suggested.any(
-              (i) =>
-                  (_approved[i.video.id] ?? i.startsApproved) == _showingShown,
-            ))
+            if (!items.any((i) => on(i) == _showingShown))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text(
                   _showingShown
                       ? 'Nothing is set to be shown yet.'
-                      // Not "Nothing is hidden" when the screening kept some
-                      // back: those are hidden too, and listed just below.
-                      : kept > 0
-                      ? 'Nothing here is switched off.'
                       : 'Nothing is hidden.',
                   style: HgText.body(size: 14, color: HgColors.brown),
                 ),
               ),
-            for (final item in suggested.where(
-              (i) =>
-                  (_approved[i.video.id] ?? i.startsApproved) == _showingShown,
-            ))
+            for (final item in items.where((i) => on(i) == _showingShown))
               _ReviewCard(
                 key: ValueKey(item.video.id),
                 item: item,
-                approved: _approved[item.video.id] ?? item.startsApproved,
+                approved: on(item),
                 onChanged: _saving ? null : (v) => _flip(item, v),
                 onAsk: () => AskAboutVideoSheet.open(
                   context,
@@ -249,10 +239,6 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
                   videoTitle: item.video.title,
                 ),
               ),
-            if (kept > 0 && !_showingShown) ...[
-              const SizedBox(height: 16),
-              _KeptNote(kid: widget.kid, kept: kept),
-            ],
             // The one rule on this screen that can silently not run. Nothing
             // over the ceiling is suggested, but a length is only knowable
             // through the parent's own Google grant; where it was not, the
@@ -272,7 +258,7 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
           ],
         ),
       },
-      floating: queue == null || suggested.isEmpty
+      floating: items.isEmpty
           ? null
           : FloatingActionButton.extended(
               onPressed: _saving ? null : _save,
@@ -321,40 +307,6 @@ class _StillScreening extends StatelessWidget {
               'Still reading — $screened of about $expected done. More will '
               'appear here on their own.',
               style: HgText.body(size: 14, color: HgColors.brown),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _KeptNote extends StatelessWidget {
-  const _KeptNote({required this.kid, required this.kept});
-  final Kid kid;
-  final int kept;
-
-  @override
-  Widget build(BuildContext context) {
-    return PCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 8,
-        children: [
-          Text(
-            '$kept more ${kept == 1 ? 'video was' : 'videos were'} kept back — '
-            'too long, or something in ${kept == 1 ? 'it' : 'them'} Gilli keeps '
-            'from every child. ${kid.nickname} will not see '
-            '${kept == 1 ? 'it' : 'them'}.',
-            style: HgText.body(size: 14, color: HgColors.brown),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => HiddenScreen(kid: kid)),
-              ),
-              child: Text('See what was kept, and why'),
             ),
           ),
         ],
@@ -493,6 +445,9 @@ class _ReviewCardState extends State<_ReviewCard> {
   Widget build(BuildContext context) {
     final titleOnly = item.read == 'title only';
     final tags = <Widget>[
+      // Kept back: always hidden unless the parent switches it on by hand,
+      // and never touched by "Allow all".
+      if (item.status == 'hide') const _Tag('Kept by Gilli', _TagKind.asked),
       if (item.status == 'ask_parent') const _Tag('Asked you', _TagKind.asked),
       for (final c in item.concerns) _Tag(c, _TagKind.concern),
       for (final t in item.topics) _Tag(t, _TagKind.topic),

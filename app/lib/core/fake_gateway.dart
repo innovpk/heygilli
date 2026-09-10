@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'analytics.dart';
+import 'break_activities.dart';
 import 'demo_catalogue.dart';
 import 'gateway.dart';
 import 'models.dart';
@@ -1059,6 +1060,26 @@ class FakeGateway implements Gateway {
     await _lag();
     _preferences[kidId] = topics;
     breakPicks[kidId] = breakActivities;
+    // As the real gateway does: the picks become the lines Gilli says at a
+    // break, unless the parent has already written their own. The demo used
+    // to keep them only for tests, so every demo break was a quiet one.
+    final i = _kids.indexWhere((k) => k.id == kidId);
+    if (i >= 0 && _kids[i].breakMessages.isEmpty) {
+      final lines = [
+        for (final a in breakActivities)
+          if (breakActivityLabels[a] case final label?)
+            BreakMessage(
+              id: 'msg_${kidId}_$a',
+              text: 'Break time. $label?',
+              spoken: 'Break time. $label?',
+              activity: a,
+            ),
+      ];
+      if (lines.isNotEmpty) {
+        _kids[i] = _kids[i].copyWith(breakMessages: lines);
+        _messageCursor.remove(kidId);
+      }
+    }
     return topics.isEmpty ? 6 : topics.length * 3;
   }
 
@@ -1230,23 +1251,53 @@ class FakeGateway implements Gateway {
     }
   }
 
+  /// The Curator's verdict on each demo video before a parent says anything,
+  /// matching the review list.
+  static String _seedStatus(Video v) => identical(v, _ducks)
+      ? 'hide'
+      : identical(v, _twinkle)
+      ? 'ask_parent'
+      : 'approve';
+
+  /// On the child's shelf only when approved — by the Curator, or by the
+  /// parent overruling it. The shelf used to list every demo video whatever
+  /// was decided, so a video a parent had just switched off was the first
+  /// thing their child was offered. The real gateway has always filtered.
+  bool _onShelf(String kidId, Video v) =>
+      (_reviewDecided[kidId]?[v.id] ?? _seedStatus(v)) == 'approve';
+
   @override
   Future<List<HomeRow>> home(String kidId, {String query = ''}) async {
     await _lag();
     final kid = _kids.where((k) => k.id == kidId).firstOrNull;
     if (kid == null) return const [];
-    final rows = kid.band == AgeBand.b4to6
-        ? const [
-            HomeRow(
-              title: 'New from your channels',
-              videos: [_ducks, _twinkle],
-            ),
-            HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
-          ]
-        : const [
-            HomeRow(title: 'New from your channels', videos: [_volcano, _ears]),
-            HomeRow(title: 'Keep watching', videos: [_twinkle, _ducks]),
-          ];
+    final rows =
+        (kid.band == AgeBand.b4to6
+                ? const [
+                    HomeRow(
+                      title: 'New from your channels',
+                      videos: [_ducks, _twinkle],
+                    ),
+                    HomeRow(title: 'Keep watching', videos: [_ears, _volcano]),
+                  ]
+                : const [
+                    HomeRow(
+                      title: 'New from your channels',
+                      videos: [_volcano, _ears],
+                    ),
+                    HomeRow(title: 'Keep watching', videos: [_twinkle, _ducks]),
+                  ])
+            .map(
+              (row) => HomeRow(
+                title: row.title,
+                videos: [
+                  for (final v in row.videos)
+                    if (_onShelf(kidId, v)) v,
+                ],
+              ),
+            )
+            .where((row) => row.videos.isNotEmpty)
+            .toList();
     final q = query.trim().toLowerCase();
     // Same rule as the gateway: a query only ever narrows what is already
     // approved, and it does nothing at all unless the parent enabled it.
