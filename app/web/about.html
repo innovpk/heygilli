@@ -280,7 +280,41 @@
     box-shadow: var(--shadow-tv);
   }
   .tv-screen { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
-  .tv-screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* The demo loop that replaced an eight-minute embed of somebody else's
+     video. It shows the product instead: a pause, and the kinds of question
+     and break a child actually meets. Sized in container units so it reads
+     the same in a phone-width frame as a desktop one. */
+  .tv-screen { container-type: inline-size; background: linear-gradient(#bfe3ef 0 62%, #efdcb8 62%); }
+  .demo, .demo .sc, .demo .veil { position: absolute; inset: 0; }
+  .vid-art { position: absolute; left: 50%; top: 14%; width: 44cqw; transform: translateX(-50%); }
+  .vbar { position: absolute; left: 5%; right: 5%; bottom: 6%; height: 1.6cqw; border-radius: 99px; background: rgba(30,58,52,.25); }
+  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 15s linear infinite; }
+  .vbar i { position: absolute; top: 50%; width: 2.6cqw; height: 2.6cqw; margin: -1.3cqw 0 0 -1.3cqw; border-radius: 50%; border: .5cqw solid var(--paper); background: var(--ink); }
+  .demo .sc { opacity: 0; animation: dScene 15s infinite backwards; }
+  .demo .s2 { animation-delay: 3s; } .demo .s3 { animation-delay: 6s; }
+  .demo .s4 { animation-delay: 9s; } .demo .s5 { animation-delay: 12s; }
+  .demo .veil { background: rgba(30,58,52,.5); }
+  .dtag { position: absolute; left: 3.5%; top: 5%; background: rgba(244,250,248,.94); color: var(--ink);
+          font-family: var(--display); font-size: 3.4cqw; padding: .8cqw 2.4cqw; border-radius: 99px; }
+  .dg { position: absolute; left: 4%; bottom: 13%; width: 17cqw; height: 17cqw; border-radius: 50%; background: var(--paper); }
+  .dg svg { width: 100%; height: 100%; }
+  .dsay { position: absolute; left: 22%; right: 5%; top: 22%; background: var(--ink); color: var(--bg);
+          font-family: var(--display); font-size: 4.6cqw; line-height: 1.15; padding: 2cqw 3cqw; border-radius: 3cqw 3cqw 3cqw .6cqw; }
+  .dchips { position: absolute; left: 22%; right: 5%; top: 45%; display: flex; gap: 2.4cqw; }
+  .dcard { flex: 1; background: var(--paper); border-radius: 2.4cqw; padding: 1.6cqw; text-align: center;
+           font-family: var(--display); font-size: 3.4cqw; color: var(--ink); outline: .9cqw solid transparent; outline-offset: -.9cqw; }
+  .dcard svg { display: block; width: 60%; margin: 0 auto .6cqw; }
+  .dcard.on { outline-color: var(--accent); }
+  .dmic { position: absolute; left: 22%; top: 52%; display: flex; align-items: center; gap: 1.6cqw;
+          color: var(--bg); font-size: 3.2cqw; }
+  .dmic b { width: 2.4cqw; height: 2.4cqw; border-radius: 50%; background: var(--accent-tint); animation: gBlink 1.2s infinite; }
+  .dbreak { position: absolute; inset: 21% 6% 16% 24%; background: var(--paper); border-radius: 3cqw; padding: 3cqw;
+            display: flex; flex-direction: column; justify-content: center; gap: 1.8cqw; color: var(--ink); }
+  .dbreak .t { font-family: var(--display); font-size: 5cqw; }
+  .dbreak .a { font-size: 3.4cqw; }
+  .dbreak .a span { display: inline-block; background: var(--bg); border-radius: 99px; padding: .6cqw 2cqw; margin: 0 .8cqw .8cqw 0; }
+  @keyframes dScene { 0% { opacity: 0; } 3% { opacity: 1; } 17% { opacity: 1; } 20%, 100% { opacity: 0; } }
+  @keyframes dPlay { from { width: 6%; } to { width: 78%; } }
   .tv-cap {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 12px; padding: 0 4px; color: var(--bg); font-size: 12px; gap: 12px;
@@ -510,6 +544,9 @@
       transition-duration: .001ms !important;
     }
     .card1, .card2, .note, .say { transform: rotate(var(--r, 0deg)); }
+    .demo .sc { animation: none; opacity: 0; }
+    .demo .s2 { opacity: 1; }
+    .vbar .fill { animation: none; width: 38%; }
   }
 
   /* ---------- responsive ---------- */
@@ -524,8 +561,12 @@
     /* The scene unstacks here, not at 640: the hero is already one column by
        this width, so the pieces have no column to overlap and a fixed 600px
        box full of absolutely positioned cards just sprawls across the page. */
+    /* width: 100% because auto side margins on a grid item shrink it to its
+       content, and the widest child here is the note, capped at 300px on a
+       phone — so the note was quietly setting the TV's width, and the demo
+       inside it came out 35px narrower than the column with text to match. */
     .scene {
-      position: static; height: auto; margin: 28px auto 0;
+      position: static; height: auto; margin: 28px auto 0; width: 100%;
       display: flex; flex-direction: column; align-items: center; gap: 20px;
       max-width: 560px;
     }
@@ -601,6 +642,35 @@
 </style>
 </head>
 <body>
+<!-- Gilli, drawn once and reused: the hero badge and every scene of the
+     demo loop point at this rather than carrying their own copies. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="gilli-art" viewBox="0 0 180 180">
+        <path d="M40 150 C-10 130 0 60 40 60 C70 60 62 100 48 118 C40 128 44 146 40 150 Z" fill="#a8471f"/>
+        <path d="M42 140 C10 122 18 76 42 76 C58 76 54 100 46 112 C42 120 44 132 42 140 Z" fill="#c96a2b"/>
+        <ellipse cx="96" cy="126" rx="38" ry="42" fill="#d98b4a"/>
+        <ellipse cx="98" cy="134" rx="22" ry="28" fill="#f6dcbf"/>
+        <g stroke="#7a3a14" stroke-width="3" stroke-linecap="round" fill="none">
+          <path d="M78 96 q-4 20 2 40"/><path d="M70 100 q-4 18 0 34"/>
+        </g>
+        <ellipse cx="74" cy="150" rx="10" ry="7" fill="#c96a2b"/>
+        <ellipse cx="118" cy="150" rx="10" ry="7" fill="#c96a2b"/>
+        <circle cx="96" cy="70" r="34" fill="#d98b4a"/>
+        <ellipse cx="96" cy="84" rx="18" ry="12" fill="#f6dcbf"/>
+        <circle cx="96" cy="80" r="4" fill="#5a2a12"/>
+        <circle cx="72" cy="82" r="5" fill="#f4a08a" opacity="0.8"/>
+        <circle cx="120" cy="82" r="5" fill="#f4a08a" opacity="0.8"/>
+        <ellipse cx="70" cy="42" rx="10" ry="14" fill="#d98b4a"/>
+        <ellipse cx="70" cy="44" rx="5" ry="8" fill="#f2b7a0"/>
+        <ellipse cx="122" cy="42" rx="10" ry="14" fill="#d98b4a"/>
+        <ellipse cx="122" cy="44" rx="5" ry="8" fill="#f2b7a0"/>
+        <circle cx="82" cy="66" r="11" fill="#ffffff"/>
+        <circle cx="110" cy="66" r="11" fill="#ffffff"/>
+        <circle cx="84" cy="68" r="6" fill="#1e1a17"/>
+        <circle cx="112" cy="68" r="6" fill="#1e1a17"/>
+        <circle cx="86" cy="65" r="2" fill="#ffffff"/>
+        <circle cx="114" cy="65" r="2" fill="#ffffff"/>
+        <path d="M90 88 q6 6 12 0" stroke="#5a2a12" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </symbol></svg>
 
 <div class="bar">
   <span class="wordmark">HeyGilli</span>
@@ -628,14 +698,32 @@
   <div class="scene">
     <div class="tv">
       <div class="tv-screen">
-        <iframe loading="lazy"
-                src="https://www.youtube-nocookie.com/embed/0jKoOUZ1GBM?rel=0&amp;modestbranding=1"
-                title="Every Kind of Volcano | SciShow Kids"
-                allow="accelerometer; encrypted-media; picture-in-picture"
-                allowfullscreen></iframe>
+        <!-- A loop of what a session is like, drawn from the product itself:
+             the real question kinds (voice, picture cards, yes or no) and a
+             real break activity. Not a recording, so nothing here claims to
+             be one; every scene is something the app does. -->
+        <div class="demo" role="img" aria-label="A HeyGilli session: the video pauses, and Gilli asks a question by voice, then with picture cards, then yes or no, and later calls a movement break.">
+          <div aria-hidden="true">
+            <div class="vid-art"><svg viewBox="0 0 100 100"><path d="M6 88 L36 30 h28 L94 88 Z" fill="#a8471f"/><path d="M36 30 h28 l-4 -6 q-10 -4 -20 0 Z" fill="#e4572e"/><path d="M48 30 v30 q-6 10 0 18 M56 30 v22 q6 8 0 16" stroke="#f5a524" stroke-width="5" fill="none" stroke-linecap="round"/><g fill="#f5a524"><circle cx="30" cy="16" r="4"/><circle cx="72" cy="12" r="5"/><circle cx="50" cy="8" r="3"/></g><circle cx="52" cy="24" r="10" fill="#e4572e"/></svg></div>
+            <div class="vbar"><span class="fill"></span><i style="left:38%"></i><i style="left:72%"></i></div>
+          </div>
+          <div class="sc s1" aria-hidden="true"><span class="dtag">Watching along</span></div>
+          <div class="sc s2" aria-hidden="true"><div class="veil"></div><span class="dtag">Asks by voice</span><div class="dg"><svg viewBox="0 0 180 180"><use href="#gilli-art"/></svg></div>
+            <div class="dsay">Why did the lava come out?</div>
+            <div class="dmic"><b></b>Listening…</div></div>
+          <div class="sc s3" aria-hidden="true"><div class="veil"></div><span class="dtag">Picture cards</span><div class="dg"><svg viewBox="0 0 180 180"><use href="#gilli-art"/></svg></div>
+            <div class="dsay">Which one did we just see?</div>
+            <div class="dchips"><div class="dcard on"><svg viewBox="0 0 100 100"><path d="M6 88 L36 30 h28 L94 88 Z" fill="#a8471f"/><path d="M36 30 h28 l-4 -6 q-10 -4 -20 0 Z" fill="#e4572e"/><path d="M48 30 v30 q-6 10 0 18 M56 30 v22 q6 8 0 16" stroke="#f5a524" stroke-width="5" fill="none" stroke-linecap="round"/><g fill="#f5a524"><circle cx="30" cy="16" r="4"/><circle cx="72" cy="12" r="5"/><circle cx="50" cy="8" r="3"/></g><circle cx="52" cy="24" r="10" fill="#e4572e"/></svg>Volcano</div><div class="dcard"><svg viewBox="0 0 100 100"><path d="M14 50 q28 -32 56 0 q-28 32 -56 0 Z" fill="#3b8bd6"/><path d="M68 50 l20 -18 v36 Z" fill="#2c6fb0"/><path d="M40 30 q6 8 0 16" stroke="#2c6fb0" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="32" cy="46" r="4.5" fill="#1e1a17"/></svg>Fish</div><div class="dcard"><svg viewBox="0 0 100 100"><path d="M14 62 l10 -20 h42 l16 20 Z" fill="#e4572e"/><rect x="8" y="58" width="84" height="18" rx="8" fill="#e4572e"/><path d="M30 46 h12 v14 h-18 Z M48 46 h14 l10 14 h-24 Z" fill="#8fd3ee"/><circle cx="30" cy="78" r="9" fill="#1e1a17"/><circle cx="70" cy="78" r="9" fill="#1e1a17"/><circle cx="30" cy="78" r="4" fill="#9a8f82"/><circle cx="70" cy="78" r="4" fill="#9a8f82"/></svg>Car</div></div></div>
+          <div class="sc s4" aria-hidden="true"><div class="veil"></div><span class="dtag">Yes or no</span><div class="dg"><svg viewBox="0 0 180 180"><use href="#gilli-art"/></svg></div>
+            <div class="dsay">Was the lava cold?</div>
+            <div class="dchips"><div class="dcard">Yes</div><div class="dcard on">No</div></div></div>
+          <div class="sc s5" aria-hidden="true"><div class="veil"></div><span class="dtag">Movement break</span><div class="dg"><svg viewBox="0 0 180 180"><use href="#gilli-art"/></svg></div>
+            <div class="dbreak"><div class="t">Break time!</div>
+              <div class="a"><span>Tidy one thing</span><span>Star jumps</span><span>Have a stretch</span></div></div></div>
+        </div>
       </div>
       <div class="tv-cap">
-        <span>Every Kind of Volcano · SciShow Kids</span>
+        <span>A session with Gilli</span>
         <span><span class="dot"></span>Gilli is watching along</span>
       </div>
     </div>
@@ -665,33 +753,7 @@
     </div>
 
     <div class="gilli-badge">
-      <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gilli, the HeyGilli squirrel">
-        <path d="M40 150 C-10 130 0 60 40 60 C70 60 62 100 48 118 C40 128 44 146 40 150 Z" fill="#a8471f"/>
-        <path d="M42 140 C10 122 18 76 42 76 C58 76 54 100 46 112 C42 120 44 132 42 140 Z" fill="#c96a2b"/>
-        <ellipse cx="96" cy="126" rx="38" ry="42" fill="#d98b4a"/>
-        <ellipse cx="98" cy="134" rx="22" ry="28" fill="#f6dcbf"/>
-        <g stroke="#7a3a14" stroke-width="3" stroke-linecap="round" fill="none">
-          <path d="M78 96 q-4 20 2 40"/><path d="M70 100 q-4 18 0 34"/>
-        </g>
-        <ellipse cx="74" cy="150" rx="10" ry="7" fill="#c96a2b"/>
-        <ellipse cx="118" cy="150" rx="10" ry="7" fill="#c96a2b"/>
-        <circle cx="96" cy="70" r="34" fill="#d98b4a"/>
-        <ellipse cx="96" cy="84" rx="18" ry="12" fill="#f6dcbf"/>
-        <circle cx="96" cy="80" r="4" fill="#5a2a12"/>
-        <circle cx="72" cy="82" r="5" fill="#f4a08a" opacity="0.8"/>
-        <circle cx="120" cy="82" r="5" fill="#f4a08a" opacity="0.8"/>
-        <ellipse cx="70" cy="42" rx="10" ry="14" fill="#d98b4a"/>
-        <ellipse cx="70" cy="44" rx="5" ry="8" fill="#f2b7a0"/>
-        <ellipse cx="122" cy="42" rx="10" ry="14" fill="#d98b4a"/>
-        <ellipse cx="122" cy="44" rx="5" ry="8" fill="#f2b7a0"/>
-        <circle cx="82" cy="66" r="11" fill="#ffffff"/>
-        <circle cx="110" cy="66" r="11" fill="#ffffff"/>
-        <circle cx="84" cy="68" r="6" fill="#1e1a17"/>
-        <circle cx="112" cy="68" r="6" fill="#1e1a17"/>
-        <circle cx="86" cy="65" r="2" fill="#ffffff"/>
-        <circle cx="114" cy="65" r="2" fill="#ffffff"/>
-        <path d="M90 88 q6 6 12 0" stroke="#5a2a12" stroke-width="3" fill="none" stroke-linecap="round"/>
-      </svg>
+      <svg viewBox="0 0 180 180" role="img" aria-label="Gilli, the HeyGilli squirrel"><use href="#gilli-art"/></svg>
     </div>
 
     <div class="say">What happened to the volcano?</div>
