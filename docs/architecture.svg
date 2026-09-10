@@ -108,7 +108,7 @@
   <!-- ============ Agents ============ -->
   <rect x="40" y="590" width="1000" height="260" rx="14" class="panel"/>
   <text x="60" y="620" class="ph">Strands Agents SDK</text>
-  <text x="262" y="620" class="ps">seven agents · the agents decide, the code fetches and enforces</text>
+  <text x="262" y="620" class="ps">eight agents · the agents decide, the code fetches and enforces</text>
 
   <rect x="60" y="640" width="230" height="80" rx="10" class="agent"/>
   <text x="75" y="664" class="bt">Curator</text>
@@ -145,12 +145,12 @@
   <text x="559" y="778" class="tm">answers a parent's question</text>
   <text x="559" y="798" class="tm">from the transcript (@tool)</text>
 
-  <rect x="786" y="732" width="234" height="80" rx="10" class="rule"/>
-  <text x="801" y="756" class="bt">Every agent</text>
-  <text x="801" y="778" class="tm">frozen prompt, own model setting,</text>
-  <text x="801" y="798" class="tm">Pydantic output, safe fallback</text>
+  <rect x="786" y="732" width="234" height="80" rx="10" class="agent"/>
+  <text x="801" y="756" class="bt">Playmate</text>
+  <text x="801" y="778" class="tm">runs Gilli's two games:</text>
+  <text x="801" y="798" class="tm">how hard the next round is</text>
 
-  <text x="60" y="838" class="tm">Model per role: HEYGILLI_MODEL_&lt;ROLE&gt;=&lt;provider&gt;:&lt;model id&gt; · one line to switch Bedrock, Anthropic, OpenAI or Ollama.</text>
+  <text x="60" y="838" class="tm">Every agent: frozen prompt, Pydantic output, safe fallback, own model via HEYGILLI_MODEL_&lt;ROLE&gt;=&lt;provider&gt;:&lt;model id&gt;.</text>
 
   <!-- ============ Fetchers ============ -->
   <rect x="1060" y="590" width="500" height="260" rx="14" class="panel"/>

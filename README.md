@@ -42,7 +42,7 @@ Live against the gateway on an Android emulator, 5 September: the Curator's appr
 
 ## How it is built
 
-**Seven Strands agents** in Python, each an `Agent` with a frozen system prompt and its own model setting:
+**Eight Strands agents** in Python, each an `Agent` with a frozen system prompt and its own model setting:
 
 | Agent | Runs | `@tool` functions it may call | Decides |
 |---|---|---|---|
@@ -53,11 +53,37 @@ Live against the gateway on an Android emulator, 5 September: the Curator's appr
 | Reviewer | per channel on import | `screen_video` | what a channel actually publishes, from its RSS feed alone |
 | Coach | when a parent writes a break line or sets household policy | — | drafts **for the parent**; nothing here can reach a child |
 | Explainer | when a parent asks a question about one video | `search_transcript`, `channel_reputation`, `screen_video` | nothing — it answers from the cached transcript, and says so when there is none |
+| Playmate | per round of one of Gilli's games, between videos | — | how hard the next round is for this child and what Gilli says; the code clamps the numbers per age band, picks where he hides, checks the line and caps the rounds |
 
-`ROLES` in `agents/heygilli_agents/models.py` is exactly those seven, and each takes its own
-`HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding an
-eighth: channel drift runs on `reviewer`, the revisit question on `planner`, and the
+`ROLES` in `agents/heygilli_agents/models.py` is exactly those eight, and each takes its own
+`HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding a
+ninth: channel drift runs on `reviewer`, the revisit question on `planner`, and the
 progress note and watch-history summary on `digest`.
+
+**Traces, guardrails, and the audit.** Every agent call goes through one function,
+`structured()` in `llm.py`, and three things happen there:
+
+- **Full traces.** Each call is a root OpenTelemetry span that Strands' own spans
+  nest under: the agent, each model call with its messages and token counts,
+  each tool call. `tracing.py` stores the whole trace with the household's data
+  (`GET /agents/traces/{id}`), and sends it to any OTLP collector too if
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set. What a child said is replaced before
+  anything is written.
+- **Guardrails.** `guardrails.py` checks every answer before it is used. Anything
+  a child hears must not contain unsafe words, links, or a question about the
+  child; Gilli never says "wrong"; a paraphrase stays under ten words; the
+  Curator cannot approve a video whose own title trips a safety rule; a digest
+  cannot claim a child heard a word no question used. A blocked answer goes back
+  to the agent once, saying what was wrong. A second one falls back to the
+  caller's safe built-in.
+- **Report and fix.** Every call is an event and every violation an incident
+  (`agent_audit.py`). After each screening run, and on `POST /agents/audit`, an
+  audit looks back over what the agents already did. It hides approvals that
+  break a safety rule, sends back to the parent approvals that should have been
+  asked about, drops cached questions a child must not hear, and reports any
+  agent whose answers keep ending in the fallback. It never touches a parent's
+  own decision. `GET /agents/report` is the per-household view; `GET /ops/agents`
+  the operator's, behind `HEYGILLI_OPS_TOKEN`.
 
 Everything else the pipeline needs — reading a transcript, listing a channel's uploads,
 Polly speech, notifying a parent — is a plain function the gateway calls in code, not a

@@ -44,20 +44,23 @@ HeyGilli is a kid-safe YouTube front end with a co-watching buddy, Gilli the squ
 - **Ask about any video.** "Is the dog hurt in it?" is answered from the video's own transcript, and says so when it cannot tell.
 - **A daily digest** in two lines: minutes, videos, which words a pre-reader said or what an older child understood, and one thing to ask at dinner. A Progress screen shows the week.
 - Daily limits, breaks with an activity the parent chose, a parent PIN to leave kid mode, and a card when an approved channel starts publishing something different. HeyGilli never removes a channel on its own.
+- **See what the agents did.** Every agent call is traced in full, every answer passes guardrails before anyone sees it, and a report lists what was caught and what was fixed.
 
 **For the child**, on a phone, tablet or browser:
 
 - Only videos the parent's rules allowed. No search, no recommendations. Videos play in the official YouTube embed, so ads still play and creators still get paid.
+- The shelf is grouped by channel, each row under the channel's own picture, so a child who cannot read still knows the songs row from the volcano row.
 - At a natural break the video pauses and Gilli asks one question by voice about what just happened. Two or three a video, sized to its length.
 - A 5-year-old answers with one word, by tapping one of three pictures, or yes or no. There is no text on screen for them at all, and Gilli always says the answer word back.
 - A 10-year-old answers in a sentence. Gilli builds on the answer and the video resumes. English or Urdu.
 - Three age bands (5 to 6, 7 to 8, 9 to 12) set the question types, the listening window and Gilli's tone.
+- Between videos Gilli naps on the shelf. A pinch wakes him: a tap, a click, or two fingers squeezed together. The games have their own button: find Gilli hiding behind one of the trees, or catch him as he pops up. The Playmate agent makes each round a little harder or easier from how the last one went, and the games follow the same limits as videos.
 
 Nothing a child says is stored. Only a score and a ten-word paraphrase are kept.
 
 ### How we built it
 
-All agent logic is Python on the **Strands Agents SDK**. There are seven agents, each a Strands `Agent` with a frozen system prompt and its own model setting:
+All agent logic is Python on the **Strands Agents SDK**. There are eight agents, each a Strands `Agent` with a frozen system prompt and its own model setting:
 
 - **Curator**: screens each new upload against the household's answers and the safety rules. Structured output: approve, hide or ask the parent, with short topic and concern tags.
 - **Planner**: writes the questions for each approved video, per age band and language, as a Pydantic `QuestionPlan`. Band and timing rules are enforced in code afterwards.
@@ -66,8 +69,15 @@ All agent logic is Python on the **Strands Agents SDK**. There are seven agents,
 - **Reviewer**: describes what a channel actually publishes, from its feed; also notices when an approved channel drifts.
 - **Coach**: drafts household questions and break lines **for the parent**. Nothing it writes reaches a child until the parent saves it.
 - **Explainer**: answers a parent's question about one video from its transcript, with `@tool` functions to search the transcript and screen the video.
+- **Playmate**: runs Gilli's two games. After each round it decides how hard the next one should be for this child and what Gilli says; the code clamps the numbers per age band, picks where Gilli hides, checks the line, and caps a game at five rounds.
 
 The agents decide; plain code fetches and enforces. Reading transcripts, listing uploads, Polly speech and the length and safety rules are ordinary functions the gateway calls, not tools handed to a model. The Curator-to-Planner hand-off is a typed Python pipeline rather than a Strands Graph, so the Planner never re-parses the Curator's prose and every plan passes the same rule check.
+
+**Every agent call is traced, checked and audited.** All eight agents go through one function, and three things happen there:
+
+- **Full traces.** Each call is a root OpenTelemetry span that Strands' own spans nest under: the agent, each model call with its prompt, answer and token counts, each tool call. The trace is stored with the household's data and can go to any OTLP collector. What a child said is replaced before anything is written.
+- **Guardrails.** Every answer is checked before it is used. Nothing a child hears may contain unsafe words, links or a question about the child; Gilli never says "wrong"; the Curator cannot approve a video whose own title trips a safety rule; the digest cannot claim a child heard a word no question used. A blocked answer goes back to the agent once, saying what was wrong, and a second one falls back to the safe built-in.
+- **Report and fix.** Every call is an event and every violation an incident. After each screening an audit looks back over what the agents already did: it hides approvals that break a safety rule, sends back to the parent the ones that should have been asked about, drops cached questions a child must not hear, and reports any agent whose answers keep ending in the fallback. It never overrules a parent.
 
 The model is a setting: each agent reads `HEYGILLI_MODEL_<ROLE>=<provider>:<model id>`. Production runs on **Amazon Bedrock** (Amazon Nova Pro while Anthropic access on the account is pending); Anthropic, OpenAI and Ollama are one-line alternates with the same code. Every feature falls back to a deterministic built-in when a model call fails.
 
@@ -81,6 +91,8 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 **Child speech.** Recognisers are trained on adults. A 5-year-old whispers, mumbles and says "gaffe" for giraffe. The backend scores against the expected word and its variants, partial counts as success for pre-readers, and after two silent turns the questions switch to pictures, which need no speech.
 
+**Trusting an agent after the fact.** A prompt that says "never say wrong" is a request, not a guarantee. Checking every answer in code, sending a bad one back once with the reason, and then auditing what was already done turned "the model usually behaves" into something we can show: each call's full trace, what was caught, and what was fixed.
+
 **A user who cannot read.** Every message to the youngest band omits text entirely. The question is voice, the answer is voice or a tap, and the feedback is Gilli saying the word with a gesture. The pictures come from a fixed library of kid-safe icons, so nothing is generated per video and nothing needs a safety review.
 
 ### Accomplishments that we're proud of
@@ -89,7 +101,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A picture-only path for pre-readers with no text on screen.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 617 backend tests and 562 client tests, offline.
+- 665 backend tests and 591 client tests, offline.
 
 ### What we learned
 
@@ -108,7 +120,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 ## Built with
 
-`strands-agents` `python` `fastapi` `websockets` `pydantic` `amazon-bedrock` `amazon-nova` `amazon-polly` `amazon-dynamodb` `flutter` `dart` `youtube-iframe-api` `gemini-api` `render` `cloudflare-pages`
+`strands-agents` `opentelemetry` `python` `fastapi` `websockets` `pydantic` `amazon-bedrock` `amazon-nova` `amazon-polly` `amazon-dynamodb` `flutter` `dart` `youtube-iframe-api` `gemini-api` `render` `cloudflare-pages`
 
 ---
 

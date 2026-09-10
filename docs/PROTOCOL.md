@@ -31,10 +31,22 @@ POST /kids                     {nickname, age, languages[]}   → Kid
 GET  /kids                                                    → Kid[]
 POST /kids/{kid_id}/channels   {url}                          → Channel   (url = channel URL, @handle URL, or video URL; server resolves)
 GET  /kids/{kid_id}/channels                                  → Channel[]
-GET  /kids/{kid_id}/home                                      → {rows: [{title, videos: Video[]}],
+GET  /kids/{kid_id}/home                                      → {rows: [{title, channel_id, thumb_url, videos: Video[]}],
+                                                                 (one row per channel, newest upload first;
+                                                                 videos from channels not on the list last),
                                                                  watching_allowed, blocked_reason,
                                                                  active_break: BreakPeriod | null}
 POST /kids/{kid_id}/videos/{video_id}/ask  {question, history?: [[q,a]]}  → {answer, answered_from}
+POST /kids/{kid_id}/play       {game: "find"|"catch", rounds: [{round, won, taps, caught, level}]}
+                                                              → PlayTurn {game, round, done, level, trees, spot, peek,
+                                                                 pops, show_ms, line, tts_url, rounds_left_today, decided_by}
+                                                                 (Playmate agent picks level + line; code clamps per band,
+                                                                 picks the spot, 5 rounds a game, 40 a day; 409 like watching)
+GET  /agents/report?days=7&kid_id=                            → {calls, agents: {role: {calls, ok, warned, fixed, blocked,
+                                                                 model_error, avg_ms}}, incidents: [...], recent: [...]}
+POST /agents/audit                                            → {fixed: Incident[], report}   (find and fix wrong agent actions)
+GET  /agents/traces/{trace_id}                                → the full trace: every span, prompt, answer, tokens
+GET  /ops/agents               header X-Ops-Token             → every household's incidents   (404 without HEYGILLI_OPS_TOKEN)
 POST /sessions                 {kid_id, video_id, device}     → {session_id, video: Video, plan_ready: bool}
 POST /sessions/{id}/end                                       → {ok: true}
 GET  /kids/{kid_id}/digest?date=YYYY-MM-DD                    → Digest

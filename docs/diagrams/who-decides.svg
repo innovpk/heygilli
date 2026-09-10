@@ -26,32 +26,36 @@
   <!-- Agents -->
   <rect x="40" y="110" width="460" height="700" rx="16" class="agent"/>
   <text x="64" y="148" class="ch">The agents judge</text>
-  <text x="64" y="170" class="cs">seven Strands agents, each with its own model setting</text>
+  <text x="64" y="170" class="cs">eight Strands agents, each with its own model setting</text>
 
-  <circle cx="70" cy="212" r="5" class="dot"/>
-  <text x="84" y="217" class="t">Is this upload fine for this family?</text>
-  <text x="84" y="236" class="tm">Curator</text>
-  <circle cx="70" cy="282" r="5" class="dot"/>
-  <text x="84" y="287" class="t">What to ask, and at which second</text>
-  <text x="84" y="306" class="tm">Planner</text>
-  <circle cx="70" cy="352" r="5" class="dot"/>
-  <text x="84" y="357" class="t">Was that answer right, and what to say back</text>
-  <text x="84" y="376" class="tm">Buddy</text>
-  <circle cx="70" cy="422" r="5" class="dot"/>
-  <text x="84" y="427" class="t">What a parent should hear about today</text>
-  <text x="84" y="446" class="tm">Digest</text>
-  <circle cx="70" cy="492" r="5" class="dot"/>
-  <text x="84" y="497" class="t">What a channel really publishes, and whether</text>
-  <text x="84" y="516" class="t">it has started to drift</text>
-  <text x="84" y="535" class="tm">Reviewer</text>
-  <circle cx="70" cy="581" r="5" class="dot"/>
-  <text x="84" y="586" class="t">Drafts of household questions and break</text>
-  <text x="84" y="605" class="t">lines, for the parent to edit and save</text>
-  <text x="84" y="624" class="tm">Coach</text>
+  <circle cx="70" cy="207" r="5" class="dot"/>
+  <text x="84" y="212" class="t">Is this upload fine for this family?</text>
+  <text x="84" y="231" class="tm">Curator</text>
+  <circle cx="70" cy="265" r="5" class="dot"/>
+  <text x="84" y="270" class="t">What to ask, and at which second</text>
+  <text x="84" y="289" class="tm">Planner</text>
+  <circle cx="70" cy="323" r="5" class="dot"/>
+  <text x="84" y="328" class="t">Was that answer right, and what to say back</text>
+  <text x="84" y="347" class="tm">Buddy</text>
+  <circle cx="70" cy="381" r="5" class="dot"/>
+  <text x="84" y="386" class="t">What a parent should hear about today</text>
+  <text x="84" y="405" class="tm">Digest</text>
+  <circle cx="70" cy="439" r="5" class="dot"/>
+  <text x="84" y="444" class="t">What a channel really publishes, and whether</text>
+  <text x="84" y="463" class="t">it has started to drift</text>
+  <text x="84" y="482" class="tm">Reviewer</text>
+  <circle cx="70" cy="516" r="5" class="dot"/>
+  <text x="84" y="521" class="t">Drafts of household questions and break</text>
+  <text x="84" y="540" class="t">lines, for the parent to edit and save</text>
+  <text x="84" y="559" class="tm">Coach</text>
+  <circle cx="70" cy="593" r="5" class="dot"/>
+  <text x="84" y="598" class="t">Answers about one video, from its transcript,</text>
+  <text x="84" y="617" class="t">and says so when it cannot tell</text>
+  <text x="84" y="636" class="tm">Explainer</text>
   <circle cx="70" cy="670" r="5" class="dot"/>
-  <text x="84" y="675" class="t">Answers about one video, from its transcript,</text>
-  <text x="84" y="694" class="t">and says so when it cannot tell</text>
-  <text x="84" y="713" class="tm">Explainer</text>
+  <text x="84" y="675" class="t">How hard the next round of a game is, and</text>
+  <text x="84" y="694" class="t">what Gilli says as it starts</text>
+  <text x="84" y="713" class="tm">Playmate</text>
   <text x="64" y="780" class="tm">A model call that fails falls back to a fixed, safe answer.</text>
 
   <!-- Code -->
@@ -82,6 +86,9 @@
   <circle cx="550" cy="682" r="5" class="dot"/>
   <text x="564" y="687" class="t">The official YouTube embed: ads untouched,</text>
   <text x="564" y="706" class="t">nothing drawn over a playing video</text>
+  <circle cx="550" cy="752" r="5" class="dot"/>
+  <text x="564" y="757" class="t">Five rounds a game, a cap a day; where Gilli</text>
+  <text x="564" y="776" class="t">hides is picked in code, never by a model</text>
 
   <!-- Parent -->
   <rect x="1000" y="110" width="460" height="700" rx="16" class="parent"/>
@@ -113,5 +120,5 @@
   <rect x="40" y="840" width="1420" height="120" rx="16" fill="#1E3A34"/>
   <text x="64" y="878" class="w">The child sees only the result</text>
   <text x="64" y="906" class="wt">Approved videos on a shelf, Gilli's voice at a natural break, pictures or words to suit their age, and a break with something to do.</text>
-  <text x="64" y="930" class="wt">No search, no recommendations, no verdicts, and no text at all for a 5-year-old.</text>
+  <text x="64" y="930" class="wt">No search, no recommendations, no verdicts, and no text at all for a 5-year-old. Between videos, two short games with Gilli.</text>
 </svg>
