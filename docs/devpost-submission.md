@@ -159,6 +159,6 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 |---|---|
 | Demo video, 5:00 max, public on YouTube or Vimeo; must cover the problem, who it is for, why it matters | author |
 | AWS Builder ID | author |
-| Repo public. `heygilli_ad_10s.mp4` sits in the history of three commits; strip it first or accept it going public | author decides |
+| Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |
 | README Status section updated (test counts, the Gemini path now exists) | can be done now |
 | builder.aws posts (optional bonus), "Agents for Humans" in the title, published before the deadline | author |

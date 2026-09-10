@@ -28,7 +28,3 @@ design/heygilli-mockups.html
 public/
 build/site/
 .wrangler/
-
-# A 2.8MB ad clip that lives in this folder but is not part of the site.
-# Nothing references it, and app/web/ is copied wholesale by deploy_web.sh.
-app/web/heygilli_ad_10s.mp4
