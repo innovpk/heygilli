@@ -271,7 +271,10 @@
   /* The hero scene. Absolutely positioned on desktop so the pieces overlap
      the way a pile of things on a table does; it unstacks into ordinary flow
      below 900px, where there is no room to overlap anything. */
-  .scene { position: relative; height: 600px; margin-top: 60px; }
+  /* 440, not 600: the 600 was sized for a badge and a card that ran to the
+     bottom of the scene. With the TV and the note left, the TV ends 410px
+     down and the rest was 190px of nothing under it. */
+  .scene { position: relative; height: 440px; margin-top: 60px; }
   .scene > * { position: absolute; }
 
   .tv {
@@ -355,35 +358,6 @@
   .tape {
     position: absolute; top: -10px; left: 50%; width: 80px; height: 22px;
     margin-left: -40px; background: rgba(184, 69, 42, .45); transform: rotate(-3deg);
-  }
-
-  .vcard { width: 200px; }
-  .vcard .inner {
-    background: var(--paper); padding: 10px; border-radius: 14px;
-    box-shadow: 0 14px 30px rgba(30, 58, 52, .18); position: relative;
-  }
-  .vcard img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; display: block; }
-  .vcard .t { font-size: 12px; margin: 8px 2px 0; font-weight: 600; }
-  .stamp {
-    position: absolute; top: -12px; right: -12px; color: #fff;
-    font-family: var(--display); font-size: 13px; padding: 5px 11px;
-    border-radius: 999px; border: 3px solid var(--paper);
-  }
-  .stamp.fits { background: var(--fits); transform: rotate(8deg); }
-  .stamp.foryou { background: var(--accent); transform: rotate(-6deg); }
-  .card1 { left: -10px; top: 190px; --r: -9deg; }
-  .card2 { right: -30px; top: 400px; --r: 7deg; }
-
-  .gilli-badge {
-    left: 30px; bottom: 0; width: 120px; height: 120px;
-    border-radius: 50%; background: var(--paper); overflow: hidden;
-    display: grid; place-items: center; box-shadow: var(--shadow-card);
-  }
-  .gilli-badge svg { width: 96px; height: 96px; }
-  .say {
-    left: 150px; bottom: 120px; background: var(--ink); color: var(--bg);
-    padding: 12px 16px; border-radius: 16px 16px 16px 3px;
-    font-family: var(--display); font-size: 18px; --r: -3deg;
   }
 
   /* ---------- three steps ---------- */
@@ -545,13 +519,7 @@
 
   .hero > div:first-child { animation: gUp .7s ease-out both; }
   .tv { animation: gUp .8s .05s ease-out both; }
-  .card1 { animation: gDrop .8s .15s cubic-bezier(.2, .9, .3, 1.2) both; }
-  .card2 { animation: gDrop .8s .35s cubic-bezier(.2, .9, .3, 1.2) both; }
   .note { animation: gDrop .8s .6s cubic-bezier(.2, .9, .3, 1.2) both; }
-  .gilli-badge { animation: gPop .6s 1s cubic-bezier(.2, .9, .3, 1.3) both; }
-  .say { animation: gPop .5s 1.4s cubic-bezier(.2, .9, .3, 1.3) both; }
-  .card1 .inner { animation: gFloat 5s 1s ease-in-out infinite; }
-  .card2 .inner { animation: gFloat 6s 1.5s ease-in-out infinite; }
   .dot { animation: gBlink 1.6s infinite; }
   .b { animation: gUp .5s both; }
   .b:nth-child(1) { animation-delay: .2s; }
@@ -565,7 +533,7 @@
       animation-iteration-count: 1 !important;
       transition-duration: .001ms !important;
     }
-    .card1, .card2, .note, .say { transform: rotate(var(--r, 0deg)); }
+    .note { transform: rotate(var(--r, 0deg)); }
     .demo .sc { animation: none; opacity: 0; }
     .demo .s2 { opacity: 1; }
     .vbar .fill { animation: none; width: 38%; }
@@ -594,11 +562,7 @@
     }
     .scene > * { position: static; width: 100%; }
     .tv { order: 1; }
-    .gilli-badge { order: 2; width: 110px; height: 110px; flex: none; align-self: flex-start; }
-    .say { order: 3; align-self: flex-start; width: auto; }
     .note { order: 4; width: 240px; align-self: flex-end; }
-    .card1 { order: 5; width: 200px; align-self: flex-start; }
-    .card2 { order: 6; width: 200px; align-self: flex-end; }
   }
 
   @media (max-width: 640px) {
@@ -611,15 +575,8 @@
     .cta-row { flex-direction: column; align-items: stretch; text-align: center; }
     .cta-row .btn { font-size: 20px; padding: 15px 24px; }
 
-    /* The two floating cards go: on a phone they are a desktop flourish
-       turned into two more thumbnails between the reader and the next
-       section. */
     .scene { margin-top: 20px; }
-    .card1, .card2 { display: none; }
     .tv { padding: 10px 10px 14px; border-radius: 18px; }
-    .gilli-badge { width: 76px; height: 76px; }
-    .gilli-badge svg { width: 62px; height: 62px; }
-    .say { font-size: 16px; --r: 0deg; }
     .note { --r: -1.5deg; align-self: center; width: auto; max-width: 300px; }
 
 
@@ -782,27 +739,6 @@
       <p><b>Ask at dinner:</b> "What made the lava come out?"</p>
     </div>
 
-    <div class="vcard card1">
-      <div class="inner">
-        <img loading="lazy" src="https://i.ytimg.com/vi/A4YIpGQiD3w/hqdefault.jpg" alt="">
-        <div class="t">How Do Bees Make Honey?</div>
-        <span class="stamp fits">Fits</span>
-      </div>
-    </div>
-
-    <div class="vcard card2">
-      <div class="inner">
-        <img loading="lazy" src="https://i.ytimg.com/vi/8qdYCpSW2eY/hqdefault.jpg" alt="">
-        <div class="t">The Biggest Volcano Ever is in Space!</div>
-        <span class="stamp foryou">For you</span>
-      </div>
-    </div>
-
-    <div class="gilli-badge">
-      <svg viewBox="0 0 180 180" role="img" aria-label="Gilli, the HeyGilli squirrel"><use href="#gilli-art"/></svg>
-    </div>
-
-    <div class="say">What happened to the volcano?</div>
   </div>
 </div>
 
