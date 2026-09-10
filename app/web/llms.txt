@@ -59,8 +59,9 @@ Contact: hello@heygilli.com
   rules, the screening, and a child's session with Gilli.
 - [Try it yourself](https://heygilli.com/try): three real YouTube uploads,
   screened in advance against every combination of three sample answers.
-- [Questions parents ask](https://heygilli.com/faq): where channels come from,
-  voice, watch history, Google sign-in, cost, and whether it can get it wrong.
+- [Questions parents ask](https://heygilli.com/faq): how it differs from YouTube
+  Kids, what happens when a child answers wrong, where channels come from, voice,
+  watch history, Google sign-in, cost, and whether the screening can get it wrong.
 - [Privacy policy](https://heygilli.com/privacy): exactly what is stored.
 - [Terms of service](https://heygilli.com/terms)
 

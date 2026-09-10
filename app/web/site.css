@@ -104,13 +104,13 @@
   .demo, .demo .sc, .demo .veil { position: absolute; inset: 0; }
   .vid-art { position: absolute; left: 50%; top: 14%; width: 44cqw; transform: translateX(-50%); }
   .vbar { position: absolute; left: 5%; right: 5%; bottom: 6%; height: 1.6cqw; border-radius: 99px; background: rgba(30,58,52,.25); }
-  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 24s linear infinite; }
+  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 27s linear infinite; }
   .vbar i { position: absolute; top: 50%; width: 2.6cqw; height: 2.6cqw; margin: -1.3cqw 0 0 -1.3cqw; border-radius: 50%; border: .5cqw solid var(--paper); background: var(--ink); }
-  .demo .sc { opacity: 0; animation: dScene 24s infinite backwards; }
+  .demo .sc { opacity: 0; animation: dScene 27s infinite backwards; }
   .demo .p2 { animation-delay: 3s; } .demo .p3 { animation-delay: 6s; }
   .demo .s1 { animation-delay: 9s; } .demo .s2 { animation-delay: 12s; }
-  .demo .s3 { animation-delay: 15s; } .demo .s4 { animation-delay: 18s; }
-  .demo .s5 { animation-delay: 21s; }
+  .demo .s3 { animation-delay: 15s; } .demo .sb { animation-delay: 18s; }
+  .demo .s4 { animation-delay: 21s; } .demo .s5 { animation-delay: 24s; }
   .demo .veil { background: rgba(30,58,52,.5); }
   .dtag { position: absolute; left: 3.5%; top: 5%; background: rgba(244,250,248,.94); color: var(--ink);
           font-family: var(--display); font-size: 3.4cqw; padding: .8cqw 2.4cqw; border-radius: 99px; }
@@ -143,16 +143,20 @@
   .prow img { width: 12cqw; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 1cqw; flex: none; }
   .prow .l2 { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .prow .l2 > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* pwhy, not why: .why is the "Why not YouTube Kids?" section's grid, and
-     the reason line was inheriting its padding and turning into one. */
+  /* pwhy, its own name: the reason line once shared a class with a page
+     section and inherited that section's grid and padding. */
   .prow .pwhy { font-size: 2.7cqw; color: rgba(30,58,52,.7); }
   .pst { flex: none; font-family: var(--display); font-size: 3cqw; padding: .5cqw 2cqw; border-radius: 99px; color: #fff; }
   .pst.fits { background: var(--fits); } .pst.foryou { background: var(--accent); }
   .pst.read { background: var(--bg); color: var(--ink); display: flex; align-items: center; gap: 1cqw; }
   .pst.read b { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: var(--accent); animation: gBlink 1s infinite; }
-  @keyframes dScene { 0% { opacity: 0; } 2% { opacity: 1; } 10.5% { opacity: 1; } 12.5%, 100% { opacity: 0; } }
+  .dkid { position: absolute; right: 5%; top: 20%; max-width: 62%; background: var(--accent); color: #fff;
+          font-family: var(--display); font-size: 4.2cqw; line-height: 1.15; padding: 1.6cqw 2.6cqw;
+          border-radius: 3cqw 3cqw .6cqw 3cqw; }
+  .dsay.low { top: 46%; }
+  @keyframes dScene { 0% { opacity: 0; } 1.8% { opacity: 1; } 9.3% { opacity: 1; } 11.1%, 100% { opacity: 0; } }
   /* Still while the parent scenes cover the video, then playing. */
-  @keyframes dPlay { 0%, 37.5% { width: 6%; } 100% { width: 78%; } }
+  @keyframes dPlay { 0%, 33.3% { width: 6%; } 100% { width: 78%; } }
   .tv-cap {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 12px; padding: 0 4px; color: var(--bg); font-size: 12px; gap: 12px;
@@ -249,33 +253,6 @@
   }
   .audit { font-size: 13px; color: rgba(30, 58, 52, .7); margin: 16px 0 0; }
 
-  /* ---------- the buddy ---------- */
-  .buddy { padding: 0 56px 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; max-width: 1100px; margin: 0 auto; }
-  .buddy h2 { font-size: 42px; line-height: 1.1; margin: 0 0 16px; }
-  .buddy p { font-size: 17px; line-height: 1.55; margin: 0 0 14px; }
-  .buddy p.strong { margin: 0; font-weight: 700; }
-  .talk { position: relative; }
-  .talk > img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; display: block; }
-  .bubbles { display: flex; flex-direction: column; gap: 10px; margin-top: -30px; padding: 0 20px; font-size: 16px; }
-  .b {
-    padding: 10px 16px; max-width: 80%;
-    box-shadow: var(--shadow-card);
-  }
-  .b.gilli { align-self: flex-start; background: var(--ink); color: var(--bg); border-radius: 16px 16px 16px 3px; }
-  .b.kid { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 16px 16px 3px 16px; }
-
-  /* ---------- why not youtube kids ---------- */
-  .why { padding: 0 56px 64px; display: grid; grid-template-columns: 1fr 1.3fr; gap: 48px; max-width: 1100px; margin: 0 auto; }
-  .why h2 { font-size: 38px; line-height: 1.1; margin: 0 0 12px; }
-  .why .lede { font-size: 16px; line-height: 1.55; margin: 0; color: rgba(30, 58, 52, .8); }
-  .cmp { font-size: 15px; line-height: 1.45; }
-  .cmp-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 0 16px; padding: 12px 0; border-bottom: 1px dashed rgba(30, 58, 52, .25); }
-  .cmp-row:last-child { border-bottom: 0; }
-  .cmp-row b { font-weight: 700; }
-  .cmp-head { font-family: var(--display); font-size: 16px; padding: 8px 0; border-bottom: 2px solid var(--ink); }
-  .cmp-head .them { color: rgba(30, 58, 52, .6); }
-  .cmp-head .us { color: var(--accent); }
-
   /* ---------- faq ----------
      These are <details> because the SEO check pairs each one with an entry in
      the JSON-LD above and counts them; they are open by default so the page
@@ -320,10 +297,6 @@
   .tv { animation: gUp .8s .05s ease-out both; }
   .note { animation: gDrop .8s .6s cubic-bezier(.2, .9, .3, 1.2) both; }
   .dot { animation: gBlink 1.6s infinite; }
-  .b { animation: gUp .5s both; }
-  .b:nth-child(1) { animation-delay: .2s; }
-  .b:nth-child(2) { animation-delay: .9s; }
-  .b:nth-child(3) { animation-delay: 1.6s; }
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -344,7 +317,7 @@
     .hero h1 { font-size: 52px; }
     .steps { grid-template-columns: repeat(2, 1fr); }
     .steps-rule { display: none; }
-    .try-grid, .buddy, .why { grid-template-columns: 1fr; }
+    .try-grid { grid-template-columns: 1fr; }
 
     /* The scene unstacks here, not at 640: the hero is already one column by
        this width, so the pieces have no column to overlap and a fixed 600px
@@ -364,7 +337,7 @@
   }
 
   @media (max-width: 640px) {
-    .wrap, .bar, .hero, .steps-sec, .try-sec, .buddy, .why, .faq-sec { padding-left: 20px; padding-right: 20px; }
+    .wrap, .bar, .hero, .steps-sec, .try-sec, .faq-sec { padding-left: 20px; padding-right: 20px; }
     .bar-right a:not(.bar-pill) { display: none; }
     .bar-pill { min-height: 44px; display: flex; align-items: center; }
     .hero { padding-top: 8px; }
@@ -388,18 +361,8 @@
     .vid { grid-template-columns: 1fr; }
     .vid .thumb img { aspect-ratio: 16 / 9; }
 
-    .buddy h2 { font-size: 30px; }
-    .buddy p { font-size: 15px; }
-    .bubbles { font-size: 15px; }
 
 
-    .why h2 { font-size: 28px; }
-    /* Three columns of small type do not fit; the row label is dropped and
-       the two claims stand side by side, which is the comparison anyway. */
-    .cmp-row { grid-template-columns: 1fr 1fr; }
-    .cmp-row b { grid-column: 1 / -1; margin-bottom: 4px; }
-    .cmp-head span:first-child { display: none; }
-    .cmp-row span:last-child { font-weight: 700; }
 
     .faq-sec h2 { font-size: 28px; }
     .faq-grid { grid-template-columns: 1fr; gap: 14px; }
