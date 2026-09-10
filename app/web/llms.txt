@@ -44,8 +44,10 @@ Contact: hello@heygilli.com
   post, rate, subscribe or change anything.
 - Children never sign in, never give any details, and never see the parent side
   without a PIN. Profiles are a nickname the parent chooses and an age.
-- A child's voice is not recorded. Speech is recognised on the device and only
-  the recognised words are sent; the audio never leaves the device.
+- A child's voice is not recorded: HeyGilli only ever receives the recognised
+  words. On the Android app recognition happens on the device, so the audio
+  never leaves it. In a browser the recogniser is the browser's own, and Chrome
+  does that by sending the audio to Google under Google's terms.
 - Watch history is off by default and opt-in per import. When included, only an
   aggregate is kept and the video-by-video list is discarded.
 - It can get things wrong, and is built expecting to. It is meant to be used
@@ -53,8 +55,12 @@ Contact: hello@heygilli.com
 
 ## Pages
 
-- [Home](https://heygilli.com/): what it does, an interactive demo screening
-  real YouTube videos against sample answers, and the questions parents ask.
+- [Home](https://heygilli.com/): what it does, and a short demo of the parent's
+  rules, the screening, and a child's session with Gilli.
+- [Try it yourself](https://heygilli.com/try): three real YouTube uploads,
+  screened in advance against every combination of three sample answers.
+- [Questions parents ask](https://heygilli.com/faq): where channels come from,
+  voice, watch history, Google sign-in, cost, and whether it can get it wrong.
 - [Privacy policy](https://heygilli.com/privacy): exactly what is stored.
 - [Terms of service](https://heygilli.com/terms)
 

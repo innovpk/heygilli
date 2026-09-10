@@ -1,0 +1,451 @@
+/* heygilli.com — shared by the home page, /try and /faq. Tokens match the app
+   (app/lib/core/theme.dart); a colour that changes here changes there too. */
+  /* ---------------------------------------------------------------------
+     Design tokens — duck-egg / rust / pine.
+     Shared with the app (app/lib/core/theme.dart), so a colour that changes
+     here changes there too. Names match the handoff.
+     --------------------------------------------------------------------- */
+  :root {
+    color-scheme: light;
+    --bg: #dceeea;
+    --paper: #f4faf8;
+    --ink: #1e3a34;
+    --accent: #b8452a;
+    /* Rust itself fails contrast on pine, so headings on dark blocks use
+       this lighter step instead. It is never used on the page background. */
+    --accent-tint: #f0a48c;
+    --fits: #2f7d5b;
+    --shadow-card: 0 6px 18px rgba(30, 58, 52, .08);
+    --shadow-float: 0 12px 30px rgba(30, 58, 52, .18);
+    --shadow-tv: 0 30px 60px rgba(30, 58, 52, .3);
+    --display: "Itim", "Bradley Hand", "Comic Sans MS", cursive;
+    --body: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--bg);
+    background-image: radial-gradient(rgba(30, 58, 52, .08) 1px, transparent 1px);
+    background-size: 22px 22px;
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent); }
+  img { max-width: 100%; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 400; text-wrap: pretty; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 56px; }
+
+  .eyebrow {
+    font-family: var(--display);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+
+  /* ---------- nav ---------- */
+  .bar {
+    display: flex; justify-content: space-between; align-items: center;
+    max-width: 1100px; margin: 0 auto; padding: 22px 56px;
+  }
+  .wordmark { font-family: var(--display); font-size: 28px; }
+  .bar-right { display: flex; gap: 28px; align-items: center; font-size: 15px; font-weight: 600; }
+  .bar-right a { color: inherit; text-decoration: none; }
+  .bar-right a:hover { text-decoration: underline; }
+  /* Specificity has to beat `.bar-right a`'s `color: inherit`, or the pill is
+     ink text on an ink fill and the word disappears entirely. */
+  .bar-right a.bar-pill {
+    background: var(--ink); color: var(--bg);
+    padding: 9px 18px; border-radius: 999px;
+  }
+  .bar-pill:hover { text-decoration: none !important; opacity: .9; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    display: grid; grid-template-columns: .95fr 1.05fr; gap: 32px;
+    align-items: center; padding: 28px 56px 40px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .hero h1 { font-size: 66px; line-height: 1.02; margin: 0 0 20px; }
+  .hero h1 em { font-style: normal; color: var(--accent); position: relative; display: inline-block; }
+  .hero h1 em svg {
+    position: absolute; left: -4px; bottom: -8px;
+    width: calc(100% + 8px); height: 14px;
+  }
+  .hero-sub { font-size: 19px; line-height: 1.5; margin: 0 0 28px; max-width: 460px; }
+
+  /* The hero scene. Absolutely positioned on desktop so the pieces overlap
+     the way a pile of things on a table does; it unstacks into ordinary flow
+     below 900px, where there is no room to overlap anything. */
+  /* 440, not 600: the 600 was sized for a badge and a card that ran to the
+     bottom of the scene. With the TV and the note left, the TV ends 410px
+     down and the rest was 190px of nothing under it. */
+  .scene { position: relative; height: 440px; margin-top: 60px; }
+  .scene > * { position: absolute; }
+
+  .tv {
+    left: 50px; right: 80px; top: 120px; z-index: 2;
+    background: var(--ink); padding: 14px 14px 34px; border-radius: 22px;
+    box-shadow: var(--shadow-tv);
+  }
+  .tv-screen { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+  /* The demo loop that replaced an eight-minute embed of somebody else's
+     video. It shows the product instead: a pause, and the kinds of question
+     and break a child actually meets. Sized in container units so it reads
+     the same in a phone-width frame as a desktop one. */
+  .tv-screen { container-type: inline-size; background: linear-gradient(#bfe3ef 0 62%, #efdcb8 62%); }
+  .demo, .demo .sc, .demo .veil { position: absolute; inset: 0; }
+  .vid-art { position: absolute; left: 50%; top: 14%; width: 44cqw; transform: translateX(-50%); }
+  .vbar { position: absolute; left: 5%; right: 5%; bottom: 6%; height: 1.6cqw; border-radius: 99px; background: rgba(30,58,52,.25); }
+  .vbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); animation: dPlay 24s linear infinite; }
+  .vbar i { position: absolute; top: 50%; width: 2.6cqw; height: 2.6cqw; margin: -1.3cqw 0 0 -1.3cqw; border-radius: 50%; border: .5cqw solid var(--paper); background: var(--ink); }
+  .demo .sc { opacity: 0; animation: dScene 24s infinite backwards; }
+  .demo .p2 { animation-delay: 3s; } .demo .p3 { animation-delay: 6s; }
+  .demo .s1 { animation-delay: 9s; } .demo .s2 { animation-delay: 12s; }
+  .demo .s3 { animation-delay: 15s; } .demo .s4 { animation-delay: 18s; }
+  .demo .s5 { animation-delay: 21s; }
+  .demo .veil { background: rgba(30,58,52,.5); }
+  .dtag { position: absolute; left: 3.5%; top: 5%; background: rgba(244,250,248,.94); color: var(--ink);
+          font-family: var(--display); font-size: 3.4cqw; padding: .8cqw 2.4cqw; border-radius: 99px; }
+  .dg { position: absolute; left: 4%; bottom: 13%; width: 17cqw; height: 17cqw; border-radius: 50%; background: var(--paper); }
+  .dg svg { width: 100%; height: 100%; }
+  .dsay { position: absolute; left: 22%; right: 5%; top: 22%; background: var(--ink); color: var(--bg);
+          font-family: var(--display); font-size: 4.6cqw; line-height: 1.15; padding: 2cqw 3cqw; border-radius: 3cqw 3cqw 3cqw .6cqw; }
+  .dchips { position: absolute; left: 22%; right: 5%; top: 45%; display: flex; gap: 2.4cqw; }
+  .dcard { flex: 1; background: var(--paper); border-radius: 2.4cqw; padding: 1.6cqw; text-align: center;
+           font-family: var(--display); font-size: 3.4cqw; color: var(--ink); outline: .9cqw solid transparent; outline-offset: -.9cqw; }
+  .dcard svg { display: block; width: 60%; margin: 0 auto .6cqw; }
+  .dcard.on { outline-color: var(--accent); }
+  .dmic { position: absolute; left: 22%; top: 52%; display: flex; align-items: center; gap: 1.6cqw;
+          color: var(--bg); font-size: 3.2cqw; }
+  .dmic b { width: 2.4cqw; height: 2.4cqw; border-radius: 50%; background: var(--accent-tint); animation: gBlink 1.2s infinite; }
+  .dbreak { position: absolute; inset: 21% 6% 16% 24%; background: var(--paper); border-radius: 3cqw; padding: 3cqw;
+            display: flex; flex-direction: column; justify-content: center; gap: 1.8cqw; color: var(--ink); }
+  .dbreak .t { font-family: var(--display); font-size: 5cqw; }
+  .dbreak .a { font-size: 3.4cqw; }
+  .dbreak .a span { display: inline-block; background: var(--bg); border-radius: 99px; padding: .6cqw 2cqw; margin: 0 .8cqw .8cqw 0; }
+  .pscreen { position: absolute; inset: 0; background: var(--bg); padding: 10.5cqw 4cqw 3cqw; color: var(--ink); }
+  .phead { font-family: var(--display); font-size: 4.4cqw; margin-bottom: 2cqw; }
+  .prow { display: flex; align-items: center; gap: 2.4cqw; background: var(--paper); border-radius: 2cqw;
+          padding: 1.4cqw 2cqw; margin-bottom: 1.6cqw; font-size: 3.3cqw; }
+  .prow .l { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pseg { display: flex; gap: .8cqw; background: var(--bg); border-radius: 99px; padding: .6cqw; }
+  .pseg i { font-style: normal; font-size: 3cqw; padding: .6cqw 2cqw; border-radius: 99px; color: rgba(30,58,52,.6); }
+  .pseg i.fine { background: var(--ink); color: var(--bg); }
+  .pseg i.ask { background: var(--accent); color: #fff; }
+  .prow img { width: 12cqw; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 1cqw; flex: none; }
+  .prow .l2 { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .prow .l2 > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* pwhy, not why: .why is the "Why not YouTube Kids?" section's grid, and
+     the reason line was inheriting its padding and turning into one. */
+  .prow .pwhy { font-size: 2.7cqw; color: rgba(30,58,52,.7); }
+  .pst { flex: none; font-family: var(--display); font-size: 3cqw; padding: .5cqw 2cqw; border-radius: 99px; color: #fff; }
+  .pst.fits { background: var(--fits); } .pst.foryou { background: var(--accent); }
+  .pst.read { background: var(--bg); color: var(--ink); display: flex; align-items: center; gap: 1cqw; }
+  .pst.read b { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: var(--accent); animation: gBlink 1s infinite; }
+  @keyframes dScene { 0% { opacity: 0; } 2% { opacity: 1; } 10.5% { opacity: 1; } 12.5%, 100% { opacity: 0; } }
+  /* Still while the parent scenes cover the video, then playing. */
+  @keyframes dPlay { 0%, 37.5% { width: 6%; } 100% { width: 78%; } }
+  .tv-cap {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 12px; padding: 0 4px; color: var(--bg); font-size: 12px; gap: 12px;
+  }
+  .tv-cap span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fits); flex: none; }
+
+  .note {
+    right: -30px; top: -70px; z-index: 3; width: 220px;
+    background: var(--paper); padding: 18px 20px; border-radius: 6px;
+    box-shadow: var(--shadow-float); font-size: 14px; line-height: 1.5;
+    --r: 3deg;
+  }
+  .note p { margin: 0 0 5px; }
+  .note p:last-child { margin: 0; }
+  .tape {
+    position: absolute; top: -10px; left: 50%; width: 80px; height: 22px;
+    margin-left: -40px; background: rgba(184, 69, 42, .45); transform: rotate(-3deg);
+  }
+
+  /* ---------- three steps ---------- */
+  .steps-sec { padding: 60px 56px 40px; position: relative; max-width: 1100px; margin: 0 auto; }
+  /* The dashed rule runs behind the numerals so the three read as one line of
+     thought rather than three unrelated cards. */
+  .steps-rule { position: absolute; left: 56px; right: 56px; top: 96px; border-top: 3px dashed rgba(30, 58, 52, .3); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; position: relative; }
+  .step {
+    background: var(--paper); padding: 0 26px 26px; border-radius: 14px;
+    box-shadow: var(--shadow-card); transition: transform .2s;
+  }
+  .step:nth-child(odd):hover { transform: translateY(-6px) rotate(-1deg); }
+  .step:nth-child(even):hover { transform: translateY(-6px) rotate(1deg); }
+  .step .num {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-family: var(--display); font-size: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: 5px solid var(--bg); margin-bottom: 12px;
+  }
+  .step h3 { font-size: 24px; margin: 0 0 6px; }
+  .step p { margin: 0; font-size: 15px; line-height: 1.5; color: rgba(30, 58, 52, .85); }
+
+  /* ---------- try it yourself ---------- */
+  .try-sec { padding: 40px 56px 64px; max-width: 1100px; margin: 0 auto; }
+  .sec-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; margin-bottom: 22px; }
+  .sec-head h2 { font-size: 40px; line-height: 1.1; margin: 0; }
+  .sec-note { font-size: 14px; max-width: 340px; color: rgba(30, 58, 52, .75); text-align: right; }
+  .try-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 28px; align-items: start; }
+
+  .asks-card, .feed-card {
+    background: var(--paper); border-radius: 14px; box-shadow: var(--shadow-card);
+    padding: 22px 24px;
+  }
+  .panel-title { font-family: var(--display); font-size: 22px; }
+  .panel-sub { font-size: 13px; color: rgba(30, 58, 52, .65); margin-bottom: 14px; }
+  .ask { padding: 14px 0; border-bottom: 1px dashed rgba(30, 58, 52, .25); }
+  .ask:last-child { border-bottom: 0; padding-bottom: 0; }
+  .ask-q { font-size: 15px; margin-bottom: 8px; }
+  .seg { display: inline-flex; background: var(--bg); border-radius: 999px; padding: 3px; gap: 3px; }
+  .seg button {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    border: 0; background: transparent; color: rgba(30, 58, 52, .7);
+    padding: 7px 16px; border-radius: 999px; min-height: 34px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .seg button:last-child[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  .vids { display: grid; gap: 14px; }
+  .vid {
+    display: grid; grid-template-columns: 160px 1fr; gap: 14px;
+    background: var(--bg); border-radius: 12px; padding: 12px;
+    transition: opacity .2s, outline-color .2s;
+    outline: 3px solid transparent; outline-offset: -3px;
+  }
+  .vid.queued { opacity: .45; }
+  .vid.working { opacity: 1; }
+  .vid.ask_parent { outline-color: var(--accent); }
+  .vid .thumb img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; display: block; }
+  .vid-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .vid-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+  .yt { font-size: 12px; color: rgba(30, 58, 52, .65); margin: 2px 0 8px; }
+  .vid-why { margin: 0; font-size: 13px; line-height: 1.45; }
+  .decision {
+    color: #fff; font-family: var(--display); font-size: 13px;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .decision.approve { background: var(--fits); }
+  .decision.ask_parent { background: var(--accent); }
+  .decision.hide { background: var(--ink); }
+  .step-label { font-size: 12px; color: rgba(30, 58, 52, .65); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .spin {
+    width: 11px; height: 11px; border-radius: 50%; flex: none;
+    border: 2px solid rgba(30, 58, 52, .25); border-top-color: var(--accent);
+    animation: gSpin .7s linear infinite;
+  }
+  .audit { font-size: 13px; color: rgba(30, 58, 52, .7); margin: 16px 0 0; }
+
+  /* ---------- the buddy ---------- */
+  .buddy { padding: 0 56px 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; max-width: 1100px; margin: 0 auto; }
+  .buddy h2 { font-size: 42px; line-height: 1.1; margin: 0 0 16px; }
+  .buddy p { font-size: 17px; line-height: 1.55; margin: 0 0 14px; }
+  .buddy p.strong { margin: 0; font-weight: 700; }
+  .talk { position: relative; }
+  .talk > img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; display: block; }
+  .bubbles { display: flex; flex-direction: column; gap: 10px; margin-top: -30px; padding: 0 20px; font-size: 16px; }
+  .b {
+    padding: 10px 16px; max-width: 80%;
+    box-shadow: var(--shadow-card);
+  }
+  .b.gilli { align-self: flex-start; background: var(--ink); color: var(--bg); border-radius: 16px 16px 16px 3px; }
+  .b.kid { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 16px 16px 3px 16px; }
+
+  /* ---------- what we don't keep ---------- */
+  .keep {
+    margin: 0 56px 64px; padding: 44px 48px; background: var(--ink);
+    color: var(--bg); border-radius: 18px; max-width: 988px;
+  }
+  .keep-wrap { max-width: 1100px; margin: 0 auto; }
+  .keep h2 { font-size: 38px; line-height: 1.1; margin: 0 0 28px; }
+  .keep-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; font-size: 15px; line-height: 1.5; }
+  .keep-grid h3 { font-size: 22px; color: var(--accent-tint); margin: 0 0 6px; }
+  .keep-foot { margin: 24px 0 0; font-size: 14px; color: rgba(220, 238, 234, .7); }
+  .keep-foot a { color: inherit; }
+
+  /* ---------- why not youtube kids ---------- */
+  .why { padding: 0 56px 64px; display: grid; grid-template-columns: 1fr 1.3fr; gap: 48px; max-width: 1100px; margin: 0 auto; }
+  .why h2 { font-size: 38px; line-height: 1.1; margin: 0 0 12px; }
+  .why .lede { font-size: 16px; line-height: 1.55; margin: 0; color: rgba(30, 58, 52, .8); }
+  .cmp { font-size: 15px; line-height: 1.45; }
+  .cmp-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 0 16px; padding: 12px 0; border-bottom: 1px dashed rgba(30, 58, 52, .25); }
+  .cmp-row:last-child { border-bottom: 0; }
+  .cmp-row b { font-weight: 700; }
+  .cmp-head { font-family: var(--display); font-size: 16px; padding: 8px 0; border-bottom: 2px solid var(--ink); }
+  .cmp-head .them { color: rgba(30, 58, 52, .6); }
+  .cmp-head .us { color: var(--accent); }
+
+  /* ---------- faq ----------
+     These are <details> because the SEO check pairs each one with an entry in
+     the JSON-LD above and counts them; they are open by default so the page
+     reads as the flat two-column grid the design asks for, and the marker is
+     hidden. Collapsing only happens on mobile, where eight open answers is a
+     long scroll past the footer. */
+  .faq-sec { padding: 0 56px 64px; max-width: 1100px; margin: 0 auto; }
+  .faq-sec h2 { font-size: 38px; margin: 0 0 24px; }
+  .faq-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 40px; font-size: 15px; line-height: 1.5; }
+  .faq summary { font-family: var(--display); font-size: 22px; margin-bottom: 4px; list-style: none; cursor: default; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq-a { color: rgba(30, 58, 52, .85); }
+
+  /* ---------- close ---------- */
+  .close { padding: 56px; text-align: center; background: var(--accent); color: #fff; }
+  .close h2 { font-size: 44px; line-height: 1.1; margin: 0 0 20px; }
+  .close-links { margin-top: 28px; font-size: 13px; opacity: .9; display: flex; gap: 18px; justify-content: center; }
+  .close-links a { color: #fff; }
+
+  /* ---------- motion ---------- */
+  /* The float and drop keyframes carry `rotate(var(--r))` in every frame:
+     a transform in an animation replaces the element's own, so leaving it out
+     straightened every tilted card the moment its animation began. */
+  @keyframes gUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  @keyframes gDrop {
+    from { opacity: 0; transform: translateY(-40px) scale(.92) rotate(var(--r, 0deg)); }
+    to { opacity: 1; transform: rotate(var(--r, 0deg)); }
+  }
+  @keyframes gPop {
+    0% { opacity: 0; transform: scale(.5) rotate(var(--r, 0deg)); }
+    60% { opacity: 1; transform: scale(1.08) rotate(var(--r, 0deg)); }
+    100% { opacity: 1; transform: scale(1) rotate(var(--r, 0deg)); }
+  }
+  @keyframes gFloat {
+    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+    50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+  }
+  @keyframes gBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes gSpin { to { transform: rotate(360deg); } }
+
+  .hero > div:first-child { animation: gUp .7s ease-out both; }
+  .tv { animation: gUp .8s .05s ease-out both; }
+  .note { animation: gDrop .8s .6s cubic-bezier(.2, .9, .3, 1.2) both; }
+  .dot { animation: gBlink 1.6s infinite; }
+  .b { animation: gUp .5s both; }
+  .b:nth-child(1) { animation-delay: .2s; }
+  .b:nth-child(2) { animation-delay: .9s; }
+  .b:nth-child(3) { animation-delay: 1.6s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    .note { transform: rotate(var(--r, 0deg)); }
+    .demo .sc { animation: none; opacity: 0; }
+    .demo .s2 { opacity: 1; }
+    .vbar .fill { animation: none; width: 38%; }
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1024px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 52px; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    .steps-rule { display: none; }
+    .try-grid, .buddy, .why { grid-template-columns: 1fr; }
+    .keep { margin-left: 24px; margin-right: 24px; }
+
+    /* The scene unstacks here, not at 640: the hero is already one column by
+       this width, so the pieces have no column to overlap and a fixed 600px
+       box full of absolutely positioned cards just sprawls across the page. */
+    /* width: 100% because auto side margins on a grid item shrink it to its
+       content, and the widest child here is the note, capped at 300px on a
+       phone — so the note was quietly setting the TV's width, and the demo
+       inside it came out 35px narrower than the column with text to match. */
+    .scene {
+      position: static; height: auto; margin: 28px auto 0; width: 100%;
+      display: flex; flex-direction: column; align-items: center; gap: 20px;
+      max-width: 560px;
+    }
+    .scene > * { position: static; width: 100%; }
+    .tv { order: 1; }
+    .note { order: 4; width: 240px; align-self: flex-end; }
+  }
+
+  @media (max-width: 640px) {
+    .wrap, .bar, .hero, .steps-sec, .try-sec, .buddy, .why, .faq-sec { padding-left: 20px; padding-right: 20px; }
+    .bar-right a:not(.bar-pill) { display: none; }
+    .bar-pill { min-height: 44px; display: flex; align-items: center; }
+    .hero { padding-top: 8px; }
+    .hero h1 { font-size: 40px; line-height: 1.05; }
+    .hero-sub { font-size: 16px; }
+
+    .scene { margin-top: 20px; }
+    .tv { padding: 10px 10px 14px; border-radius: 18px; }
+    .note { --r: -1.5deg; align-self: center; width: auto; max-width: 300px; }
+
+
+    .steps { grid-template-columns: 1fr; gap: 16px; }
+    .step .num { width: 44px; height: 44px; font-size: 24px; border-width: 4px; }
+    .step h3 { font-size: 20px; }
+    .step p { font-size: 14px; }
+    .steps-sec { padding-top: 40px; }
+
+    .sec-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .sec-head h2 { font-size: 28px; }
+    .sec-note { text-align: left; max-width: none; }
+    .vid { grid-template-columns: 1fr; }
+    .vid .thumb img { aspect-ratio: 16 / 9; }
+
+    .buddy h2 { font-size: 30px; }
+    .buddy p { font-size: 15px; }
+    .bubbles { font-size: 15px; }
+
+    .keep { margin: 0 20px 48px; padding: 28px 24px; }
+    .keep h2 { font-size: 26px; }
+    .keep-grid { grid-template-columns: 1fr; gap: 18px; }
+    .keep-grid h3 { font-size: 18px; }
+
+    .why h2 { font-size: 28px; }
+    /* Three columns of small type do not fit; the row label is dropped and
+       the two claims stand side by side, which is the comparison anyway. */
+    .cmp-row { grid-template-columns: 1fr 1fr; }
+    .cmp-row b { grid-column: 1 / -1; margin-bottom: 4px; }
+    .cmp-head span:first-child { display: none; }
+    .cmp-row span:last-child { font-weight: 700; }
+
+    .faq-sec h2 { font-size: 28px; }
+    .faq-grid { grid-template-columns: 1fr; gap: 14px; }
+    .faq { border-bottom: 1px dashed rgba(30, 58, 52, .25); padding-bottom: 12px; }
+    .faq summary { font-size: 19px; cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+
+    .close { padding: 44px 20px; }
+    .close h2 { font-size: 32px; }
+  }
+
+  /* ---------- brand, and the pages beyond home ---------- */
+  .brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+  .brand img { width: 34px; height: 34px; display: block; }
+  .sec-head h1 { font-size: 40px; line-height: 1.1; margin: 0; }
+  .faq-sec h1 { font-size: 38px; margin: 0 0 24px; }
+  .page .try-sec, .page .faq-sec { padding-top: 24px; }
+
+  /* The home page's pointers to /try and /faq. Whole cards are links, so the
+     tap target is the card and not a word inside it. */
+  .more { max-width: 1100px; margin: 0 auto; padding: 0 56px 64px; display: grid;
+          grid-template-columns: 1fr 1fr; gap: 20px; }
+  .more-card { display: block; background: var(--paper); border-radius: 14px; padding: 24px 26px;
+               box-shadow: var(--shadow-card); color: var(--ink); text-decoration: none; transition: transform .2s; }
+  .more-card:hover, .more-card:focus-visible { transform: translateY(-4px); }
+  .more-card h2 { font-size: 28px; line-height: 1.15; margin: 4px 0 8px; }
+  .more-card p { margin: 0 0 12px; font-size: 15px; color: rgba(30, 58, 52, .8); }
+  .more-go { font-family: var(--display); color: var(--accent); font-size: 18px; }
+  @media (max-width: 640px) {
+    .more { grid-template-columns: 1fr; padding: 0 20px 48px; }
+    .more-card h2 { font-size: 24px; }
+    .sec-head h1, .faq-sec h1 { font-size: 28px; }
+  }

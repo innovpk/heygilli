@@ -46,6 +46,9 @@ cp app/web/about.html   "$DIST/index.html"     # root is the public page
 cp app/web/about.html   "$DIST/about.html"     # and reachable by name too
 cp app/web/privacy.html "$DIST/"
 cp app/web/terms.html   "$DIST/"
+cp app/web/try.html     "$DIST/"     # /try — the screening demo, its own page
+cp app/web/faq.html     "$DIST/"     # /faq — carries the FAQPage schema, and only it does
+cp app/web/site.css     "$DIST/"     # shared by the three pages above
 # Findable, and quotable by the answer engines people actually ask. og.png is
 # the link preview; llms.txt is the plain-text summary for models, which the
 # rendered page cannot be — /app/ is a canvas an LLM reads as nothing.

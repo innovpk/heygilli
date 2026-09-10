@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Try it yourself — HeyGilli screening demo</title>
+<meta name="description" content="Change an answer and watch the shelf change: three real YouTube uploads, screened in advance by HeyGilli against every combination of three sample answers. Nothing here was written by hand.">
+<link rel="canonical" href="https://heygilli.com/try">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#dceeea">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HeyGilli">
+<meta property="og:locale" content="en">
+<meta property="og:url" content="https://heygilli.com/try">
+<meta property="og:title" content="Try it yourself — HeyGilli screening demo">
+<meta property="og:description" content="Change an answer and watch the shelf change: three real YouTube uploads, screened in advance by HeyGilli against every combination of three sample answers. Nothing here was written by hand.">
+<meta property="og:image" content="https://heygilli.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="HeyGilli: you decide what's all right, and every video gets checked against it.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Try it yourself — HeyGilli screening demo">
+<meta name="twitter:description" content="Change an answer and watch the shelf change: three real YouTube uploads, screened in advance by HeyGilli against every combination of three sample answers. Nothing here was written by hand.">
+<meta name="twitter:image" content="https://heygilli.com/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Itim&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://heygilli.com/try#page",
+      "url": "https://heygilli.com/try",
+      "name": "Try HeyGilli's screening yourself",
+      "description": "Change an answer and watch the shelf change: three real YouTube uploads, screened in advance by HeyGilli against every combination of three sample answers. Nothing here was written by hand.",
+      "inLanguage": "en",
+      "isPartOf": {
+        "@id": "https://heygilli.com/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "HeyGilli",
+          "item": "https://heygilli.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Try it yourself",
+          "item": "https://heygilli.com/try"
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body class="page">
+<div class="bar">
+  <a class="brand" href="/" aria-label="HeyGilli, home"><img src="/assets/assets/gilli.svg" alt="" width="34" height="34"><span class="wordmark">HeyGilli</span></a>
+  <span class="bar-right">
+    <a href="/#how">How it works</a>
+    <a href="/try">Try it</a>
+    <a href="/faq">FAQ</a>
+    <a href="/privacy">Privacy</a>
+    <a class="bar-pill" href="/app/">Open app</a>
+  </span>
+</div>
+
+<main>
+<section class="try-sec">
+  <div class="sec-head">
+    <div>
+      <div class="eyebrow">Try it yourself</div>
+      <h1>Three real uploads, one set of answers</h1>
+    </div>
+    <div class="sec-note">
+      A preference never hides a video outright. Change an answer and watch the
+      shelf change — every combination below was screened in advance by the
+      real thing.
+    </div>
+  </div>
+
+  <div class="try-grid">
+    <div class="asks-card">
+      <div class="panel-title">Your answers</div>
+      <div class="panel-sub">Asked once, at setup. Change them any time.</div>
+      <div id="asks"></div>
+    </div>
+    <div class="feed-card">
+      <div class="panel-title">What your child would see</div>
+      <div class="panel-sub">
+        From the channels you approved.
+        <span id="feedCount"></span>
+      </div>
+      <div class="vids" id="vids"></div>
+      <p class="audit">
+        One model's reading of one set of answers — not a rating of these
+        channels. Screened by <code>us.amazon.nova-pro-v1:0</code>.
+      </p>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="close">
+  <h2>More freedom for them, without giving up your say.</h2>
+  <div class="close-links">
+    <a href="/try">Try it</a>
+    <a href="/faq">FAQ</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/app/">Open the app</a>
+  </div>
+</div>
+
+<script>
+const M = {"questions": [{"key": "unboxing", "text": "Are unboxing and toy-haul videos all right?"}, {"key": "merch", "text": "Are videos that push merchandise or a sponsor all right?"}, {"key": "peril", "text": "Is cartoon peril — chases, monsters, mild scares — all right?"}], "videos": [{"channel": "Ryan's World", "title": "What SMUSHY Will Emma & Kate Get? We Want the Secret!", "id": "z_C29eXmo7k", "thumb": "https://i.ytimg.com/vi/z_C29eXmo7k/hqdefault.jpg", "transcript": "captions:en:auto"}, {"channel": "Mark Rober", "title": "Why Do People Pass Out On Roller Coasters?", "id": "67LFeTgFv3Y", "thumb": "https://i.ytimg.com/vi/67LFeTgFv3Y/hqdefault.jpg", "transcript": "captions:en-US:manual"}, {"channel": "Cocomelon", "title": "Let's Read JJ's Animal Time Story! 📖📚 Read-A-Long #cocomelon #kids #shorts", "id": "Sk2XlM_uP7A", "thumb": "https://i.ytimg.com/vi/Sk2XlM_uP7A/hqdefault.jpg", "transcript": "none"}], "cells": {"111": [{"decision": "approve", "reason": "The video is a fun unboxing session with a playful tone, suitable for the child."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and introduces a breathing technique to prevent it."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "110": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be mildly intense. The household prefers to avoid mild scares."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and introduces a breathing technique to prevent it. The household prefers to avoid mild scares."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "101": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be interpreted as subtly pushing a product. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}], "100": [{"decision": "ask_parent", "reason": "The video is an unboxing session with a playful tone, but the excitement around finding a 'secret' might be interpreted as subtly pushing a product. Additionally, the playful and somewhat mysterious tone might be mildly intense. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}], "011": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "010": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise and mild scares."}, {"decision": "approve", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, suitable for the child."}], "001": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}], "000": [{"decision": "ask_parent", "reason": "The video is an unboxing session, which the household prefers to avoid. You said you would rather not: Are unboxing and toy-haul videos all right?"}, {"decision": "ask_parent", "reason": "The video discusses a mildly intense topic (passing out on roller coasters) and includes a call to action to subscribe. The household prefers to avoid videos that push merchandise."}, {"decision": "ask_parent", "reason": "The video is a fun and educational read-along story featuring JJ from CoComelon, but it includes a call to subscribe. The household prefers to avoid videos that push merchandise."}]}};
+
+// "Fits" and "For you" rather than "shown" and "asks you": the same two words
+// the stamps use everywhere else on the page, and "for you" is literally what
+// ask_parent means — it is for the parent to decide, not for the child to see.
+const LABEL = { approve: "Fits", ask_parent: "For you", hide: "Held back" };
+const esc = t => t.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const state = M.questions.map(() => 1);   // starts at "fine" for everything
+const asks = document.getElementById("asks"), vids = document.getElementById("vids");
+
+M.questions.forEach((q, i) => {
+  const row = document.createElement("div");
+  row.className = "ask";
+  row.innerHTML = `<div class="ask-q">${esc(q.text)}</div>` +
+    `<span class="seg"><button type="button" aria-pressed="true">Fine</button>` +
+    `<button type="button" aria-pressed="false">Ask me</button></span>`;
+  const [fine, no] = row.querySelectorAll("button");
+  fine.onclick = () => set(i, 1); no.onclick = () => set(i, 0);
+  asks.appendChild(row);
+});
+
+function set(i, v) {
+  if (state[i] === v) return;
+  state[i] = v;
+  [...asks.children[i].querySelectorAll("button")]
+    .forEach((b, n) => b.setAttribute("aria-pressed", (n === 0) === (v === 1)));
+  rescreen();
+}
+
+const readStep = v => v.transcript && v.transcript !== "none"
+  ? "Reading what is said in the video" : "Reading the title and description";
+const STEPS = ["Comparing with your answers", "Deciding"];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let run = 0;                       // invalidates a sequence the parent interrupted
+
+function card(v, i) {
+  return `<div class="vid queued" data-i="${i}">` +
+    `<div class="thumb"><img loading="lazy" alt="" src="${esc(v.thumb)}"></div>` +
+    `<div><div class="vid-top">` +
+      `<span class="vid-title">${esc(v.title)}</span>` +
+      `<span class="slot"></span></div>` +
+      `<div class="yt">${esc(v.channel)} · YouTube · ` +
+      `${v.transcript && v.transcript !== "none" ? "read: captions" : "read: title only"}</div>` +
+      `<p class="vid-why"></p></div></div>`;
+}
+
+function settle(el, d) {
+  el.className = `vid ${d.decision}`;
+  el.querySelector(".slot").innerHTML =
+    `<span class="decision ${d.decision}">${LABEL[d.decision]}</span>`;
+  el.querySelector(".vid-why").textContent = d.reason;
+}
+
+async function screenAll(instant) {
+  const mine = ++run;
+  const row = M.cells[state.join("")];
+  const count = document.getElementById("feedCount");
+
+  if (instant) {
+    vids.innerHTML = M.videos.map(card).join("");
+    [...vids.children].forEach((el, i) => settle(el, row[i]));
+    if (count) count.textContent = "";
+    return;
+  }
+
+  vids.innerHTML = M.videos.map(card).join("");
+  for (let i = 0; i < M.videos.length; i++) {
+    if (mine !== run) return;                       // a newer answer took over
+    const el = vids.children[i];
+    el.classList.remove("queued");
+    el.classList.add("working");
+    if (count) count.textContent = `· screening ${i + 1} of ${M.videos.length}`;
+    for (const step of [readStep(M.videos[i]), ...STEPS]) {
+      if (mine !== run) return;
+      el.querySelector(".slot").innerHTML = `<span class="step-label"><span class="spin"></span>${step}</span>`;
+      await sleep(230);
+    }
+    if (mine !== run) return;
+    el.classList.remove("working");
+    settle(el, row[i]);
+    await sleep(120);
+  }
+  if (mine === run && count) count.textContent = "";
+}
+
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function rescreen() { screenAll(reduced()); }
+screenAll(true);
+</script>
+</body>
+</html>
