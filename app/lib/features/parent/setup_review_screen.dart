@@ -164,7 +164,9 @@ class _SetupReviewScreenState extends State<SetupReviewScreen> {
               _StillScreening(screened: q.screened, expected: q.expected),
             ],
             const SizedBox(height: 12),
-            Row(
+            // Wrap: on a 320pt phone the pair ran 36px past the edge.
+            Wrap(
+              spacing: 4,
               children: [
                 TextButton(
                   onPressed: _saving ? null : () => _setAll(true),

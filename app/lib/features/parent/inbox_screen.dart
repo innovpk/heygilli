@@ -213,37 +213,49 @@ class _InboxScreenState extends State<InboxScreen> {
           rows.add(
             Padding(
               padding: EdgeInsets.only(top: rows.isEmpty ? 0 : 22, bottom: 8),
-              child: Row(
+              // Wrap: the channel name, its count and "Approve all" needed
+              // 51px more than a 320pt phone has. The name takes the first
+              // line and the controls drop under it, rather than the name
+              // being squeezed to nothing and the button still overflowing.
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 8,
+                runSpacing: 2,
                 children: [
-                  Expanded(
-                    child: Text(
-                      entry.key.isEmpty ? 'From your channels' : entry.key,
-                      style: HgText.label(),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
                   Text(
-                    entry.value.length == 1
-                        ? '1 waiting'
-                        : '${entry.value.length} waiting',
-                    style: HgText.body(size: 13, color: HgColors.muted),
+                    entry.key.isEmpty ? 'From your channels' : entry.key,
+                    style: HgText.label(),
                   ),
-                  // Only when there is more than one: "approve all 1" is the
-                  // card's own button with extra words and an extra tap.
-                  if (entry.value.where((p) => p.isDecidable).length > 1)
-                    TextButton.icon(
-                      onPressed: _busy.isNotEmpty
-                          ? null
-                          : () => _approveGroup(entry.key, entry.value),
-                      icon: const Icon(Icons.done_all_rounded, size: 18),
-                      label: const Text('Approve all'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: HgColors.mangoDeep,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        textStyle: HgText.body(size: 14),
+                  // A Wrap inside the Wrap: on the narrowest phone the count
+                  // and the button do not fit one line either.
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: [
+                      Text(
+                        entry.value.length == 1
+                            ? '1 waiting'
+                            : '${entry.value.length} waiting',
+                        style: HgText.body(size: 13, color: HgColors.muted),
                       ),
-                    ),
+                      // Only when there is more than one: "approve all 1" is
+                      // the card's own button with extra words and a tap.
+                      if (entry.value.where((p) => p.isDecidable).length > 1)
+                        TextButton.icon(
+                          onPressed: _busy.isNotEmpty
+                              ? null
+                              : () => _approveGroup(entry.key, entry.value),
+                          icon: const Icon(Icons.done_all_rounded, size: 18),
+                          label: const Text('Approve all'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: HgColors.mangoDeep,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            textStyle: HgText.body(size: 14),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),

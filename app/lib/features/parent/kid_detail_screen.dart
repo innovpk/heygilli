@@ -318,7 +318,13 @@ class _KidDetailScreenState extends State<KidDetailScreen>
         selectedKidId: kid.id,
         onKids: () => Navigator.of(context).maybePop(),
         onInbox: () => Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const InboxScreen()),
+          MaterialPageRoute(
+            builder: (_) =>
+                // InboxScreen is a page body, not a page: inside ParentHome it
+                // sits in that screen's scaffold. Pushed on its own it had no
+                // Material under its chips and threw on first build.
+                const ParentScaffold(title: 'Inbox', body: InboxScreen()),
+          ),
         ),
         onKid: (next) {
           if (next.id == kid.id) return;
@@ -432,7 +438,16 @@ class _KidDetailScreenState extends State<KidDetailScreen>
                   onSeeProgress: () => _tabs.animateTo(1),
                   onChangeRules: () => _tabs.animateTo(2),
                   onSeeInbox: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const InboxScreen()),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          // InboxScreen is a page body, not a page: inside ParentHome it
+                          // sits in that screen's scaffold. Pushed on its own it had no
+                          // Material under its chips and threw on first build.
+                          const ParentScaffold(
+                            title: 'Inbox',
+                            body: InboxScreen(),
+                          ),
+                    ),
                   ),
                 ),
                 // Was a pushed screen reached from a card; it is a tab now, so

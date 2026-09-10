@@ -116,7 +116,12 @@ class _HiddenScreenState extends State<HiddenScreen> {
                               : 'Read: what is said in the video',
                           style: HgText.body(size: 12, color: HgColors.muted),
                         ),
-                        Row(
+                        // Wrap, not Row: "Allow it anyway" and "Ask about
+                        // this" side by side ran up to 247px off the right
+                        // edge of a phone, and the second one is the reason
+                        // this screen exists.
+                        Wrap(
+                          spacing: 4,
                           children: [
                             TextButton(
                               onPressed: _restoring.contains(item.video.id)

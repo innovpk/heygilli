@@ -140,9 +140,14 @@ class ParentScaffold extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Row(
+                        // Wrap, not Row: on a 320pt phone the controls that
+                        // were moved down here for room still did not fit
+                        // one line on the policy screen.
+                        Wrap(
                           spacing: 12,
-                          mainAxisAlignment: MainAxisAlignment.end,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: trailing,
                         ),
                       ],
