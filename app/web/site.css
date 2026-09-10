@@ -264,18 +264,6 @@
   .b.gilli { align-self: flex-start; background: var(--ink); color: var(--bg); border-radius: 16px 16px 16px 3px; }
   .b.kid { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 16px 16px 3px 16px; }
 
-  /* ---------- what we don't keep ---------- */
-  .keep {
-    margin: 0 56px 64px; padding: 44px 48px; background: var(--ink);
-    color: var(--bg); border-radius: 18px; max-width: 988px;
-  }
-  .keep-wrap { max-width: 1100px; margin: 0 auto; }
-  .keep h2 { font-size: 38px; line-height: 1.1; margin: 0 0 28px; }
-  .keep-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; font-size: 15px; line-height: 1.5; }
-  .keep-grid h3 { font-size: 22px; color: var(--accent-tint); margin: 0 0 6px; }
-  .keep-foot { margin: 24px 0 0; font-size: 14px; color: rgba(220, 238, 234, .7); }
-  .keep-foot a { color: inherit; }
-
   /* ---------- why not youtube kids ---------- */
   .why { padding: 0 56px 64px; display: grid; grid-template-columns: 1fr 1.3fr; gap: 48px; max-width: 1100px; margin: 0 auto; }
   .why h2 { font-size: 38px; line-height: 1.1; margin: 0 0 12px; }
@@ -357,7 +345,6 @@
     .steps { grid-template-columns: repeat(2, 1fr); }
     .steps-rule { display: none; }
     .try-grid, .buddy, .why { grid-template-columns: 1fr; }
-    .keep { margin-left: 24px; margin-right: 24px; }
 
     /* The scene unstacks here, not at 640: the hero is already one column by
        this width, so the pieces have no column to overlap and a fixed 600px
@@ -405,10 +392,6 @@
     .buddy p { font-size: 15px; }
     .bubbles { font-size: 15px; }
 
-    .keep { margin: 0 20px 48px; padding: 28px 24px; }
-    .keep h2 { font-size: 26px; }
-    .keep-grid { grid-template-columns: 1fr; gap: 18px; }
-    .keep-grid h3 { font-size: 18px; }
 
     .why h2 { font-size: 28px; }
     /* Three columns of small type do not fit; the row label is dropped and
@@ -434,18 +417,6 @@
   .faq-sec h1 { font-size: 38px; margin: 0 0 24px; }
   .page .try-sec, .page .faq-sec { padding-top: 24px; }
 
-  /* The home page's pointers to /try and /faq. Whole cards are links, so the
-     tap target is the card and not a word inside it. */
-  .more { max-width: 1100px; margin: 0 auto; padding: 0 56px 64px; display: grid;
-          grid-template-columns: 1fr 1fr; gap: 20px; }
-  .more-card { display: block; background: var(--paper); border-radius: 14px; padding: 24px 26px;
-               box-shadow: var(--shadow-card); color: var(--ink); text-decoration: none; transition: transform .2s; }
-  .more-card:hover, .more-card:focus-visible { transform: translateY(-4px); }
-  .more-card h2 { font-size: 28px; line-height: 1.15; margin: 4px 0 8px; }
-  .more-card p { margin: 0 0 12px; font-size: 15px; color: rgba(30, 58, 52, .8); }
-  .more-go { font-family: var(--display); color: var(--accent); font-size: 18px; }
   @media (max-width: 640px) {
-    .more { grid-template-columns: 1fr; padding: 0 20px 48px; }
-    .more-card h2 { font-size: 24px; }
     .sec-head h1, .faq-sec h1 { font-size: 28px; }
   }
