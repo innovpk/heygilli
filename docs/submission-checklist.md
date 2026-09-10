@@ -75,7 +75,7 @@ Do these in order.
    - [ ] Testing instructions
    - [ ] Third-party integrations disclosure
    - [ ] Pre-existing work disclosure (new projects only rule)
-   - [ ] Team: solo
+   - [ ] Team: Mujahid Masood, Unzila Zafar (Komal Ilyas maybe)
 7. [ ] Preview the submission page. Click every link from a different device. Play the video to the end.
 8. [ ] Submit. Screenshot the confirmation.
 9. [ ] Re-read the rules page once. If anything changed since 5 September, fix and resubmit (Devpost allows edits until the deadline).
