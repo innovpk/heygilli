@@ -1,6 +1,6 @@
 # Agents for Humans: building HeyGilli, part 1 — the concept and the requirements
 
-This is the first of three posts on how we built HeyGilli for the AWS Agents for Humans hackathon. This one covers the idea and the requirements we wrote before any code. Part 2 is the design: eight agents on the Strands Agents SDK, with code. Part 3 is how we made those agents trustworthy enough to put in front of a family.
+This is the first of three posts on how we built HeyGilli, a co-watching buddy for kids' YouTube. This one covers the idea and the requirements we wrote before any code. Part 2 is the design: eight agents on the Strands Agents SDK, with code. Part 3 is how we made those agents trustworthy enough to put in front of a family.
 
 ## The problem
 
@@ -20,7 +20,7 @@ HeyGilli is a kid-safe front end for YouTube with a co-watching buddy: Gilli, a 
 
 ## Why this has to be an agent, not an app
 
-The hackathon's brief asked for agents that run in the background and come to a human only when there is a real decision to make. We turned that into a table before writing code, and it became the product's spine:
+A good agent runs in the background and comes to a human only when there is a real decision to make. We turned that idea into a table before writing code, and it became the product's spine:
 
 | The agent does this on its own | It comes to the parent only when |
 |---|---|
