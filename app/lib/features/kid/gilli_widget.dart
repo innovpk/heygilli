@@ -18,6 +18,7 @@ class GilliWidget extends StatefulWidget {
     this.size = 160,
     this.gesture = Gesture.idle,
     this.gestureTick = 0,
+    this.celebrateTick = 0,
     this.talking = false,
     this.listening = false,
     this.asleep = false,
@@ -27,6 +28,11 @@ class GilliWidget extends StatefulWidget {
   final double size;
   final Gesture gesture;
   final int gestureTick;
+
+  /// Bump to throw stars and confetti out around Gilli: an answer landed.
+  /// Drawn, never typed, so it means the same to a child who cannot read yet.
+  /// Skipped while he is asleep and when the device asks for less motion.
+  final int celebrateTick;
   final bool talking;
   final bool listening;
 
@@ -40,16 +46,35 @@ class GilliWidget extends StatefulWidget {
 }
 
 class _GilliWidgetState extends State<GilliWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   // Slow breathing so Gilli never looks frozen between gestures.
   late final AnimationController _breathe = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
   )..repeat(reverse: true);
 
+  /// One burst of stars and confetti, run once per [GilliWidget.celebrateTick].
+  late final AnimationController _party = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  @override
+  void didUpdateWidget(GilliWidget old) {
+    super.didUpdateWidget(old);
+    final calm = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (widget.celebrateTick != old.celebrateTick &&
+        widget.celebrateTick > 0 &&
+        !widget.asleep &&
+        !calm) {
+      _party.forward(from: 0);
+    }
+  }
+
   @override
   void dispose() {
     _breathe.dispose();
+    _party.dispose();
     super.dispose();
   }
 
@@ -114,6 +139,24 @@ class _GilliWidgetState extends State<GilliWidget>
               top: s * 0.28,
               child: _SoundWave(height: s * 0.28),
             ),
+          // Over Gilli and out past his circle; never in the way of a tap.
+          Positioned(
+            left: -s * 0.5,
+            top: -s * 0.5,
+            width: s * 2,
+            height: s * 2,
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _party,
+                builder: (context, _) => _party.isAnimating
+                    ? CustomPaint(
+                        key: const Key('gilli-celebration'),
+                        painter: _CelebrationPainter(_party.value),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
           if (widget.asleep)
             Positioned(
               right: -s * 0.08,
@@ -165,6 +208,85 @@ class _GilliWidgetState extends State<GilliWidget>
     }
     return m;
   }
+}
+
+/// Stars and confetti thrown out from Gilli, falling a little as they fade.
+///
+/// Positions come from the index, not a random source, so every celebration
+/// looks the same and a test can see it.
+class _CelebrationPainter extends CustomPainter {
+  _CelebrationPainter(this.t);
+  final double t;
+
+  static const _count = 14;
+  static const _colors = [
+    HgColors.mango,
+    HgColors.sky,
+    HgColors.green,
+    HgColors.accentTint,
+    HgColors.mangoDeep,
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final reach = size.shortestSide * 0.46;
+    final out = Curves.easeOutCubic.transform(t);
+    // Full colour for most of the flight, then gone by the end.
+    final alpha = (t < 0.6 ? 1.0 : 1 - (t - 0.6) / 0.4).clamp(0.0, 1.0);
+    for (var i = 0; i < _count; i++) {
+      final star = i.isEven;
+      final angle = i * 2 * math.pi / _count + (star ? 0.0 : 0.22);
+      final dist = reach * (star ? 1.0 : 0.72) * out;
+      final at =
+          centre +
+          Offset(
+            math.cos(angle) * dist,
+            math.sin(angle) * dist + reach * 0.35 * t * t,
+          );
+      final r = size.shortestSide * (star ? 0.045 : 0.03);
+      final paint = Paint()
+        ..color = _colors[i % _colors.length].withValues(alpha: alpha);
+      canvas
+        ..save()
+        ..translate(at.dx, at.dy)
+        ..rotate(angle + t * math.pi * (star ? 2 : -3));
+      if (star) {
+        canvas.drawPath(_star(r), paint);
+      } else {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: r * 1.1,
+              height: r * 2.2,
+            ),
+            Radius.circular(r * 0.3),
+          ),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
+  }
+
+  static Path _star(double r) {
+    final path = Path();
+    for (var k = 0; k < 10; k++) {
+      final rr = k.isEven ? r : r * 0.45;
+      final a = -math.pi / 2 + k * math.pi / 5;
+      final p = Offset(math.cos(a) * rr, math.sin(a) * rr);
+      if (k == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    return path..close();
+  }
+
+  @override
+  bool shouldRepaint(_CelebrationPainter old) => old.t != t;
 }
 
 /// Three mango bars bouncing while TTS plays: "Gilli is talking".

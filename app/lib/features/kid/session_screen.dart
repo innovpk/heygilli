@@ -270,6 +270,9 @@ class _SessionScreenState extends State<SessionScreen> {
   bool _answered = false;
   Gesture _gesture = Gesture.idle;
   int _gestureTick = 0;
+
+  /// Bumped on every answer Gilli celebrates; see [GilliWidget.celebrateTick].
+  int _celebrateTick = 0;
   Future<void> _speaking = Future.value();
   String _endLine = '';
 
@@ -700,6 +703,7 @@ class _SessionScreenState extends State<SessionScreen> {
       _reply = reply;
       _gesture = reply.gesture;
       _gestureTick++;
+      if (reply.result.celebrates) _celebrateTick++;
       _phase = _Phase.replying;
     });
     final line = reply.text ?? reply.modelWord;
@@ -1067,6 +1071,7 @@ class _SessionScreenState extends State<SessionScreen> {
         size: size,
         gesture: _gesture,
         gestureTick: _gestureTick,
+        celebrateTick: _celebrateTick,
         talking: voice.speaking,
         listening: _ears.listening,
       ),
@@ -1086,6 +1091,7 @@ class _SessionScreenState extends State<SessionScreen> {
               size: _stage.gilli,
               gesture: _gesture,
               gestureTick: _gestureTick,
+              celebrateTick: _celebrateTick,
               talking: voice.speaking,
               listening: _ears.listening,
             );

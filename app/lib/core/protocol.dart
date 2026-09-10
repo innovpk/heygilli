@@ -51,6 +51,10 @@ enum AnswerResult {
 
   const AnswerResult([String? wire]) : _wire = wire;
   final String? _wire;
+
+  /// Gilli celebrates this answer. Partial counts: the gateway scores a near
+  /// miss as a success and cheers it too, so the screen should agree.
+  bool get celebrates => this == correct || this == partial;
   String get wire => _wire ?? name;
 
   static AnswerResult fromWire(String? s) =>
