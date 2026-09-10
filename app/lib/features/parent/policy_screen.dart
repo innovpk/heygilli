@@ -286,25 +286,15 @@ class _Intro extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            // Which sentence is true depends on whether there was anything to
-            // read. Claiming these came from $name's channels when they did
-            // not is a small lie, and every 'why' below would contradict it.
-            basedOn.isEmpty
-                ? 'Without your answers it screens on age alone, which is '
-                      "somebody else's taste. $name has no channels yet, so "
-                      'these are the questions every family is asked.'
-                : 'Without your answers it screens on age alone, which is '
-                      'somebody else\'s taste. These questions come from the '
-                      'channels $name is already subscribed to.',
-            style: HgText.body(size: 14, color: HgColors.brown),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            // Two things a parent would otherwise have to guess at, said
-            // where they are about to start tapping.
-            'Answer the ones you have a view on and leave the rest. A question '
-            'you skip counts for nothing. Nothing here is hidden from you: the '
-            'strongest answer sends a video to your inbox to decide.',
+            // Two short sentences. It was a heading and two paragraphs, read by
+            // nobody on their way to the first question. What survives is where
+            // the questions came from — claiming they came from $name's
+            // channels when none did is a small lie every "why" below would
+            // contradict — and that skipping is allowed.
+            '${basedOn.isEmpty ? 'These are the questions every family is '
+                      'asked.' : 'Some come from the channels $name is '
+                      'already subscribed to.'} '
+            'Answer the ones you care about and skip the rest.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           if (updatedAt.isNotEmpty) ...[
@@ -353,8 +343,6 @@ class _QuestionCard extends StatelessWidget {
             question.question,
             style: HgText.display(size: 20, color: HgColors.ink),
           ),
-          const SizedBox(height: 8),
-          Text('WHY YOU ARE BEING ASKED', style: HgText.label()),
           const SizedBox(height: 4),
           Text(
             // Always shown. A question a parent cannot trace back to their own
@@ -362,9 +350,9 @@ class _QuestionCard extends StatelessWidget {
             question.why.isNotEmpty
                 ? question.why
                 : 'Gilli did not say which channels prompted this one.',
-            style: HgText.body(size: 14, color: HgColors.brown),
+            style: HgText.body(size: 13, color: HgColors.muted),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -427,7 +415,7 @@ class _ChoiceButton extends StatelessWidget {
               choice.label,
               style: HgText.body(
                 size: 15,
-                color: selected ? HgColors.ink : HgColors.brown,
+                color: selected ? HgColors.white : HgColors.brown,
               ),
             ),
           ),
@@ -456,9 +444,7 @@ class _NotesCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Whatever the questions above did not cover. Gilli reads this when '
-            'it screens; it is not a filter list, so say it the way you would '
-            'say it to a person.',
+            'Anything the questions missed. Say it as you would to a person.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),
           const SizedBox(height: 12),

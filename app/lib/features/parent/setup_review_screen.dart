@@ -347,17 +347,21 @@ class _ReviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 12,
               children: [
-                if (item.video.thumbUrl.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      item.video.thumbUrl,
-                      width: 92,
-                      height: 62,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox(width: 92),
-                    ),
+                // `thumb`, not `thumbUrl`: the server sends a URL only
+                // sometimes, and `thumb` falls back to YouTube's own
+                // thumbnail for the id. Checking `thumbUrl` left every video
+                // without one showing no picture at all — the preview a
+                // parent uses to recognise what they are approving.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    item.video.thumb,
+                    width: 92,
+                    height: 62,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(width: 92),
                   ),
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

@@ -79,9 +79,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
             children: [
               Text(
-                'Pick anything that sounds like $name. Gilli goes and finds '
-                'videos, reads each one against the answers you just gave, and '
-                'shows you what it made of them before $name sees anything.',
+                'Pick what sounds like $name. You see every video Gilli finds '
+                'before $name does.',
                 style: HgText.body(size: 15, color: HgColors.brown),
               ),
               const SizedBox(height: 16),
@@ -125,10 +124,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               Text('WHEN THE SCREEN PAUSES', style: HgText.label()),
               const SizedBox(height: 6),
               Text(
-                'Watching stops for a break every so often. Gilli says what to '
-                "do — pick anything $name would actually get up and do, and it "
-                'says those. Without this a break stops the video and leaves '
-                'them looking at it.',
+                'What should Gilli suggest $name does at a break?',
                 style: HgText.body(size: 14, color: HgColors.brown),
               ),
               const SizedBox(height: 12),
@@ -154,8 +150,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'You can add a channel by name later, or drop any of them, and '
-                "change what Gilli says at break time, from $name's page.",
+                "All of this can be changed later from $name's page.",
                 style: HgText.body(size: 13, color: HgColors.muted),
               ),
             ],

@@ -78,8 +78,8 @@ void main() {
 
     expect(questions, isNotEmpty, reason: 'the demo Coach proposed nothing');
     // The why is the difference between a question about this household and a
-    // checklist someone else wrote.
-    expect(find.text('WHY YOU ARE BEING ASKED'), findsWidgets);
+    // checklist someone else wrote. Its label went in a copy trim; the reason
+    // itself is still under every question, and that is what is held here.
     for (final q in questions) {
       expect(q.why, isNotEmpty, reason: q.question);
     }
@@ -328,7 +328,7 @@ void _honesty() {
   ) async {
     await open(tester, bare, bareKid);
     expect(
-      find.textContaining('has no channels yet'),
+      find.textContaining('every family is asked'),
       findsOneWidget,
       reason: 'the page claimed the questions came from this child',
     );
@@ -340,6 +340,6 @@ void _honesty() {
   ) async {
     await open(tester, stocked, stockedKid);
     expect(find.textContaining('already subscribed to'), findsOneWidget);
-    expect(find.textContaining('has no channels yet'), findsNothing);
+    expect(find.textContaining('every family is asked'), findsNothing);
   });
 }

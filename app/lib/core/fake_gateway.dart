@@ -1684,24 +1684,61 @@ class FakeGateway implements Gateway {
         ),
       );
     }
-    if (questions.isEmpty) {
-      // Nothing to point at is said plainly rather than dressed up as a
-      // finding. A question with an invented reason is worse than no question,
-      // and an empty basedOn is how the screen knows to say so.
-      return PolicyQuestions(
-        questions: [
-          PolicyQuestion(
-            id: 'q_ads',
-            question: 'Videos that sell something — merch, a sponsor, a code?',
-            why:
-                'Asked of every household. HeyGilli has not read enough of '
-                "$name's channels yet to say which prompted it.",
-          ),
-        ],
+    // Topped up to five with the questions every family of this age is asked,
+    // as the real gateway does (coach.WANTED_QUESTIONS, coach._BY_BAND). The
+    // demo used to stop at whatever the two sample channels matched — usually
+    // one question — so a parent trying it met a policy screen with a single
+    // thing on it and reasonably concluded the rest had gone.
+    final fromChannels = questions.isNotEmpty;
+    final band = _kid(kidId)?.band ?? AgeBand.b7to8;
+    final asked = {for (final q in questions) q.question};
+    for (final (i, text) in (_builtinQuestions[band] ?? const []).indexed) {
+      if (questions.length >= 5) break;
+      if (asked.contains(text)) continue;
+      questions.add(
+        PolicyQuestion(
+          id: 'q_${band.name}_$i',
+          question: text,
+          // Said plainly: these were not drawn from this child's channels, and
+          // a reason that pretended otherwise is worse than no question.
+          why: 'Asked of every family with a child this age.',
+        ),
       );
     }
-    return PolicyQuestions(questions: questions, basedOn: titles);
+    // basedOn stays empty unless something really was drawn from the
+    // channels, which is how the screen knows not to claim that it was.
+    return PolicyQuestions(
+      questions: questions,
+      basedOn: fromChannels ? titles : const [],
+    );
   }
+
+  /// The real gateway's built-in questions per band (agents/heygilli_agents/
+  /// coach.py `_BY_BAND`), copied so the demo asks what production asks.
+  static const _builtinQuestions = <AgeBand, List<String>>{
+    AgeBand.b4to6: [
+      'Is cartoon peril — chases, monsters, mild scares — all right?',
+      'Are unboxing and toy-haul videos all right?',
+      'Are loud, fast-cut videos with constant sound effects all right?',
+      'Are adults playing with toys in character all right?',
+      'Are songs and episodes that run for an hour or more all right?',
+    ],
+    AgeBand.b7to8: [
+      'Are challenge and prank videos all right?',
+      'Is rude humour — toilet jokes, name-calling — all right?',
+      'Are videos that push merchandise or a sponsor all right?',
+      'Are gaming videos with a commentator all right?',
+      'Are reaction videos — someone watching something else — all right?',
+    ],
+    AgeBand.b9to11: [
+      'Are pranks played on real people all right?',
+      'Is cartoon or game violence all right?',
+      'Are videos about being popular online — followers, going viral — all '
+          'right?',
+      'Are creators giving opinions on the news or politics all right?',
+      'Are videos about appearance, dieting or working out all right?',
+    ],
+  };
 
   @override
   Future<List<RevisitConcept>> revisits(String kidId) async {
