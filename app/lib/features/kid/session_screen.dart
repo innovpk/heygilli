@@ -1014,12 +1014,17 @@ class _SessionScreenState extends State<SessionScreen> {
                             child: _player(true),
                           ),
                         ),
+                        // Under the video, as it is while playing. It sat in
+                        // this Row once, where it had no width to measure: the
+                        // track sizes itself from the space it is given, got
+                        // infinity, and the whole screen went blank at the
+                        // first question.
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: _trackStrip(),
+                        ),
                       ],
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: _trackStrip(),
                   ),
                   Expanded(child: _buildStage(true)),
                 ],
