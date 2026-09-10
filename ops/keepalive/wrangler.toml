@@ -1,0 +1,13 @@
+name = "heygilli-keepalive"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# No public URL; the worker only runs on the schedule below.
+workers_dev = false
+
+[triggers]
+# Every 10 minutes, inside Render's 15-minute idle window.
+crons = ["*/10 * * * *"]
+
+[observability]
+enabled = true
