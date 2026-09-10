@@ -165,8 +165,8 @@ def test_the_questions_follow_the_age():
     assert any("pranks played on real people" in q for q in older)
     # And it says which age it chose them for, since it cannot honestly claim
     # they came from this family's own channels.
-    assert "4 to 6" in builtin_policy_questions("4_6")[0].why
-    assert "9 to 11" in builtin_policy_questions("9_11")[0].why
+    assert "5 to 6" in builtin_policy_questions("4_6")[0].why
+    assert "9 to 12" in builtin_policy_questions("9_11")[0].why
 
 
 def test_an_unknown_band_still_gets_questions():

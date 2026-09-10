@@ -285,4 +285,4 @@ def builtin_policy_questions(band: AgeBand | str = _DEFAULT_BAND) -> list[Policy
 
 
 def _band_words(band: AgeBand | str) -> str:
-    return {"4_6": "4 to 6", "7_8": "7 to 8", "9_11": "9 to 11"}.get(str(band), "7 to 8")
+    return {"4_6": "5 to 6", "7_8": "7 to 8", "9_11": "9 to 12"}.get(str(band), "7 to 8")

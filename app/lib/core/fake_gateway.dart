@@ -240,7 +240,7 @@ class FakeGateway implements Gateway {
       ),
       reason:
           'A 26-minute compilation: longer than their usual videos and it '
-          'shows a real eruption. Fine for 9 to 11 in my view, but you decide.',
+          'shows a real eruption. Fine for 9 to 12 in my view, but you decide.',
       createdAt: '2026-09-05T07:30:00Z',
     ),
     const ParentPrompt(

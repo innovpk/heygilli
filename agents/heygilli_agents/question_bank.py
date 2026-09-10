@@ -63,7 +63,7 @@ class Prompt(BaseModel):
 #: The bank. Order is the order a parent sees, and the order questions are
 #: drawn in, so the plainest of each band comes first.
 PROMPTS: tuple[Prompt, ...] = (
-    # --- 4 to 6: pre-readers. Nothing written, one thing to do, said out loud.
+    # --- 5 to 6: pre-readers. Nothing written, one thing to do, said out loud.
     Prompt(
         id="p46_favourite_part",
         band="4_6", type="name_it", input="voice", gesture="think",
@@ -154,7 +154,7 @@ PROMPTS: tuple[Prompt, ...] = (
         expected="any reasonable guess",
     ),
 
-    # --- 9 to 11: talked to like an older kid, asked to justify.
+    # --- 9 to 12: talked to like an older kid, asked to justify.
     Prompt(
         id="p911_tell_a_friend",
         band="9_11", type="explain", input="voice", gesture="think",

@@ -241,7 +241,7 @@ def _approved_by_channel(hid: str) -> dict[str, list[str]]:
 
 class KidIn(BaseModel):
     nickname: str
-    age: int = Field(ge=3, le=12)
+    age: int = Field(ge=5, le=12)  # HeyGilli is for children aged 5 to 12
     languages: list[Language] = Field(default_factory=lambda: ["en"])
 
 
@@ -462,7 +462,7 @@ class KidEditIn(BaseModel):
     correction, not a re-registration."""
 
     nickname: str | None = None
-    age: int | None = Field(default=None, ge=3, le=12)
+    age: int | None = Field(default=None, ge=5, le=12)
     languages: list[Language] | None = None
     #: An icon id from `AVATAR_ICONS`, or "" to go back to their initial.
     #: Checked against the list rather than taken as given: this string is

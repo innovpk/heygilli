@@ -25,7 +25,7 @@ the child's actual words and must not invent any.
 
 For ages 7 to 11: list ideas the child clearly understood and ideas that were shaky (as short
 phrases a parent can bring up), and write ONE dinner-table conversation starter about the day's
-videos. For ages 4 to 6: list the words the child heard Gilli model (from the expected answers),
+videos. For ages 5 to 6: list the words the child heard Gilli model (from the expected answers),
 and make the dinner prompt a simple real-world activity ("find something red in the kitchen").
 Warm, specific, two sentences at most per field. Never judge the child; never use "wrong".
 

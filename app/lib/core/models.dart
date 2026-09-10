@@ -53,7 +53,7 @@ enum AgeBand {
     _ => AgeBand.b4to6,
   };
 
-  /// SPEC 3: 4 to 6, 7 to 8, 9 to 11. Ages outside the range clamp to the
+  /// SPEC 3: 5 to 6, 7 to 8, 9 to 12. Ages outside the range clamp to the
   /// nearest band so an odd parent input never crashes the kid path.
   static AgeBand forAge(int age) {
     if (age <= 6) return AgeBand.b4to6;
@@ -88,9 +88,9 @@ enum AgeBand {
   int get defaultListenMs => this == AgeBand.b4to6 ? 15000 : 20000;
 
   String get label => switch (this) {
-    AgeBand.b4to6 => '4 to 6',
+    AgeBand.b4to6 => '5 to 6',
     AgeBand.b7to8 => '7 to 8',
-    AgeBand.b9to11 => '9 to 11',
+    AgeBand.b9to11 => '9 to 12',
   };
 }
 

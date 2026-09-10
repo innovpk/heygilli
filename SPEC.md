@@ -74,7 +74,7 @@ with settings.
 
 ## 2. Problem
 
-- Kids aged 4 to 11 spend a large share of screen time on YouTube, and on the TV that time is completely passive.
+- Kids aged 5 to 12 spend a large share of screen time on YouTube, and on the TV that time is completely passive.
 - Parental controls filter content but do nothing during or after viewing. YouTube Kids is a filter, not a teacher.
 - Parents want to know what their kid actually took in, not just what played.
 - Bilingual households (Urdu and English) get no support from English-first products.

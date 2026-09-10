@@ -45,7 +45,7 @@ void main() {
       expect(review.flags.first.label, 'Buy-me pressure');
       expect(review.suits(AgeBand.b9to11), isTrue);
       expect(review.suits(AgeBand.b4to6), isFalse);
-      expect(review.goodForLabel, '7 to 8, 9 to 11');
+      expect(review.goodForLabel, '7 to 8, 9 to 12');
       expect(review.sampleTitles, ['One', 'Two']);
       expect(review.model, 'anthropic.claude-haiku-4-5');
     });

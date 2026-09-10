@@ -50,7 +50,9 @@ class _AddKidSheetState extends State<_AddKidSheet> {
   late final _nickname = TextEditingController(
     text: widget.editing?.nickname ?? widget.initialNickname,
   );
-  late int _age = widget.editing?.age ?? 5;
+  // HeyGilli is for children aged 5 to 12. A child saved before that was
+  // the range starts at its lowest age rather than off the end of the slider.
+  late int _age = (widget.editing?.age ?? 5).clamp(5, 12);
 
   /// Urdu is not offered for now, so there is nothing left to pick between
   /// and no picker. A child added today speaks English; one added when there
@@ -203,8 +205,8 @@ class _AddKidSheetState extends State<_AddKidSheet> {
               Expanded(
                 child: Slider(
                   value: _age.toDouble(),
-                  min: 4,
-                  max: 11,
+                  min: 5,
+                  max: 12,
                   divisions: 7,
                   activeColor: HgColors.mango,
                   inactiveColor: HgColors.line,

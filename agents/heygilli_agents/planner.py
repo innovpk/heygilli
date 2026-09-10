@@ -43,7 +43,7 @@ Hard rules, no exceptions:
 
 BAND_GUIDE = {
     "4_6": """
-Band 4 to 6 (pre-readers). Types allowed: name_it (single word by voice), copy_it (make a sound or
+Band 5 to 6 (pre-readers). Types allowed: name_it (single word by voice), copy_it (make a sound or
 a motion, never scored), pick_it (three pictures, exactly one correct), yes_no.
 Goals: vocabulary, naming, colours, counting to 5, animal sounds, basic emotions, one-step instructions.
 Ask only about what is visible on the paused frame or heard in the last 30 seconds. Never "why".
@@ -60,7 +60,7 @@ Playful and curious; ask "what do you think?". `expected` is a short phrase; add
 a child might say. `followup` is one extra fact to share after a correct answer.
 """,
     "9_11": """
-Band 9 to 11. Types allowed: explain, compare, apply, opinion (with a reason), pick_it, yes_no.
+Band 9 to 12. Types allowed: explain, compare, apply, opinion (with a reason), pick_it, yes_no.
 Goals: explanation, comparison, applying an idea elsewhere, forming an opinion with a reason,
 noticing when a video is trying to sell something. Drop all baby talk; talk like an older cousin
 who finds the topic genuinely interesting; mild humour is fine. `expected` is the gist of a good
