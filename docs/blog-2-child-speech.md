@@ -1,9 +1,5 @@
 # Agents for Humans: child speech is the hard part
 
-*Draft for builder.aws.com. The rules require "Agents for Humans" in the title, so keep the prefix. Publish before 14 September 2026, 5:00 PM PT. One block below is marked FILL AFTER THE CHILD TEST. Fill it from notes written the same day, or delete the block. No number in this post may be invented.*
-
----
-
 Speech recognisers are trained mostly on adults. A four-year-old whispers, mumbles, drops syllables, says "gaffe" for giraffe, and sometimes just roars at the tablet because that is what the question asked for. If your agent depends on a clean transcript from that child, it will fail most of the time.
 
 HeyGilli is an AI co-watching buddy for kids' YouTube, built on the Strands Agents SDK for the Agents for Humans hackathon. Gilli the palm squirrel pauses a video at a natural break and asks a question by voice. Kids aged 4 to 11 use it in three bands: `4_6`, `7_8`, `9_11`. This post is about the youngest band, because pre-readers set the design floor for everything above them.
@@ -79,14 +75,6 @@ It is now **15 seconds for pre-readers and 20 for the older bands**. Pre-readers
 
 Gilli also starts listening automatically after the question, so a child who simply talks at the tablet is heard without pressing anything.
 
-<!-- FILL AFTER THE CHILD TEST, or delete this whole block before publishing.
-     Numbers must come from notes written the same day. Do not estimate.
-     - name-it turns asked:
-     - turns that produced any utterance at all:
-     - turns that scored partial or better:
-     - one thing the child did that no adult tester did:
--->
-
 ## What we learned
 
 - **Design for the child who says nothing.** If the silent path is good, the talking path is easy. Every fallback in this system runs without a model.
@@ -98,6 +86,6 @@ Gilli also starts listening automatically after the question, so a child who sim
 
 Test with a real child. An adult imitating one tells you nothing.
 
-The companion post, "Agents for Humans: teaching a squirrel to co-watch", covers the seven Strands agents, the Graph we deliberately did not build, and what happened when our chosen model turned out to be one we could not call.
+The companion post, "Agents for Humans: teaching a squirrel to co-watch", covers the eight Strands agents, the Graph we deliberately did not build, and what happened when our chosen model turned out to be one we could not call.
 
 Code: https://github.com/mujahidmasood/heygilli. MIT.

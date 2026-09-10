@@ -1,16 +1,12 @@
-# Agents for Humans: teaching a squirrel to co-watch, or seven Strands agents for a user who cannot read
-
-*Draft for builder.aws.com. The rules require "Agents for Humans" in the title, so keep the prefix. Publish before 14 September 2026, 5:00 PM PT. Every number in this post comes from a command whose output is in the repo. Do not add one that does not.*
-
----
+# Agents for Humans: teaching a squirrel to co-watch, or eight Strands agents for a user who cannot read
 
 Most agent demos assume a user who can read a screen and type a reply. Our user is four. She cannot read, cannot hold a microphone button down for a sentence, and will not wait more than a few seconds. That constraint shaped every decision in HeyGilli, an AI co-watching buddy for kids' YouTube, built on the Strands Agents SDK for the Agents for Humans hackathon.
 
 The product in one paragraph: kids aged 4 to 11 watch YouTube for hours, and parental controls decide what plays and then do nothing else. HeyGilli shows only parent-approved channels in the official YouTube embed and adds Gilli the palm squirrel, who pauses the video every few minutes to ask a question by voice. The child speaks or taps, Gilli replies, the video resumes. At night the parent gets a two-line digest. Ads still play, and nothing a child says is stored.
 
-This post is about the agent design: what the seven agents are, the multi-agent pattern we built and then threw away, and what happened when the model we had chosen turned out to be one we could not call.
+This post is about the agent design: what the eight agents are, the multi-agent pattern we built and then threw away, and what happened when the model we had chosen turned out to be one we could not call.
 
-## Seven agents, seven jobs
+## Eight agents, eight jobs
 
 We resisted one "assistant" agent with twenty tools. Each agent has one trigger, one output type, and a tool list short enough to print.
 
@@ -23,12 +19,15 @@ We resisted one "assistant" agent with twenty tools. Each agent has one trigger,
 | Reviewer | per channel on import | `screen_video` | what a channel actually publishes |
 | Coach | when a parent writes a break line or sets policy | — | drafts for the parent; nothing here reaches a child |
 | Explainer | when a parent asks about one video | `search_transcript`, `channel_reputation`, `screen_video` | nothing — it answers, it does not rule |
+| Playmate | per round of one of Gilli's games, between videos | — | how hard the next round is for this child, and what Gilli says |
 
-Three of the seven have tools at all. That surprised us. Everything else the pipeline needs — fetching a transcript, listing a channel's uploads, Polly speech, notifying a parent — is a plain Python function the gateway calls in code, not a tool handed to a model.
+Three of the eight have tools at all. That surprised us. Everything else the pipeline needs — fetching a transcript, listing a channel's uploads, Polly speech, notifying a parent — is a plain Python function the gateway calls in code, not a tool handed to a model.
 
-The split turned out to be the useful one: **the agents decide, the code fetches and enforces.** A model that cannot reach the store cannot corrupt it. A rule that lives in `rules.enforce` can be unit-tested; a rule living in a prompt cannot. We have 597 tests, and almost none of them need a model.
+The split turned out to be the useful one: **the agents decide, the code fetches and enforces.** A model that cannot reach the store cannot corrupt it. A rule that lives in `rules.enforce` can be unit-tested; a rule living in a prompt cannot. We have 665 backend tests, and almost none of them need a model.
 
-`ROLES` in `models.py` has exactly seven entries, each with its own `HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding an eighth: channel drift runs on `reviewer`, the revisit question on `planner`, the progress note and the watch-history summary on `digest`.
+The newest agent shows the split most plainly. Playmate runs Gilli's two short games, and it decides only how hard the next round should be and what Gilli says about it. Code turns that level into numbers clamped per age band, picks where Gilli hides (a model is a poor source of randomness, and a child would soon learn its favourite tree), counts the rounds, and checks every line before a child hears it.
+
+`ROLES` in `models.py` has exactly eight entries, each with its own `HEYGILLI_MODEL_<ROLE>`. Four further prompts reuse a role's model rather than adding a ninth: channel drift runs on `reviewer`, the revisit question on `planner`, the progress note and the watch-history summary on `digest`.
 
 ## The Graph we did not build
 
@@ -77,6 +76,12 @@ The brief says agents should run in the background and surface only when there i
 The agent acts alone when it screens a clear upload, generates a plan, runs a session end to end, switches a session to pick-it, and writes the digest. It surfaces to the parent when an upload is borderline, when an approved channel has drifted into something else, and when the day's minutes are about to run out mid-video.
 
 One rule shaped more code than any other: **HeyGilli never removes a channel by itself.** A drift raises a card with no Approve and no Hide on it. Removal is a `DELETE` the parent makes. An agent that quietly deletes something a parent chose is an agent a parent stops trusting, and in a product about their child there is no recovering from that.
+
+## What runs on AWS
+
+The models are Amazon Bedrock in us-east-1, called through cross-region inference profiles, with Amazon Nova Pro as the default while the Anthropic models wait on the use-case form. Gilli's voice is Amazon Polly, spoken more slowly for the youngest band. Households, shared question plans, and traces live in a single Amazon DynamoDB table, keyed by household, so deleting a household deletes everything about it. Every agent call is traced with the OpenTelemetry support built into Strands, so a parent-facing decision can be followed back to the prompt and model that made it; the one thing a trace never keeps is what a child said.
+
+None of that is exotic, and that is the point: the interesting work was deciding which parts are a model's job, not wiring the services together.
 
 ## What we would do differently
 
