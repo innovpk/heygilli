@@ -42,16 +42,13 @@ Before any code, we wrote a spec with a list of product principles. These princi
 6. **Bilingual by default.** English and Urdu, because the households we built for speak both, and English-first products leave them out.
 7. **Suggest, never enforce.** A model may draft something for a parent, or ask a parent. Only the parent decides.
 8. **Never claim more than the data supports.** If a claim can't be backed by the data on the screen showing it, the screen doesn't make it.
+9. **Every agent has a safe way to fail.** Each one runs on Amazon Bedrock and falls back to something safe when a model call fails. This turned out to matter a great deal, as part 2 tells.
 
 Three requirements came out of those principles that we did not expect to matter as much as they did:
 
 - **HeyGilli never removes a channel on its own.** When an approved channel drifts, it raises a card, and that card has no Approve or Hide button because there is no single video to decide about. Removal is always a parent's action. An agent that quietly deletes something a parent chose is an agent that parent stops trusting.
 - **Nothing a child says is stored.** What is kept is a score and a ten-word paraphrase. That one rule reaches all the way into the tracing code, as part 3 shows.
 - **"Title only" is said out loud.** YouTube does not give transcripts of other people's videos to a server that asks for them. When a video can't be read, it is judged on its title and description, and the parent is told exactly that. The alternative is a verdict that pretends to have watched it.
-
-## The hackathon's own requirements
-
-The rules added a few hard constraints. All agent logic had to use the Strands Agents SDK, and the repo had to be public, with an architecture diagram and a demo video. We added one of our own: every agent had to work on Amazon Bedrock and still fall back to something safe when a model call failed. That last one turned out to matter a great deal. It is the story of part 2.
 
 ## What we set out to ship, and what shipped
 
