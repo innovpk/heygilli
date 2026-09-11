@@ -19,9 +19,9 @@ Instead of one assistant with twenty tools, each agent has one trigger, one outp
 
 Only three of them have tools. Everything else, like fetching a transcript, listing uploads or generating Polly speech, is a plain Python function the gateway calls. That became the rule for the whole codebase: **the agents decide; the code fetches and enforces.** A model that can't reach the database can't corrupt it, and a rule written in code can be unit-tested.
 
-## Anatomy of an agent
+## What an agent is made of
 
-![Anatomy of a HeyGilli agent: its four parts, the loop Strands runs, the one door every call goes through, and the plain-code hand-offs between agents](blog/agent-anatomy.png)
+![How a HeyGilli agent works: its four parts, and what Strands does when you call it](blog/how-an-agent-works.png)
 
 Every HeyGilli agent is a Strands `Agent` made of four parts:
 

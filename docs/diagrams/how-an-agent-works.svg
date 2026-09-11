@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640" font-family="Helvetica, Arial, sans-serif">
+  <!-- How a HeyGilli agent works: its four parts, and what Strands does when you call it. Hand-authored, 12 Sep 2026. -->
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1E3A34"/>
+    </marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B8452A"/>
+    </marker>
+    <style>
+      .h1 { font-size: 34px; font-weight: 700; fill: #1E3A34; }
+      .sub { font-size: 16px; fill: #607974; }
+      .h2 { font-size: 22px; font-weight: 700; fill: #1E3A34; }
+      .h3 { font-size: 18px; font-weight: 700; fill: #1E3A34; }
+      .t { font-size: 16px; fill: #1E3A34; }
+      .code { font-size: 14px; fill: #607974; font-family: Menlo, Monaco, monospace; }
+      .lab { font-size: 14px; font-weight: 700; fill: #B8452A; }
+      .num { font-size: 15px; font-weight: 700; fill: #FFFFFF; }
+      .panel { fill: #DCEEEA; stroke: #1E3A34; stroke-width: 2; }
+      .part { fill: #FBE3DA; stroke: #B8452A; stroke-width: 2; }
+      .box { fill: #FFFFFF; stroke: #1E3A34; stroke-width: 1.5; }
+      .arrow { stroke: #1E3A34; stroke-width: 2; fill: none; }
+      .rarrow { stroke: #B8452A; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="640" fill="#F3F8F6"/>
+  <text x="40" y="58" class="h1">How a HeyGilli agent works</text>
+  <text x="40" y="88" class="sub">One Strands agent, with the Curator as the example.</text>
+
+  <!-- Left: four parts -->
+  <rect x="40" y="115" width="700" height="490" rx="18" class="panel"/>
+  <text x="64" y="152" class="h2">Four parts</text>
+  <text x="64" y="178" class="code">Agent(model, system_prompt, tools)</text>
+
+  <rect x="64" y="200" width="652" height="85" rx="12" class="part"/>
+  <circle cx="92" cy="242" r="14" fill="#B8452A"/><text x="87" y="247" class="num">1</text>
+  <text x="120" y="236" class="h3">System prompt</text>
+  <text x="120" y="263" class="t">The job, in plain words: approve, hide, or ask the parent.</text>
+
+  <rect x="64" y="299" width="652" height="85" rx="12" class="part"/>
+  <circle cx="92" cy="341" r="14" fill="#B8452A"/><text x="87" y="346" class="num">2</text>
+  <text x="120" y="335" class="h3">Tools</text>
+  <text x="120" y="362" class="t">Python functions it may call, such as screen_video.</text>
+
+  <rect x="64" y="398" width="652" height="85" rx="12" class="part"/>
+  <circle cx="92" cy="440" r="14" fill="#B8452A"/><text x="87" y="445" class="num">3</text>
+  <text x="120" y="434" class="h3">Model</text>
+  <text x="120" y="461" class="t">Nova Pro on Amazon Bedrock.</text>
+
+  <rect x="64" y="497" width="652" height="85" rx="12" class="part"/>
+  <circle cx="92" cy="539" r="14" fill="#B8452A"/><text x="87" y="544" class="num">4</text>
+  <text x="120" y="533" class="h3">Output schema</text>
+  <text x="120" y="560" class="t">A Pydantic class it fills in: CuratorDecision.</text>
+
+  <!-- Right: what happens when you call it -->
+  <rect x="780" y="115" width="780" height="490" rx="18" class="panel"/>
+  <text x="804" y="152" class="h2">What happens when you call it</text>
+  <text x="804" y="178" class="code">curator(prompt, structured_output_model=CuratorDecision)</text>
+
+  <rect x="804" y="200" width="700" height="62" rx="12" class="box"/>
+  <circle cx="832" cy="231" r="14" fill="#1E3A34"/><text x="827" y="236" class="num">1</text>
+  <text x="860" y="237" class="t">Your prompt goes in: the video's title and description.</text>
+  <line x1="1154" y1="262" x2="1154" y2="277" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="804" y="279" width="700" height="62" rx="12" class="box"/>
+  <circle cx="832" cy="310" r="14" fill="#1E3A34"/><text x="827" y="315" class="num">2</text>
+  <text x="860" y="316" class="t">The model decides what it still needs to know.</text>
+  <line x1="1154" y1="341" x2="1154" y2="356" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="804" y="358" width="700" height="62" rx="12" class="box"/>
+  <circle cx="832" cy="389" r="14" fill="#1E3A34"/><text x="827" y="394" class="num">3</text>
+  <text x="860" y="395" class="t">It asks for a tool.</text>
+  <line x1="1154" y1="420" x2="1154" y2="435" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="804" y="437" width="700" height="62" rx="12" class="box"/>
+  <circle cx="832" cy="468" r="14" fill="#1E3A34"/><text x="827" y="473" class="num">4</text>
+  <text x="860" y="474" class="t">Strands runs the tool and hands the result back.</text>
+  <line x1="1154" y1="499" x2="1154" y2="514" class="arrow" marker-end="url(#a)"/>
+
+  <!-- steps 2 to 4 repeat -->
+  <path d="M1504,468 C1542,468 1542,310 1506,310" class="rarrow" marker-end="url(#r)"/>
+  <text x="1548" y="394" class="lab" text-anchor="end" transform="rotate(-90 1548 394)">repeats</text>
+
+  <rect x="804" y="516" width="700" height="62" rx="12" class="part"/>
+  <circle cx="832" cy="547" r="14" fill="#B8452A"/><text x="827" y="552" class="num">5</text>
+  <text x="860" y="553" class="t">You get back a filled-in CuratorDecision, not text.</text>
+</svg>
