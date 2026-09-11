@@ -10,7 +10,7 @@ Judging: 15 September to 8 October. Winners announced on or around 14 October, 2
 
 ## Do today, Friday 5 September
 
-- [ ] Create AWS Builder ID at profile.aws.amazon.com. Save the ID; the Devpost form asks for it.
+- [x] Create AWS Builder ID at profile.aws.amazon.com. Save the ID; the Devpost form asks for it. Builder Center handle: @innovpk.
 - [x] Register for the hackathon on Devpost (agentsforhumans.devpost.com, "Join hackathon"), same email as the Builder ID. Draft submission 1177609 exists.
 - [x] Submit the $50 AWS credits request form (Devpost Resources tab). **Credits received 9 September.**
 - [x] Bedrock model access confirmed in us-east-1; ids pinned in `agents/.env.example` and SPEC 9.5.
@@ -37,7 +37,7 @@ Per SPEC section 14. Items that affect the submission only:
 - [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
 - [ ] Publish builder.aws series, parts 1 to 3: `docs/blog-1-concept.md`, `docs/blog-2-strands-design.md`, `docs/blog-3-trust.md`. Every title contains "Agents for Humans". Save the three URLs.
   - [x] Part 1, published 11 September: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements
-  - [ ] Part 2
+  - [x] Part 2, published 11 September: https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands
   - [ ] Part 3
 - [x] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality. Written 10 Sep; checked against the live app 11 Sep.
 
@@ -77,7 +77,7 @@ Do these in order.
    - [ ] Testing instructions
    - [ ] Third-party integrations disclosure
    - [ ] Pre-existing work disclosure (new projects only rule)
-   - [ ] Team: Mujahid Masood, Unzila Zafar (Komal Ilyas maybe)
+   - [x] Team: Mujahid Masood, Unzila Zafar (@unzila15), Aida Valiyeva (@aidavaliyeva). All three are on the submission (checked 11 September).
 7. [ ] Preview the submission page. Click every link from a different device. Play the video to the end.
 8. [ ] Submit. Screenshot the confirmation.
 9. [ ] Re-read the rules page once. If anything changed since 5 September, fix and resubmit (Devpost allows edits until the deadline).
@@ -101,10 +101,10 @@ Do these in order.
 | Text description | `docs/devpost-submission.md` | [x] drafted, [ ] finalised |
 | Demo video, 5:00 max, public on YouTube | [ ] URL | [ ] |
 | Testing access: test build or live link | https://heygilli.com/app/ and https://heygilli.com/try (APK optional) | [x] |
-| AWS Builder ID | in Devpost form | [ ] |
+| AWS Builder ID | in Devpost form: @innovpk | [x] |
 | Third-party disclosure | in Devpost form | [ ] |
 | English materials | all docs English; Urdu only inside the demo, subtitled | [x] |
-| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements | [ ] parts 2, 3 |
+| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements, part 2: https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands | [ ] part 3 |
 | Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [x] credits received 9 Sep |
 | Live demo link (optional) | [x] https://heygilli.com/app/ | [x] |
 

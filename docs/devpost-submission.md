@@ -134,8 +134,9 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
 | Demo video | still needed |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
-| builder.aws posts 2 and 3 | still needed |
-| AWS Builder ID | still needed |
+| builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |
+| builder.aws post 3 | still needed |
+| AWS Builder ID | @innovpk |
 
 ## Testing instructions (Devpost field)
 
@@ -160,7 +161,8 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Item | Owner |
 |---|---|
 | Demo video, 5:00 max, public on YouTube or Vimeo; must cover the problem, who it is for, why it matters | author |
-| AWS Builder ID | author |
+| AWS Builder ID: @innovpk | done |
+| Teammates: Unzila Zafar (@unzila15) and Aida Valiyeva (@aidavaliyeva) are on the submission, checked 11 September | done |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |
 | README Status section updated (test counts, the Gemini path now exists) | can be done now |
-| builder.aws posts 2 and 3 (optional bonus), "Agents for Humans" in the title, published before the deadline. Part 1 is up: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements | author |
+| builder.aws post 3 (optional bonus), "Agents for Humans" in the title, published before the deadline. Parts 1 and 2 are up: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements and https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands | author |
