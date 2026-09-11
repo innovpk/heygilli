@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Helvetica, Arial, sans-serif">
+  <!-- Anatomy of a HeyGilli agent: what one Strands agent is made of, the loop Strands runs, the
+       door every model call goes through, and the plain-code hand-offs. Hand-authored, 12 Sep 2026. -->
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1E3A34"/>
+    </marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B8452A"/>
+    </marker>
+    <style>
+      .h1 { font-size: 34px; font-weight: 700; fill: #1E3A34; }
+      .sub { font-size: 16px; fill: #607974; }
+      .h2 { font-size: 21px; font-weight: 700; fill: #1E3A34; }
+      .h3 { font-size: 17px; font-weight: 700; fill: #1E3A34; }
+      .t { font-size: 14.5px; fill: #1E3A34; }
+      .m { font-size: 14px; fill: #607974; }
+      .code { font-size: 13.5px; fill: #1E3A34; font-family: Menlo, Monaco, monospace; }
+      .lab { font-size: 13.5px; font-weight: 700; fill: #B8452A; }
+      .num { font-size: 14px; font-weight: 700; fill: #FFFFFF; }
+      .panel { fill: #DCEEEA; stroke: #1E3A34; stroke-width: 2; }
+      .agent { fill: #FBE3DA; stroke: #B8452A; stroke-width: 2; }
+      .box { fill: #FFFFFF; stroke: #1E3A34; stroke-width: 1.5; }
+      .arrow { stroke: #1E3A34; stroke-width: 2; fill: none; }
+      .rarrow { stroke: #B8452A; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#F3F8F6"/>
+  <text x="40" y="58" class="h1">Anatomy of a HeyGilli agent</text>
+  <text x="40" y="88" class="sub">What one Strands agent is made of, the loop Strands runs for it, and the door every call goes through. The Curator as the example.</text>
+
+  <!-- Panel 1: one agent, four parts -->
+  <rect x="40" y="115" width="720" height="470" rx="18" class="panel"/>
+  <text x="64" y="150" class="h2">One agent = four parts</text>
+  <text x="64" y="174" class="code">Agent(name, model, system_prompt, tools)</text>
+
+  <rect x="64" y="195" width="672" height="80" rx="12" class="agent"/>
+  <circle cx="90" cy="222" r="13" fill="#B8452A"/><text x="85" y="227" class="num">1</text>
+  <text x="114" y="228" class="h3">System prompt</text>
+  <text x="114" y="256" class="t">The job in plain words: approve, hide, or ask the parent; decide clear cases alone.</text>
+
+  <rect x="64" y="290" width="672" height="80" rx="12" class="agent"/>
+  <circle cx="90" cy="317" r="13" fill="#B8452A"/><text x="85" y="322" class="num">2</text>
+  <text x="114" y="323" class="h3">Tools</text>
+  <text x="182" y="323" class="code">@tool screen_video(title, description, duration_s)</text>
+  <text x="114" y="351" class="t">Plain Python functions. The docstring is all the model knows about each one.</text>
+
+  <rect x="64" y="385" width="672" height="80" rx="12" class="agent"/>
+  <circle cx="90" cy="412" r="13" fill="#B8452A"/><text x="85" y="417" class="num">3</text>
+  <text x="114" y="418" class="h3">Model</text>
+  <text x="182" y="418" class="t">Amazon Nova Pro on Amazon Bedrock, us-east-1</text>
+  <text x="114" y="446" class="code">HEYGILLI_MODEL_CURATOR=bedrock:us.amazon.nova-pro-v1:0</text>
+
+  <rect x="64" y="480" width="672" height="80" rx="12" class="agent"/>
+  <circle cx="90" cy="507" r="13" fill="#B8452A"/><text x="85" y="512" class="num">4</text>
+  <text x="114" y="513" class="h3">Output schema</text>
+  <text x="252" y="513" class="code">CuratorDecision(decision, reason, topics, concerns)</text>
+  <text x="114" y="541" class="t">Pydantic. The agent returns an object to code, never prose to parse.</text>
+
+  <!-- Panel 2: the loop Strands runs -->
+  <rect x="800" y="115" width="760" height="470" rx="18" class="panel"/>
+  <text x="824" y="150" class="h2">The loop Strands runs</text>
+  <text x="824" y="174" class="code">result = curator(prompt, structured_output_model=CuratorDecision)</text>
+
+  <rect x="824" y="195" width="690" height="58" rx="12" class="box"/>
+  <circle cx="850" cy="224" r="13" fill="#1E3A34"/><text x="845" y="229" class="num">1</text>
+  <text x="876" y="229" class="t">Prompt in: the video's title, description and a transcript excerpt</text>
+  <line x1="1169" y1="253" x2="1169" y2="266" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="824" y="268" width="690" height="58" rx="12" class="box"/>
+  <circle cx="850" cy="297" r="13" fill="#1E3A34"/><text x="845" y="302" class="num">2</text>
+  <text x="876" y="302" class="t">The model reads it and decides what it still needs to know</text>
+  <line x1="1169" y1="326" x2="1169" y2="339" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="824" y="341" width="690" height="58" rx="12" class="box"/>
+  <circle cx="850" cy="370" r="13" fill="#1E3A34"/><text x="845" y="375" class="num">3</text>
+  <text x="876" y="375" class="t">It asks for a tool: </text>
+  <text x="992" y="375" class="code">screen_video(title=…, duration_s=…)</text>
+  <line x1="1169" y1="399" x2="1169" y2="412" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="824" y="414" width="690" height="58" rx="12" class="box"/>
+  <circle cx="850" cy="443" r="13" fill="#1E3A34"/><text x="845" y="448" class="num">4</text>
+  <text x="876" y="448" class="t">Strands runs the Python function and hands the result back</text>
+  <line x1="1169" y1="472" x2="1169" y2="485" class="arrow" marker-end="url(#a)"/>
+
+  <!-- back to step 2, as many times as the model needs -->
+  <path d="M1514,443 C1550,443 1550,297 1516,297" class="rarrow" marker-end="url(#r)"/>
+
+  <rect x="824" y="487" width="690" height="58" rx="12" class="agent"/>
+  <circle cx="850" cy="516" r="13" fill="#B8452A"/><text x="845" y="521" class="num">5</text>
+  <text x="876" y="521" class="t">The answer comes back filled in:</text>
+  <text x="1090" y="521" class="code">result.structured_output</text>
+  <text x="824" y="570" class="lab">steps 2 to 4 repeat as many times as the model needs</text>
+
+  <!-- Panel 3: the one door -->
+  <rect x="40" y="615" width="1520" height="170" rx="18" class="panel"/>
+  <text x="64" y="650" class="h2">Around every call: one guarded function</text>
+  <text x="64" y="674" class="m">structured() in llm.py. Traced with OpenTelemetry and written to the audit, whatever the outcome. Part 3 is about it.</text>
+
+  <rect x="64" y="695" width="250" height="70" rx="12" class="agent"/>
+  <text x="84" y="725" class="h3">Agent call</text>
+  <text x="84" y="750" class="m">the loop above</text>
+  <line x1="314" y1="730" x2="382" y2="730" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="384" y="695" width="300" height="70" rx="12" class="box"/>
+  <text x="404" y="725" class="h3">Guardrails, checked in code</text>
+  <text x="404" y="750" class="m">clean → used as it is</text>
+  <line x1="684" y1="730" x2="818" y2="730" class="rarrow" marker-end="url(#r)"/>
+  <text x="751" y="718" class="lab" text-anchor="middle">broke a rule</text>
+
+  <rect x="820" y="695" width="300" height="70" rx="12" class="box"/>
+  <text x="840" y="725" class="h3">Sent back once, with the rule</text>
+  <text x="840" y="750" class="m">clean now → used</text>
+  <line x1="1120" y1="730" x2="1212" y2="730" class="rarrow" marker-end="url(#r)"/>
+  <text x="1166" y="718" class="lab" text-anchor="middle">broke it again</text>
+
+  <rect x="1214" y="695" width="322" height="70" rx="12" class="box"/>
+  <text x="1234" y="725" class="h3">Safe fallback</text>
+  <text x="1234" y="750" class="m">ask the parent, or the built-in questions</text>
+
+  <!-- Panel 4: hand-offs in code -->
+  <rect x="40" y="815" width="1520" height="150" rx="18" class="panel"/>
+  <text x="64" y="850" class="h2">Agents hand off in plain code, not a graph</text>
+
+  <rect x="64" y="870" width="250" height="70" rx="12" class="agent"/>
+  <text x="84" y="900" class="h3">Curator</text>
+  <text x="84" y="925" class="code">CuratorDecision</text>
+  <line x1="314" y1="905" x2="368" y2="905" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="370" y="870" width="300" height="70" rx="12" class="box"/>
+  <text x="390" y="900" class="code">if decision == "approve":</text>
+  <text x="390" y="925" class="m">plain Python decides what is next</text>
+  <line x1="670" y1="905" x2="724" y2="905" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="726" y="870" width="250" height="70" rx="12" class="agent"/>
+  <text x="746" y="900" class="h3">Planner</text>
+  <text x="746" y="925" class="code">QuestionPlan</text>
+  <line x1="976" y1="905" x2="1030" y2="905" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="1032" y="870" width="240" height="70" rx="12" class="box"/>
+  <text x="1052" y="900" class="code">rules.enforce(...)</text>
+  <text x="1052" y="925" class="m">timing, spacing, icons</text>
+  <line x1="1272" y1="905" x2="1326" y2="905" class="arrow" marker-end="url(#a)"/>
+
+  <rect x="1328" y="870" width="208" height="70" rx="12" class="agent"/>
+  <text x="1348" y="900" class="h3">Buddy</text>
+  <text x="1348" y="925" class="m">live, in the session</text>
+</svg>
