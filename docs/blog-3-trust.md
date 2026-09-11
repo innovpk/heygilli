@@ -51,12 +51,10 @@ except Exception as e:  # provider SDK, network, throttling, access
 
 - **Full traces.** Strands emits OpenTelemetry spans for every agent run, model call and tool call. We store each trace with the household's data, so it can be read with nothing else deployed and is deleted along with the household. What a child said is replaced before anything is written.
 - **Every call is an event.** It records the role, the result, the time taken, whether a guardrail fired, and whether the retry fixed it.
-- **The audit looks back.** After each screening it re-checks past decisions against today's rules:
-  - an approval that now breaks a rule is hidden;
-  - one that should have gone to the parent goes back to them;
-  - a cached question plan holding something a child mustn't hear is dropped.
-
-  It never touches a decision a parent made.
+- **The audit looks back.** After each screening it re-checks past decisions against today's rules, and it never touches a decision a parent made:
+    - an approval that now breaks a rule is hidden;
+    - one that should have gone to the parent goes back to them;
+    - a cached question plan holding something a child mustn't hear is dropped.
 - **One report.** The gateway's `/agents/report` puts it together: what the agents did, what was caught, and what was fixed, each linked to its trace.
 
 ## An eval before any provider is trusted
