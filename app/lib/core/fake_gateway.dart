@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'admin.dart';
 import 'analytics.dart';
 import 'api_client.dart' show ApiException;
 import 'break_activities.dart';
@@ -1947,6 +1948,36 @@ class FakeGateway implements Gateway {
     if (kid == null || !kid.speaksUrdu) return const [];
     return _demoWords;
   }
+
+  /// The demo is nobody's service to run: no admin link, and the overview is
+  /// the same 404 the gateway gives anyone who is not an admin.
+  @override
+  Future<bool> isAdmin() async => false;
+
+  @override
+  Future<AdminOverview> adminOverview() async =>
+      throw ApiException(404, 'Not Found');
+
+  /// What the demo's parent sent, oldest first. Nobody runs the demo, so
+  /// nobody reads it; it is kept so a test can see what was sent.
+  final feedbackSent = <String>[];
+
+  @override
+  Future<void> sendFeedback(
+    String text, {
+    String contact = '',
+    String where = '',
+  }) async {
+    feedbackSent.add(text);
+  }
+
+  @override
+  Future<List<FeedbackItem>> adminFeedback() async =>
+      throw ApiException(404, 'Not Found');
+
+  @override
+  Future<void> setFeedbackDone(String household, String id, bool done) async =>
+      throw ApiException(404, 'Not Found');
 
   @override
   Future<List<ParentPrompt>> inbox() async {

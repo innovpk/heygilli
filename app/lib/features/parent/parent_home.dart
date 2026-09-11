@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../../main.dart';
 import '../gate/pin_gate.dart';
 import 'add_kid_sheet.dart';
+import 'admin_screen.dart';
+import 'feedback_sheet.dart';
 import 'inbox_screen.dart';
 import 'kid_detail_screen.dart';
 import 'policy_screen.dart';
@@ -33,7 +35,10 @@ class _ParentHomeState extends State<ParentHome> {
     // way in rather than per card, and quietly: a household with nothing
     // waiting should not see a failed request about it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<AppState>().refreshWaiting();
+      if (!mounted) return;
+      final app = context.read<AppState>();
+      app.refreshWaiting();
+      app.refreshAdmin();
     });
   }
 
@@ -84,10 +89,19 @@ class _ParentHomeState extends State<ParentHome> {
         onInbox: () => setState(() => _tab = 1),
         onKid: (kid) => openKid(context, kid),
         onAddKid: () => addKidFlow(context),
+        onAdmin: () => openAdmin(context),
       ),
     );
   }
 }
+
+/// The service's admin overview, as a page of its own. Only ever reached from
+/// the rail's Admin row, which only an admin sees.
+void openAdmin(BuildContext context) => Navigator.of(context).push(
+  MaterialPageRoute(
+    builder: (_) => const ParentScaffold(title: 'Admin', body: AdminScreen()),
+  ),
+);
 
 /// Add a kid, then set them up: what they may watch, then who from, then what.
 ///
@@ -517,6 +531,22 @@ class _AccountMenu extends StatelessWidget {
               ),
             ),
         const PopupMenuDivider(),
+        PopupMenuItem<VoidCallback>(
+          value: () => showFeedbackSheet(context, where: 'menu'),
+          child: Text(
+            'Send feedback',
+            style: HgText.body(size: 15, color: HgColors.ink),
+          ),
+        ),
+        // A phone has no rail, so the admin's link lives here too.
+        if (state.isAdmin)
+          PopupMenuItem<VoidCallback>(
+            value: () => openAdmin(context),
+            child: Text(
+              'Admin',
+              style: HgText.body(size: 15, color: HgColors.ink),
+            ),
+          ),
         if (state.hasPin)
           PopupMenuItem<VoidCallback>(
             value: () => _changePin(context),

@@ -142,6 +142,25 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _isAdmin = false;
+
+  /// Whether this household signed in with one of the service's admin Google
+  /// accounts: the rail shows an Admin link only then. Asked on the parent
+  /// home; a failure means no link, never an error in front of a parent.
+  bool get isAdmin => _isAdmin;
+
+  Future<void> refreshAdmin() async {
+    bool admin;
+    try {
+      admin = await gateway.isAdmin();
+    } catch (_) {
+      admin = false;
+    }
+    if (admin == _isAdmin) return;
+    _isAdmin = admin;
+    notifyListeners();
+  }
+
   /// `avatar` is the picture the parent chose while adding them, if any. The
   /// gateway's create takes no avatar, and its edit does and checks it against
   /// the fixed list — so the child is made first and the picture set second.

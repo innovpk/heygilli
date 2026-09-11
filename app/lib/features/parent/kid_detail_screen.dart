@@ -532,6 +532,7 @@ class _KidDetailScreenState extends State<KidDetailScreen>
       // stacking another one on it.
       sidebar: HouseholdSidebar(
         selectedKidId: kid.id,
+        onAdmin: () => openAdmin(context),
         onKids: () => Navigator.of(context).maybePop(),
         onInbox: () => Navigator.of(context).pushReplacement(
           MaterialPageRoute(

@@ -389,6 +389,19 @@ class LocalStore(Store):
         if d.exists():
             shutil.rmtree(d)
 
+    def scan(self, entities: set[str]) -> list[tuple[str, str, dict[str, Any]]]:
+        """Every row of these kinds, in every household, as (household, kind, doc).
+
+        For the admin overview only. Shared caches live under `_`-prefixed
+        directories and are not households.
+        """
+        out: list[tuple[str, str, dict[str, Any]]] = []
+        for d in sorted(self.root.iterdir()):
+            if d.is_dir() and not d.name.startswith("_"):
+                for entity in sorted(entities):
+                    out.extend((d.name, entity, doc) for doc in self.list(d.name, entity))
+        return out
+
 
 class DynamoStore(Store):
     """Single-table design on DynamoDB: PK=household, SK=<entity>#<id>."""
@@ -489,6 +502,26 @@ class DynamoStore(Store):
         logging.getLogger(__name__).info(
             "deleted %d rows for household %s", len(keys), household
         )
+
+    def scan(self, entities: set[str]) -> list[tuple[str, str, dict[str, Any]]]:
+        """Every row of these kinds, in every household, as (household, kind, doc).
+
+        For the admin overview only: a read-only scan of the whole table, paged
+        to the end. Fine at hackathon scale; past a few thousand households it
+        wants a GSI or a nightly rollup instead.
+        """
+        out: list[tuple[str, str, dict[str, Any]]] = []
+        kwargs: dict[str, Any] = {"ProjectionExpression": "pk, sk, doc"}
+        while True:
+            r = self.table.scan(**kwargs)
+            for item in r.get("Items", []):
+                entity = item["sk"].split("#", 1)[0]
+                if entity in entities:
+                    out.append((item["pk"], entity, json.loads(item["doc"])))
+            start = r.get("LastEvaluatedKey")
+            if not start:
+                return out
+            kwargs["ExclusiveStartKey"] = start
 
 
 _store: Store | None = None

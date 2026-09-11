@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'admin.dart';
 import 'analytics.dart';
 import 'gateway.dart';
 import 'models.dart';
@@ -531,6 +532,43 @@ class ApiClient implements Gateway {
       (await _get('/parent/inbox') as List)
           .map((p) => ParentPrompt.fromJson(p as Map<String, dynamic>))
           .toList();
+
+  @override
+  Future<bool> isAdmin() async =>
+      ((await _get('/admin/me') as Map<String, dynamic>)['admin']) == true;
+
+  @override
+  Future<AdminOverview> adminOverview() async => AdminOverview.fromJson(
+    await _get('/admin/overview') as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> sendFeedback(
+    String text, {
+    String contact = '',
+    String where = '',
+  }) async {
+    await _post('/feedback', {
+      'text': text,
+      'contact': contact,
+      'where': where,
+    });
+  }
+
+  @override
+  Future<List<FeedbackItem>> adminFeedback() async => [
+    for (final f in await _get('/admin/feedback') as List)
+      FeedbackItem.fromJson(f as Map<String, dynamic>),
+  ];
+
+  @override
+  Future<void> setFeedbackDone(String household, String id, bool done) async {
+    await _patch(
+      '/admin/feedback/${Uri.encodeComponent(household)}/'
+      '${Uri.encodeComponent(id)}',
+      {'done': done},
+    );
+  }
 
   @override
   Future<void> decide(String promptId, String decision) =>

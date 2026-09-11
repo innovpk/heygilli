@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 import time
 from datetime import UTC, datetime
 from typing import Annotated, Literal
@@ -36,7 +37,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from . import (
+    admin,
     agent_audit,
+    feedback,
     ask,
     breaks,
     coach,
@@ -1824,6 +1827,78 @@ def ops_agents(days: int = 7, x_ops_token: str = Header(default="")) -> dict:
     if not expected or not hmac.compare_digest(x_ops_token, expected):
         raise HTTPException(404, "Not Found")
     return agent_audit.ops_report(max(1, min(days, agent_audit.KEEP_DAYS)))
+
+
+@app.get("/admin/me")
+def admin_me(hid: str = Depends(household)) -> dict:
+    """Whether this household signed in with one of the service's admin Google
+    accounts. The parent app asks once, to decide whether to show its link."""
+    return {"admin": admin.is_admin(get_store(), hid)}
+
+
+@app.get("/admin/overview")
+def admin_overview(hid: str = Depends(household)) -> dict:
+    """Who has tried HeyGilli and how far they got, for the service's admins.
+
+    Signed in with an admin's Google account, or a 404 that does not advertise
+    the route. Read-only, and it carries no emails, tokens, or anything a child
+    said.
+    """
+    store = get_store()
+    if not admin.is_admin(store, hid):
+        raise HTTPException(404, "Not Found")
+    return admin.overview(store, hid)
+
+
+class FeedbackIn(BaseModel):
+    text: str = Field(min_length=1, max_length=feedback.MAX_TEXT)
+    #: How to reach them, if they want a reply. Optional, and theirs to give.
+    contact: str = Field(default="", max_length=feedback.MAX_CONTACT)
+    #: Which screen it was sent from.
+    where: str = Field(default="", max_length=60)
+
+
+@app.post("/feedback")
+def send_feedback(body: FeedbackIn, hid: str = Depends(household)) -> dict:
+    """A parent's feedback, kept with their household for the service's admins."""
+    if not body.text.strip():
+        raise HTTPException(422, "feedback is empty")
+    try:
+        item = feedback.send(get_store(), hid, body.text, body.contact, body.where)
+    except feedback.FeedbackLimit as e:
+        raise HTTPException(429, str(e)) from e
+    return {"id": item["id"]}
+
+
+@app.get("/admin/feedback")
+def admin_feedback(hid: str = Depends(household)) -> list[dict]:
+    """Every household's feedback, newest first. Admins only; a 404 otherwise."""
+    store = get_store()
+    if not admin.is_admin(store, hid):
+        raise HTTPException(404, "Not Found")
+    return feedback.all_feedback(store)
+
+
+class FeedbackDoneIn(BaseModel):
+    done: bool
+
+
+_SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
+
+
+@app.patch("/admin/feedback/{household_id}/{feedback_id}")
+def admin_feedback_done(
+    household_id: str, feedback_id: str, body: FeedbackDoneIn, hid: str = Depends(household)
+) -> dict:
+    """Mark one piece of feedback acted on, or not. Admins only."""
+    store = get_store()
+    if not admin.is_admin(store, hid):
+        raise HTTPException(404, "Not Found")
+    if not (_SAFE_ID.fullmatch(household_id) and _SAFE_ID.fullmatch(feedback_id)):
+        raise HTTPException(404, "Not Found")
+    if feedback.set_done(store, household_id, feedback_id, body.done) is None:
+        raise HTTPException(404, "Not Found")
+    return {"id": feedback_id, "done": body.done}
 
 
 class ParentQuestionIn(BaseModel):

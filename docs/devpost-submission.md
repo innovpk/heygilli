@@ -101,7 +101,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A picture-only path for pre-readers with no text on screen.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 666 backend tests and 615 client tests, offline.
+- 680 backend tests and 622 client tests, offline.
 
 ### What we learned
 

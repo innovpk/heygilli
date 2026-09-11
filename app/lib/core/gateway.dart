@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'admin.dart';
 import 'analytics.dart';
 import 'models.dart';
 import 'play.dart';
@@ -265,6 +266,29 @@ abstract class Gateway {
 
   Future<List<ParentPrompt>> inbox();
   Future<void> decide(String promptId, String decision);
+
+  /// `GET /admin/me`: whether this household signed in with one of the
+  /// service's admin Google accounts.
+  Future<bool> isAdmin();
+
+  /// `GET /admin/overview`: who has tried HeyGilli and how far they got. A 404
+  /// for anyone who is not an admin.
+  Future<AdminOverview> adminOverview();
+
+  /// `POST /feedback`: a parent's feedback, kept with the household for the
+  /// service's admins.
+  Future<void> sendFeedback(
+    String text, {
+    String contact = '',
+    String where = '',
+  });
+
+  /// `GET /admin/feedback`: every household's feedback, newest first. A 404
+  /// for anyone who is not an admin.
+  Future<List<FeedbackItem>> adminFeedback();
+
+  /// `PATCH /admin/feedback/{household}/{id}`: mark one acted on, or not.
+  Future<void> setFeedbackDone(String household, String id, bool done);
 
   /// `POST /kids/{id}/preferences`: what this child likes. The server picks
   /// the channels to look in and starts screening their uploads.

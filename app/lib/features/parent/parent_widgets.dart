@@ -9,6 +9,7 @@ import '../../core/google_auth.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
+import 'feedback_sheet.dart';
 
 /// Cream phone surface for every parent screen (design/Phone*.dc.html).
 /// The kid side stays deep teal; the parent side is a normal light app.
@@ -246,6 +247,8 @@ class HouseholdSidebar extends StatelessWidget {
     required this.onKids,
     required this.onAddKid,
     this.inboxSelected = false,
+    this.onAdmin,
+    this.adminSelected = false,
   });
 
   /// The child whose page is open, or null on the kids list and the inbox.
@@ -256,9 +259,14 @@ class HouseholdSidebar extends StatelessWidget {
   final VoidCallback onAddKid;
   final bool inboxSelected;
 
+  /// Opens the service's admin overview. The row shows only for an admin.
+  final VoidCallback? onAdmin;
+  final bool adminSelected;
+
   @override
   Widget build(BuildContext context) {
     final kids = context.select<AppState, List<Kid>>((s) => s.kids);
+    final isAdmin = context.select<AppState, bool>((s) => s.isAdmin);
     final waiting = context.select<AppState, int>((s) => s.waiting);
     final parent = context.select<AppState, String?>(
       (s) => s.settings.parentName,
@@ -333,6 +341,19 @@ class HouseholdSidebar extends StatelessWidget {
               // Hidden at zero: a badge reading "0" invites a parent to go and
               // check something that is not there.
               trailing: waiting == 0 ? null : _CountPill(waiting),
+            ),
+            if (isAdmin && onAdmin != null)
+              _RailRow(
+                icon: Icons.insights_outlined,
+                label: 'Admin',
+                selected: adminSelected,
+                onTap: onAdmin!,
+              ),
+            _RailRow(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Send feedback',
+              selected: false,
+              onTap: () => showFeedbackSheet(context, where: 'rail'),
             ),
             const Divider(color: HgColors.line, height: 24),
             if (parent != null)
