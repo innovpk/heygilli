@@ -66,9 +66,8 @@ class _AddKidSheetState extends State<_AddKidSheet> {
   String? _error;
 
   /// The picture the parent picks as a starting point, or null for none (the
-  /// child's initial is shown). Optional, and not the last word: the picture
-  /// is the one thing in the app that belongs to the child, and they can
-  /// change it themselves in kid mode — this only saves them starting blank.
+  /// child's initial is shown). Optional, and changed here too, when editing:
+  /// kid mode no longer shows it, since it crowded the shelf's header.
   late String? _avatar = switch (widget.editing?.avatar) {
     final String a when kidAvatars.contains(a) => a,
     _ => null,
@@ -149,7 +148,7 @@ class _AddKidSheetState extends State<_AddKidSheet> {
               hintText: 'What you call them at home',
             ),
           ),
-          Text('PICTURE (THEY CAN CHANGE IT)', style: HgText.label()),
+          Text('PICTURE', style: HgText.label()),
           // One scrolling row, not the kid picker's grid: this sheet already
           // holds a name, an age and a button, and a grid would push the
           // button off a phone.

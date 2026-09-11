@@ -57,7 +57,7 @@ def test_kids_channels_home(client: TestClient, auth: dict, store: LocalStore, m
     assert home == {
         "rows": [],  # one row per channel with videos; none yet
         # Off unless a parent turned it on for this child.
-        "searchable": False,
+        "searchable": True,
         # Nothing is being let past a limit this household has not set.
         "unknown_length": 0,
         "watching_allowed": True, "blocked_reason": None, "active_break": None,
@@ -195,12 +195,15 @@ def test_digest_and_inbox_endpoints(client: TestClient, auth: dict, store: Local
 # --- search, and the line it must never cross ---------------------------------------------------
 
 
-def test_search_is_off_until_a_parent_turns_it_on(client: TestClient, auth: dict, store) -> None:
+def test_a_query_changes_nothing_once_a_parent_turns_search_off(
+    client: TestClient, auth: dict, store
+) -> None:
     kid = client.post("/kids", json={"nickname": "Abu", "age": 8}, headers=hdr(auth)).json()
     store.put_video(VIDEO)
     store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "approve", "ok")
+    client.patch(f"/kids/{kid['id']}/limits", json={"search_enabled": False}, headers=hdr(auth))
 
-    # A query from a child whose parent has not enabled it changes nothing.
+    # A query from a child whose parent turned search off changes nothing.
     home = client.get(f"/kids/{kid['id']}/home?q=zzzznotmatching", headers=hdr(auth)).json()
     assert home["searchable"] is False
     # Its channel is not on this child's list, so it sits in the catch-all row.
@@ -270,6 +273,25 @@ def test_search_can_only_ever_return_approved_videos(
 
     home = client.get(f"/kids/{kid['id']}/home?q={VIDEO.title}", headers=hdr(auth)).json()
     assert home["rows"][0]["videos"] == []
+
+
+def test_search_is_on_for_a_new_kid_and_a_parent_can_turn_it_off(
+    client: TestClient, auth: dict, store
+) -> None:
+    """On by default, since it can only narrow the approved list. Off is still
+    the parent's to choose, and off means the query is ignored."""
+    kid = client.post("/kids", json={"nickname": "Abu", "age": 5}, headers=hdr(auth)).json()
+    assert kid["search_enabled"] is True
+    store.put_video(VIDEO)
+    store.set_kid_video(auth["_hid"], kid["id"], VIDEO.id, "approve", "ok")
+
+    r = client.patch(f"/kids/{kid['id']}/limits", json={"search_enabled": False}, headers=hdr(auth))
+    assert r.status_code == 200 and r.json()["search_enabled"] is False
+    off = client.get(f"/kids/{kid['id']}/home?q=dinosaurs-in-space", headers=hdr(auth)).json()
+    assert off["searchable"] is False
+    assert [v["id"] for v in off["rows"][0]["videos"]] == [VIDEO.id], (
+        "a query was honoured with search off"
+    )
 
 
 def test_a_client_line_gets_the_same_voice_as_a_session_line(

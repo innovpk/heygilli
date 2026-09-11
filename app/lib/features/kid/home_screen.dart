@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -15,7 +14,6 @@ import 'kid_palette.dart';
 import '../../main.dart';
 import '../gate/lock_mode.dart';
 import '../gate/pin_gate.dart';
-import 'avatar_picker.dart';
 import 'break_screen.dart';
 import 'games/play_screen.dart';
 import 'gilli_widget.dart';
@@ -23,11 +21,17 @@ import 'nothing_yet_screen.dart';
 import 'session_screen.dart';
 import 'sleepy_gilli.dart';
 
-/// Kid home: rows of thumbnails from the kid's approved channels only.
-/// No search, no recommendations (SPEC 6.2). Band 4_6 sees pictures only;
-/// a long-press has Gilli read the title aloud (SPEC 6.3 "focused").
+/// Kid home: the kid's approved channels as tabs, and the chosen one's videos.
+/// No search, no recommendations (SPEC 6.2). Band 4_6 gets one grid with a
+/// title under each picture, as on YouTube Kids; a long-press has Gilli read
+/// the title aloud (SPEC 6.3 "focused").
 class KidHomeScreen extends StatefulWidget {
-  const KidHomeScreen({super.key});
+  const KidHomeScreen({super.key, this.hear});
+
+  /// What the child says into the search mic. Null listens on the real mic;
+  /// tests hand in the words, since there is no microphone under a test.
+  @visibleForTesting
+  final Future<String> Function()? hear;
 
   @override
   State<KidHomeScreen> createState() => _KidHomeScreenState();
@@ -94,9 +98,45 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     return _Home(await state.gateway.home(kid.id, query: _query), watch);
   }
 
+  /// What is in the search box, typed or said.
+  final _searchText = TextEditingController();
+
+  /// The mic for voice search, made on first use: most visits never search.
+  KidEars? _ears;
+  bool _listening = false;
+
+  /// Voice search: one listening window, and what was heard goes in the box
+  /// as if it had been typed. A child who cannot spell "volcano", or cannot
+  /// read yet, can still say it. The words go no further than the search
+  /// itself, which only narrows the approved list.
+  Future<void> _searchByVoice() async {
+    if (_listening) {
+      await _ears?.finishNow();
+      return;
+    }
+    context.read<GilliVoice>().stop();
+    setState(() => _listening = true);
+    final String said;
+    if (widget.hear case final hear?) {
+      said = await hear();
+    } else {
+      final heard = await (_ears ??= KidEars()).listen(
+        window: const Duration(seconds: 6),
+      );
+      said = heard.transcript;
+    }
+    if (!mounted) return;
+    setState(() => _listening = false);
+    if (said.trim().isEmpty) return;
+    _searchText.text = said.trim();
+    _search(said.trim());
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchText.dispose();
+    _ears?.dispose();
     super.dispose();
   }
 
@@ -153,14 +193,6 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     if (mounted) _reload();
   }
 
-  /// The child changing their own picture.
-  ///
-  /// Not behind the PIN: it is cosmetic and it is theirs. `editKid` refreshes
-  /// the household, so the header redraws with the new face on its own.
-  Future<void> _pickAvatar(Kid kid) async {
-    await showAvatarPicker(context, kid);
-  }
-
   @override
   Widget build(BuildContext context) {
     final kid = context.select<AppState, Kid?>((s) => s.activeKid);
@@ -204,108 +236,91 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
       child: Scaffold(
         backgroundColor: palette.ground,
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, box) {
-              final wide = box.maxWidth > 700;
-              final thumbWidth = wide
-                  ? box.maxWidth * 0.26
-                  : box.maxWidth * 0.46;
-              return FutureBuilder<_Home>(
-                future: _home,
-                builder: (context, snap) {
-                  final home = snap.data;
-                  _onBreak = home?.state.isOnBreak ?? false;
-                  // A running break replaces the whole screen, header and
-                  // all: there is nothing to start, so there is nothing to
-                  // show around it.
-                  if (home != null && home.state.isOnBreak) {
-                    return BreakScreen(
+          child: FutureBuilder<_Home>(
+            future: _home,
+            builder: (context, snap) {
+              final home = snap.data;
+              _onBreak = home?.state.isOnBreak ?? false;
+              // A running break replaces the whole screen, header and
+              // all: there is nothing to start, so there is nothing to
+              // show around it.
+              if (home != null && home.state.isOnBreak) {
+                return BreakScreen(
+                  kid: kid,
+                  breakPeriod: home.state.activeBreak!,
+                  onFinished: _reload,
+                );
+              }
+              return Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (_) => _gilli.currentState?.stir(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Header(
                       kid: kid,
-                      breakPeriod: home.state.activeBreak!,
-                      onFinished: _reload,
-                    );
-                  }
-                  return Listener(
-                    behavior: HitTestBehavior.translucent,
-                    onPointerDown: (_) => _gilli.currentState?.stir(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _Header(
-                          kid: kid,
-                          gilliKey: _gilli,
-                          onExit: _tryExit,
-                          onPickAvatar: _pickAvatar,
-                          onPlay: home != null && home.state.watchingAllowed
-                              ? () => _openGames(kid, palette)
-                              : null,
-                        ),
-                        // How much is left, said once, where a child can see it
-                        // without asking. Not a countdown: a number that only
-                        // moves when the screen reloads, because a ticking clock
-                        // on a shelf of videos is a thing to watch rather than a
-                        // fact to know.
-                        if (home != null && showTitles)
-                          _TimeLeftPill(state: home.state, kid: kid),
-                        // Only when the parent turned it on, and never for a
-                        // pre-reader: a child who cannot read cannot type, and a
-                        // box they cannot use is one more thing to poke at.
-                        if (kid.searchEnabled && kid.band.showsVideoTitles)
-                          _SearchBox(onChanged: _search),
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              if (snap.hasError) {
-                                return Center(
-                                  child: FilledButton(
-                                    onPressed: _reload,
-                                    child: const Text('Try again'),
-                                  ),
-                                );
-                              }
-                              if (home == null) {
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    color: palette.accent,
-                                  ),
-                                );
-                              }
-                              // Out of minutes: a calm end to the day, not an
-                              // empty shelf a child keeps tapping at.
-                              if (!home.state.watchingAllowed) {
-                                return DayDoneScreen(kid: kid);
-                              }
-                              // Nothing approved yet — every new profile starts
-                              // here, and the Curator may still be working. An
-                              // empty ListView renders literally nothing, which
-                              // a child cannot tell apart from a broken app.
-                              if (home.rows.every((r) => r.videos.isEmpty)) {
-                                // A search that found nothing is not an empty
-                                // shelf: there is something to change, and the
-                                // box has to stay on screen to change it.
-                                return _query.isEmpty
-                                    ? NothingYetScreen(kid: kid)
-                                    : _NoMatches(kid: kid);
-                              }
-                              return ListView(
-                                padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                                children: [
-                                  for (final row in home.rows)
-                                    _VideoRow(
-                                      row: row,
-                                      showTitles: showTitles,
-                                      thumbWidth: thumbWidth,
-                                      onOpen: _open,
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                      gilliKey: _gilli,
+                      onExit: _tryExit,
+                      onPlay: home != null && home.state.watchingAllowed
+                          ? () => _openGames(kid, palette)
+                          : null,
+                      // Readers only: a pre-reader cannot read it.
+                      state: showTitles ? home?.state : null,
                     ),
-                  );
-                },
+                    // On unless the parent turned it off, for every child: a
+                    // pre-reader who cannot type can use the mic.
+                    if (kid.searchEnabled)
+                      _SearchBox(
+                        controller: _searchText,
+                        onChanged: _search,
+                        onMic: _searchByVoice,
+                        listening: _listening,
+                      ),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          if (snap.hasError) {
+                            return Center(
+                              child: FilledButton(
+                                onPressed: _reload,
+                                child: const Text('Try again'),
+                              ),
+                            );
+                          }
+                          if (home == null) {
+                            return Center(
+                              child: CircularProgressIndicator(
+                                color: palette.accent,
+                              ),
+                            );
+                          }
+                          // Out of minutes: a calm end to the day, not an
+                          // empty shelf a child keeps tapping at.
+                          if (!home.state.watchingAllowed) {
+                            return DayDoneScreen(kid: kid);
+                          }
+                          // Nothing approved yet — every new profile starts
+                          // here, and the Curator may still be working. An
+                          // empty ListView renders literally nothing, which
+                          // a child cannot tell apart from a broken app.
+                          if (home.rows.every((r) => r.videos.isEmpty)) {
+                            // A search that found nothing is not an empty
+                            // shelf: there is something to change, and the
+                            // box has to stay on screen to change it.
+                            return _query.isEmpty
+                                ? NothingYetScreen(kid: kid)
+                                : _NoMatches(kid: kid);
+                          }
+                          return _Shelf(
+                            rows: home.rows,
+                            showTitles: showTitles,
+                            onOpen: _open,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -315,14 +330,19 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
   }
 }
 
-/// Kid avatar, small Gilli, and a quiet exit control for the parent.
+/// Gilli, the games, and a quiet exit control for the parent.
+///
+/// The child's own picture used to lead this row. It was one more circle in a
+/// header of circles, above a shelf that marked its channels with circles too,
+/// and it did nothing a child needs while picking a video. The parent sets it
+/// when adding or editing the child.
 class _Header extends StatelessWidget {
   const _Header({
     required this.kid,
     required this.gilliKey,
     required this.onExit,
-    required this.onPickAvatar,
     required this.onPlay,
+    this.state,
   });
   final Kid kid;
   final GlobalKey<SleepyGilliState> gilliKey;
@@ -332,65 +352,41 @@ class _Header extends StatelessWidget {
   /// no button: games follow the same gate as videos.
   final VoidCallback? onPlay;
 
-  /// Tapping their own picture. Passed in rather than done here so the screen
-  /// can reload after it changes.
-  final void Function(Kid kid) onPickAvatar;
+  /// Today's minutes and the next break, for a reader. Null hides the line.
+  final WatchState? state;
 
   @override
   Widget build(BuildContext context) {
     final palette = KidPalette.of(context);
     final preReader = kid.band == AgeBand.b4to6;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+      padding: const EdgeInsets.fromLTRB(24, 16, 16, 12),
       child: Row(
         spacing: 16,
         children: [
-          // Tapping their own picture is how a child changes it. Theirs to
-          // choose, not the parent's to assign, and behind no PIN: it is
-          // cosmetic, it is the one thing in the app that belongs to them,
-          // and a gate on it would say otherwise.
-          Semantics(
-            label: 'Change your picture',
-            button: true,
-            child: InkWell(
-              onTap: withTap(() => onPickAvatar(kid)),
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: palette.accent,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                padding: kid.hasDrawableAvatar
-                    ? const EdgeInsets.all(12)
-                    : null,
-                // Pre-readers get a star, not a letter: no glyphs to decode.
-                // A picture they chose replaces both.
-                child: kid.hasDrawableAvatar
-                    ? SvgPicture.asset('assets/icons/${kid.avatar}.svg')
-                    : preReader
-                    ? Icon(Icons.star_rounded, size: 44, color: palette.ground)
-                    : Text(
-                        kid.nickname.isEmpty
-                            ? '?'
-                            : kid.nickname[0].toUpperCase(),
-                        style: HgText.display(size: 34, color: palette.ground),
-                      ),
-              ),
-            ),
-          ),
           // He naps when nobody is touching the screen, and a pinch (a tap,
           // a click, or two fingers) wakes him. Pinching him does nothing
           // else: the games have their own button.
           SleepyGilli(key: gilliKey, kid: kid, size: 72),
           if (!preReader)
             Expanded(
-              child: Text(
-                'Hi ${kid.nickname}',
-                style: HgText.display(size: 28, color: palette.onGround),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                spacing: 4,
+                children: [
+                  Text(
+                    'Hi ${kid.nickname}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HgText.display(size: 30, color: palette.onGround),
+                  ),
+                  // How much is left, said once, where a child can see it
+                  // without asking. Not a countdown: a number that only moves
+                  // when the screen reloads, because a ticking clock on a
+                  // shelf of videos is a thing to watch, not a fact to know.
+                  if (state case final left?) _TimeLeft(state: left, kid: kid),
+                ],
               ),
             )
           else
@@ -460,42 +456,131 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _VideoRow extends StatelessWidget {
-  const _VideoRow({
-    required this.row,
+/// The shelf: a section for each channel, one under the next, each a heading
+/// and a strip of big tiles that scrolls sideways.
+///
+/// Before this it was a row of channel tabs over a grid, and before that a
+/// list of rows each marked by a picture too small to find. Sections with a
+/// real heading are what a child already knows from every other shelf of
+/// videos, and they show everything at once instead of hiding all but one
+/// channel behind a tab.
+class _Shelf extends StatelessWidget {
+  const _Shelf({
+    required this.rows,
     required this.showTitles,
-    required this.thumbWidth,
     required this.onOpen,
   });
 
-  final HomeRow row;
+  final List<HomeRow> rows;
   final bool showTitles;
-  final double thumbWidth;
   final void Function(Video) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final thumbHeight = thumbWidth * 9 / 16;
-    final cardHeight = thumbHeight + (showTitles ? 52 : 0);
+    if (!showTitles) {
+      return _PictureGrid(
+        videos: [for (final r in rows) ...r.videos],
+        onOpen: onOpen,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Two and a bit tiles across a phone held sideways, three and a bit on
+        // a tablet. The bit is the edge of the next tile, which says there is
+        // more that way without an arrow.
+        final across = box.maxWidth >= 900 ? 3.3 : 2.3;
+        final tile = ((box.maxWidth - _side) / across).clamp(180.0, 480.0);
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 32),
+          children: [
+            for (final row in rows)
+              if (row.videos.isNotEmpty)
+                _Section(row: row, tileWidth: tile, onOpen: onOpen),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A pre-reader's shelf: one grid of big pictures, a title under each, the
+/// way YouTube Kids shows its youngest.
+///
+/// No channel headings: without the name, a channel's picture over each row
+/// was one more small circle to puzzle at. The title stays, as it does on
+/// YouTube Kids: a parent reading along uses it, a child soon starts to, and a
+/// hold on the picture has Gilli read it out.
+class _PictureGrid extends StatelessWidget {
+  const _PictureGrid({required this.videos, required this.onOpen});
+
+  final List<Video> videos;
+  final void Function(Video) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        const gap = 20.0;
+        final across = box.maxWidth >= 900 ? 3 : 2;
+        final width = (box.maxWidth - _side * 2 - gap * (across - 1)) / across;
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(_side, 8, _side, 32),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: across,
+            mainAxisSpacing: gap,
+            crossAxisSpacing: gap,
+            mainAxisExtent: width * 9 / 16 + _Section._words,
+          ),
+          itemCount: videos.length,
+          itemBuilder: (context, i) =>
+              _Tile(video: videos[i], showTitle: true, onOpen: onOpen),
+        );
+      },
+    );
+  }
+}
+
+/// The shelf's margin on the left and right.
+const _side = 24.0;
+
+/// One channel for a reader: its heading, and a strip of its videos.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.row,
+    required this.tileWidth,
+    required this.onOpen,
+  });
+
+  final HomeRow row;
+  final double tileWidth;
+  final void Function(Video) onOpen;
+
+  /// Room under a reader's tile for two lines of title and one of length.
+  static const _words = 86.0;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(top: 8, bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 10,
+        spacing: 14,
         children: [
-          _RowHeader(row: row, showTitle: showTitles),
+          _SectionHeading(row: row),
           SizedBox(
-            height: cardHeight,
+            height: tileWidth * 9 / 16 + _words,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: _side),
               itemCount: row.videos.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 16),
-              itemBuilder: (context, i) => _Thumb(
-                video: row.videos[i],
-                width: thumbWidth,
-                showTitle: showTitles,
-                onOpen: onOpen,
+              separatorBuilder: (_, _) => const SizedBox(width: 18),
+              itemBuilder: (context, i) => SizedBox(
+                width: tileWidth,
+                child: _Tile(
+                  video: row.videos[i],
+                  showTitle: true,
+                  onOpen: onOpen,
+                ),
               ),
             ),
           ),
@@ -505,21 +590,16 @@ class _VideoRow extends StatelessWidget {
   }
 }
 
-/// Which channel a row is: the channel's picture, and its name for readers.
-///
-/// A pre-reader gets the picture alone, a little larger. Without it their
-/// shelf was one long strip of thumbnails with nothing to say where the songs
-/// stopped and the volcanoes started.
-class _RowHeader extends StatelessWidget {
-  const _RowHeader({required this.row, required this.showTitle});
+/// Which channel a section is: its picture in a ring, and its name.
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.row});
 
   final HomeRow row;
-  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     final palette = KidPalette.of(context);
-    final size = showTitle ? 40.0 : 52.0;
+    const size = 44.0;
     final fallback = ColoredBox(
       color: palette.tile,
       child: Icon(
@@ -529,121 +609,146 @@ class _RowHeader extends StatelessWidget {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        spacing: 12,
-        children: [
-          Semantics(
-            label: row.title,
-            child: ClipOval(
-              child: SizedBox.square(
-                dimension: size,
-                child: row.thumb.isEmpty
-                    ? fallback
-                    : Image.network(
-                        row.thumb,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => fallback,
-                      ),
+      padding: const EdgeInsets.symmetric(horizontal: _side),
+      child: Semantics(
+        header: true,
+        label: row.title,
+        excludeSemantics: true,
+        child: Row(
+          spacing: 14,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.accent, width: 3),
+              ),
+              child: ClipOval(
+                child: SizedBox.square(
+                  dimension: size,
+                  child: row.thumb.isEmpty
+                      ? fallback
+                      : Image.network(
+                          row.thumb,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => fallback,
+                        ),
+                ),
               ),
             ),
-          ),
-          if (showTitle)
             Flexible(
               child: Text(
                 row.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: HgText.display(size: 24, color: palette.accent),
+                style: HgText.display(size: 26, color: palette.accent),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Thumb extends StatelessWidget {
-  const _Thumb({
-    required this.video,
-    required this.width,
-    required this.showTitle,
-    required this.onOpen,
-  });
-
-  final Video video;
-  final double width;
-  final bool showTitle;
-  final void Function(Video) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = KidPalette.of(context);
-    final voice = context.read<GilliVoice>();
-    return SizedBox(
-      width: width,
-      child: Semantics(
-        button: true,
-        label: video.title,
-        child: GestureDetector(
-          onTap: withTap(() => onOpen(video)),
-          // SPEC 6.3: title read aloud on focus. On touch, focus is a hold.
-          onLongPress: () => voice.say(url: '', fallbackText: video.title),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 8,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    video.thumb,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => ColoredBox(
-                      color: palette.tile,
-                      child: Icon(
-                        Icons.play_circle_fill_rounded,
-                        color: palette.accent,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (showTitle)
-                Text(
-                  video.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: HgText.body(size: 15),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// The child's search box. Only ever shown when a parent turned search on for
-/// this kid, and never to a pre-reader.
+/// One video. A reader gets its title and how long it is under the picture;
+/// a pre-reader gets the picture alone, and a hold has Gilli read the title.
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.video,
+    required this.showTitle,
+    required this.onOpen,
+  });
+
+  final Video video;
+  final bool showTitle;
+  final void Function(Video) onOpen;
+
+  /// "8 min", the way a child who reads would say it. Under a minute is 1.
+  static String _length(int seconds) =>
+      '${(seconds / 60).round().clamp(1, 999)} min';
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = KidPalette.of(context);
+    final voice = context.read<GilliVoice>();
+    return Semantics(
+      button: true,
+      label: video.title,
+      child: GestureDetector(
+        onTap: withTap(() => onOpen(video)),
+        // SPEC 6.3: title read aloud on focus. On touch, focus is a hold.
+        onLongPress: () => voice.say(url: '', fallbackText: video.title),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  video.thumb,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => ColoredBox(
+                    color: palette.tile,
+                    child: Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: palette.accent,
+                      size: 48,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (showTitle) ...[
+              const SizedBox(height: 10),
+              Text(
+                video.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: HgText.display(size: 18, color: palette.onGround),
+              ),
+              if (video.durationS > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _length(video.durationS),
+                  style: HgText.body(size: 14, color: palette.quiet),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The child's search box, typed or said. On unless a parent turned it off.
 ///
 /// What it searches is the point: the gateway filters the videos already
 /// approved for this child and can return nothing else. There is no code path
 /// from here to YouTube's search, which is what keeps the allowlist a real
-/// boundary rather than a default.
+/// boundary rather than a default, and what makes it safe to leave on.
 class _SearchBox extends StatelessWidget {
-  const _SearchBox({required this.onChanged});
+  const _SearchBox({
+    required this.controller,
+    required this.onChanged,
+    required this.onMic,
+    required this.listening,
+  });
 
+  final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback onMic;
+  final bool listening;
 
   @override
   Widget build(BuildContext context) {
     final palette = KidPalette.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: TextField(
+        controller: controller,
         onChanged: onChanged,
         textInputAction: TextInputAction.search,
         style: HgText.body(size: 17, color: palette.onGround),
@@ -651,9 +756,25 @@ class _SearchBox extends StatelessWidget {
         decoration: InputDecoration(
           // Says where it looks, so a child is not hunting for something that
           // was never here.
-          hintText: 'Find one of your videos',
+          hintText: listening ? 'Listening…' : 'Find one of your videos',
           hintStyle: HgText.body(size: 17, color: palette.quiet),
           prefixIcon: Icon(Icons.search_rounded, color: palette.quiet),
+          // Say it instead of typing it.
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: IconButton(
+              key: const Key('search-mic'),
+              tooltip: listening ? 'Stop listening' : 'Say it',
+              onPressed: withTap(onMic),
+              style: IconButton.styleFrom(
+                backgroundColor: listening ? HgColors.mango : palette.card,
+              ),
+              icon: Icon(
+                listening ? Icons.graphic_eq_rounded : Icons.mic_rounded,
+                color: listening ? HgColors.white : palette.accent,
+              ),
+            ),
+          ),
           filled: true,
           fillColor: palette.chip,
           border: OutlineInputBorder(
@@ -709,8 +830,8 @@ class _NoMatches extends StatelessWidget {
 ///
 /// Readers only. A pre-reader cannot read it, and a number they cannot read
 /// sitting above their videos is decoration that takes up the shelf.
-class _TimeLeftPill extends StatelessWidget {
-  const _TimeLeftPill({required this.state, required this.kid});
+class _TimeLeft extends StatelessWidget {
+  const _TimeLeft({required this.state, required this.kid});
 
   final WatchState state;
   final Kid kid;
@@ -742,40 +863,27 @@ class _TimeLeftPill extends StatelessWidget {
     final palette = KidPalette.of(context);
     final text = _text;
     if (text == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(
-            color: palette.card,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 10,
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: HgColors.green,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              Flexible(
-                child: Text(
-                  text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: HgText.display(size: 20, color: palette.onGround),
-                ),
-              ),
-            ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 8,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: const BoxDecoration(
+            color: HgColors.green,
+            shape: BoxShape.circle,
           ),
         ),
-      ),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: HgText.body(size: 16, color: palette.quiet),
+          ),
+        ),
+      ],
     );
   }
 }

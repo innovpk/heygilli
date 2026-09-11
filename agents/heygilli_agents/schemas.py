@@ -118,11 +118,12 @@ class Kid(BaseModel):
         description="question_bank prompt ids this child is not asked",
     )
     search_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
-            "Whether the child may search. Off by default, and it never reaches "
-            "YouTube: it filters the videos already approved for this kid. A "
-            "search box that could return anything would undo the allowlist."
+            "Whether the child may search, by typing or by voice. On by default, "
+            "because it never reaches YouTube: it filters the videos already "
+            "approved for this kid. A search box that could return anything "
+            "would undo the allowlist; this one cannot. A parent can turn it off."
         ),
     )
 

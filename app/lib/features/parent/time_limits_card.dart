@@ -509,9 +509,10 @@ class _SearchRow extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             enabled
-                ? 'A search box on $name\'s home. It looks through the videos '
-                      'already approved for them and can find nothing else — '
-                      'it never searches YouTube.'
+                ? 'A search box on $name\'s home, with a mic to say what they '
+                      'want. It looks through the videos already approved for '
+                      'them and can find nothing else — it never searches '
+                      'YouTube.'
                 : 'No search box. $name picks from the rows on their home.',
             style: HgText.body(size: 14, color: HgColors.brown),
           ),

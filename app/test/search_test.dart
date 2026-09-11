@@ -9,28 +9,23 @@ import 'package:heygilli/features/kid/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Search, which a parent turns on per child and which never reaches YouTube.
+/// Search, on by default and never reaching YouTube.
 ///
 /// The premise of the whole product is that a child only ever sees what a
 /// parent approved. A search box is the obvious way to break that, so what it
-/// searches matters more than that it exists.
+/// searches matters more than that it exists. Because it can only narrow the
+/// approved list, it is safe to leave on; a parent can still turn it off.
 void main() {
   late FakeGateway gateway;
   late AppState app;
   late Kid preReader;
   late Kid reader;
 
-  /// The same two children with search switched on. Built in setUp because
+  /// A child whose parent turned search off. Built in setUp because
   /// FakeGateway's lag is a real delay and inside testWidgets the clock is the
   /// tester's: awaiting it from a test body never comes back, and the failure
   /// looks like a hang rather than a mistake.
-  late Kid readerWithSearch;
-  late Kid preReaderWithSearch;
-
-  /// A child whose parent never turned it on, kept separate because
-  /// `updateLimits` changes the stored kid: reusing one of the others here
-  /// would test a kid that does have search and pass for the wrong reason.
-  late Kid neverEnabled;
+  late Kid turnedOff;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -47,19 +42,12 @@ void main() {
       age: 9,
       languages: const ['en'],
     );
-    readerWithSearch = await gateway.updateLimits(
-      reader.id,
-      searchEnabled: true,
-    );
-    preReaderWithSearch = await gateway.updateLimits(
-      preReader.id,
-      searchEnabled: true,
-    );
-    neverEnabled = await gateway.createKid(
+    final sara = await gateway.createKid(
       nickname: 'Sara',
       age: 9,
       languages: const ['en'],
     );
+    turnedOff = await gateway.updateLimits(sara.id, searchEnabled: false);
   });
 
   Future<void> open(WidgetTester tester, Kid kid) async {
@@ -78,36 +66,35 @@ void main() {
     }
   }
 
-  testWidgets('there is no search box until a parent asks for one', (
-    tester,
-  ) async {
-    await open(tester, neverEnabled);
-    expect(find.byType(TextField), findsNothing);
+  test('a new child can search unless a parent says otherwise', () {
+    expect(reader.searchEnabled, isTrue);
+    expect(preReader.searchEnabled, isTrue);
   });
 
-  testWidgets('a parent who turns it on gives their child a box', (
-    tester,
-  ) async {
-    await open(tester, readerWithSearch);
+  testWidgets('every child gets a box, with a mic to say it', (tester) async {
+    await open(tester, reader);
     expect(find.byType(TextField), findsOneWidget);
+    expect(find.byKey(const Key('search-mic')), findsOneWidget);
   });
 
-  testWidgets('a pre-reader never gets one, even if a parent turns it on', (
+  testWidgets('a pre-reader gets one too: they can say what they want', (
     tester,
   ) async {
-    // Band 4_6 cannot read the box, cannot type into it, and gets no text
-    // anywhere else in the app. A search box would be a control that exists
-    // only to be poked at.
-    await open(tester, preReaderWithSearch);
+    await open(tester, preReader);
+    expect(find.byKey(const Key('search-mic')), findsOneWidget);
+  });
+
+  testWidgets('a parent who turns it off takes the box away', (tester) async {
+    await open(tester, turnedOff);
     expect(find.byType(TextField), findsNothing);
+    expect(find.byKey(const Key('search-mic')), findsNothing);
   });
 
   test('a query only ever narrows what is already approved', () async {
-    final on = readerWithSearch;
-    final everything = await gateway.home(on.id);
+    final everything = await gateway.home(reader.id);
     final all = [for (final r in everything) ...r.videos.map((v) => v.id)];
 
-    final found = await gateway.home(on.id, query: 'volcano');
+    final found = await gateway.home(reader.id, query: 'volcano');
     final hits = [for (final r in found) ...r.videos.map((v) => v.id)];
 
     expect(hits, isNotEmpty, reason: 'the demo shelf has a volcano video');
@@ -120,20 +107,17 @@ void main() {
   });
 
   test('a query does nothing at all while the parent has search off', () async {
-    final off = await gateway.home(neverEnabled.id, query: 'volcano');
-    final normal = await gateway.home(neverEnabled.id);
+    final off = await gateway.home(turnedOff.id, query: 'volcano');
+    final normal = await gateway.home(turnedOff.id);
     expect(
       [for (final r in off) r.title],
       [for (final r in normal) r.title],
-      reason: 'a query was honoured for a kid whose parent never enabled it',
+      reason: 'a query was honoured for a kid whose parent turned search off',
     );
   });
 
   test('a word that matches nothing returns nothing, not everything', () async {
-    final rows = await gateway.home(
-      readerWithSearch.id,
-      query: 'zzzznotavideo',
-    );
+    final rows = await gateway.home(reader.id, query: 'zzzznotavideo');
     expect([for (final r in rows) ...r.videos], isEmpty);
   });
 }

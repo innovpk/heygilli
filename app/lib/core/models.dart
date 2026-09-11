@@ -107,7 +107,7 @@ class Kid {
     this.breakMinutes = defaultBreakMinutes,
     this.maxVideoMinutes = defaultMaxVideoMinutes,
     this.breakIsFirm = true,
-    this.searchEnabled = false,
+    this.searchEnabled = true,
     this.breakMessages = const [],
   });
 
@@ -152,9 +152,9 @@ class Kid {
   /// HeyGilli holds the line or only asks, and it is never the model's call.
   final bool breakIsFirm;
 
-  /// Whether this child may search. Off unless a parent turned it on, and it
-  /// only ever filters the videos already approved for them — PROTOCOL is
-  /// explicit that no search reaches YouTube.
+  /// Whether this child may search. On unless a parent turned it off: it only
+  /// ever filters the videos already approved for them — PROTOCOL is explicit
+  /// that no search reaches YouTube — so there is nothing unsafe to find.
   final bool searchEnabled;
 
   /// The lines this parent wrote for break time, in the order they were saved.
@@ -208,9 +208,9 @@ class Kid {
     maxVideoMinutes:
         (j['max_video_minutes'] as num?)?.toInt() ?? defaultMaxVideoMinutes,
     breakIsFirm: j['break_is_firm'] as bool? ?? true,
-    // Absent on an older gateway, and absent means off: a search box
-    // must never appear because a field was missing.
-    searchEnabled: j['search_enabled'] as bool? ?? false,
+    // Absent on an older gateway. The box is safe either way: the gateway
+    // filters the approved list, and one that predates search ignores `q`.
+    searchEnabled: j['search_enabled'] as bool? ?? true,
     breakMessages:
         (j['break_messages'] as List?)
             ?.map((m) => BreakMessage.fromJson(m as Map<String, dynamic>))

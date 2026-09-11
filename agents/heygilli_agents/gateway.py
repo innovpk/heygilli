@@ -1284,8 +1284,8 @@ def home(kid_id: str, q: str = "", hid: str = Depends(household)) -> dict:
     `q` is the child's search, and it never leaves this list: it filters the
     videos already approved for them. Searching YouTube would hand back the
     open internet and undo the allowlist the whole product is built on, so
-    there is no code path here that could. It is only honoured when the parent
-    turned `search_enabled` on for this child.
+    there is no code path here that could. It is honoured unless the parent
+    turned `search_enabled` off for this child; it is on by default.
     """
     kid = _kid(hid, kid_id)
     store = get_store()
