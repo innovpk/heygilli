@@ -36,6 +36,9 @@ Per SPEC section 14. Items that affect the submission only:
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
 - [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
 - [ ] Publish builder.aws series, parts 1 to 3: `docs/blog-1-concept.md`, `docs/blog-2-strands-design.md`, `docs/blog-3-trust.md`. Every title contains "Agents for Humans". Save the three URLs.
+  - [x] Part 1, published 11 September: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements
+  - [ ] Part 2
+  - [ ] Part 3
 - [ ] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality.
 
 ## Friday 12 September: record
@@ -101,7 +104,7 @@ Do these in order.
 | AWS Builder ID | in Devpost form | [ ] |
 | Third-party disclosure | in Devpost form | [ ] |
 | English materials | all docs English; Urdu only inside the demo, subtitled | [x] |
-| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [ ] three URLs | [ ] |
+| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements | [ ] parts 2, 3 |
 | Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [ ] |
 | Live demo link (optional) | [ ] URL | [ ] |
 

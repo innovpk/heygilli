@@ -101,7 +101,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A picture-only path for pre-readers with no text on screen.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 665 backend tests and 605 client tests, offline.
+- 666 backend tests and 615 client tests, offline.
 
 ### What we learned
 
@@ -133,6 +133,8 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Web app | https://heygilli.com/app/ |
 | Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
 | Demo video | still needed |
+| builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
+| builder.aws posts 2 and 3 | still needed |
 | AWS Builder ID | still needed |
 
 ## Testing instructions (Devpost field)
@@ -161,4 +163,4 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | AWS Builder ID | author |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |
 | README Status section updated (test counts, the Gemini path now exists) | can be done now |
-| builder.aws posts (optional bonus), "Agents for Humans" in the title, published before the deadline | author |
+| builder.aws posts 2 and 3 (optional bonus), "Agents for Humans" in the title, published before the deadline. Part 1 is up: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements | author |
