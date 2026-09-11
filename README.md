@@ -224,6 +224,11 @@ Urdu word seeding (specified in `docs/PROTOCOL.md`, SPEC 7.6); then setup as a s
 questionnaire, a review screen with Shown and Hidden tabs and skimmable tags, break activities the
 parent picks, and "check before you allow" for a video or channel a parent found themselves.
 
+Added in the last days: a kid shelf laid out like YouTube Kids (a section per channel for a child
+who reads, one big grid with a title under each picture for a pre-reader); search on by default,
+by typing or by voice, over the approved videos only; an admin overview open only to the
+service's admin Google account; and in-app feedback from parents, listed on that overview.
+
 **Anthropic models on Bedrock are still gated** on this account pending the use-case form, so the
 interim default is Amazon Nova Pro and every feature falls back to a deterministic built-in when a
 model call fails. Nothing in the product is currently showing Anthropic output. The switch back is

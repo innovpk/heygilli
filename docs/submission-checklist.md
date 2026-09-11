@@ -11,11 +11,11 @@ Judging: 15 September to 8 October. Winners announced on or around 14 October, 2
 ## Do today, Friday 5 September
 
 - [ ] Create AWS Builder ID at profile.aws.amazon.com. Save the ID; the Devpost form asks for it.
-- [ ] Register for the hackathon on Devpost (agentsforhumans.devpost.com, "Join hackathon"), same email as the Builder ID.
+- [x] Register for the hackathon on Devpost (agentsforhumans.devpost.com, "Join hackathon"), same email as the Builder ID. Draft submission 1177609 exists.
 - [x] Submit the $50 AWS credits request form (Devpost Resources tab). **Credits received 9 September.**
 - [x] Bedrock model access confirmed in us-east-1; ids pinned in `agents/.env.example` and SPEC 9.5.
 - [x] Repo created: github.com/mujahidmasood/heygilli, private. MIT `LICENSE` present.
-- [ ] Register heygilli.com or heygilli.io if wanted for the demo link (optional).
+- [x] Register heygilli.com or heygilli.io if wanted for the demo link (optional). heygilli.com is live: the app at `/app/`, a no-login demo at `/try`.
 
 ## Saturday 6 to Wednesday 10 September: build
 
@@ -31,7 +31,7 @@ Per SPEC section 14. Items that affect the submission only:
 ## Thursday 11 September
 
 - [x] ~~Credits form closes 12:00 PM PT.~~ Done; credits received 9 September.
-- [ ] Provider eval run on Bedrock and the second provider. Record pass and fail counts; `docs/blog-2-strands-design.md` and `docs/blog-3-trust.md` quote them.
+- [x] Provider eval run on Bedrock and the second provider. Record pass and fail counts; `docs/blog-2-strands-design.md` and `docs/blog-3-trust.md` quote them. 0/18 Claude Sonnet 4.6, 0/18 Claude Haiku 4.5 (account not yet granted), 16/18 Amazon Nova Pro.
 - [ ] Second child test if possible.
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
 - [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
@@ -39,7 +39,7 @@ Per SPEC section 14. Items that affect the submission only:
   - [x] Part 1, published 11 September: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements
   - [ ] Part 2
   - [ ] Part 3
-- [ ] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality.
+- [x] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality. Written 10 Sep; checked against the live app 11 Sep.
 
 ## Friday 12 September: record
 
@@ -93,20 +93,20 @@ Do these in order.
 
 | Item | Where | Done |
 |---|---|---|
-| Strands Agents SDK used for all agent logic | `agents/heygilli_agents/` | [ ] |
+| Strands Agents SDK used for all agent logic | `agents/heygilli_agents/` | [x] eight agents |
 | Public repo URL | github.com/mujahidmasood/heygilli | [ ] |
 | MIT license visible | `LICENSE` | [x] |
 | README with setup instructions | `README.md` | [ ] |
 | Architecture diagram | `docs/architecture.svg`, `docs/architecture.png` | [x] drawn, [x] matches what shipped (6 Sep) |
 | Text description | `docs/devpost-submission.md` | [x] drafted, [ ] finalised |
 | Demo video, 5:00 max, public on YouTube | [ ] URL | [ ] |
-| Testing access: test build or live link | GitHub Release APK, gateway URL | [ ] |
+| Testing access: test build or live link | https://heygilli.com/app/ and https://heygilli.com/try (APK optional) | [x] |
 | AWS Builder ID | in Devpost form | [ ] |
 | Third-party disclosure | in Devpost form | [ ] |
 | English materials | all docs English; Urdu only inside the demo, subtitled | [x] |
 | builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements | [ ] parts 2, 3 |
-| Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [ ] |
-| Live demo link (optional) | [ ] URL | [ ] |
+| Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [x] credits received 9 Sep |
+| Live demo link (optional) | [x] https://heygilli.com/app/ | [x] |
 
 ## Cut order if behind, from SPEC section 14
 

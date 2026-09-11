@@ -48,10 +48,10 @@ HeyGilli is a kid-safe YouTube front end with a co-watching buddy, Gilli the squ
 
 **For the child**, on a phone, tablet or browser:
 
-- Only videos the parent's rules allowed. No search, no recommendations. Videos play in the official YouTube embed, so ads still play and creators still get paid.
-- The shelf is grouped by channel, each row under the channel's own picture, so a child who cannot read still knows the songs row from the volcano row.
+- Only videos the parent's rules allowed, and no recommendations. A child can search, by typing or by voice, but only among those videos; search never reaches YouTube. Videos play in the official YouTube embed, so ads still play and creators still get paid.
+- The shelf is laid out like YouTube Kids: a section per channel for a child who reads, and one big grid of pictures, each with its title, for a child who does not yet.
 - At a natural break the video pauses and Gilli asks one question by voice about what just happened. Two or three a video, sized to its length.
-- A 5-year-old answers with one word, by tapping one of three pictures, or yes or no. There is no text on screen for them at all, and Gilli always says the answer word back.
+- A 5-year-old answers with one word, by tapping one of three pictures, or yes or no. The questions need no reading: Gilli asks aloud, and always says the answer word back.
 - A 10-year-old answers in a sentence. Gilli builds on the answer and the video resumes. English or Urdu.
 - Three age bands (5 to 6, 7 to 8, 9 to 12) set the question types, the listening window and Gilli's tone.
 - Between videos Gilli naps on the shelf. A pinch wakes him: a tap, a click, or two fingers squeezed together. The games have their own button: find Gilli hiding behind one of the trees, or catch him as he pops up. The Playmate agent makes each round a little harder or easier from how the last one went, and the games follow the same limits as videos.
@@ -99,7 +99,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 - A working loop, deployed: parent setup, background screening, kid session with voice questions, and the digest, live at heygilli.com.
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
-- A picture-only path for pre-readers with no text on screen.
+- A question path for pre-readers that needs no reading: Gilli asks aloud, and they tap a picture or say one word.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
 - 680 backend tests and 622 client tests, offline.
 

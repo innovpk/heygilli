@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1240" viewBox="0 0 1600 1240" font-family="Helvetica, Arial, sans-serif">
-  <!-- HeyGilli, end to end. Hand-authored; matches what is deployed (10 Sep 2026). -->
+  <!-- HeyGilli, end to end. Hand-authored; matches what is deployed (11 Sep 2026). -->
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#1E3A34"/>
@@ -46,7 +46,7 @@
   <text x="580" y="180" class="t">• Official YouTube IFrame embed: ads untouched, no overlays</text>
   <text x="580" y="203" class="t">• Gilli asks by voice at a natural break, 2–3 a video</text>
   <text x="580" y="226" class="t">• Speech becomes text on the device; no audio leaves it</text>
-  <text x="580" y="249" class="t">• Ages 5–6: pictures and voice only, no text on screen</text>
+  <text x="580" y="249" class="t">• Shelf like YouTube Kids; search by voice, approved videos only</text>
   <text x="580" y="272" class="t">• Break screen with the activity the parent chose</text>
 
   <rect x="1080" y="100" width="480" height="190" rx="14" class="panel"/>

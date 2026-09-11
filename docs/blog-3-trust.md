@@ -1,146 +1,84 @@
 # Agents for Humans: building HeyGilli, part 3 — making the agents trustworthy
 
-Part 1 covered the concept and part 2 the eight Strands agents. This last post answers the question every parent asks first: how do you know the agent won't say something it shouldn't?
+Part 1 was the idea and part 2 the eight Strands agents. This last part answers the question every parent asks first: how do you know it won't say something it shouldn't?
 
-A prompt that says "never say *wrong*" is a request, not a guarantee. One day a model will say "wrong" anyway. What we built is a way to catch that before a child hears it, to show a parent the whole story afterwards, and to go back and fix what was already done.
+A prompt that says "never say *wrong*" is a request, not a guarantee. What we built catches a bad answer before a child hears it, shows a parent the whole story afterwards, and fixes what was already done.
 
 ## One door for every model call
 
-All eight agents make their model calls through a single function, `structured()`. The eval, the tests, and the live gateway all use the same path, so anything we add there applies everywhere at once. Three things happen inside it: a trace, a guardrail check, and an audit record.
+All eight agents reach the model through one function, `structured()`. The live gateway, the tests and the eval all share it, so anything added there applies everywhere:
 
 ```python
 def structured(agent, prompt, output_model, *, context=None):
-    with tracer.start_as_current_span("heygilli.agent", attributes={...}) as span:
-        out = _invoke(agent, prompt, output_model)          # Strands structured output
-        found = guardrails.check(output_model.__name__, out, context)
-        blocked = guardrails.blocking(found)
-        if not blocked:
-            finish("warned" if found else "ok", found)
-            return out
-
-        # The first answer is in the agent's history, so the feedback alone
-        # is enough for it to know what to change.
-        retry = _invoke(agent, guardrails.feedback(blocked), output_model)
-        if not guardrails.blocking(guardrails.check(output_model.__name__, retry, context)):
-            finish("fixed", found)
-            return retry
-        finish("blocked", found, "guardrail")
-        raise GuardrailError(role, blocked)
+    # (tracing and the audit record left out)
+    out = _invoke(agent, prompt, output_model)          # Strands structured output
+    blocked = guardrails.blocking(guardrails.check(output_model.__name__, out, context))
+    if not blocked:
+        return out
+    retry = _invoke(agent, guardrails.feedback(blocked), output_model)  # once more, with the reason
+    if not guardrails.blocking(guardrails.check(output_model.__name__, retry, context)):
+        return retry
+    raise GuardrailError(role, blocked)
 ```
 
-## Guardrails: checked in code, sent back once
+## Guardrails, checked in code
 
-Every answer is checked in code before anyone sees it. What gets checked depends on who will read it.
+Anything a child will hear, such as a question, a reply or a game line, is checked against the child-text rules:
 
-Anything a child hears (a question, Gilli's reply, a game line, a break line) is held to the child-text rules:
+- no unsafe words;
+- no personal questions ("what's your name, your school…");
+- no links;
+- nothing harsh like "wrong" or "you failed".
 
-```python
-def child_text(label: str, text: str | None) -> list[Violation]:
-    """The rules for anything a child will hear or see."""
-    out = []
-    if hits := _hits(text, CHILD_WORDS):
-        out.append(Violation("unsafe_word", f"{label} says {', '.join(hits)}"))
-    if _PERSONAL.search(text):   # "what's your name / address / school ..."
-        out.append(Violation("personal_question", f"{label} asks the child about themselves"))
-    if _LINK.search(text):
-        out.append(Violation("link", f"{label} contains a link"))
-    return out
-```
+What only a parent reads is checked for consistency instead. The Curator can't approve a video whose own title trips a safety rule, and the digest can't claim a child said a word no question used.
 
-A separate pattern catches Gilli being harsh: "wrong", "incorrect", "you failed".
+A broken answer goes back to the agent once, with the rule it broke. The first answer is still in the Strands conversation, so that short message is enough. If the retry fails too, `GuardrailError` is raised. It's a kind of `LLMError`, so every caller's existing fallback catches it: the built-in questions, or asking the parent. The model can fail, but a child never hears it fail.
 
-What only a parent reads is checked for consistency instead:
+## Wrap the provider's errors, or your fallbacks never run
 
-- The Curator can't approve a video whose own title trips a safety rule.
-- The digest can't claim a child said a word that no question ever used.
-
-When an answer breaks a blocking rule, it isn't thrown away straight off. The agent gets it back once, with the reason:
-
-```python
-def feedback(violations):
-    rules = "\n".join(f"- {v.detail}" for v in violations)
-    return ("Your last answer cannot be used, because it broke these rules:\n"
-            f"{rules}\n"
-            "Give the answer again in the same format, fixing those points and changing nothing else.")
-```
-
-Because the first answer is still in the Strands agent's conversation history, that short message is all the agent needs. If the second answer also fails, `GuardrailError` is raised. That error is a subclass of `LLMError`, so every caller's existing fallback already handles it: the Planner uses the built-in questions, and the Curator asks the parent. The model can fail, but a child never hears it fail.
-
-## Wrap the provider's exceptions, or your fallbacks are worthless
-
-This lesson cost us a production outage.
-
-Every caller catches `LLMError` and falls back to something safe. But when our Bedrock model ID turned out to be one the account couldn't invoke (see part 2), botocore raised `ResourceNotFoundException`. That is not an `LLMError`, so it went straight past every handler written for exactly this case and left the gateway as a 500.
-
-An unhandled 500 carries no CORS headers, so the browser reported a CORS error, and the model was never mentioned. Videos with a cached plan kept working, which made the failure look intermittent.
-
-The fix is one `try` in `_invoke`, the only function that calls the agent:
+This one cost us an outage. When our Bedrock model turned out to be one the account couldn't call (see part 2), botocore raised `ResourceNotFoundException`. That isn't an `LLMError`, so it went straight past every fallback written for exactly this case and became a 500, which the browser reported as a CORS error. The fix is one `try` in the only function that calls the agent:
 
 ```python
 try:
     result = agent(prompt, structured_output_model=output_model)
 except LLMError:
     raise
-except Exception as e:  # provider SDK, transport, throttling, entitlement
+except Exception as e:  # provider SDK, network, throttling, access
     raise LLMError(f"{agent.name}: {type(e).__name__}: {e}") from e
 ```
 
-A model you can't reach is one failure with one meaning, whoever hosts it. None of the callers should need to import botocore to handle it.
+## Traces, audit and auto-fix
 
-## Full traces, with the household's own data
+- **Full traces.** Strands emits OpenTelemetry spans for every agent run, model call and tool call. We store each trace with the household's data, so it can be read with nothing else deployed and is deleted along with the household. What a child said is replaced before anything is written.
+- **Every call is an event.** It records the role, the result, the time taken, whether a guardrail fired, and whether the retry fixed it.
+- **The audit looks back.** After each screening it re-checks past decisions against today's rules:
+  - an approval that now breaks a rule is hidden;
+  - one that should have gone to the parent goes back to them;
+  - a cached question plan holding something a child mustn't hear is dropped.
 
-Strands emits OpenTelemetry spans for each agent run: the agent, every event-loop cycle, every model call with its messages and token counts, and every tool call. `structured()` opens one root span around each call, tagged with the role, the household, and the child. HeyGilli collects every span under that root, and when the root ends it stores the whole trace as one document next to the household's other data.
-
-We kept traces there, rather than in an observability backend, for two reasons:
-
-- A trace is readable on the free tier with nothing else deployed.
-- When a household is deleted, its traces go with it, like everything else about it.
-
-Setting `OTEL_EXPORTER_OTLP_ENDPOINT` also sends them to any OTLP collector.
-
-One thing is never kept: what a child said. The Buddy's prompt contains the child's words, and they are replaced before anything is written. That is the "nothing a child says is stored" requirement from part 1, applied in the tracing layer too.
-
-## Audit and auto-fix
-
-Guardrails catch a bad answer as it happens. The audit looks back over what the agents have already done, because rules change and old decisions stay in the database.
-
-- **Every call is recorded as an event**: the role, what came back, how long it took, whether a guardrail fired, and whether the retry fixed it. Every violation becomes an incident linked to its trace.
-- **After each screening, `audit_household` re-checks past decisions against the current rules:**
-  - A Curator approval that breaks a safety rule is hidden.
-  - One that should have gone to the parent goes back to them.
-  - A cached question plan containing something a child mustn't hear is dropped, so the next play writes a new one.
-  - An agent whose answers keep ending in the fallback is reported as degraded.
-- **The audit never touches a decision a parent made.** It fixes the agents' mistakes, not the family's choices.
-
-The gateway's `/agents/report` puts it together for a parent: what the agents did, what was caught, and what was fixed, each linked to its full trace. "The model usually behaves" became something we can show.
+  It never touches a decision a parent made.
+- **One report.** The gateway's `/agents/report` puts it together: what the agents did, what was caught, and what was fixed, each linked to its trace.
 
 ## An eval before any provider is trusted
 
-No model provider is trusted until it passes the same eval: three real transcripts, across three sets of question rules and two languages, which makes 18 cells. Each cell is checked twice:
+The eval runs three real transcripts against three sets of question rules in two languages, which makes 18 cells. A cell passes only when the final plan is clean *and* came from the model rather than the fallback. That's where part 2's numbers come from: 0/18, 0/18 and 16/18. Underneath, 680 backend tests run offline on a fake model, because the rules they test live in code.
 
-1. The model's **draft** is checked against the rules. This measures how good the provider is on its own.
-2. `rules.enforce` runs, and the **final** plan is checked again. This asks whether a child would ever see a violation.
-
-A cell passes only when the final plan is clean *and* came from the model rather than the built-in fallback. That is what produced the numbers in part 2: 0 of 18 and 0 of 18 on the two gated Claude models, and 16 of 18 on Amazon Nova Pro. That's also how a forced provider change took one line.
-
-Underneath the eval, 665 backend tests run offline on a fake model provider. Almost none of them need a real model, because the rules they test live in code.
+![HeyGilli end to end: the apps, the gateway, eight Strands agents, and what runs on AWS](architecture.png)
 
 ## What runs on AWS
 
-- **Amazon Bedrock** in us-east-1, through cross-region inference profiles. Amazon Nova Pro is the production model for all eight agents while Anthropic access on the account is pending.
-- **Amazon Polly** for Gilli's voice.
-- **Amazon DynamoDB**, as a single table keyed by household: the partition key is the household and the sort key is the entity type plus its ID. Deleting a household deletes everything about it, traces included.
-
-The gateway is FastAPI: REST plus one WebSocket per live session. The next step is moving the agents onto Amazon Bedrock AgentCore Runtime.
+- **Amazon Bedrock** in us-east-1: Amazon Nova Pro for all eight agents while Anthropic access is pending.
+- **Amazon Polly**: Gilli's voice.
+- **Amazon DynamoDB**: one table keyed by household. Deleting a household deletes everything about it, traces included.
 
 ## What we'd tell another team
 
-- **Put every model call behind one function.** Tracing, guardrails, retries, and auditing were each a few lines, because there was one place to add them.
-- **Check the output in code, then give the model one chance to fix it.** Telling the agent exactly which rule it broke costs one short message, and an answer that still fails lands on a fallback, not in front of a child.
-- **Wrap the provider's exceptions where you call it.** A fallback you wrote carefully is worthless if the real error never reaches it.
-- **Invoke the model before you believe the console.** A listing API can say `ACTIVE` about a model your account can't call.
-- **Watch the token ratio, not the bill.** Ours ran 6.04M input tokens to 188K output, about 32 to 1. Agents that read transcripts are input machines, and every cost decision that mattered was about what went *into* the prompt.
+- **Put every model call behind one function.** Tracing, guardrails, retries and auditing each become a few lines.
+- **Check the output in code, then give the model one chance to fix it.**
+- **Wrap the provider's exceptions where you call it.**
+- **Call the model before you trust the console.**
+- **Watch the token ratio, not just the bill.** Ours ran about 32 input tokens for every output token. Agents that read transcripts are input machines.
 
-That completes the series: part 1 covered the concept and requirements, part 2 the Strands design, and part 3 how we made it trustworthy.
+That completes the series.
 
 Code: https://github.com/mujahidmasood/heygilli. MIT.
