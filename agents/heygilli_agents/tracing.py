@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import threading
+import time
 from collections import OrderedDict
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -44,8 +45,9 @@ log = logging.getLogger(__name__)
 
 ROOT = "heygilli.agent"
 MAX_STR = 4000  # a transcript excerpt is the longest thing in a prompt
-MAX_SPANS = 80
+MAX_SPANS = 80  # per trace, applied while they are held and not only when they are stored
 MAX_OPEN = 200  # traces waiting on their root; a leak guard, never reached in practice
+MAX_OPEN_AGE_S = 300  # a trace nothing has added to for this long is dropped, root or no root
 MAX_DOC = 350_000  # DynamoDB items stop at 400 KB
 
 _household: ContextVar[str] = ContextVar("heygilli_household", default="")
@@ -108,31 +110,73 @@ def span_doc(s: ReadableSpan, limit: int = MAX_STR) -> dict[str, Any]:
     }
 
 
+def _shrink(value: Any, limit: int) -> Any:
+    """Cut an already-clipped span document down further, for a trace too big to store.
+
+    Redaction has happened by the time anything gets here: this only shortens.
+    """
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[:limit] + "\u2026"
+    if isinstance(value, list):
+        return [_shrink(v, limit) for v in value]
+    if isinstance(value, dict):
+        return {k: _shrink(v, limit) for k, v in value.items()}
+    return value
+
+
 class StoreSpanExporter(SpanExporter):
-    """Holds a trace's spans until its root ends, then stores them as one document."""
+    """Holds a trace's spans until its root ends, then stores them as one document.
+
+    What is held is each span's *document*, not the span. A model-call span
+    carries the whole prompt, and a Curator prompt is a transcript; keeping the
+    spans themselves meant a handful of traces in flight could hold tens of
+    megabytes of text that only ever gets clipped on the way out. Clipping on
+    the way in costs the same work and bounds what is resident to
+    `MAX_SPANS` clipped documents per trace.
+
+    Two guards on top of that, because a trace is only released by its root
+    ending and a span tree that never reaches one would otherwise sit forever:
+    `MAX_OPEN` traces at once, and nothing older than `MAX_OPEN_AGE_S` since
+    its last span.
+    """
 
     def __init__(self) -> None:
-        self._open: OrderedDict[int, list[ReadableSpan]] = OrderedDict()
+        # trace id -> [monotonic time of the last span, that trace's span docs]
+        self._open: OrderedDict[int, list[Any]] = OrderedDict()
         self._lock = threading.Lock()
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for s in spans:
             tid = s.get_span_context().trace_id
+            doc = span_doc(s)  # clipped and redacted here, not when the trace is stored
+            now = time.monotonic()
             with self._lock:
-                self._open.setdefault(tid, []).append(s)
+                held = self._open.setdefault(tid, [now, []])
+                held[0] = now
+                if len(held[1]) < MAX_SPANS:
+                    held[1].append(doc)
                 self._open.move_to_end(tid)
-                while len(self._open) > MAX_OPEN:
-                    self._open.popitem(last=False)
-                done = self._open.pop(tid) if s.name == ROOT else None
+                self._evict(now)
+                done = self._open.pop(tid)[1] if s.name == ROOT else None
             if done is not None:
                 self._save(tid, s, done)
         return SpanExportResult.SUCCESS
 
-    def _save(self, tid: int, root: ReadableSpan, spans: list[ReadableSpan]) -> None:
+    def _evict(self, now: float) -> None:
+        """Drop the traces least recently added to. Caller holds the lock."""
+        while self._open:
+            tid = next(iter(self._open))
+            touched = self._open[tid][0]
+            if len(self._open) > MAX_OPEN or now - touched > MAX_OPEN_AGE_S:
+                self._open.popitem(last=False)
+            else:
+                break
+
+    def _save(self, tid: int, root: ReadableSpan, spans: list[dict[str, Any]]) -> None:
         from .store import GLOBAL, get_store
 
         a = dict(root.attributes or {})
-        ordered = sorted(spans, key=lambda s: s.start_time or 0)[:MAX_SPANS]
+        ordered = sorted(spans, key=lambda d: d["start"])[:MAX_SPANS]
         doc: dict[str, Any] = {}
         for limit in (MAX_STR, 1000, 300):  # shrink until it fits one item
             doc = {
@@ -145,7 +189,7 @@ class StoreSpanExporter(SpanExporter):
                 "started": _iso(root.start_time),
                 "ms": round(((root.end_time or 0) - (root.start_time or 0)) / 1e6, 1),
                 "status": root.status.status_code.name,
-                "spans": [span_doc(s, limit) for s in ordered],
+                "spans": ordered if limit == MAX_STR else _shrink(ordered, limit),
             }
             if len(json.dumps(doc, ensure_ascii=False)) <= MAX_DOC:
                 break

@@ -41,9 +41,11 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import os
 import re
 import zipfile
 from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 from .history import parse_watch_history
 from .schemas import (
@@ -209,7 +211,7 @@ def _preview(named_csvs: list[tuple[str, bytes]]) -> TakeoutPreview:
 # --- entry points ----------------------------------------------------------------
 
 
-def parse_takeout_zip(data: bytes) -> TakeoutPreview:
+def parse_takeout_zip(data: bytes | BinaryIO) -> TakeoutPreview:
     """Parse an uploaded Takeout zip. Raises `TakeoutError` on anything unusable.
 
     The default, and the only one the parent has not explicitly opted out of:
@@ -218,7 +220,9 @@ def parse_takeout_zip(data: bytes) -> TakeoutPreview:
     return _parse_zip(data, include_history=False)[0]
 
 
-def parse_takeout_zip_with_history(data: bytes) -> tuple[TakeoutPreview, dict[str, HistoryAggregate]]:
+def parse_takeout_zip_with_history(
+    data: bytes | BinaryIO,
+) -> tuple[TakeoutPreview, dict[str, HistoryAggregate]]:
     """The opt-in path (PROTOCOL.md "Watch history"). Same preview, plus one
     aggregate per child profile whose `watch-history.html` could be read.
 
@@ -228,16 +232,47 @@ def parse_takeout_zip_with_history(data: bytes) -> tuple[TakeoutPreview, dict[st
     return _parse_zip(data, include_history=True)
 
 
-def _parse_zip(data: bytes, include_history: bool) -> tuple[TakeoutPreview, dict[str, HistoryAggregate]]:
-    if not data:
+READ_CHUNK = 1024 * 1024
+
+
+def _read_member(zf: zipfile.ZipFile, name: str, size: int) -> bytearray:
+    """One member into one buffer the size of the member, a megabyte at a time.
+
+    `ZipFile.read` collects the decompressed chunks in a list and joins them,
+    which is briefly two copies of the file; asking for the whole member in one
+    `readinto` is no better, because the reader allocates the chunk it is about
+    to copy in. A watch history is the only member here big enough for either
+    to matter, and on a 512 MB instance it did: this holds the file once and a
+    megabyte of slack.
+    """
+    buf = bytearray(size)
+    view = memoryview(buf)
+    with zf.open(name) as f:
+        at = 0
+        while at < size and (n := f.readinto(view[at:at + READ_CHUNK])):
+            at += n
+    return buf if at == size else buf[:at]
+
+
+def _parse_zip(
+    data: bytes | BinaryIO, include_history: bool
+) -> tuple[TakeoutPreview, dict[str, HistoryAggregate]]:
+    # A file the caller spooled to disk is read where it lies. Wrapping bytes in
+    # a BytesIO copies them, and the upload is the largest thing the gateway
+    # ever holds, so the gateway hands over a file and only the tests and the
+    # scripts pass bytes.
+    source: BinaryIO = io.BytesIO(data) if isinstance(data, (bytes, bytearray)) else data
+    size = source.seek(0, os.SEEK_END)
+    source.seek(0)
+    if not size:
         raise TakeoutError("the upload was empty")
-    if len(data) > MAX_ZIP_BYTES:
+    if size > MAX_ZIP_BYTES:
         raise TakeoutError(
-            f"the file is {len(data) // (1024 * 1024)} MB; the limit is "
+            f"the file is {size // (1024 * 1024)} MB; the limit is "
             f"{MAX_ZIP_BYTES // (1024 * 1024)} MB. Export only 'YouTube and YouTube Music'."
         )
     try:
-        zf = zipfile.ZipFile(io.BytesIO(data))
+        zf = zipfile.ZipFile(source)
     except zipfile.BadZipFile as e:
         raise TakeoutError("that file is not a zip. Upload the .zip Google Takeout emailed you.") from e
 
@@ -269,7 +304,7 @@ def _parse_zip(data: bytes, include_history: bool) -> tuple[TakeoutPreview, dict
                 if sizes[member] > MAX_HISTORY_BYTES:
                     log.warning("watch history for %r is %d bytes; skipped", profile, sizes[member])
                     continue
-                aggregate = parse_watch_history(zf.read(member))
+                aggregate = parse_watch_history(_read_member(zf, member, sizes[member]))
                 if aggregate.videos:  # an unreadable file leaves no insight at all
                     histories[profile] = aggregate
 

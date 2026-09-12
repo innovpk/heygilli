@@ -28,6 +28,7 @@ import html as html_mod
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Iterator
 
 from pydantic import BaseModel, Field
 from strands import Agent
@@ -50,50 +51,82 @@ MAX_ENTRIES = 200_000  # a decade of heavy watching; a bigger file is truncated,
 MAX_CHANNEL_TITLE = 120
 CHANNELS_IN_PROMPT = 12
 
-# One Takeout entry is one "outer-cell" div. Splitting on that marker is enough
+# One Takeout entry is one "outer-cell" div. Walking that marker is enough
 # structure for counting and needs no HTML parser (and therefore no dependency).
-_ENTRY = re.compile(r"outer-cell")
+#
+# Every expression is compiled twice, over the same pattern: once for text and
+# once for bytes. A real watch history is tens of megabytes and the file
+# arrives as bytes, so it is read as bytes and only the few characters an entry
+# yields — a channel id, its title, a date — are ever decoded. Decoding the
+# whole file first was another copy of it, and a non-Latin export made that
+# copy twice the size of the file.
+_ENTRY_PAT = r"outer-cell"
 # Deliberately narrow: only the channel anchor. The video's own anchor
 # (`watch?v=…`), which is what carries the title, has no expression here that
 # could match it.
-_CHANNEL = re.compile(
-    r'<a[^>]+href="[^"]*youtube\.com/channel/(UC[A-Za-z0-9_-]{22})"[^>]*>([^<]*)</a>',
-    re.IGNORECASE,
+_CHANNEL_PAT = (
+    r'<a[^>]+href="[^"]*youtube\.com/channel/(UC[A-Za-z0-9_-]{22})"[^>]*>([^<]*)</a>'
 )
 # Takeout separates the time from AM/PM with a narrow no-break space, which
 # arrives as a character in some exports and as an HTML entity in others; both
 # count as a gap here so a real export's dates are not silently dropped.
 _GAP = r"(?:\s|&(?:nbsp|#160|#8239|#x202[fF]);)"
-_WHEN = re.compile(
+_WHEN_PAT = (
     rf"([A-Z][a-z]{{2}}){_GAP}+(\d{{1,2}}),{_GAP}*(\d{{4}}),?{_GAP}*"
-    rf"(\d{{1,2}}):(\d{{2}}):(\d{{2}}){_GAP}*([AP]M)?",
-    re.IGNORECASE,
+    rf"(\d{{1,2}}):(\d{{2}}):(\d{{2}}){_GAP}*([AP]M)?"
 )
+_ENTRY = re.compile(_ENTRY_PAT)
+_ENTRY_B = re.compile(_ENTRY_PAT.encode())
+_CHANNEL = re.compile(_CHANNEL_PAT, re.IGNORECASE)
+_CHANNEL_B = re.compile(_CHANNEL_PAT.encode(), re.IGNORECASE)
+_WHEN = re.compile(_WHEN_PAT, re.IGNORECASE)
+_WHEN_B = re.compile(_WHEN_PAT.encode(), re.IGNORECASE)
 _MONTHS = {m: i for i, m in enumerate(
     ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), start=1
 )}
 
 
-def _channel_title(raw: str) -> str:
-    return html_mod.unescape(" ".join(raw.split()))[:MAX_CHANNEL_TITLE]
+def _text(raw: str | bytes) -> str:
+    """One matched group as text. Only ever called on a group, never on a file."""
+    return raw.decode("utf-8", errors="replace") if isinstance(raw, (bytes, bytearray)) else raw
 
 
-def _when(block: str) -> tuple[str, int] | None:
+def _channel_title(raw: str | bytes) -> str:
+    return html_mod.unescape(" ".join(_text(raw).split()))[:MAX_CHANNEL_TITLE]
+
+
+def _entries(data: bytes) -> Iterator[bytes]:
+    """Each `outer-cell` block, as a slice of `data` taken only when it is needed.
+
+    The list a `split` returns is a second copy of the whole file; a heavy
+    export made that copy tens of megabytes on a 512 MB instance. Here one
+    block exists at a time and the caller drops it before the next.
+    """
+    start = -1
+    for m in _ENTRY_B.finditer(data):
+        if start >= 0:
+            yield data[start:m.start()]
+        start = m.start()
+    if start >= 0:
+        yield data[start:]
+
+
+def _when(block: str | bytes) -> tuple[str, int] | None:
     """`(YYYY-MM-DD, hour)` from an entry, or None when the date is not English.
 
     Google localises the timestamp, so a non-English export contributes its
     counts without a date rather than a guessed one. Half the truth beats a
     plausible invention on a screen a parent is going to make a decision from.
     """
-    m = _WHEN.search(block)
+    m = (_WHEN_B if isinstance(block, (bytes, bytearray)) else _WHEN).search(block)
     if m is None:
         return None
-    month = _MONTHS.get(m.group(1).lower())
+    month = _MONTHS.get(_text(m.group(1)).lower())
     if month is None:
         return None
-    day, year = int(m.group(2)), int(m.group(3))
-    hour = int(m.group(4)) % 24
-    ampm = (m.group(7) or "").upper()
+    day, year = int(_text(m.group(2))), int(_text(m.group(3)))
+    hour = int(_text(m.group(4))) % 24
+    ampm = _text(m.group(7) or "").upper()
     if ampm == "PM" and hour < 12:
         hour += 12
     elif ampm == "AM" and hour == 12:
@@ -104,8 +137,13 @@ def _when(block: str) -> tuple[str, int] | None:
 
 
 def parse_watch_history(raw: str | bytes, max_entries: int = MAX_ENTRIES) -> HistoryAggregate:
-    """One `watch-history.html` -> counts. Nothing else survives this function."""
-    text = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
+    """One `watch-history.html` -> counts. Nothing else survives this function.
+
+    Read where it lies: the file is walked entry by entry as bytes rather than
+    decoded whole and split into a list, both of which are another copy of a
+    file that routinely runs to tens of megabytes.
+    """
+    data = raw if isinstance(raw, (bytes, bytearray)) else raw.encode()
     videos = 0
     attributed = 0
     by_hour = [0] * 24
@@ -114,17 +152,17 @@ def parse_watch_history(raw: str | bytes, max_entries: int = MAX_ENTRIES) -> His
     first: str | None = None
     last: str | None = None
 
-    for block in _ENTRY.split(text)[1:]:  # [0] is the page header, not an entry
+    for block in _entries(data):
         if videos >= max_entries:
             log.warning("watch history truncated at %d entries", max_entries)
             break
-        channel = _CHANNEL.search(block)
+        channel = _CHANNEL_B.search(block)
         when = _when(block)
         if channel is None and when is None:
             continue  # a layout div, not a watched video
         videos += 1
         if channel is not None:
-            channel_id = channel.group(1)
+            channel_id = _text(channel.group(1))
             counts[channel_id] += 1
             titles.setdefault(channel_id, _channel_title(channel.group(2)) or channel_id)
             attributed += 1

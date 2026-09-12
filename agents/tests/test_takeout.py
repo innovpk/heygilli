@@ -6,6 +6,7 @@ Takeout layout. The user's own export is never copied into the repo.
 from __future__ import annotations
 
 import io
+import tempfile
 import zipfile
 
 import pytest
@@ -189,6 +190,27 @@ def test_absolute_member_path_is_refused() -> None:
 def test_oversize_upload_is_refused_before_it_is_parsed() -> None:
     with pytest.raises(TakeoutError, match="the limit is"):
         parse_takeout_zip(b"x" * (MAX_ZIP_BYTES + 1))
+
+
+def test_a_spooled_upload_reads_the_same_as_bytes_and_is_refused_the_same() -> None:
+    """The gateway spools the upload to a temporary file and hands that over,
+    rather than the bytes: wrapping bytes in a `BytesIO` is one more copy of
+    the largest thing the service ever holds. Both must behave identically."""
+    data = takeout_zip()
+    with tempfile.SpooledTemporaryFile(max_size=16) as spooled:
+        spooled.write(data)
+        spooled.seek(0)
+        assert parse_takeout_zip(spooled).model_dump() == parse_takeout_zip(data).model_dump()
+
+    with tempfile.SpooledTemporaryFile(max_size=16) as spooled:
+        spooled.write(b"x" * (MAX_ZIP_BYTES + 1))
+        spooled.seek(0)
+        with pytest.raises(TakeoutError, match="the limit is"):
+            parse_takeout_zip(spooled)
+
+    with tempfile.SpooledTemporaryFile(max_size=16) as empty, \
+            pytest.raises(TakeoutError, match="empty"):
+        parse_takeout_zip(empty)
 
 
 def test_too_many_entries_is_refused() -> None:

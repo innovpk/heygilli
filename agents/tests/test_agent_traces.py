@@ -5,6 +5,8 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.trace import SpanContext, TraceFlags
 
 from heygilli_agents import agent_audit, gateway, guardrails, tracing
 from heygilli_agents.fake_model import FakeModel
@@ -69,6 +71,67 @@ def test_the_request_says_whose_calls_these_are(client: TestClient, parent: dict
         seen.append(tracing.current()), gateway.playmate.PlayTurn(game="find", round=0, done=True))[1])
     client.post(f"/kids/{kid['id']}/play", json={"game": "find"}, headers=parent["headers"])
     assert seen == [(parent["hid"], kid["id"])]
+
+
+# --- what a trace costs while it waits for its root ---------------------------------------------------
+
+
+def span(trace_id: int, name: str = "child", text: str = "", start: int = 1) -> ReadableSpan:
+    return ReadableSpan(
+        name=name,
+        context=SpanContext(trace_id, 2, False, TraceFlags(1)),
+        attributes={"prompt": text},
+        start_time=start,
+        end_time=start + 1,
+    )
+
+
+class TestSpansAreNotHeldWhole:
+    """A trace is only released when its root ends, so whatever is held is
+    resident for the length of the call. A model-call span carries the whole
+    prompt, and a Curator prompt is a transcript: holding the spans themselves
+    is how a 512 MB instance ran out of memory."""
+
+    def test_what_is_held_is_already_clipped_and_already_redacted(self) -> None:
+        exporter = tracing.StoreSpanExporter()
+        exporter.export([span(0xA1, text='child said: "a secret" ' + "x" * 50_000)])
+
+        [held] = exporter._open[0xA1][1]
+        prompt = held["attributes"]["prompt"]
+        assert len(prompt) <= tracing.MAX_STR + 1  # the clip adds an ellipsis
+        assert "a secret" not in prompt and "[not kept]" in prompt
+
+    def test_one_trace_holds_no_more_spans_than_it_can_store(self) -> None:
+        exporter = tracing.StoreSpanExporter()
+        exporter.export([span(0xA2, name=f"s{i}") for i in range(tracing.MAX_SPANS + 40)])
+
+        assert len(exporter._open[0xA2][1]) == tracing.MAX_SPANS
+
+    def test_a_trace_whose_root_never_ends_is_dropped_rather_than_held(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Every release is the root ending. A span tree that never reaches one
+        — an agent invoked outside `structured()`, a call killed mid-flight —
+        would otherwise sit there until 200 more traces pushed it out."""
+        exporter = tracing.StoreSpanExporter()
+        clock = [1000.0]
+        monkeypatch.setattr(tracing.time, "monotonic", lambda: clock[0])
+        exporter.export([span(0xA3)])
+        assert 0xA3 in exporter._open
+
+        clock[0] += tracing.MAX_OPEN_AGE_S + 1
+        exporter.export([span(0xA4)])
+
+        assert 0xA3 not in exporter._open and 0xA4 in exporter._open
+
+    def test_a_trace_still_being_written_to_is_not_dropped_under_the_cap(self) -> None:
+        exporter = tracing.StoreSpanExporter()
+        for i in range(tracing.MAX_OPEN + 10):
+            exporter.export([span(0xB000 + i)])
+            exporter.export([span(0xA5, name=f"s{i}")])  # kept warm by its own spans
+
+        assert len(exporter._open) <= tracing.MAX_OPEN
+        assert 0xA5 in exporter._open
 
 
 # --- report -------------------------------------------------------------------------------------------

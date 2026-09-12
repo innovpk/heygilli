@@ -15,9 +15,10 @@ import hmac
 import logging
 import os
 import re
+import tempfile
 import time
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import IO, Annotated, Literal
 
 from dotenv import load_dotenv
 from fastapi import (
@@ -141,6 +142,7 @@ ANSWER_GRACE_MS = 1500  # PROTOCOL: listen_ms + 1500 ms -> input "none"
 #: How many times a child may ask to hear one question again. SPEC §7.4:
 #: "Never repeat a question more than once, in any band."
 MAX_REPEATS = 1
+SPOOL_TO_DISK_BYTES = 2 * 1024 * 1024  # a Takeout upload past this is written out, not held
 PREREADER_ECHO_WAIT_S = 3.0  # SPEC §7.4: "Can you say giraffe?" then 3 s, then resume regardless
 
 app = FastAPI(title="HeyGilli gateway", version="1.0")
@@ -932,9 +934,16 @@ def remove_channel(kid_id: str, channel_id: str, hid: str = Depends(household)) 
 # --- Takeout import (PROTOCOL.md "Takeout import: the children's own profiles") -------------------
 
 
-async def _read_capped(file: UploadFile, limit: int) -> bytes:
-    """Read the upload, refusing anything past `limit` instead of buffering it all."""
-    chunks: list[bytes] = []
+async def _spool_capped(file: UploadFile, into: IO[bytes], limit: int) -> None:
+    """Spool the upload into `into`, refusing anything past `limit` instead of buffering it all.
+
+    `into` is a spooled temporary file the caller owns: a megabyte or so stays
+    in memory, which covers every real upload, because the client strips the
+    export down to its subscription CSVs before sending it. Anything bigger —
+    the opt-in watch history — goes to disk, so the zip is read from there
+    rather than held whole, and held a second time by the copy the zip reader
+    used to be handed.
+    """
     total = 0
     while chunk := await file.read(1024 * 1024):
         total += len(chunk)
@@ -943,8 +952,8 @@ async def _read_capped(file: UploadFile, limit: int) -> bytes:
                 413, f"the file is larger than {limit // (1024 * 1024)} MB. In Takeout, export "
                      "only 'YouTube and YouTube Music'."
             )
-        chunks.append(chunk)
-    return b"".join(chunks)
+        into.write(chunk)
+    into.seek(0)
 
 
 @app.post("/import/takeout")
@@ -967,14 +976,17 @@ async def import_takeout(
     one aggregate per profile, waiting for the parent to say which kid it
     belongs to. Nothing about the zip survives this request otherwise.
     """
-    data = await _read_capped(file, MAX_ZIP_BYTES)
-    try:
-        if include_history:
-            preview, histories = await asyncio.to_thread(parse_takeout_zip_with_history, data)
-        else:
-            preview, histories = await asyncio.to_thread(parse_takeout_zip, data), {}
-    except TakeoutError as e:
-        raise HTTPException(400, str(e)) from e
+    # The temporary file goes when the block does, and nothing about the zip
+    # outlives it: what is returned is counts and channel ids.
+    with tempfile.SpooledTemporaryFile(max_size=SPOOL_TO_DISK_BYTES) as data:
+        await _spool_capped(file, data, MAX_ZIP_BYTES)
+        try:
+            if include_history:
+                preview, histories = await asyncio.to_thread(parse_takeout_zip_with_history, data)
+            else:
+                preview, histories = await asyncio.to_thread(parse_takeout_zip, data), {}
+        except TakeoutError as e:
+            raise HTTPException(400, str(e)) from e
 
     store = get_store()
     for profile, aggregate in histories.items():

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import json
+import tracemalloc
 import zipfile
 from typing import Any
 
@@ -131,6 +132,35 @@ class TestOneFileBecomesCounts:
         many = [entry("t", "v", ID_A, "Sprout Science", "Sep 4, 2026, 4:12:33 PM PKT")] * 10
         agg = history.parse_watch_history(watch_history_html(many), max_entries=4)
         assert agg.videos == 4
+
+
+    def test_the_same_file_reads_the_same_as_bytes_or_as_text(self) -> None:
+        """The file arrives from the zip as bytes and is read as bytes. A test
+        that passes a string must be reading the same history the gateway does."""
+        html = watch_history_html()
+        as_text = history.parse_watch_history(html)
+        as_bytes = history.parse_watch_history(html.encode())
+
+        assert as_bytes.model_dump() == as_text.model_dump()
+
+    def test_reading_a_big_file_does_not_cost_another_copy_of_it(self) -> None:
+        """A real watch history is tens of megabytes and the instance has 512.
+        Decoding the whole file and splitting it into a list of blocks cost two
+        more copies of it, the first of them double size for a non-Latin
+        export; that is what took the gateway over its memory limit. What the
+        parse allocates now is one entry at a time."""
+        one = entry("t", "v1", ID_A, "القناة العربية", "Sep 4, 2026, 4:12:33 PM PKT")
+        raw = watch_history_html([one] * 4000).encode()
+
+        tracemalloc.start()
+        try:
+            agg = history.parse_watch_history(raw)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        assert agg.videos == 4000
+        assert peak < len(raw) // 4, f"{peak} bytes for a {len(raw)} byte file"
 
 
 # --- the zip ------------------------------------------------------------------
