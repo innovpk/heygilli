@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +26,11 @@ import 'question_widgets.dart';
 ///    "Rather not", and that routes a video to their inbox. The card says so
 ///    under the button, where they are deciding.
 class PolicyScreen extends StatefulWidget {
+  /// Picking an answer turns the page by itself. Long enough to see the tile
+  /// light up and read what the answer does; short enough that Next is not
+  /// missed.
+  static const advanceAfter = Duration(milliseconds: 700);
+
   const PolicyScreen({super.key, required this.kid, this.setup = false});
 
   final Kid kid;
@@ -70,6 +77,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   @override
   void dispose() {
+    _advance?.cancel();
     _notes.dispose();
     super.dispose();
   }
@@ -155,15 +163,34 @@ class _PolicyScreenState extends State<PolicyScreen> {
   /// question is the page for the parent's own words.
   int _step = 0;
 
-  void _choose(PolicyQuestion q, PolicyChoice c) => setState(() {
-    // Tapping the choice again clears it: a parent who answered by accident
-    // can get back to unanswered, which is a different thing from "fine".
-    if (_choices[q.id] == c) {
-      _choices.remove(q.id);
-    } else {
-      _choices[q.id] = c;
-    }
-  });
+  Timer? _advance;
+
+  void _go(int step) {
+    _advance?.cancel();
+    _advance = null;
+    setState(() => _step = step);
+  }
+
+  void _choose(PolicyQuestion q, PolicyChoice c, int step) {
+    _advance?.cancel();
+    _advance = null;
+    setState(() {
+      // Tapping the choice again clears it: a parent who answered by accident
+      // can get back to unanswered, which is a different thing from "fine".
+      if (_choices[q.id] == c) {
+        _choices.remove(q.id);
+      } else {
+        _choices[q.id] = c;
+      }
+    });
+    if (_choices[q.id] == null) return;
+    // One choice is the whole answer, so it turns the page. Only if the
+    // parent is still on it: Back or Next in the meantime wins.
+    _advance = Timer(PolicyScreen.advanceAfter, () {
+      _advance = null;
+      if (mounted && _step == step) setState(() => _step = step + 1);
+    });
+  }
 
   /// Setup asks one question to a page. As a list of cards it was a wall a
   /// parent scrolled past; one at a time, each is a thing to decide, and
@@ -184,7 +211,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
       // answer being corrected does not cost the others.
       canPop: step == 0,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && step > 0) setState(() => _step = step - 1);
+        if (!didPop && step > 0) _go(step - 1);
       },
       child: Column(
         children: [
@@ -207,7 +234,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                             AnswerTile(
                               label: option.label,
                               chosen: chosen == option,
-                              onTap: _saving ? null : () => _choose(q, option),
+                              onTap: _saving
+                                  ? null
+                                  : () => _choose(q, option, step),
                             ),
                         ],
                       ),
@@ -239,7 +268,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
           QuestionBottomBar(
             error: _error,
             showBack: step > 0,
-            onBack: _saving ? null : () => setState(() => _step = step - 1),
+            onBack: _saving ? null : () => _go(step - 1),
+            // An answered page has already turned by itself; Next is for the
+            // parent who came Back to check one and is happy with it.
             label: last
                 ? 'Save and go on'
                 : chosen == null
@@ -250,7 +281,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                 // Nothing answered is still an answer, so the last page goes
                 // on either way; it only saves when there is something to.
                 ? (_dirty ? _save : () => Navigator.of(context).pop(true))
-                : () => setState(() => _step = step + 1),
+                : () => _go(step + 1),
             footnote: "All of this can be changed later from $name's page.",
           ),
         ],

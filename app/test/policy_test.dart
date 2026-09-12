@@ -263,9 +263,25 @@ void main() {
       expect(find.text(questions.first.why), findsOneWidget);
       expect(find.text('Skip this one'), findsOneWidget);
 
+      // One tap is the whole answer: the page turns by itself, after a
+      // beat long enough to see what was picked.
       await tester.tap(find.text('Fine'));
       await tester.pump();
+      expect(find.text(questions.first.question), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
+      await tester.pump(PolicyScreen.advanceAfter);
+      expect(find.text(questions[1].question), findsOneWidget);
+    });
+
+    testWidgets('clearing an answer keeps the page', (tester) async {
+      await openSetup(tester);
+
+      await tester.tap(find.text('Fine'));
+      await tester.pump();
+      await tester.tap(find.text('Fine'));
+      await tester.pump(PolicyScreen.advanceAfter);
+      expect(find.text(questions.first.question), findsOneWidget);
+      expect(find.text('Skip this one'), findsOneWidget);
     });
 
     testWidgets('a skipped question is saved as no answer at all', (
@@ -274,8 +290,7 @@ void main() {
       await openSetup(tester);
 
       await tester.tap(find.text('Rather not'));
-      await tester.pump();
-      await next(tester, 'Next');
+      await tester.pump(PolicyScreen.advanceAfter);
       for (var i = 1; i < questions.length; i++) {
         await next(tester, 'Skip this one');
       }
@@ -300,7 +315,8 @@ void main() {
       // The strongest answer still leaves the decision with the parent, and
       // the page says so where they are deciding.
       expect(find.textContaining('come to your inbox'), findsOneWidget);
-      await next(tester, 'Next');
+      await tester.pump(PolicyScreen.advanceAfter);
+      expect(find.text(questions[1].question), findsOneWidget);
       await next(tester, 'Back');
 
       expect(find.text(questions.first.question), findsOneWidget);
