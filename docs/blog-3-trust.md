@@ -1,6 +1,6 @@
 # Agents for Humans: building HeyGilli, part 3 — making the agents trustworthy
 
-Part 1 was the idea and part 2 the eight Strands agents. This last part answers the question every parent asks first: how do you know it won't say something it shouldn't?
+[Part 1](https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements) was the idea and [part 2](https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands) the eight Strands agents. This last part answers the question every parent asks first: how do you know it won't say something it shouldn't?
 
 A prompt that says "never say *wrong*" is a request, not a guarantee. What we built catches a bad answer before a child hears it, shows a parent the whole story afterwards, and fixes what was already done.
 
@@ -10,6 +10,7 @@ All eight agents reach the model through one function, `structured()`. The live 
 
 ```python
 def structured(agent, prompt, output_model, *, context=None):
+    role = agent.name.removeprefix("heygilli-")
     # (tracing and the audit record left out)
     out = _invoke(agent, prompt, output_model)          # Strands structured output
     blocked = guardrails.blocking(guardrails.check(output_model.__name__, out, context))
@@ -59,9 +60,9 @@ except Exception as e:  # provider SDK, network, throttling, access
 
 ## An eval before any provider is trusted
 
-The eval runs three real transcripts against three sets of question rules in two languages, which makes 18 cells. A cell passes only when the final plan is clean *and* came from the model rather than the fallback. That's where part 2's numbers come from: 0/18, 0/18 and 16/18. Underneath, 685 backend tests run offline on a fake model, because the rules they test live in code.
+The eval runs three real transcripts against three sets of question rules in two languages, which makes 18 cells. A cell passes only when the final plan is clean *and* came from the model rather than the fallback. That's where part 2's numbers come from: 0/18, 0/18 and 16/18. Underneath, 723 backend tests run offline on a fake model (alongside 638 Flutter client tests), because the rules they test live in code.
 
-![HeyGilli end to end: the apps, the gateway, eight Strands agents, and what runs on AWS](architecture.png)
+![HeyGilli end to end: the apps, the gateway, eight Strands agents, and what runs on AWS](blog/architecture.png)
 
 ## What runs on AWS
 
@@ -79,4 +80,6 @@ The eval runs three real transcripts against three sets of question rules in two
 
 That completes the series.
 
-Code: https://github.com/mujahidmasood/heygilli. MIT.
+Try the screening (no sign-up): https://heygilli.com/try  
+Live web app: https://heygilli.com/app  
+Code: https://github.com/mujahidmasood/heygilli (MIT)
