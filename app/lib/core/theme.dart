@@ -147,9 +147,34 @@ ThemeData buildTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: HgColors.mango,
         foregroundColor: HgColors.white,
+        disabledBackgroundColor: HgColors.line,
+        disabledForegroundColor: HgColors.brown,
         textStyle: HgText.body(size: 16, color: HgColors.white),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         shape: const StadiumBorder(),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: HgColors.ink,
+        disabledForegroundColor: HgColors.brown,
+        side: const BorderSide(color: HgColors.line, width: 1.5),
+        textStyle: HgText.body(size: 14, color: HgColors.ink),
+        shape: const StadiumBorder(),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        foregroundColor: HgColors.ink,
+        selectedForegroundColor: HgColors.ink,
+        selectedBackgroundColor: const Color(0xFFB6D8D0),
+        backgroundColor: Colors.transparent,
+        side: const BorderSide(color: HgColors.line, width: 1.5),
+        textStyle: HgText.body(
+          size: 14,
+          color: HgColors.ink,
+          weight: FontWeight.w700,
+        ),
       ),
     ),
     // The parent tab bar sits on paper. The selected destination takes an ink

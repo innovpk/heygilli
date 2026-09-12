@@ -240,9 +240,41 @@ class _FirmRow extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Break carries on')),
-              ButtonSegment(value: false, label: Text('Video comes back')),
+            style: SegmentedButton.styleFrom(
+              foregroundColor: HgColors.ink,
+              selectedForegroundColor: HgColors.ink,
+              selectedBackgroundColor: const Color(0xFFB6D8D0),
+              backgroundColor: HgColors.white,
+              side: const BorderSide(color: HgColors.line, width: 1.5),
+              textStyle: HgText.body(
+                size: 14,
+                color: HgColors.ink,
+                weight: FontWeight.w700,
+              ),
+            ),
+            segments: [
+              ButtonSegment(
+                value: true,
+                label: Text(
+                  'Break carries on',
+                  style: HgText.body(
+                    size: 14,
+                    color: HgColors.ink,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              ButtonSegment(
+                value: false,
+                label: Text(
+                  'Video comes back',
+                  style: HgText.body(
+                    size: 14,
+                    color: HgColors.ink,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
             selected: {isFirm},
             showSelectedIcon: false,
@@ -498,9 +530,41 @@ class _SearchRow extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('No search')),
-              ButtonSegment(value: true, label: Text('Search')),
+            style: SegmentedButton.styleFrom(
+              foregroundColor: HgColors.ink,
+              selectedForegroundColor: HgColors.ink,
+              selectedBackgroundColor: const Color(0xFFB6D8D0),
+              backgroundColor: HgColors.white,
+              side: const BorderSide(color: HgColors.line, width: 1.5),
+              textStyle: HgText.body(
+                size: 14,
+                color: HgColors.ink,
+                weight: FontWeight.w700,
+              ),
+            ),
+            segments: [
+              ButtonSegment(
+                value: false,
+                label: Text(
+                  'No search',
+                  style: HgText.body(
+                    size: 14,
+                    color: HgColors.ink,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text(
+                  'Search',
+                  style: HgText.body(
+                    size: 14,
+                    color: HgColors.ink,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
             selected: {enabled},
             showSelectedIcon: false,

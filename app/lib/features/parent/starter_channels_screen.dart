@@ -199,7 +199,17 @@ class _StarterChannelsScreenState extends State<StarterChannelsScreen> {
                   height: 52,
                   child: FilledButton(
                     onPressed: _searching ? null : _search,
-                    child: Text(_searching ? '…' : 'Search'),
+                    style: FilledButton.styleFrom(
+                      disabledBackgroundColor: HgColors.line,
+                      disabledForegroundColor: HgColors.brown,
+                    ),
+                    child: Text(
+                      _searching ? '…' : 'Search',
+                      style: HgText.body(
+                        size: 16,
+                        color: _searching ? HgColors.brown : HgColors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],

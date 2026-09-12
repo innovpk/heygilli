@@ -482,30 +482,61 @@ class _Answer extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 116,
-    height: 38,
-    child: filled
-        ? FilledButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 18),
-            label: Text(label, style: HgText.body(size: 14)),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return SizedBox(
+      width: 116,
+      height: 38,
+      child: filled
+          ? FilledButton.icon(
+              onPressed: onPressed,
+              icon: Icon(
+                icon,
+                size: 18,
+                color: enabled ? HgColors.white : HgColors.brown,
+              ),
+              label: Text(
+                label,
+                style: HgText.body(
+                  size: 14,
+                  color: enabled ? HgColors.white : HgColors.brown,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: HgColors.mango,
+                foregroundColor: HgColors.white,
+                disabledBackgroundColor: HgColors.line,
+                disabledForegroundColor: HgColors.brown,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            )
+          : OutlinedButton.icon(
+              onPressed: onPressed,
+              icon: Icon(
+                icon,
+                size: 18,
+                color: enabled ? HgColors.coral : HgColors.brown,
+              ),
+              label: Text(
+                label,
+                style: HgText.body(
+                  size: 14,
+                  color: enabled ? HgColors.coral : HgColors.brown,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: HgColors.coral,
+                disabledForegroundColor: HgColors.brown,
+                side: BorderSide(
+                  color: enabled ? HgColors.coral : HgColors.line,
+                  width: 1.5,
+                ),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
             ),
-          )
-        : OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 18),
-            label: Text(label, style: HgText.body(size: 14)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: HgColors.coral,
-              side: const BorderSide(color: HgColors.coral, width: 1.5),
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-          ),
-  );
+    );
+  }
 }
 
 /// Whose questions to show. A count on each, so a parent can see at a glance
