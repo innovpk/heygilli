@@ -8,13 +8,33 @@ enum PlayGame {
   findGilli('find'),
 
   /// He pops up here and there; the child taps him before he ducks away.
-  catchGilli('catch');
+  catchGilli('catch'),
+
+  /// Find a letter, or the word that starts with one.
+  abc('abc'),
+
+  /// Counting for the little ones; adding, taking away, times and sharing
+  /// for the older ones.
+  sums('sums'),
+
+  /// Gilli gives a clue; the child picks the animal.
+  guessAnimal('guess'),
+
+  /// Find the named animal in a crowd of them.
+  spotAnimal('spot');
 
   const PlayGame(this.wire);
   final String wire;
 
   static PlayGame fromWire(String? s) =>
       PlayGame.values.where((g) => g.wire == s).firstOrNull ?? findGilli;
+
+  /// The card games: the device writes the question itself from the level
+  /// and the band, and reports each round as one try or several.
+  bool get isQuiz => switch (this) {
+    findGilli || catchGilli => false,
+    abc || sums || guessAnimal || spotAnimal => true,
+  };
 }
 
 /// Rounds in one game, and times Gilli pops up in one round of "Catch".
@@ -113,9 +133,24 @@ class PlayTurn {
     }
     final level = _ruleLevel(game, rounds);
     final lines = rounds.isEmpty
-        ? (game == PlayGame.findGilli ? _findStart : _catchStart)
-        : (_struggled(rounds.last, game) ? _afterMiss : _afterWin);
+        ? (game.isQuiz
+              ? _quizStart[game]!
+              : game == PlayGame.findGilli
+              ? _findStart
+              : _catchStart)
+        : (_struggled(rounds.last, game)
+              ? (game.isQuiz ? _quizMiss : _afterMiss)
+              : (game.isQuiz ? _quizWin : _afterWin));
     final line = lines[r.nextInt(lines.length)];
+    if (game.isQuiz) {
+      return PlayTurn(
+        game: game,
+        round: rounds.length + 1,
+        level: level,
+        line: line,
+        roundsLeftToday: roundsLeftToday - 1,
+      );
+    }
     if (game == PlayGame.findGilli) {
       final trees = min(_treesByLevel[level]!, _maxTrees[band]!);
       return PlayTurn(
@@ -205,11 +240,34 @@ const _afterMiss = [
   'I was so sneaky! One more go.',
   'Hee hee, I was hiding well. Try again!',
 ];
+const _quizStart = {
+  PlayGame.abc: ['Letters! Ready?', 'Let us play with letters!'],
+  PlayGame.sums: ['Number time! Let us count.', 'I love numbers. Ready?'],
+  PlayGame.guessAnimal: ['Who am I? Listen to my clue.', 'Guess the animal!'],
+  PlayGame.spotAnimal: [
+    'So many animals! Find the right one.',
+    'Eyes sharp! Find the one I say.',
+  ],
+};
+const _quizWin = [
+  'You got it! Next one.',
+  'Yes! That is the one. Again?',
+  'Clever! Here comes another.',
+];
+const _quizMiss = [
+  'Tricky one! Let us try another.',
+  'Nearly! Here is a new one.',
+];
 
-bool _struggled(PlayRound r, PlayGame game) =>
-    game == PlayGame.findGilli ? (!r.won || r.taps >= 4) : r.caught <= 2;
+bool _struggled(PlayRound r, PlayGame game) => game.isQuiz
+    ? (!r.won || r.taps >= 3)
+    : game == PlayGame.findGilli
+    ? (!r.won || r.taps >= 4)
+    : r.caught <= 2;
 
-bool _breezed(PlayRound r, PlayGame game) => game == PlayGame.findGilli
+bool _breezed(PlayRound r, PlayGame game) => game.isQuiz
+    ? (r.won && r.taps <= 1)
+    : game == PlayGame.findGilli
     ? (r.won && r.taps <= 1)
     : r.caught >= popsPerRound - 1;
 

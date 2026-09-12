@@ -202,3 +202,29 @@ def test_no_games_once_the_day_is_spent(client: TestClient, auth: dict, child: d
 def test_a_bad_round_report_is_refused(client: TestClient, auth: dict, child: dict) -> None:
     r = client.post(f"/kids/{child['id']}/play", json={"game": "find", "rounds": [{"round": 9}]}, headers=auth)
     assert r.status_code == 422
+
+
+# --- the card games: letters, sums, guess, spot -------------------------------------------------
+
+
+def test_card_games_get_a_level_and_a_line_and_nothing_to_hide_behind() -> None:
+    import random
+
+    kid = Kid(household_id="hh", nickname="Zara", age=8)
+    for game in playmate.QUIZ_GAMES:
+        turn = playmate.next_turn(kid, playmate.PlayIn(game=game, rounds=[]), 40,
+                                 rng=random.Random(1))
+        assert turn.game == game and turn.round == 1 and turn.level == 1
+        assert turn.line and playmate.check_line(turn.line, "7_8") is None
+        assert turn.trees == 0 and turn.pops == 0, "card games carry no meadow"
+
+
+def test_a_card_game_goes_up_after_a_first_try_and_down_after_a_struggle() -> None:
+    won_first = [playmate.PlayRound(round=1, won=True, taps=1, level=2)]
+    assert playmate.rule_level("abc", won_first) == 3
+    three_tries = [playmate.PlayRound(round=1, won=True, taps=3, level=2)]
+    assert playmate.rule_level("sums", three_tries) == 1
+    two_tries = [playmate.PlayRound(round=1, won=True, taps=2, level=2)]
+    assert playmate.rule_level("guess", two_tries) == 2
+    assert "sneaky" in playmate.rule_line("spot", three_tries, "en", 3) or "Tricky" in playmate.rule_line(
+        "spot", three_tries, "en", 3) or "Nearly" in playmate.rule_line("spot", three_tries, "en", 3)

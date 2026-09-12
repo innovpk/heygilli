@@ -234,7 +234,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 200));
       }
       expect(find.byKey(const Key('game-find')), findsOneWidget);
-      expect(find.byType(Text), findsNothing);
+      // No labels. The letter and number tiles draw single characters as
+      // their picture, which is not a word a pre-reader is asked to read.
+      final words = tester
+          .widgetList<Text>(find.byType(Text))
+          .where((t) => (t.data ?? '').length > 1);
+      expect(words, isEmpty, reason: words.map((t) => t.data).join(', '));
     });
 
     testWidgets('find: the right tree shows him and brings the next round', (

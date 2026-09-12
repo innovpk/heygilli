@@ -35,7 +35,11 @@ from .tools.screening import BLOCK_WORDS
 
 log = logging.getLogger(__name__)
 
-GameKind = Literal["find", "catch"]
+#: "find" and "catch" are Gilli's own; the rest are card games the device
+#: builds for itself — letters, sums, an animal from a clue, an animal in a
+#: crowd — where the gateway's part is the level, the line and the day's count.
+GameKind = Literal["find", "catch", "abc", "sums", "guess", "spot"]
+QUIZ_GAMES = ("abc", "sums", "guess", "spot")
 
 ROUNDS_PER_GAME = 5
 ROUNDS_PER_DAY = 40  # eight games; a pause between videos, not an afternoon
@@ -55,8 +59,13 @@ MIN_SHOW_MS = {"4_6": 1600, "7_8": 1100, "9_11": 850}
 MAX_WORDS = {"4_6": 10, "7_8": 16, "9_11": 18}
 
 PLAYMATE_SYSTEM_PROMPT = f"""You are Gilli, a cheeky, warm palm squirrel playing a quick game with a
-child. The game is either "find" (Gilli hides behind one of some trees and the child taps trees to find
-him) or "catch" (Gilli pops up in random places and the child taps him before he ducks away).
+child. The game is one of: "find" (Gilli hides behind one of some trees and the child taps trees to
+find him), "catch" (Gilli pops up in random places and the child taps him before he ducks away),
+"abc" (find a letter, or the word that starts with one), "sums" (counting for the little ones, adding
+and taking away, then times and sharing for the older ones), "guess" (Gilli gives a clue and the
+child picks the animal), "spot" (find the named animal among many). In the card games a "tap" is one
+try at the answer, and Gilli is the one asking, delighted when they get it and cheerfully sneaky
+when they do not.
 
 You are given the child's age band, the language, the round about to start, and how the last rounds went.
 Decide two things:
@@ -130,12 +139,16 @@ def language_of(kid: Kid) -> str:
 
 
 def _struggled(r: PlayRound, game: GameKind) -> bool:
+    if game in QUIZ_GAMES:
+        return not r.won or r.taps >= 3
     if game == "find":
         return not r.won or r.taps >= 4
     return r.caught <= 2
 
 
 def _breezed(r: PlayRound, game: GameKind) -> bool:
+    if game in QUIZ_GAMES:
+        return r.won and r.taps <= 1
     if game == "find":
         return r.won and r.taps <= 1
     return r.caught >= POPS_PER_ROUND - 1
@@ -177,6 +190,26 @@ _CATCH_START = {
     "en": ["Catch me if you can!", "I am quick today. Try and catch me!", "Here I come, zoom zoom!"],
     "ur": ["پکڑ سکو تو پکڑو!", "میں آ رہا ہوں، جلدی!"],
 }
+_QUIZ_START = {
+    "abc": {"en": ["Letters! Ready?", "Let us play with letters!", "Which one is it? Look closely."],
+            "ur": ["حروف کا کھیل! تیار؟"]},
+    "sums": {"en": ["Number time! Let us count.", "I love numbers. Ready?", "Here comes a sum!"],
+             "ur": ["گنتی کا وقت! تیار؟"]},
+    "guess": {"en": ["Who am I? Listen to my clue.", "Guess the animal! Here is a clue.",
+                     "I am thinking of an animal..."],
+              "ur": ["بوجھو تو جانو! میں کون ہوں؟"]},
+    "spot": {"en": ["So many animals! Find the right one.", "Can you spot it? Look carefully.",
+                    "Eyes sharp! Find the one I say."],
+             "ur": ["اتنے سارے جانور! ڈھونڈو تو۔"]},
+}
+_QUIZ_WIN = {
+    "en": ["You got it! Next one.", "Yes! That is the one. Again?", "Clever! Here comes another."],
+    "ur": ["بالکل ٹھیک! اگلا؟", "واہ! یہی تھا۔"],
+}
+_QUIZ_MISS = {
+    "en": ["Tricky one! Let us try another.", "Nearly! Here is a new one.", "Hee hee, sneaky. One more?"],
+    "ur": ["مشکل تھا! ایک اور؟", "قریب تھا! نیا سوال۔"],
+}
 _AFTER_WIN = {
     "en": ["You found me! Again, again!", "Got me! I will hide better now.", "Hee hee! You are good at this."],
     "ur": ["تم نے مجھے ڈھونڈ لیا! پھر سے!", "واہ! تم بہت اچھے ہو۔"],
@@ -190,6 +223,10 @@ _AFTER_MISS = {
 def rule_line(game: GameKind, rounds: list[PlayRound], language: str, seed: int) -> str:
     lang = language if language in ("en", "ur") else "en"
     rng = random.Random(seed)
+    if game in QUIZ_GAMES:
+        if not rounds:
+            return rng.choice(_QUIZ_START[game][lang])
+        return rng.choice((_QUIZ_MISS if _struggled(rounds[-1], game) else _QUIZ_WIN)[lang])
     if not rounds:
         return rng.choice((_FIND_START if game == "find" else _CATCH_START)[lang])
     return rng.choice((_AFTER_MISS if _struggled(rounds[-1], game) else _AFTER_WIN)[lang])
@@ -230,6 +267,10 @@ def check_line(line: str, band: AgeBand) -> str | None:
 
 
 def _params(game: GameKind, level: int, band: AgeBand, rng: random.Random) -> dict:
+    if game in QUIZ_GAMES:
+        # The device writes the question itself from the level and the band:
+        # a letter, a sum, an animal. Nothing here to hand it.
+        return {}
     if game == "find":
         trees = min(TREES_BY_LEVEL[level], MAX_TREES.get(band, 6))
         return {
@@ -267,11 +308,15 @@ def next_turn(
     line = rule_line(body.game, body.rounds, language, seed=rng.randrange(1 << 30))
     decided_by: Literal["agent", "rule"] = "rule"
     if agent is not None:
+        def told(r: PlayRound) -> str:
+            if body.game == "find":
+                return f"{'found him' if r.won else 'did not find him'} in {r.taps} taps"
+            if body.game == "catch":
+                return f"caught him {r.caught} of {POPS_PER_ROUND} times"
+            return f"{'got it' if r.won else 'did not get it'} in {r.taps} tries"
+
         history = "\n".join(
-            f"- round {r.round}: level {r.level}, "
-            + (f"{'found him' if r.won else 'did not find him'} in {r.taps} taps" if body.game == "find"
-               else f"caught him {r.caught} of {POPS_PER_ROUND} times")
-            for r in body.rounds
+            f"- round {r.round}: level {r.level}, {told(r)}" for r in body.rounds
         ) or "- none yet, this is the first round"
         prompt = (
             f"game: {body.game}\nage_band: {band}\nlanguage: {language}\n"
