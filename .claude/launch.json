@@ -13,14 +13,35 @@
     {
       "name": "web",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5601", "--directory", "app/build/web"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5601",
+        "--directory",
+        "app/build/web"
+      ],
       "port": 5601
     },
     {
       "name": "web-demo",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5602", "--directory", "app/build/web-demo"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5602",
+        "--directory",
+        "app/build/web-demo"
+      ],
       "port": 5602
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd app && flutter run -d web-server --web-port 5603 --web-hostname 127.0.0.1 --dart-define=HEYGILLI_DEMO=true"
+      ],
+      "port": 5603
     }
   ]
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -65,9 +66,21 @@ class QuizGameState extends State<QuizGame> {
   final _wrong = <int>{};
   bool _got = false;
   int _stars = 0;
+  bool _settling = false;
+  Timer? _settleTimer;
+
+  /// A tap this soon after the cards change is the last round's finger
+  /// still coming down, not an answer to this one.
+  static const settle = Duration(milliseconds: 250);
 
   /// The round on the table, for a test to learn the answer from.
   QuizRound? get round => _round;
+
+  @override
+  void dispose() {
+    _settleTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -95,6 +108,11 @@ class QuizGameState extends State<QuizGame> {
       _taps = 0;
       _wrong.clear();
       _got = false;
+      _settling = true;
+    });
+    _settleTimer?.cancel();
+    _settleTimer = Timer(settle, () {
+      if (mounted) setState(() => _settling = false);
     });
     if (_end != null) {
       sayLater(_coach.say(t));
@@ -115,6 +133,7 @@ class QuizGameState extends State<QuizGame> {
     final t = _turn;
     final r = _round;
     if (t == null || r == null || _got || _wrong.contains(i)) return;
+    if (_settling) return;
     setState(() {
       _taps++;
       if (i != r.correct) {
@@ -194,7 +213,13 @@ class QuizGameState extends State<QuizGame> {
                         r.prompt,
                         key: const Key('quiz-prompt'),
                         style: HgText.display(
-                          size: widget.kid.band == AgeBand.b9to11 ? 22 : 24,
+                          // A sum is a few characters and wants to be big;
+                          // a clue is a sentence and wants to fit.
+                          size: r.prompt.length <= 12
+                              ? 40
+                              : widget.kid.band == AgeBand.b9to11
+                              ? 22
+                              : 24,
                           color: palette.onGround,
                         ),
                       ),
@@ -220,24 +245,33 @@ class QuizGameState extends State<QuizGame> {
         Expanded(
           child: Center(
             child: SingleChildScrollView(
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  for (var i = 0; i < n; i++)
-                    _QuizCardTile(
-                      key: Key('quiz-card-$i'),
-                      card: r.cards[i],
-                      size: size,
-                      icons: icons,
-                      showLabel: readers && widget.game != PlayGame.spotAnimal,
-                      dim: _wrong.contains(i),
-                      wobble:
-                          (hint && i == r.correct) || (_got && i == r.correct),
-                      onTap: _got || _wrong.contains(i) ? null : () => _tap(i),
-                    ),
-                ],
+              // Held to the grid's own width, or a crowd of six sits five
+              // and one instead of three and three.
+              child: SizedBox(
+                width: columns * size + (columns - 1) * 12,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (var i = 0; i < n; i++)
+                      _QuizCardTile(
+                        key: Key('quiz-card-$i'),
+                        card: r.cards[i],
+                        size: size,
+                        icons: icons,
+                        showLabel:
+                            readers && widget.game != PlayGame.spotAnimal,
+                        dim: _wrong.contains(i),
+                        wobble:
+                            (hint && i == r.correct) ||
+                            (_got && i == r.correct),
+                        onTap: _got || _wrong.contains(i)
+                            ? null
+                            : () => _tap(i),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -343,7 +377,12 @@ class _QuizCardTileState extends State<_QuizCardTile>
       child: AnimatedBuilder(
         animation: _wob,
         builder: (context, child) =>
-            Transform.rotate(angle: (_wob.value - 0.5) * 0.14, child: child),
+            // Still when still: the controller rests at 0, which is the far
+            // end of the wobble, not the middle of it.
+            Transform.rotate(
+              angle: widget.wobble ? (_wob.value - 0.5) * 0.14 : 0,
+              child: child,
+            ),
         child: Container(
           width: size,
           height: size,

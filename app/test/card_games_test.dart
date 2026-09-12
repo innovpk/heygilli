@@ -83,6 +83,8 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    // The cards ignore a tap for a moment after they change.
+    await tester.pump(QuizGameState.settle * 2);
   }
 
   group('rounds by band', () {
@@ -221,6 +223,7 @@ void main() {
       expect(find.byKey(const Key('round-star-0-on')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(QuizGameState.settle * 2);
       expect(gateway.lastPlayTurn!.round, 2);
       expect(
         gateway.lastPlayTurn!.level,
@@ -277,6 +280,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 1700));
         await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(QuizGameState.settle * 2);
       }
       expect(gateway.lastPlayTurn!.done, isTrue);
       for (var i = 0; i < roundsPerGame; i++) {
@@ -292,10 +296,22 @@ void main() {
       for (final k in ['find', 'catch', 'abc', 'sums', 'guess', 'spot']) {
         expect(find.byKey(Key('game-$k')), findsOneWidget, reason: k);
       }
-      await tester.tap(find.byKey(const Key('game-abc')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(QuizGame), findsOneWidget);
+      for (final (k, game) in [
+        ('abc', PlayGame.abc),
+        ('sums', PlayGame.sums),
+        ('guess', PlayGame.guessAnimal),
+        ('spot', PlayGame.spotAnimal),
+      ]) {
+        await tester.tap(find.byKey(Key('game-$k')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(tester.widget<QuizGame>(find.byType(QuizGame)).game, game);
+        // Back to the picker.
+        await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byKey(const Key('game-find')), findsOneWidget);
+      }
       await tearDownGame(tester);
     });
   });
