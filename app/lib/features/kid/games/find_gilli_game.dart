@@ -11,6 +11,7 @@ import '../../../core/protocol.dart';
 import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../gilli_widget.dart';
+import 'game_fx.dart';
 import 'game_parts.dart';
 
 /// "Find Gilli": he hides behind one of the trees, and the child taps trees
@@ -53,6 +54,7 @@ class _FindGilliGameState extends State<FindGilliGame> {
   final _shakes = <int, int>{};
   bool _found = false;
   int _stars = 0;
+  Offset? _foundPos;
 
   @override
   void initState() {
@@ -73,11 +75,12 @@ class _FindGilliGameState extends State<FindGilliGame> {
       _wrong.clear();
       _shakes.clear();
       _found = false;
+      _foundPos = null;
     });
     sayLater(_coach.say(t));
   }
 
-  Future<void> _tap(int i) async {
+  Future<void> _tap(int i, [BuildContext? treeCtx]) async {
     final t = _turn;
     if (t == null || _found || _wrong.contains(i)) return;
     setState(() {
@@ -88,9 +91,16 @@ class _FindGilliGameState extends State<FindGilliGame> {
       } else {
         _found = true;
         _stars++;
+        if (treeCtx != null) {
+          final box = treeCtx.findRenderObject() as RenderBox?;
+          if (box != null && box.hasSize) {
+            _foundPos = box.localToGlobal(box.size.center(Offset.zero));
+          }
+        }
       }
     });
     if (i != t.spot) return;
+    KidSounds.instance.cheer();
     _coach.record(
       PlayRound(round: t.round, won: true, taps: _taps, level: t.level),
     );
@@ -113,14 +123,24 @@ class _FindGilliGameState extends State<FindGilliGame> {
       );
     }
     final t = _turn;
-    return Column(
+    return Stack(
       children: [
-        GameTopBar(onBack: widget.onBack, stars: _stars),
-        Expanded(
-          child: t == null
-              ? const SizedBox.shrink()
-              : LayoutBuilder(builder: (context, box) => _meadow(t, box)),
+        const FloatingMeadowAmbiance(),
+        Column(
+          children: [
+            GameTopBar(onBack: widget.onBack, stars: _stars),
+            Expanded(
+              child: t == null
+                  ? const SizedBox.shrink()
+                  : LayoutBuilder(builder: (context, box) => _meadow(t, box)),
+            ),
+          ],
         ),
+        if (_foundPos != null)
+          SparkleBurst(
+            key: ValueKey('found-sparkle-$_stars'),
+            position: _foundPos!,
+          ),
       ],
     );
   }
@@ -133,15 +153,17 @@ class _FindGilliGameState extends State<FindGilliGame> {
         .min(box.maxWidth / (perRow * 1.25), box.maxHeight / (rows * 1.3))
         .clamp(56.0, 140.0);
     final hint = _wrong.length >= 2 && !_found;
-    Widget tree(int i) => _Tree(
-      key: Key('tree-$i'),
-      size: size,
-      shakes: _shakes[i] ?? 0,
-      dim: _wrong.contains(i),
-      rustle: hint && i == t.spot,
-      peek: t.peek && i == t.spot && !_found,
-      found: _found && i == t.spot,
-      onTap: () => _tap(i),
+    Widget tree(int i) => Builder(
+      builder: (treeCtx) => _Tree(
+        key: Key('tree-$i'),
+        size: size,
+        shakes: _shakes[i] ?? 0,
+        dim: _wrong.contains(i),
+        rustle: hint && i == t.spot,
+        peek: t.peek && i == t.spot && !_found,
+        found: _found && i == t.spot,
+        onTap: () => _tap(i, treeCtx),
+      ),
     );
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,

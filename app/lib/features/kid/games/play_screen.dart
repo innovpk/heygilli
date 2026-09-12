@@ -6,14 +6,16 @@ import '../../../core/app_state.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
-import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
 import '../kid_palette.dart';
+import 'balloon_pop_game.dart';
 import 'catch_gilli_game.dart';
 import 'find_gilli_game.dart';
+import 'game_fx.dart';
 import 'game_parts.dart';
+import 'memory_game.dart';
 import 'quiz_game.dart';
 
 /// Where a child picks one of Gilli's games. Reached by tapping him on the
@@ -100,6 +102,20 @@ class _PlayScreenState extends State<PlayScreen> {
               onAgain: () => _pick(PlayGame.catchGilli),
               onHome: _home,
             ),
+            PlayGame.memoryMatch => MemoryGame(
+              key: ValueKey('memory-$_run'),
+              kid: widget.kid,
+              onBack: _toPicker,
+              onAgain: () => _pick(PlayGame.memoryMatch),
+              onHome: _home,
+            ),
+            PlayGame.balloonPop => BalloonPopGame(
+              key: ValueKey('pop-$_run'),
+              kid: widget.kid,
+              onBack: _toPicker,
+              onAgain: () => _pick(PlayGame.balloonPop),
+              onHome: _home,
+            ),
             PlayGame.abc ||
             PlayGame.sums ||
             PlayGame.guessAnimal ||
@@ -119,166 +135,277 @@ class _PlayScreenState extends State<PlayScreen> {
 
   Widget _picker(KidPalette palette) {
     final readers = widget.kid.band.showsQuestionText;
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Row(
-            children: [
-              KidRoundButton(
-                icon: Icons.arrow_back_rounded,
-                label: 'Back to videos',
-                onTap: _home,
+        const FloatingMeadowAmbiance(),
+        Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  KidRoundButton(
+                    icon: Icons.arrow_back_rounded,
+                    label: 'Back to videos',
+                    onTap: _home,
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, box) {
-              // Three across when there is room, else two. Sized off the
-              // tile's width as well as the height: in a tall, narrow window
-              // the height alone made Gilli fill the screen.
-              final columns = box.maxWidth >= 620 ? 3 : 2;
-              final tileWidth =
-                  (box.maxWidth - 48 - 16 * (columns - 1)) / columns;
-              final pic = [
-                box.maxHeight * 0.2,
-                tileWidth * 0.5,
-              ].reduce((a, b) => a < b ? a : b).clamp(48.0, 110.0);
-              final tiles = [
-                _GameTile(
-                  key: const Key('game-find'),
-                  label: 'Find Gilli',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.findGilli)),
-                  picture: SizedBox.square(
-                    dimension: pic,
-                    child: Stack(
-                      clipBehavior: Clip.none,
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  // Three across when there is room, else two. Sized off the
+                  // tile's width as well as the height: in a tall, narrow window
+                  // the height alone made Gilli fill the screen.
+                  final columns = box.maxWidth >= 620 ? 3 : 2;
+                  final tileWidth =
+                      (box.maxWidth - 48 - 16 * (columns - 1)) / columns;
+                  final pic = [
+                    box.maxHeight * 0.18,
+                    tileWidth * 0.46,
+                  ].reduce((a, b) => a < b ? a : b).clamp(44.0, 100.0);
+                  final tiles = [
+                    _GameTile(
+                      key: const Key('game-find'),
+                      label: 'Find Gilli',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.findGilli),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Poking out from behind the leaves, left.
+                            Positioned(
+                              left: pic * 0.01,
+                              bottom: pic * 0.23,
+                              width: pic * 0.6,
+                              height: pic * 0.6,
+                              child: SvgPicture.asset('assets/gilli/tail.svg'),
+                            ),
+                            Positioned.fill(
+                              child: SvgPicture.asset('assets/icons/tree.svg'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-catch'),
+                      label: 'Catch Gilli',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.catchGilli),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            GilliWidget(size: pic, gesture: Gesture.idle),
+                            Positioned(
+                              right: -pic * 0.05,
+                              bottom: -pic * 0.05,
+                              child: Icon(
+                                Icons.touch_app_rounded,
+                                size: pic * 0.42,
+                                color: HgColors.mango,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-memory'),
+                      label: 'Flip & Match',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.memoryMatch),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Transform.rotate(
+                              angle: -0.15,
+                              child: Container(
+                                width: pic * 0.62,
+                                height: pic * 0.78,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6C5CE7),
+                                  borderRadius: BorderRadius.circular(pic * 0.12),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x1F0F2A33),
+                                      offset: Offset(0, 4),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.star_rounded,
+                                    color: Colors.white,
+                                    size: pic * 0.36,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Transform.rotate(
+                              angle: 0.12,
+                              child: Container(
+                                width: pic * 0.62,
+                                height: pic * 0.78,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(pic * 0.12),
+                                  border: Border.all(
+                                    color: const Color(0xFF6C5CE7),
+                                    width: 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x220F2A33),
+                                      offset: Offset(0, 4),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: SvgPicture.asset(
+                                    'assets/icons/cat.svg',
+                                    width: pic * 0.42,
+                                    height: pic * 0.42,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-pop'),
+                      label: 'Balloon Pop',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.balloonPop),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              left: pic * 0.08,
+                              bottom: pic * 0.14,
+                              child: _MiniBalloon(
+                                color: const Color(0xFFFF7675),
+                                size: pic * 0.52,
+                              ),
+                            ),
+                            Positioned(
+                              right: pic * 0.08,
+                              top: pic * 0.04,
+                              child: _MiniBalloon(
+                                color: const Color(0xFF74B9FF),
+                                size: pic * 0.58,
+                              ),
+                            ),
+                            Positioned(
+                              bottom: pic * 0.02,
+                              right: pic * 0.28,
+                              child: _MiniBalloon(
+                                color: const Color(0xFFFDCB6E),
+                                size: pic * 0.46,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-abc'),
+                      label: 'Letters',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.abc),
+                      picture: _Glyphs(size: pic, glyphs: const ['A', 'b', 'C']),
+                    ),
+                    _GameTile(
+                      key: const Key('game-sums'),
+                      label: 'Numbers',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.sums),
+                      picture: _Glyphs(
+                        size: pic,
+                        glyphs: widget.kid.band == AgeBand.b4to6
+                            ? const ['1', '2', '3']
+                            : const ['+', '−', '×'],
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-guess'),
+                      label: 'Who am I?',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.guessAnimal),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: SvgPicture.asset('assets/icons/lion.svg'),
+                            ),
+                            Positioned(
+                              right: -pic * 0.08,
+                              top: -pic * 0.1,
+                              child: Icon(
+                                Icons.help_rounded,
+                                size: pic * 0.46,
+                                color: HgColors.mango,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _GameTile(
+                      key: const Key('game-spot'),
+                      label: 'Spot the animal',
+                      showLabel: readers,
+                      onTap: () => _pick(PlayGame.spotAnimal),
+                      picture: SizedBox.square(
+                        dimension: pic,
+                        child: GridView.count(
+                          crossAxisCount: 2,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: pic * 0.04,
+                          crossAxisSpacing: pic * 0.04,
+                          children: [
+                            for (final a in const [
+                              'duck',
+                              'frog',
+                              'cat',
+                              'elephant',
+                            ])
+                              SvgPicture.asset('assets/icons/$a.svg'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ];
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
                       children: [
-                        // Poking out from behind the leaves, left.
-                        Positioned(
-                          left: pic * 0.01,
-                          bottom: pic * 0.23,
-                          width: pic * 0.6,
-                          height: pic * 0.6,
-                          child: SvgPicture.asset('assets/gilli/tail.svg'),
-                        ),
-                        Positioned.fill(
-                          child: SvgPicture.asset('assets/icons/tree.svg'),
-                        ),
+                        for (final t in tiles) SizedBox(width: tileWidth, child: t),
                       ],
                     ),
-                  ),
-                ),
-                _GameTile(
-                  key: const Key('game-catch'),
-                  label: 'Catch Gilli',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.catchGilli)),
-                  picture: SizedBox.square(
-                    dimension: pic,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        GilliWidget(size: pic, gesture: Gesture.idle),
-                        Positioned(
-                          right: -pic * 0.05,
-                          bottom: -pic * 0.05,
-                          child: Icon(
-                            Icons.touch_app_rounded,
-                            size: pic * 0.42,
-                            color: HgColors.mango,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _GameTile(
-                  key: const Key('game-abc'),
-                  label: 'Letters',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.abc)),
-                  picture: _Glyphs(size: pic, glyphs: const ['A', 'b', 'C']),
-                ),
-                _GameTile(
-                  key: const Key('game-sums'),
-                  label: 'Numbers',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.sums)),
-                  picture: _Glyphs(
-                    size: pic,
-                    glyphs: widget.kid.band == AgeBand.b4to6
-                        ? const ['1', '2', '3']
-                        : const ['+', '−', '×'],
-                  ),
-                ),
-                _GameTile(
-                  key: const Key('game-guess'),
-                  label: 'Who am I?',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.guessAnimal)),
-                  picture: SizedBox.square(
-                    dimension: pic,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned.fill(
-                          child: SvgPicture.asset('assets/icons/lion.svg'),
-                        ),
-                        Positioned(
-                          right: -pic * 0.08,
-                          top: -pic * 0.1,
-                          child: Icon(
-                            Icons.help_rounded,
-                            size: pic * 0.46,
-                            color: HgColors.mango,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _GameTile(
-                  key: const Key('game-spot'),
-                  label: 'Spot the animal',
-                  showLabel: readers,
-                  onTap: tapping(() => _pick(PlayGame.spotAnimal)),
-                  picture: SizedBox.square(
-                    dimension: pic,
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: pic * 0.04,
-                      crossAxisSpacing: pic * 0.04,
-                      children: [
-                        for (final a in const [
-                          'duck',
-                          'frog',
-                          'cat',
-                          'elephant',
-                        ])
-                          SvgPicture.asset('assets/icons/$a.svg'),
-                      ],
-                    ),
-                  ),
-                ),
-              ];
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    for (final t in tiles) SizedBox(width: tileWidth, child: t),
-                  ],
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -305,13 +432,13 @@ class _GameTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: Material(
-        color: palette.card,
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          onTap: onTap,
+      child: BouncyTouch(
+        onTap: onTap,
+        child: Material(
+          color: palette.card,
           borderRadius: BorderRadius.circular(28),
-          // As tall as what is in it, not the whole screen.
+          elevation: 2,
+          shadowColor: const Color(0x1F0F2A33),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
             child: Column(
@@ -330,6 +457,54 @@ class _GameTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MiniBalloon extends StatelessWidget {
+  const _MiniBalloon({required this.color, required this.size});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size * 1.15,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.all(
+              Radius.elliptical(size / 2, size * 0.58),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Align(
+            alignment: const Alignment(-0.45, -0.5),
+            child: Container(
+              width: size * 0.22,
+              height: size * 0.3,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(size),
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: 1.5,
+          height: size * 0.35,
+          color: HgColors.ink.withValues(alpha: 0.3),
+        ),
+      ],
     );
   }
 }

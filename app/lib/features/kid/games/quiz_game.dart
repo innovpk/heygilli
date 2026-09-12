@@ -15,6 +15,7 @@ import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
 import '../kid_palette.dart';
+import 'game_fx.dart';
 import 'game_parts.dart';
 import 'quiz_rounds.dart';
 
@@ -65,6 +66,7 @@ class QuizGameState extends State<QuizGame> {
   int _taps = 0;
   final _wrong = <int>{};
   bool _got = false;
+  Offset? _gotPos;
   int _stars = 0;
   bool _settling = false;
   Timer? _settleTimer;
@@ -108,6 +110,7 @@ class QuizGameState extends State<QuizGame> {
       _taps = 0;
       _wrong.clear();
       _got = false;
+      _gotPos = null;
       _settling = true;
     });
     _settleTimer?.cancel();
@@ -129,7 +132,7 @@ class QuizGameState extends State<QuizGame> {
     await _coach.say(PlayTurn(game: widget.game, line: r.speak));
   }
 
-  Future<void> _tap(int i) async {
+  Future<void> _tap(int i, [BuildContext? cardCtx]) async {
     final t = _turn;
     final r = _round;
     if (t == null || r == null || _got || _wrong.contains(i)) return;
@@ -141,6 +144,12 @@ class QuizGameState extends State<QuizGame> {
       } else {
         _got = true;
         _stars++;
+        if (cardCtx != null) {
+          final box = cardCtx.findRenderObject() as RenderBox?;
+          if (box != null && box.hasSize) {
+            _gotPos = box.localToGlobal(box.size.center(Offset.zero));
+          }
+        }
       }
     });
     if (i != r.correct) return;
@@ -166,14 +175,24 @@ class QuizGameState extends State<QuizGame> {
       );
     }
     final r = _round;
-    return Column(
+    return Stack(
       children: [
-        GameTopBar(onBack: widget.onBack, stars: _stars),
-        Expanded(
-          child: r == null
-              ? const SizedBox.shrink()
-              : LayoutBuilder(builder: (context, box) => _table(r, box)),
+        const FloatingMeadowAmbiance(),
+        Column(
+          children: [
+            GameTopBar(onBack: widget.onBack, stars: _stars),
+            Expanded(
+              child: r == null
+                  ? const SizedBox.shrink()
+                  : LayoutBuilder(builder: (context, box) => _table(r, box)),
+            ),
+          ],
         ),
+        if (_gotPos != null)
+          SparkleBurst(
+            key: ValueKey('quiz-sparkle-$_stars'),
+            position: _gotPos!,
+          ),
       ],
     );
   }
@@ -255,20 +274,22 @@ class QuizGameState extends State<QuizGame> {
                   runSpacing: 12,
                   children: [
                     for (var i = 0; i < n; i++)
-                      _QuizCardTile(
-                        key: Key('quiz-card-$i'),
-                        card: r.cards[i],
-                        size: size,
-                        icons: icons,
-                        showLabel:
-                            readers && widget.game != PlayGame.spotAnimal,
-                        dim: _wrong.contains(i),
-                        wobble:
-                            (hint && i == r.correct) ||
-                            (_got && i == r.correct),
-                        onTap: _got || _wrong.contains(i)
-                            ? null
-                            : () => _tap(i),
+                      Builder(
+                        builder: (cardCtx) => _QuizCardTile(
+                          key: Key('quiz-card-$i'),
+                          card: r.cards[i],
+                          size: size,
+                          icons: icons,
+                          showLabel:
+                              readers && widget.game != PlayGame.spotAnimal,
+                          dim: _wrong.contains(i),
+                          wobble:
+                              (hint && i == r.correct) ||
+                              (_got && i == r.correct),
+                          onTap: _got || _wrong.contains(i)
+                              ? null
+                              : () => _tap(i, cardCtx),
+                        ),
                       ),
                   ],
                 ),
@@ -404,15 +425,9 @@ class _QuizCardTileState extends State<_QuizCardTile>
     return Semantics(
       button: widget.onTap != null,
       label: c.text ?? c.label ?? c.iconId,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // Down, not up: a child's finger lands and lifts a little late.
-        onTapDown: widget.onTap == null
-            ? null
-            : (_) {
-                KidSounds.instance.tap();
-                widget.onTap!();
-              },
+      child: BouncyTouch(
+        enabled: widget.onTap != null,
+        onTap: widget.onTap,
         child: tile,
       ),
     );

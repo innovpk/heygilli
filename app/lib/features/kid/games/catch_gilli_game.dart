@@ -14,6 +14,7 @@ import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
 import '../kid_palette.dart';
+import 'game_fx.dart';
 import 'game_parts.dart';
 
 /// "Catch Gilli": he pops up somewhere in the meadow, and a tap or a mouse
@@ -140,6 +141,7 @@ class _CatchGilliGameState extends State<CatchGilliGame> {
   void _catch() {
     final done = _popDone;
     if (!_up || done == null || done.isCompleted) return;
+    KidSounds.instance.cheer();
     setState(() {
       _caught++;
       _burst = _at;
@@ -159,14 +161,19 @@ class _CatchGilliGameState extends State<CatchGilliGame> {
         onHome: widget.onHome,
       );
     }
-    return Column(
+    return Stack(
       children: [
-        GameTopBar(
-          onBack: widget.onBack,
-          stars: _stars,
-          below: _turn == null ? null : _CatchDots(caught: _caught),
+        const FloatingMeadowAmbiance(),
+        Column(
+          children: [
+            GameTopBar(
+              onBack: widget.onBack,
+              stars: _stars,
+              below: _turn == null ? null : _CatchDots(caught: _caught),
+            ),
+            Expanded(child: LayoutBuilder(builder: _meadow)),
+          ],
         ),
-        Expanded(child: LayoutBuilder(builder: _meadow)),
       ],
     );
   }
@@ -202,7 +209,7 @@ class _CatchGilliGameState extends State<CatchGilliGame> {
               ),
             ),
           ),
-        if (burst != null)
+        if (burst != null) ...[
           Positioned(
             left: place(burst).dx,
             top: place(burst).dy,
@@ -223,6 +230,11 @@ class _CatchGilliGameState extends State<CatchGilliGame> {
               ),
             ),
           ),
+          SparkleBurst(
+            key: ValueKey('sparkle-$_caught'),
+            position: Offset(place(burst).dx + g / 2, place(burst).dy + g / 2),
+          ),
+        ],
         if (_up)
           Positioned(
             left: place(_at).dx,

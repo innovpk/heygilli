@@ -416,5 +416,7 @@ QuizRound buildQuizRound(
   PlayGame.guessAnimal => guessAnimalRound(level, band, rng, icons),
   PlayGame.spotAnimal => spotAnimalRound(level, band, rng, icons),
   PlayGame.findGilli ||
-  PlayGame.catchGilli => throw ArgumentError('$game is not a card game'),
+  PlayGame.catchGilli ||
+  PlayGame.memoryMatch ||
+  PlayGame.balloonPop => throw ArgumentError('$game is not a card game'),
 };

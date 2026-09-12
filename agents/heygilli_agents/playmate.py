@@ -35,11 +35,12 @@ from .tools.screening import BLOCK_WORDS
 
 log = logging.getLogger(__name__)
 
-#: "find" and "catch" are Gilli's own; the rest are card games the device
+#: "find" and "catch" are Gilli's own; the rest are card/action games the device
 #: builds for itself — letters, sums, an animal from a clue, an animal in a
-#: crowd — where the gateway's part is the level, the line and the day's count.
-GameKind = Literal["find", "catch", "abc", "sums", "guess", "spot"]
-QUIZ_GAMES = ("abc", "sums", "guess", "spot")
+#: crowd, memory card pairs, balloon pop — where the gateway's part is the level,
+#: the line and the day's count.
+GameKind = Literal["find", "catch", "abc", "sums", "guess", "spot", "memory", "pop"]
+QUIZ_GAMES = ("abc", "sums", "guess", "spot", "memory", "pop")
 
 ROUNDS_PER_GAME = 5
 ROUNDS_PER_DAY = 40  # eight games; a pause between videos, not an afternoon
@@ -63,7 +64,8 @@ child. The game is one of: "find" (Gilli hides behind one of some trees and the 
 find him), "catch" (Gilli pops up in random places and the child taps him before he ducks away),
 "abc" (find a letter, or the word that starts with one), "sums" (counting for the little ones, adding
 and taking away, then times and sharing for the older ones), "guess" (Gilli gives a clue and the
-child picks the animal), "spot" (find the named animal among many). In the card games a "tap" is one
+child picks the animal), "spot" (find the named animal among many), "memory" (flip cards to match the
+pairs), "pop" (tap and pop the floating balloons). In the card and action games a "tap" is one
 try at the answer, and Gilli is the one asking, delighted when they get it and cheerfully sneaky
 when they do not.
 
@@ -201,6 +203,12 @@ _QUIZ_START = {
     "spot": {"en": ["So many animals! Find the right one.", "Can you spot it? Look carefully.",
                     "Eyes sharp! Find the one I say."],
              "ur": ["اتنے سارے جانور! ڈھونڈو تو۔"]},
+    "memory": {"en": ["Match the pictures! Can you remember?", "Flip the cards and find the pairs!",
+                      "Memory time! Where did they go?"],
+               "ur": ["جوڑے تلاش کرو! یاد ہے؟"]},
+    "pop": {"en": ["Pop pop pop! Catch the balloons!", "Floating balloons! Let us pop them!",
+                   "Ready to pop? Here they come!"],
+            "ur": ["غبارے پھوڑو! تیار؟"]},
 }
 _QUIZ_WIN = {
     "en": ["You got it! Next one.", "Yes! That is the one. Again?", "Clever! Here comes another."],

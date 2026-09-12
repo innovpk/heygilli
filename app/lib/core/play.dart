@@ -21,7 +21,13 @@ enum PlayGame {
   guessAnimal('guess'),
 
   /// Find the named animal in a crowd of them.
-  spotAnimal('spot');
+  spotAnimal('spot'),
+
+  /// Flip cards to find matching pairs.
+  memoryMatch('memory'),
+
+  /// Pop the floating balloons before they fly away.
+  balloonPop('pop');
 
   const PlayGame(this.wire);
   final String wire;
@@ -29,10 +35,10 @@ enum PlayGame {
   static PlayGame fromWire(String? s) =>
       PlayGame.values.where((g) => g.wire == s).firstOrNull ?? findGilli;
 
-  /// The card games: the device writes the question itself from the level
+  /// The card quiz games: the device writes the question itself from the level
   /// and the band, and reports each round as one try or several.
   bool get isQuiz => switch (this) {
-    findGilli || catchGilli => false,
+    findGilli || catchGilli || memoryMatch || balloonPop => false,
     abc || sums || guessAnimal || spotAnimal => true,
   };
 }
@@ -137,12 +143,16 @@ class PlayTurn {
               ? _quizStart[game]!
               : game == PlayGame.findGilli
               ? _findStart
-              : _catchStart)
+              : game == PlayGame.catchGilli
+              ? _catchStart
+              : game == PlayGame.memoryMatch
+              ? _memoryStart
+              : _popStart)
         : (_struggled(rounds.last, game)
               ? (game.isQuiz ? _quizMiss : _afterMiss)
               : (game.isQuiz ? _quizWin : _afterWin));
     final line = lines[r.nextInt(lines.length)];
-    if (game.isQuiz) {
+    if (game.isQuiz || game == PlayGame.memoryMatch || game == PlayGame.balloonPop) {
       return PlayTurn(
         game: game,
         round: rounds.length + 1,
@@ -240,6 +250,16 @@ const _afterMiss = [
   'I was so sneaky! One more go.',
   'Hee hee, I was hiding well. Try again!',
 ];
+const _memoryStart = [
+  'Can you remember? Match the pairs!',
+  'Memory time! Let us find the pairs.',
+  'Flip the cards and match them up!',
+];
+const _popStart = [
+  'Pop pop pop! Catch the balloons!',
+  'Floating balloons! Let us pop them!',
+  'Ready to pop? Here they come!',
+];
 const _quizStart = {
   PlayGame.abc: ['Letters! Ready?', 'Let us play with letters!'],
   PlayGame.sums: ['Number time! Let us count.', 'I love numbers. Ready?'],
@@ -259,17 +279,27 @@ const _quizMiss = [
   'Nearly! Here is a new one.',
 ];
 
-bool _struggled(PlayRound r, PlayGame game) => game.isQuiz
-    ? (!r.won || r.taps >= 3)
-    : game == PlayGame.findGilli
-    ? (!r.won || r.taps >= 4)
-    : r.caught <= 2;
+bool _struggled(PlayRound r, PlayGame game) => switch (game) {
+  PlayGame.findGilli => !r.won || r.taps >= 4,
+  PlayGame.catchGilli => r.caught <= 2,
+  PlayGame.memoryMatch => !r.won || r.taps >= (r.level * 2 + 6),
+  PlayGame.balloonPop => !r.won || r.caught <= 2,
+  PlayGame.abc ||
+  PlayGame.sums ||
+  PlayGame.guessAnimal ||
+  PlayGame.spotAnimal => !r.won || r.taps >= 3,
+};
 
-bool _breezed(PlayRound r, PlayGame game) => game.isQuiz
-    ? (r.won && r.taps <= 1)
-    : game == PlayGame.findGilli
-    ? (r.won && r.taps <= 1)
-    : r.caught >= popsPerRound - 1;
+bool _breezed(PlayRound r, PlayGame game) => switch (game) {
+  PlayGame.findGilli => r.won && r.taps <= 1,
+  PlayGame.catchGilli => r.caught >= popsPerRound - 1,
+  PlayGame.memoryMatch => r.won && r.taps <= (r.level * 2 + 2),
+  PlayGame.balloonPop => r.won && r.caught >= 4,
+  PlayGame.abc ||
+  PlayGame.sums ||
+  PlayGame.guessAnimal ||
+  PlayGame.spotAnimal => r.won && r.taps <= 1,
+};
 
 int _ruleLevel(PlayGame game, List<PlayRound> rounds) {
   if (rounds.isEmpty) return 1;

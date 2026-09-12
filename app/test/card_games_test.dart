@@ -9,6 +9,8 @@ import 'package:heygilli/core/models.dart';
 import 'package:heygilli/core/play.dart';
 import 'package:heygilli/core/settings.dart';
 import 'package:heygilli/core/speech.dart';
+import 'package:heygilli/features/kid/games/balloon_pop_game.dart';
+import 'package:heygilli/features/kid/games/memory_game.dart';
 import 'package:heygilli/features/kid/games/play_screen.dart';
 import 'package:heygilli/features/kid/games/quiz_game.dart';
 import 'package:heygilli/features/kid/games/quiz_rounds.dart';
@@ -290,10 +292,19 @@ void main() {
       await tearDownGame(tester);
     });
 
-    testWidgets('the picker offers all six games', (tester) async {
+    testWidgets('the picker offers all eight games', (tester) async {
       await tester.pumpWidget(host(PlayScreen(kid: reader)));
       await tester.pump();
-      for (final k in ['find', 'catch', 'abc', 'sums', 'guess', 'spot']) {
+      for (final k in [
+        'find',
+        'catch',
+        'memory',
+        'pop',
+        'abc',
+        'sums',
+        'guess',
+        'spot',
+      ]) {
         expect(find.byKey(Key('game-$k')), findsOneWidget, reason: k);
       }
       for (final (k, game) in [
@@ -312,6 +323,27 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         expect(find.byKey(const Key('game-find')), findsOneWidget);
       }
+
+      // Memory game picker navigation
+      await tester.tap(find.byKey(const Key('game-memory')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(MemoryGame), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('game-find')), findsOneWidget);
+
+      // Balloon pop picker navigation
+      await tester.tap(find.byKey(const Key('game-pop')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(BalloonPopGame), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('game-find')), findsOneWidget);
+
       await tearDownGame(tester);
     });
   });

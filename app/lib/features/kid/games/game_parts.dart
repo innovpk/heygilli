@@ -8,11 +8,11 @@ import '../../../core/gateway.dart';
 import '../../../core/models.dart';
 import '../../../core/play.dart';
 import '../../../core/protocol.dart';
-import '../../../core/sounds.dart';
 import '../../../core/speech.dart';
 import '../../../core/theme.dart';
 import '../gilli_widget.dart';
 import '../kid_palette.dart';
+import 'game_fx.dart';
 
 /// One game's worth of rounds, and the go-between with the Playmate agent.
 ///
@@ -93,15 +93,17 @@ class KidRoundButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = KidPalette.of(context);
-    return Semantics(
-      button: true,
-      label: label,
-      child: Material(
-        color: filled ? HgColors.mango : palette.chip,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: withTap(onTap),
-          customBorder: const CircleBorder(),
+    return BouncyTouch(
+      onTap: onTap,
+      scaleDown: 0.9,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: filled ? HgColors.mango : palette.chip,
+          shape: const CircleBorder(),
+          elevation: filled ? 4 : 0,
+          shadowColor: filled ? HgColors.mango.withValues(alpha: 0.35) : Colors.transparent,
           child: SizedBox.square(
             dimension: size,
             child: Icon(
@@ -129,13 +131,21 @@ class RoundStars extends StatelessWidget {
     spacing: size * 0.25,
     children: [
       for (var i = 0; i < roundsPerGame; i++)
-        Opacity(
+        TweenAnimationBuilder<double>(
           key: Key('round-star-$i-${i < done ? 'on' : 'off'}'),
-          opacity: i < done ? 1 : 0.22,
-          child: SvgPicture.asset(
-            'assets/icons/star.svg',
-            width: size,
-            height: size,
+          tween: Tween<double>(begin: 0.8, end: i < done ? 1.0 : 0.22),
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.elasticOut,
+          builder: (context, val, child) => Transform.scale(
+            scale: i < done ? val : 0.88,
+            child: Opacity(
+              opacity: i < done ? 1.0 : 0.22,
+              child: SvgPicture.asset(
+                'assets/icons/star.svg',
+                width: size,
+                height: size,
+              ),
+            ),
           ),
         ),
     ],
@@ -183,7 +193,7 @@ class GameTopBar extends StatelessWidget {
   );
 }
 
-/// The end of a game: Gilli cheering, the stars, and where to go next.
+/// The end of a game: Gilli cheering, celebratory confetti, the stars, and where to go next.
 class GameOver extends StatelessWidget {
   const GameOver({
     super.key,
@@ -224,42 +234,55 @@ class GameOver extends StatelessWidget {
               ),
           ],
         );
-    return LayoutBuilder(
-      builder: (context, box) => Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 18,
-            children: [
-              GilliWidget(
-                size: (box.maxHeight * 0.3).clamp(80.0, 140.0),
-                gesture: Gesture.cheer,
-              ),
-              RoundStars(done: stars, size: 32),
-              Row(
+    return Stack(
+      children: [
+        const ConfettiOverlay(),
+        LayoutBuilder(
+          builder: (context, box) => Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                spacing: 40,
+                spacing: 16,
                 children: [
-                  if (onAgain != null)
-                    choice(
-                      Icons.replay_rounded,
-                      'Again',
-                      onAgain!,
-                      const Key('game-again'),
+                  Text(
+                    'Super Job!',
+                    style: HgText.display(
+                      size: 28,
+                      color: palette.accent,
                     ),
-                  choice(
-                    Icons.video_library_rounded,
-                    'Videos',
-                    onHome,
-                    const Key('game-home'),
+                  ),
+                  GilliWidget(
+                    size: (box.maxHeight * 0.28).clamp(80.0, 140.0),
+                    gesture: Gesture.cheer,
+                  ),
+                  RoundStars(done: stars, size: 34),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 40,
+                    children: [
+                      if (onAgain != null)
+                        choice(
+                          Icons.replay_rounded,
+                          'Again',
+                          onAgain!,
+                          const Key('game-again'),
+                        ),
+                      choice(
+                        Icons.video_library_rounded,
+                        'Videos',
+                        onHome,
+                        const Key('game-home'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
