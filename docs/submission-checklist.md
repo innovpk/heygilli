@@ -99,7 +99,7 @@ Do these in order.
 | README with setup instructions | `README.md` | [ ] |
 | Architecture diagram | `docs/architecture.svg`, `docs/architecture.png` | [x] drawn, [x] matches what shipped (6 Sep) |
 | Text description | `docs/devpost-submission.md` | [x] drafted, [ ] finalised |
-| Demo video, 5:00 max, public on YouTube | https://youtu.be/ab9HNgQXS6A (4:52, Public, captions) | [x] uploaded 12 Sep; [ ] unlist the stale first cut https://youtu.be/7pqNpfnOi2c |
+| Demo video, 5:00 max, public on YouTube | https://youtu.be/ab9HNgQXS6A (4:52, Public, captions) | [x] uploaded 12 Sep; [x] stale first cut deleted |
 | Testing access: test build or live link | https://heygilli.com/app/ and https://heygilli.com/try (APK optional) | [x] |
 | AWS Builder ID | in Devpost form: @innovpk | [x] |
 | Third-party disclosure | in Devpost form | [ ] |
