@@ -385,6 +385,22 @@ def is_stale_fallback(plan: QuestionPlan, video: Video) -> bool:
     return (datetime.now(UTC) - written).total_seconds() >= REPLAN_FALLBACK_AFTER_S
 
 
+def needs_replan(cached: QuestionPlan, video: Video, store: Store) -> bool:
+    """Whether a cached plan should be written again rather than served.
+
+    Only a plan made without a transcript ever is, and only once there is a
+    reason to expect better: the words are in the cache now, or the plan is
+    old enough to look for them again. Shared by `ensure_plan` and by the
+    session endpoint, which used to read the cache directly and so never saw
+    a fallback plan as anything but final.
+    """
+    stored_video = store.get_video(video.id) or video
+    fallback = (cached.source or stored_video.transcript_source or "") == "none"
+    return fallback and (
+        transcript_known(store, video.id) or is_stale_fallback(cached, stored_video)
+    )
+
+
 def ensure_plan(
     video: Video,
     band: AgeBand,
@@ -404,14 +420,9 @@ def ensure_plan(
     """
     store = store or get_store()
     cached = store.get_plan(video.id, band, language)
+    if cached and not needs_replan(cached, video, store):
+        return trim_cached(cached, video, band, store)
     if cached:
-        stored_video = store.get_video(video.id) or video
-        fallback = (cached.source or stored_video.transcript_source or "") == "none"
-        retry = fallback and (
-            transcript_known(store, video.id) or is_stale_fallback(cached, stored_video)
-        )
-        if not retry:
-            return trim_cached(cached, video, band, store)
         log.info("plan for %s/%s/%s was written without a transcript; trying again",
                  video.id, band, language)
     try:

@@ -47,6 +47,7 @@ from . import (
     history,
     known,
     parent_questions,
+    planner,
     playmate,
     question_bank,
     revisit,
@@ -1398,6 +1399,13 @@ def create_session(body: SessionIn, tasks: BackgroundTasks, hid: str = Depends(h
     band = kid.age_band or "7_8"
     language = kid.languages[0]
     plan = store.get_plan(video.id, band, language)
+    # A plan written without a transcript is not final: once the words can be
+    # read — or it is old enough to look again — it is written again in the
+    # background, and this session waits for that the way a first session
+    # waits for a first plan. Reading the cache as the last word here was how
+    # a video refused once stayed on bank questions for every child after.
+    if plan is not None and planner.needs_replan(plan, video, store):
+        plan = None
     if plan is None:
         tasks.add_task(_plan_in_background, video, band, language)
     session = Session(household_id=hid, kid_id=kid.id, device=body.device, video_id=video.id,

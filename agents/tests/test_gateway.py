@@ -1111,3 +1111,44 @@ def test_an_answer_before_the_hint_is_due_gets_no_hint(
         ws.receive_json()  # ask
         ws.send_json({"t": "answer", "q": 0, "input": "voice", "transcript": "the sun"})
         assert ws.receive_json()["t"] == "reply"
+
+
+def test_a_session_on_a_fallback_plan_replans_once_the_words_are_cached(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """POST /sessions read the plan cache as the last word, so a video refused
+    once at plan time stayed on bank questions for every child after, even
+    with its transcript sitting in the cache from a later read."""
+    from heygilli_agents import gateway as gw
+    from heygilli_agents import planner
+    from heygilli_agents.fake_model import FakeModel
+    from heygilli_agents.llm import make_agent
+
+    kid = client.post("/kids", json={"nickname": "Zara", "age": 8, "languages": ["en"]},
+                      headers=hdr(auth)).json()
+    video = Video(id="vidreplan1", title="Why do we yawn?", duration_s=0, transcript_source="none")
+    store.put_video(video)
+    store.put_plan(planner.fallback_plan(video, "7_8", "en"))
+    store.cache_put("transcript", video.id, {
+        "video_id": video.id, "source": "gemini", "duration_s": 516,
+        "segments": [{"start_s": i * 30, "text": f"line {i}"} for i in range(20)]})
+    planned: list[tuple] = []
+
+    def replan(v, b, lang):
+        planned.append((v.id, b, lang))
+        planner.ensure_plan(v, b, lang, store, make_agent("planner", "s", model=FakeModel()))
+
+    monkeypatch.setattr(gw, "_plan_in_background", replan)
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": video.id, "device": "tv"},
+                       headers=hdr(auth)).json()
+    assert body["plan_ready"] is False, "served the bank plan as final"
+    assert planned == [("vidreplan1", "7_8", "en")]
+    plan = store.get_plan(video.id, "7_8", "en")
+    assert plan.source == "gemini"
+    assert store.get_video(video.id).duration_s == 516
+
+    # And now it is final: the next session takes it as it is.
+    planned.clear()
+    body = client.post("/sessions", json={"kid_id": kid["id"], "video_id": video.id, "device": "tv"},
+                       headers=hdr(auth)).json()
+    assert body["plan_ready"] is True and planned == []
