@@ -166,7 +166,9 @@ Kangaroo."
 
 ### 15. The younger child. 2:38
 
-Live, tablet: Lisa, five, three picture cards, a tap, the reply.
+Live, tablet: Lisa's shelf, a grid of big pictures; then her question, spoken, with Gilli and the mic
+ring and no text on screen; then Gilli saying the word back. Every pre-reader plan probed opened
+with a spoken question, so no picture cards were filmed for this beat.
 
 > A younger child gets big pictures, and questions that need no reading: one word, a tap, or a yes
 > or no.
