@@ -1,6 +1,6 @@
 # Agents for Humans: building HeyGilli, part 2 — designing eight agents with Strands
 
-Part 1 was the idea. This part is the design, and how to build one of the agents yourself. It covers the eight small Strands agents, what one of them is made of, a five-step build of the Curator, the multi-agent pattern we skipped, and the day our planned model turned out to be one we couldn't call.
+[Part 1](https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements) was the idea. This part is the design, and how to build one of the agents yourself. It covers the eight small Strands agents, what one of them is made of, a five-step build of the Curator, the multi-agent pattern we skipped, and the day our planned model turned out to be one we couldn't call.
 
 ## One agent per job
 
@@ -153,6 +153,6 @@ The lesson: call the model before you trust the console.
 
 ## Next
 
-Part 3 covers how we keep a model from saying the wrong thing to a child: one function every call goes through, guardrails with one retry, full traces, and an audit that fixes past mistakes.
+[Part 3](https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy) covers how we keep a model from saying the wrong thing to a child: one function every call goes through, guardrails with one retry, full traces, and an audit that fixes past mistakes.
 
 Code: https://github.com/mujahidmasood/heygilli. MIT.

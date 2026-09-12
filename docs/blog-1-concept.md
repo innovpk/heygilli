@@ -46,6 +46,7 @@ Every row on the right is an interruption in a parent's day, so each one had to 
 
 The web app at heygilli.com, built in Flutter, also runs on Android and iOS. Behind it are eight Strands agents on Amazon Bedrock, Gilli's voice from Amazon Polly, and data in Amazon DynamoDB.
 
-**Next, in part 2:** why we built eight small agents instead of one big one, and what happened when the model we planned around turned out to be one our account couldn't call.
+**Next, in [part 2](https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands):** why we built eight small agents instead of one big one, and what happened when the model we planned around turned out to be one our account couldn't call. (Followed by [part 3](https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy) on making the agents trustworthy.)
 
 Code: https://github.com/mujahidmasood/heygilli. MIT.
+
