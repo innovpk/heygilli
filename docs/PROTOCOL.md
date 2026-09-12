@@ -37,7 +37,7 @@ GET  /kids/{kid_id}/home                                      → {rows: [{title
                                                                  watching_allowed, blocked_reason,
                                                                  active_break: BreakPeriod | null}
 POST /kids/{kid_id}/videos/{video_id}/ask  {question, history?: [[q,a]]}  → {answer, answered_from}
-POST /kids/{kid_id}/play       {game: "find"|"catch", rounds: [{round, won, taps, caught, level}]}
+POST /kids/{kid_id}/play       {game: "find"|"catch"|"abc"|"sums"|"guess"|"spot", rounds: [{round, won, taps, caught, level}]}
                                                               → PlayTurn {game, round, done, level, trees, spot, peek,
                                                                  pops, show_ms, line, tts_url, rounds_left_today, decided_by}
                                                                  (Playmate agent picks level + line; code clamps per band,
@@ -564,6 +564,7 @@ Server → client
            text omitted for band 4_6; speak = what on-device TTS says when tts_url is empty
            (needed for 4_6 where text is absent); text_ur = Urdu line shown beside text for 7+
 {t: "hint", q: number, text?: string, speak?: string, tts_url: string, listen_ms: number, gesture}
+           options[].icon_id may be "" for band 7+ only: a written answer, drawn as words on the card
            Gilli's nudge for a child who has gone quiet; text omitted for band 4_6 like `ask`
 {t: "reply", text?: string, tts_url: string, result, gesture, model_word?: string}
 {t: "resume"}                                                  resume playback

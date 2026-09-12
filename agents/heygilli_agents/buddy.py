@@ -125,7 +125,7 @@ def card_word(q: Question, chosen: str, language: str) -> str:
     """
     for o in q.options:
         if o.label == chosen:
-            return label_for(o.icon_id, language)
+            return label_for(o.icon_id, language) if o.icon_id else o.label
     return chosen
 
 
@@ -366,7 +366,7 @@ class SessionEngine:
             if score.result == "correct":
                 return (f"Yes, {chose}! {q.followup}".strip()), "cheer"
             right = next((o for o in q.options if o.correct), None)
-            shown = label_for(right.icon_id, self.language) if right else ""
+            shown = (label_for(right.icon_id, self.language) if right.icon_id else right.label) if right else ""
             return f"{chose}? The video showed {shown}. {q.followup}".strip(), "point"
         return older_silence_reply(self.band, self.language), "think"
 

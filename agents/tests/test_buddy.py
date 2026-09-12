@@ -321,3 +321,23 @@ def test_the_answer_records_whether_a_hint_was_given(store: LocalStore) -> None:
     eng.answer(ClientAnswer(t="answer", q=1, input="none"))
     answers = sorted(store.list_answers("hh", eng.session.id), key=lambda a: a.question_idx)
     assert [a.hinted for a in answers] == [True, False]
+
+
+def test_a_written_card_is_named_by_its_own_words(store: LocalStore) -> None:
+    from heygilli_agents.schemas import ClientAnswer, Option, Question
+
+    q = Question(t_sec=300, type="pick_it", input="pick", text="Why do we yawn when hot?",
+                 expected="to cool the brain", followup="Yawning pulls in cooler air.", options=[
+                     Option(label="to cool the brain", correct=True),
+                     Option(label="to get more oxygen"),
+                     Option(label="because we are bored"),
+                 ])
+    e = engine(store, "7_8", [q])
+    e.ask(0)
+    right = e.answer(ClientAnswer(t="answer", q=0, input="pick", option=0))
+    assert right.result == "correct" and "to cool the brain" in right.text
+    e2 = engine(store, "7_8", [q])
+    e2.ask(0)
+    wrong = e2.answer(ClientAnswer(t="answer", q=0, input="pick", option=1))
+    assert wrong.result == "off_topic"
+    assert "to get more oxygen" in wrong.text and "to cool the brain" in wrong.text

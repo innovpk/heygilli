@@ -57,6 +57,9 @@ never near-misses, and every option label must be a concept from the icon librar
 Band 7 to 8. Types allowed: recall, why, predict (sequence questions count as recall), pick_it,
 yes_no.
 Goals: recall, cause and effect, prediction, sequencing, new words in context.
+For pick_it: the three options are short written answers (two to six words) taken from the video,
+one right and two plausible; they do not have to be icon words. Leave `icon_id` empty unless the
+option is a single thing a picture shows (a giraffe, the sun).
 Playful and curious; ask "what do you think?". `expected` is a short phrase; add 2-4 `variants`
 a child might say. `followup` is one extra fact to share after a correct answer.
 """,
@@ -66,6 +69,8 @@ Goals: explanation, comparison, applying an idea elsewhere, forming an opinion w
 noticing when a video is trying to sell something. Drop all baby talk; talk like an older cousin
 who finds the topic genuinely interesting; mild humour is fine. `expected` is the gist of a good
 answer; for opinion questions `expected` describes what a reasoned answer contains.
+For pick_it: the three options are short written answers (two to eight words) from the video,
+one right and two that a child who half-watched might believe. Leave `icon_id` empty.
 """,
 }
 
@@ -172,7 +177,7 @@ def build_plan(
     except LLMError as e:
         log.warning("planner failed for %s/%s/%s: %s", video.id, band, language, e)
         return fallback_plan(video, band, language, disabled_prompts)
-    questions = [repair_pick(q, language) for q in draft.questions]
+    questions = [repair_pick(q, language, band) for q in draft.questions]
     kept = rules.enforce(questions, band, video.duration_s, language, freq, icon_ids())
     if not kept:
         log.info("no question survived the rules for %s/%s; using fallback", video.id, band)
@@ -226,15 +231,28 @@ def top_up(
     )
 
 
-def repair_pick(q: Question, language: Language) -> Question:
-    """Map option labels to real icon ids; fill missing distractors from the pool."""
+def repair_pick(q: Question, language: Language, band: AgeBand = "4_6") -> Question:
+    """Make the cards showable: pictures from the library, and for a reader,
+    words where there is no picture.
+
+    A pre-reader's card is a picture or nothing, so every label is mapped to
+    the nearest icon and missing distractors come from the pool. A reader can
+    read: a label with no icon behind it is kept as written, because forcing
+    "to cool the brain" onto the nearest picture produced a card saying
+    "rain" marked correct. An icon is still used when the label names one.
+    """
     if q.type != "pick_it" and q.input != "pick":
         return q
     fixed: list[Option] = []
+    fuzzy = band == "4_6"  # a reader's words are kept as words unless they name a picture outright
     for o in q.options:
-        hit = find_icon(o.icon_id) or find_icon(o.label)
-        if hit and hit["id"] not in {f.icon_id for f in fixed}:
+        hit = find_icon(o.icon_id, fuzzy=fuzzy) or find_icon(o.label, fuzzy=fuzzy)
+        if hit and hit["id"] not in {f.icon_id for f in fixed if f.icon_id}:
             fixed.append(Option(icon_id=hit["id"], label=hit.get(language) or hit["en"], correct=o.correct))
+        elif band != "4_6" and o.label.strip() and o.label.strip().lower() not in {
+            f.label.strip().lower() for f in fixed
+        }:
+            fixed.append(Option(icon_id="", label=o.label.strip(), correct=o.correct))
     correct = [o for o in fixed if o.correct]
     if len(correct) != 1:
         # Emptied rather than passed on. `valid_pick` now allows a pick with

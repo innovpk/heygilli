@@ -56,6 +56,10 @@ class _PickCardsState extends State<PickCards> {
         final option = widget.options[i];
         final entry = widget.icons.byId(option.iconId);
         final label = widget.urdu ? (entry?.ur ?? option.label) : option.label;
+        // A card with no picture is a written answer, which only a reader
+        // is ever sent (`rules.valid_pick` on the gateway). The words fill
+        // the card instead of sitting under an icon.
+        final written = option.iconId.isEmpty;
         return _WobbleCard(
           wobbling: _picked == i,
           size: widget.cardSize,
@@ -67,27 +71,48 @@ class _PickCardsState extends State<PickCards> {
                   widget.onPick(i);
                 }
               : null,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 8,
-            children: [
-              SvgPicture.asset(
-                widget.icons.assetFor(option.iconId),
-                width: widget.cardSize * (widget.showLabels ? 0.56 : 0.68),
-                height: widget.cardSize * (widget.showLabels ? 0.56 : 0.68),
-              ),
-              if (widget.showLabels)
-                Text(
-                  label,
-                  textDirection: widget.urdu
-                      ? TextDirection.rtl
-                      : TextDirection.ltr,
-                  style: widget.urdu
-                      ? HgText.urdu(size: 18, color: HgColors.ink)
-                      : HgText.display(size: 20, color: HgColors.ink),
+          child: written
+              ? Padding(
+                  key: ValueKey('pick-text-$i'),
+                  padding: const EdgeInsets.all(12),
+                  child: Center(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      textDirection: isUrduScript(label)
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      style: isUrduScript(label)
+                          ? HgText.urdu(size: 20, color: HgColors.ink)
+                          : HgText.display(size: 19, color: HgColors.ink),
+                    ),
+                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: 8,
+                  children: [
+                    SvgPicture.asset(
+                      widget.icons.assetFor(option.iconId),
+                      width:
+                          widget.cardSize * (widget.showLabels ? 0.56 : 0.68),
+                      height:
+                          widget.cardSize * (widget.showLabels ? 0.56 : 0.68),
+                    ),
+                    if (widget.showLabels)
+                      Text(
+                        label,
+                        textDirection: widget.urdu
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
+                        style: widget.urdu
+                            ? HgText.urdu(size: 18, color: HgColors.ink)
+                            : HgText.display(size: 20, color: HgColors.ink),
+                      ),
+                  ],
                 ),
-            ],
-          ),
         );
       }),
     );

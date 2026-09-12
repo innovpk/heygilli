@@ -425,3 +425,25 @@ def test_a_fresh_fallback_with_nothing_new_cached_is_served_as_is(store: LocalSt
     store.put_plan(stale)
     monkeypatch.setattr(planner, "fetch_transcript", lambda vid: (_ for _ in ()).throw(AssertionError("fetched")))
     assert planner.ensure_plan(video, "7_8", "en", store) == stale
+
+
+def test_a_readers_pick_keeps_the_models_words_and_a_pre_readers_does_not() -> None:
+    from heygilli_agents.schemas import Option, Question
+
+    q = Question(t_sec=300, type="pick_it", input="pick", text="Why do we yawn when hot?",
+                 expected="to cool the brain", options=[
+                     Option(label="to cool the brain", correct=True),
+                     Option(label="to get more oxygen"),
+                     Option(label="because we are bored"),
+                 ])
+    reader = planner.repair_pick(q, "en", "7_8")
+    assert [(o.icon_id, o.label, o.correct) for o in reader.options] == [
+        ("", "to cool the brain", True), ("", "to get more oxygen", False), ("", "because we are bored", False)]
+    # A label that names a picture still gets it, so a reader's card can be a picture.
+    q2 = q.model_copy(update={"options": [Option(label="sun", correct=True),
+                                          Option(label="a warm bath"), Option(label="a fever")]})
+    fixed = planner.repair_pick(q2, "en", "9_11").options
+    assert fixed[0].icon_id == "icon_sun" and fixed[1].icon_id == "" and fixed[2].icon_id == ""
+    # The pre-reader path is unchanged: every card is a picture, or the pick is emptied.
+    pre = planner.repair_pick(q, "en", "4_6").options
+    assert pre == [] or all(o.icon_id for o in pre)

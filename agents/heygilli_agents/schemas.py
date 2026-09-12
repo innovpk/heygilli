@@ -475,7 +475,9 @@ class Video(BaseModel):
 
 
 class Option(BaseModel):
-    icon_id: str
+    #: A picture from the icon library, or "" for a written card: a reader
+    #: may be given words where no picture fits (`rules.valid_pick`).
+    icon_id: str = ""
     label: str
     correct: bool = False
 

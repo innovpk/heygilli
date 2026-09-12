@@ -276,7 +276,7 @@ def enforce(
         if band == "4_6" or q.type in INPUT_FOR_TYPE:
             q = q.model_copy(update={"input": INPUT_FOR_TYPE[q.type]})
         if q.type == "pick_it" or q.input == "pick":
-            if not valid_pick(q, icon_ids):
+            if not valid_pick(q, icon_ids, band):
                 continue
         else:
             q = q.model_copy(update={"options": []})
@@ -412,25 +412,39 @@ def is_yes_no_pair(options: list[Option]) -> bool:
     return [o.icon_id for o in options] == [YES_ID, NO_ID]
 
 
-def valid_pick(q: Question, icon_ids: frozenset[str] | None) -> bool:
+def valid_pick(
+    q: Question, icon_ids: frozenset[str] | None, band: AgeBand | None = None
+) -> bool:
     """Whether these cards can be put in front of a child.
 
-    Three distinct pictures the library actually has, and exactly one right
-    answer — *or* none at all. None is not a broken question: "how did that
-    leave you feeling?" has no right answer, and `score_pick` accepts any card
-    when nothing is marked. Requiring exactly one used to drop every one of
-    those on the floor, which is how a bank full of them stayed unasked.
+    Three distinct cards and exactly one right answer — *or* none at all. None
+    is not a broken question: "how did that leave you feeling?" has no right
+    answer, and `score_pick` accepts any card when nothing is marked.
+    Requiring exactly one used to drop every one of those on the floor, which
+    is how a bank full of them stayed unasked.
 
-    Two marked correct is still wrong, and so is none of them being a picture.
+    For a pre-reader every card is a picture the library actually has. A
+    reader may be given words instead: a card with no `icon_id` and a label
+    is a written answer, which is what a question like "why do we yawn when
+    we are hot?" needs — its answer is not in any icon library, and mapping
+    it to the nearest picture gave a child "rain" as the right card. Every
+    picture that is named must still exist.
     """
     if len(q.options) != 3:
         return False
-    ids = [o.icon_id for o in q.options]
-    if len(set(ids)) != 3:
-        return False
     if sum(1 for o in q.options if o.correct) > 1:
         return False
-    return icon_ids is None or all(i in icon_ids for i in ids)
+    if band is None or band == "4_6":
+        ids = [o.icon_id for o in q.options]
+        if len(set(ids)) != 3 or not all(ids):
+            return False
+        return icon_ids is None or all(i in icon_ids for i in ids)
+    keys = [o.icon_id or o.label.strip().lower() for o in q.options]
+    if len(set(keys)) != 3 or not all(keys):
+        return False
+    if any(not o.label.strip() for o in q.options):
+        return False
+    return icon_ids is None or all(o.icon_id in icon_ids for o in q.options if o.icon_id)
 
 
 def _fill(q: Question, band: AgeBand, language: str) -> Question:

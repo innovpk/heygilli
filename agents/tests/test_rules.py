@@ -212,3 +212,36 @@ def test_enforce_fits_three_into_five_minutes() -> None:
         [q(90, "recall"), q(193, "why"), q(296, "predict"), q(150, "recall")], "7_8", 300
     )
     assert [x.t_sec for x in kept] == [90, 193, 296]
+
+
+# --- written cards for a reader ------------------------------------------------------------
+
+
+def _pick(options: list[Option]) -> Question:
+    return Question(t_sec=300, type="pick_it", input="pick", text="Why?", expected="x", options=options)
+
+
+def test_a_reader_may_be_given_words_where_no_picture_fits() -> None:
+    words = _pick([
+        Option(icon_id="", label="to cool the brain", correct=True),
+        Option(icon_id="", label="to get more sleep"),
+        Option(icon_id="", label="to stretch the jaw"),
+    ])
+    assert rules.valid_pick(words, frozenset({"icon_sun"}), "7_8")
+    assert rules.valid_pick(words, frozenset({"icon_sun"}), "9_11")
+    assert not rules.valid_pick(words, frozenset({"icon_sun"}), "4_6"), "a pre-reader cannot read a card"
+    assert not rules.valid_pick(words, frozenset({"icon_sun"})), "no band means the strict rule"
+    assert [o.label for o in rules.enforce([words], "7_8", 900)[0].options] == [
+        "to cool the brain", "to get more sleep", "to stretch the jaw"]
+    assert rules.enforce([words], "4_6", 900) == []
+
+
+def test_written_cards_still_need_three_different_non_empty_answers() -> None:
+    dup = _pick([Option(label="leaves", correct=True), Option(label="Leaves"), Option(label="bark")])
+    assert not rules.valid_pick(dup, None, "7_8")
+    blank = _pick([Option(label="leaves", correct=True), Option(label=""), Option(label="bark")])
+    assert not rules.valid_pick(blank, None, "7_8")
+    mixed = _pick([Option(icon_id="icon_sun", label="the sun", correct=True),
+                   Option(label="the moon"), Option(label="a lamp")])
+    assert rules.valid_pick(mixed, frozenset({"icon_sun"}), "7_8")
+    assert not rules.valid_pick(mixed, frozenset({"icon_car"}), "7_8"), "a picture that is named must exist"

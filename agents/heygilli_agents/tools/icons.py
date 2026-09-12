@@ -30,8 +30,13 @@ def label_for(icon_id: str, language: str = "en") -> str:
     return icon_id
 
 
-def find_icon(concept: str, cutoff: float = 0.72) -> dict | None:
-    """Exact match on id/concept/en/ur first, then fuzzy on the English fields."""
+def find_icon(concept: str, cutoff: float = 0.72, fuzzy: bool = True) -> dict | None:
+    """Exact match on id/concept/en/ur first, then fuzzy on the English fields.
+
+    `fuzzy=False` stops at the exact match. The per-word fuzzy pass is right
+    for a pre-reader's card, which has to be *some* picture, and wrong for a
+    reader's written answer: "to cool the brain" is not a picture of "two".
+    """
     c = concept.strip().lower()
     if not c:
         return None
@@ -39,6 +44,8 @@ def find_icon(concept: str, cutoff: float = 0.72) -> dict | None:
     for i in library():
         if c in (i["id"][5:], i["concept"].lower(), i["en"].lower(), i["ur"]):
             return i
+    if not fuzzy:
+        return None
     names = {i["en"].lower(): i for i in library()}
     names.update({i["concept"].lower(): i for i in library()})
     # Fuzzy on the whole phrase first ("giraff"), then per word ("purple colour", "a big lion").

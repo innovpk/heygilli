@@ -8,6 +8,7 @@ import 'package:heygilli/features/kid/pick_cards.dart';
 /// a child already knows how to use. The cards were written for three; this is
 /// the check that two is not a broken three.
 void main() {
+  writtenCards();
   late IconLibrary icons;
 
   setUpAll(() async {
@@ -55,5 +56,50 @@ void main() {
     // with a blank face rather than an error anybody would see.
     expect(icons.byId('icon_yes'), isNotNull);
     expect(icons.byId('icon_no'), isNotNull);
+  });
+}
+
+/// A reader may be sent written answers: a card with no picture and a label.
+/// The words fill the card; nothing falls back to the star icon.
+void writtenCards() {
+  late IconLibrary icons;
+
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    icons = await IconLibrary.load();
+  });
+
+  const words = [
+    PickOption(iconId: '', label: 'to cool the brain'),
+    PickOption(iconId: '', label: 'to get more oxygen'),
+    PickOption(iconId: 'icon_sun', label: 'sun'),
+  ];
+
+  testWidgets('a card with no picture shows its words, and still answers', (
+    tester,
+  ) async {
+    var picked = -1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: PickCards(
+              options: words,
+              icons: icons,
+              onPick: (i) => picked = i,
+              showLabels: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('pick-text-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pick-text-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pick-text-2')), findsNothing);
+    expect(find.text('to cool the brain'), findsOneWidget);
+    expect(find.text('sun'), findsOneWidget);
+    await tester.tap(find.text('to get more oxygen'));
+    await tester.pump();
+    expect(picked, 1);
   });
 }
