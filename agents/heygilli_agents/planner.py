@@ -343,8 +343,23 @@ def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -
 #: How long a plan written without a transcript is served before the
 #: transcript is looked for again. Not on every session: a video Gemini
 #: cannot read would otherwise cost a model call, and a child's wait, every
-#: time it was watched.
-REPLAN_FALLBACK_AFTER_S = 60 * 60
+#: time it was watched. Short, though: the usual reason is a transient
+#: refusal — a 503 at the wrong moment — and a child watching the same video
+#: after dinner should not meet the bank again for that.
+REPLAN_FALLBACK_AFTER_S = 15 * 60
+
+
+def transcript_known(store: Store, video_id: str) -> bool:
+    """Whether a real transcript for this video is already in the cache.
+
+    Something else may have read the words since the fallback was written —
+    the Curator on its next run, a probe from the admin screen — and then the
+    plan is the only thing still pretending the video could not be read.
+    Re-planning costs one Planner call and no transcript fetch, so there is
+    no reason to wait for the fallback to age.
+    """
+    cached = store.cache_get("transcript", video_id)
+    return bool(cached and cached.get("source") not in (None, "", "none") and cached.get("segments"))
 
 
 def is_stale_fallback(plan: QuestionPlan, video: Video) -> bool:
@@ -389,9 +404,14 @@ def ensure_plan(
     """
     store = store or get_store()
     cached = store.get_plan(video.id, band, language)
-    if cached and not is_stale_fallback(cached, store.get_video(video.id) or video):
-        return trim_cached(cached, video, band, store)
     if cached:
+        stored_video = store.get_video(video.id) or video
+        fallback = (cached.source or stored_video.transcript_source or "") == "none"
+        retry = fallback and (
+            transcript_known(store, video.id) or is_stale_fallback(cached, stored_video)
+        )
+        if not retry:
+            return trim_cached(cached, video, band, store)
         log.info("plan for %s/%s/%s was written without a transcript; trying again",
                  video.id, band, language)
     try:

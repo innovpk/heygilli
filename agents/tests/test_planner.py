@@ -398,3 +398,30 @@ def test_a_known_length_is_not_overwritten_by_the_transcripts(store: LocalStore,
         "video_id": vid, "source": "gemini", "segments": SEGMENTS, "duration_s": 250})
     planner.ensure_plan(video, "7_8", "en", store, make_agent("planner", "s", model=FakeModel()))
     assert store.get_video("vidlen2").duration_s == 900
+
+
+def test_a_fresh_fallback_is_replaced_at_once_when_the_words_are_already_cached(
+    store: LocalStore, monkeypatch
+) -> None:
+    """A transient refusal at plan time — a 503 at the wrong moment — wrote a
+    bank plan; the Curator, or a probe, read the transcript minutes later. The
+    plan was the only thing still pretending the video could not be read, and
+    it was going to say so for the rest of the hour."""
+    video = Video(id="vidcached_words", title="Why do we yawn?", duration_s=0, transcript_source="none")
+    store.put_video(video)
+    store.put_plan(planner.fallback_plan(video, "7_8", "en"))  # just written; not stale
+    store.cache_put("transcript", video.id, {
+        "video_id": video.id, "source": "gemini", "segments": SEGMENTS, "duration_s": 516})
+    plan = planner.ensure_plan(video, "7_8", "en", store, make_agent("planner", "s", model=FakeModel()))
+    assert plan.source == "gemini"
+    assert "What did the giraffe eat?" in [q.text for q in plan.questions]
+    assert store.get_video(video.id).duration_s == 516
+
+
+def test_a_fresh_fallback_with_nothing_new_cached_is_served_as_is(store: LocalStore, monkeypatch) -> None:
+    video = Video(id="vidcached_none", title="Volcanoes", duration_s=0, transcript_source="none")
+    store.put_video(video)
+    stale = planner.fallback_plan(video, "7_8", "en")
+    store.put_plan(stale)
+    monkeypatch.setattr(planner, "fetch_transcript", lambda vid: (_ for _ in ()).throw(AssertionError("fetched")))
+    assert planner.ensure_plan(video, "7_8", "en", store) == stale
