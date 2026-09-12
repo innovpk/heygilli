@@ -337,9 +337,12 @@ class SessionEngine:
         if q.input == "pick":
             if q.is_opinion:
                 return opinion_reply(q, score.paraphrase, self.language)
+            chose = card_word(q, score.paraphrase, self.language)
             if score.result == "correct":
-                return (f"Yes, {q.expected}! {q.followup}".strip()), "cheer"
-            return f"{score.paraphrase}? The video showed {q.expected}. {q.followup}".strip(), "point"
+                return (f"Yes, {chose}! {q.followup}".strip()), "cheer"
+            right = next((o for o in q.options if o.correct), None)
+            shown = label_for(right.icon_id, self.language) if right else ""
+            return f"{chose}? The video showed {shown}. {q.followup}".strip(), "point"
         return older_silence_reply(self.band, self.language), "think"
 
     def _track_empty(self, result: Result) -> None:
@@ -369,7 +372,11 @@ class SessionEngine:
         for i, q in enumerate(self.questions):
             if i in self.asked or q.input != "voice":
                 continue
-            self.questions[i] = to_pick(q, self.language)
+            converted = to_pick(q, self.language)
+            if converted is None:
+                self.asked.add(i)  # nothing this device can put in front of them
+                continue
+            self.questions[i] = converted
         log.info("session %s switched remaining voice questions to pick", self.session.id)
 
     def _persist(self, msg: ClientAnswer, q: Question, score: Score, latency_ms: int) -> None:
@@ -390,10 +397,23 @@ class SessionEngine:
         )
 
 
-def to_pick(q: Question, language: str) -> Question:
-    """Turn a name_it into a pick_it with the expected word plus two unrelated icons."""
+def to_pick(q: Question, language: str) -> Question | None:
+    """Turn a voice question into a pick: one real card plus two unrelated icons.
+
+    `expected` usually describes a good answer rather than naming one --
+    "anything unexplained, or an honest no" -- and `find_icon` matches a word
+    at a time, so that one draws a card saying "no". The question that results
+    is coarser than the one written, which is the trade for asking a child who
+    cannot answer by voice anything at all. `expected` is rewritten to the card
+    actually drawn, so nothing downstream reads the note out.
+
+    None when there is no card and nothing to repeat either: prose with no icon
+    behind it would otherwise become "Can you say <the whole note> with me?".
+    """
     hit = find_icon(q.expected)
     if not hit:
+        if len(q.expected.split()) != 1:
+            return None
         text = f"Can you say {q.expected} with me?" if language == "en" else f"میرے ساتھ کہو: {q.expected}"
         return q.model_copy(update={"type": "copy_it", "input": "copy", "text": text, "options": []})
     options = [Option(icon_id=hit["id"], label=hit.get(language) or hit["en"], correct=True)]
@@ -403,4 +423,5 @@ def to_pick(q: Question, language: str) -> Question:
         if icon_id != hit["id"]:
             options.append(Option(icon_id=icon_id, label=label_for(icon_id, language)))
     text = f"Show me the {hit['en']}." if language == "en" else f"مجھے {hit['ur']} دکھاؤ۔"
-    return q.model_copy(update={"type": "pick_it", "input": "pick", "text": text, "options": options})
+    return q.model_copy(update={"type": "pick_it", "input": "pick", "text": text,
+                                "options": options, "expected": hit["en"]})

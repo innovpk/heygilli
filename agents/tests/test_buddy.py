@@ -222,3 +222,42 @@ def test_a_real_pick_still_names_the_answer() -> None:
     assert not PICK.is_opinion
     said, _ = prereader_reply(PICK, "correct", "red", "en")
     assert "red" in said.lower()
+
+
+def test_converted_pick_never_reads_the_grader_note() -> None:
+    """`_switch_to_pick` turns voice questions into picks on a device with no
+    microphone. 20 of the bank's 22 prompts describe a good answer instead of
+    naming one, and `find_icon` matches those a word at a time -- "anything
+    unexplained, or an honest no" drew a card saying "no", and the reply then
+    read the whole note out."""
+    from heygilli_agents.buddy import to_pick
+    from heygilli_agents.question_bank import PROMPTS, as_question
+
+    prose = [p for p in PROMPTS if p.input == "voice" and len(p.expected.split()) > 1]
+    assert len(prose) >= 14
+    for prompt in prose:
+        q = as_question(prompt, 200, "en")
+        converted = to_pick(q, "en")
+        if converted is None:
+            continue  # not asked at all is a fine answer
+        assert prompt.expected not in converted.text, prompt.id
+        assert prompt.expected != converted.expected, prompt.id
+        if converted.options:
+            assert converted.expected in {o.label for o in converted.options}, prompt.id
+
+
+def test_older_pick_reply_names_the_card_not_expected(store: LocalStore) -> None:
+    """A pick reply says the card the child tapped. `expected` is a note to
+    whatever grades the answer, and only band 4_6 ever has it filled from a
+    card label, so reading it out was wrong for every older-band pick."""
+    from heygilli_agents.schemas import Option as O
+    from heygilli_agents.schemas import Question as Q
+    q = Q(t_sec=100, type="pick_it", input="pick", text="Which one?",
+          expected="a reason, however small",
+          options=[O(icon_id="icon_fish", label="fish", correct=True),
+                   O(icon_id="icon_car", label="car"), O(icon_id="icon_sun", label="sun")])
+    e = engine(store, "9_11", [q])
+    e.ask(0)
+    reply = e.answer(ClientAnswer(t="answer", q=0, input="pick", option=0))
+    assert reply.text and "reason, however small" not in reply.text
+    assert "fish" in reply.text.lower()
