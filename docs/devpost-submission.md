@@ -102,7 +102,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A question path for pre-readers that needs no reading: Gilli asks aloud, and they tap a picture or say one word.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 716 backend tests and 638 client tests, offline.
+- 723 backend tests and 638 client tests, offline.
 
 ### What we learned
 
@@ -136,7 +136,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Demo video | https://youtu.be/ab9HNgQXS6A (4:52, Public, English captions uploaded 12 September) |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
 | builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |
-| builder.aws post 3 | still needed |
+| builder.aws post 3 | https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy |
 | AWS Builder ID | @innovpk |
 
 ## Testing instructions (Devpost field)
@@ -166,4 +166,4 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Teammates: Unzila Zafar (@unzila15) and Aida Valiyeva (@aidavaliyeva) are on the submission, checked 11 September | done |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |
 | README Status section updated (test counts, the Gemini path now exists) | can be done now |
-| builder.aws post 3 (optional bonus), "Agents for Humans" in the title, published before the deadline. Parts 1 and 2 are up: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements and https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands | author |
+| builder.aws post 3 (optional bonus), published: https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy | done |

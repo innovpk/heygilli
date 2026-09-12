@@ -35,10 +35,10 @@ Per SPEC section 14. Items that affect the submission only:
 - [ ] Second child test if possible.
 - [ ] README final pass: what shipped, what did not, setup that works from a clean clone, `docs/architecture.png` embedded, link to `docs/PROTOCOL.md`.
 - [x] Architecture diagram updated to match what shipped (dashed boxes for anything still planned). Done 6 Sep: six agents, three platforms, the v1.7 routes.
-- [ ] Publish builder.aws series, parts 1 to 3: `docs/blog-1-concept.md`, `docs/blog-2-strands-design.md`, `docs/blog-3-trust.md`. Every title contains "Agents for Humans". Save the three URLs.
+- [x] Publish builder.aws series, parts 1 to 3: `docs/blog-1-concept.md`, `docs/blog-2-strands-design.md`, `docs/blog-3-trust.md`. Every title contains "Agents for Humans". Save the three URLs.
   - [x] Part 1, published 11 September: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements
   - [x] Part 2, published 11 September: https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands
-  - [ ] Part 3
+  - [x] Part 3, published 13 September: https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy
 - [x] Write the testing instructions and third-party disclosure text in `docs/devpost-submission.md` to match reality. Written 10 Sep; checked against the live app 11 Sep.
 
 ## Friday 12 September: record
@@ -104,7 +104,7 @@ Do these in order.
 | AWS Builder ID | in Devpost form: @innovpk | [x] |
 | Third-party disclosure | in Devpost form | [ ] |
 | English materials | all docs English; Urdu only inside the demo, subtitled | [x] |
-| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements, part 2: https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands | [ ] part 3 |
+| builder.aws series parts 1 to 3, "Agents for Humans" in each title | [x] part 1: https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements, part 2: https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands, part 3: https://builder.aws.com/content/3J9n44V1hiGRKNfSSVURtJpOfI2/agents-for-humans-building-heygilli-part-3-making-the-agents-trustworthy | [x] all three published |
 | Credits form, by 11 Sep 12:00 PM PT | Devpost Resources | [x] credits received 9 Sep |
 | Live demo link (optional) | [x] https://heygilli.com/app/ | [x] |
 
