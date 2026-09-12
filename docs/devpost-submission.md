@@ -60,18 +60,18 @@ Nothing a child says is stored. Only a score and a ten-word paraphrase are kept.
 
 ### How we built it
 
-All agent logic is Python on the **Strands Agents SDK**. There are eight agents, each a Strands `Agent` with a frozen system prompt and its own model setting:
+All agent logic is Python on the **Strands Agents SDK**. There are eight agents, each a Strands `Agent` with a frozen system prompt, its own model setting, its own `@tool` list, and a Pydantic output schema it must fill in. The repo has twelve `@tool` functions; five are handed to agents, and the rest are called directly by the gateway as the plain functions they still are. No agent returns free text: every call goes through `structured()`, which asks Strands for `structured_output` and validates the object before anything uses it.
 
-- **Curator**: screens each new upload against the household's answers and the safety rules. Structured output: approve, hide or ask the parent, with short topic and concern tags.
-- **Planner**: writes the questions for each approved video, per age band and language, as a Pydantic `QuestionPlan`. Band and timing rules are enforced in code afterwards.
+- **Curator**: screens each new upload against the household's answers and the safety rules. `@tool`: `screen_video`. Structured output `CuratorDecision`: approve, hide or ask the parent, with short topic and concern tags.
+- **Planner**: writes the questions for each approved video, per age band and language, as a Pydantic `QuestionPlan`. `@tool`: `icon_lookup`, `list_icons`, so a picture question can only name an icon that exists. Band and timing rules are enforced in code afterwards.
 - **Buddy**: runs live, one per session over a WebSocket; scores the answer, writes Gilli's reply, and adapts mid-session.
 - **Digest**: writes the nightly parent digest and decides whether anything deserves a notification.
-- **Reviewer**: describes what a channel actually publishes, from its feed; also notices when an approved channel drifts.
+- **Reviewer**: describes what a channel actually publishes, from its feed; also notices when an approved channel drifts. `@tool`: `screen_video`.
 - **Coach**: drafts household questions and break lines **for the parent**. Nothing it writes reaches a child until the parent saves it.
-- **Explainer**: answers a parent's question about one video from its transcript, with `@tool` functions to search the transcript and screen the video.
+- **Explainer**: answers a parent's question about one video from its transcript. `@tool`: `search_transcript`, `channel_reputation`, `screen_video` — the agent chooses what evidence it needs, and `search_transcript` returns `searched_whole_video` so it knows when "not found" can be trusted.
 - **Playmate**: runs Gilli's two games. After each round it decides how hard the next one should be for this child and what Gilli says; the code clamps the numbers per age band, picks where Gilli hides, checks the line, and caps a game at five rounds.
 
-The agents decide; plain code fetches and enforces. Reading transcripts, listing uploads, Polly speech and the length and safety rules are ordinary functions the gateway calls, not tools handed to a model. The Curator-to-Planner hand-off is a typed Python pipeline rather than a Strands Graph, so the Planner never re-parses the Curator's prose and every plan passes the same rule check.
+The agents decide; plain code fetches and enforces. An agent gets a tool where a judgement needs evidence it should go and fetch — the Explainer deciding to search a transcript, the Planner checking an icon exists. Fetching uploads, Polly speech and the length and safety rules stay ordinary functions the gateway calls, because nothing about them is the model's to decide. A `@tool` is still a plain function, so `screen_video` has two callers: the agent that may reason about it, and the pipeline that always runs it. The Curator-to-Planner hand-off is a typed Python pipeline rather than a Strands Graph, so the Planner never re-parses the Curator's prose and every plan passes the same rule check.
 
 **Every agent call is traced, checked and audited.** All eight agents go through one function, and three things happen there:
 
@@ -101,7 +101,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A question path for pre-readers that needs no reading: Gilli asks aloud, and they tap a picture or say one word.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 680 backend tests and 622 client tests, offline.
+- 685 backend tests and 622 client tests, offline.
 
 ### What we learned
 
@@ -132,7 +132,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Try the screening, no login | https://heygilli.com/try |
 | Web app | https://heygilli.com/app/ |
 | Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
-| Demo video | still needed |
+| Demo video | https://youtu.be/7pqNpfnOi2c (4:56; set to Public before submitting, currently Unlisted) |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
 | builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |
 | builder.aws post 3 | still needed |
@@ -160,7 +160,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 | Item | Owner |
 |---|---|
-| Demo video, 5:00 max, public on YouTube or Vimeo; must cover the problem, who it is for, why it matters | author |
+| Demo video: uploaded, 4:56, https://youtu.be/7pqNpfnOi2c. Still Unlisted; switch to Public before submitting | author |
 | AWS Builder ID: @innovpk | done |
 | Teammates: Unzila Zafar (@unzila15) and Aida Valiyeva (@aidavaliyeva) are on the submission, checked 11 September | done |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |

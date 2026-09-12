@@ -214,7 +214,7 @@ demo at `/try`), the gateway on Render with DynamoDB storage and Bedrock models.
 plan sleeps after 15 idle minutes, so a Cloudflare Worker (`ops/keepalive`, deployed with
 `wrangler deploy`) pings `/healthz` every 10 minutes to spare the next visitor a cold start.
 
-**Verified:** 680 backend tests and 622 client tests, both offline; `flutter analyze` clean. The
+**Verified:** 685 backend tests and 622 client tests, both offline; `flutter analyze` clean. The
 Planner on a real SciShow Kids video via its public captions; the Curator screening real uploads;
 a full live session turn on Bedrock with Polly audio. The client runs against the gateway on
 Android, the iPhone simulator and the web.

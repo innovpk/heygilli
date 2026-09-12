@@ -59,7 +59,7 @@ except Exception as e:  # provider SDK, network, throttling, access
 
 ## An eval before any provider is trusted
 
-The eval runs three real transcripts against three sets of question rules in two languages, which makes 18 cells. A cell passes only when the final plan is clean *and* came from the model rather than the fallback. That's where part 2's numbers come from: 0/18, 0/18 and 16/18. Underneath, 680 backend tests run offline on a fake model, because the rules they test live in code.
+The eval runs three real transcripts against three sets of question rules in two languages, which makes 18 cells. A cell passes only when the final plan is clean *and* came from the model rather than the fallback. That's where part 2's numbers come from: 0/18, 0/18 and 16/18. Underneath, 685 backend tests run offline on a fake model, because the rules they test live in code.
 
 ![HeyGilli end to end: the apps, the gateway, eight Strands agents, and what runs on AWS](architecture.png)
 
