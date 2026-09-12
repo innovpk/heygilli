@@ -54,7 +54,7 @@ def _rows(store: Store, household: str, sessions: list[Session]) -> tuple[list[s
             answers.append(a)
             q = plan.questions[a.question_idx] if plan and a.question_idx < len(plan.questions) else None
             qtext, expected = (q.text, q.expected) if q else ("?", "?")
-            if q and s.age_band == "4_6" and q.type != "copy_it":
+            if q and s.age_band == "4_6" and q.type != "copy_it" and not q.is_opinion:
                 words_heard.add(q.expected)
             lines.append(f"  Q: {qtext} | expected: {expected} | result: {a.result} | said: {a.paraphrase}")
     return lines, answers, words_heard

@@ -115,8 +115,33 @@ def phonetic_match(said: str, expected: str, variants: list[str]) -> Result | No
 # --- reply lines (SPEC §7.4) --------------------------------------------------------------------------
 
 
+def card_word(q: Question, chosen: str, language: str) -> str:
+    """The tapped card's own word, in the language being spoken.
+
+    `score_pick` reports `chosen.label`, which is deliberately English -- the
+    client draws the card from the icon library, which carries both languages.
+    Echoing the label straight back would put an English word in an Urdu reply.
+    """
+    for o in q.options:
+        if o.label == chosen:
+            return label_for(o.icon_id, language)
+    return chosen
+
+
+def opinion_reply(q: Question, chosen: str, language: str) -> tuple[str, Gesture]:
+    """Say back what they chose. Never grade an opinion, and never read
+    `expected` aloud: on these questions it is a note to the grader."""
+    word = card_word(q, chosen, language)
+    if language == "ur":
+        return (f"واہ! {word}۔" if word else "واہ!"), "cheer"
+    return (f"{word.capitalize()}! Thanks for telling me." if word
+            else "Thanks for telling me!"), "cheer"
+
+
 def prereader_reply(q: Question, result: Result, said: str, language: str) -> tuple[str, Gesture]:
     """Every outcome ends with the answer word said clearly once."""
+    if q.is_opinion:
+        return opinion_reply(q, said, language)
     word = q.expected
     model_line = q.model_line or rules.default_model_line(q, language)
     if q.type == "copy_it":
@@ -247,7 +272,8 @@ class SessionEngine:
             tts_url=synthesize(text, self.language, slow=self.band == "4_6"),
             result=score.result,
             gesture=gesture,
-            model_word=q.expected if self.band == "4_6" and q.type != "copy_it" else None,
+            model_word=q.expected if self.band == "4_6" and q.type != "copy_it"
+            and not q.is_opinion else None,
         )
 
     def end(self, line: str | None = None) -> ServerEnd:
@@ -309,6 +335,8 @@ class SessionEngine:
             g: Gesture = "cheer" if score.result in SUCCESS else "think"
             return score.reply_text, g
         if q.input == "pick":
+            if q.is_opinion:
+                return opinion_reply(q, score.paraphrase, self.language)
             if score.result == "correct":
                 return (f"Yes, {q.expected}! {q.followup}".strip()), "cheer"
             return f"{score.paraphrase}? The video showed {q.expected}. {q.followup}".strip(), "point"

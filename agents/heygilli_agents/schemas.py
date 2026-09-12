@@ -507,6 +507,17 @@ class Question(BaseModel):
     revisit: RevisitTag | None = None  # null on all but at most one question per plan
     word: WordTag | None = None  # null on all but at most one question per plan
 
+    @property
+    def is_opinion(self) -> bool:
+        """A pick with nothing marked correct: "how did that leave you feeling?".
+
+        There is no right answer, so `expected` on these describes what the
+        grader should accept ("whichever one they tapped") instead of naming a
+        word. That sentence must never reach a child or a parent, which is what
+        this property is for -- see `buddy.score_pick`.
+        """
+        return self.input == "pick" and bool(self.options) and not any(o.correct for o in self.options)
+
 
 class RevisitDraft(BaseModel):
     """What the model returns for a revisit: one question about the earlier

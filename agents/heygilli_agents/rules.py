@@ -163,6 +163,10 @@ def syllabify(word: str) -> str:
 
 
 def default_model_line(q: Question, language: str) -> str:
+    # An opinion pick's `expected` is a note to the grader, not a word to model:
+    # syllabifying it said "A whichever one they tapped! Whichever-one they tapped."
+    if q.is_opinion:
+        return ""
     word = q.expected.strip()
     if not word:
         return ""

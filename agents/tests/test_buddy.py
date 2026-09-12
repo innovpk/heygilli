@@ -168,3 +168,57 @@ def test_due_question_and_end(store: LocalStore) -> None:
 def test_to_pick_urdu_labels() -> None:
     q = to_pick(name_it(100), "ur")
     assert q.type == "pick_it" and q.options[0].label == "زرافہ" and "دکھاؤ" in q.text
+
+
+def test_opinion_pick_never_repeats_the_grader_note() -> None:
+    """The bank's opinion prompts carry expected="whichever one they tapped".
+
+    That is a note to the grader, and three separate paths read it out: the
+    older-band reply said "Yes, whichever one they tapped!", the pre-reader
+    line syllabified it, and the digest listed it as a word the child heard.
+    """
+    from heygilli_agents import rules
+    from heygilli_agents.buddy import opinion_reply, prereader_reply
+    from heygilli_agents.question_bank import PROMPTS, as_question
+
+    opinions = [p for p in PROMPTS if p.options and not any(o.correct for o in p.options)]
+    assert len(opinions) >= 6
+    for prompt in opinions:
+        for language in ("en", "ur"):
+            q = as_question(prompt, 200, language)
+            assert q.is_opinion
+            chosen = q.options[0].label
+            said, gesture = opinion_reply(q, chosen, language)
+            assert said.strip() and gesture == "cheer"
+            assert "whichever" not in said.lower()
+            assert q.expected not in said
+            pre, _ = prereader_reply(q, "correct", chosen, language)
+            assert "whichever" not in pre.lower() and q.expected not in pre
+            assert rules.default_model_line(q, language) == ""
+
+
+def test_opinion_pick_models_no_word(store: LocalStore) -> None:
+    """A pre-reader is taught the answer word. An opinion has none, so the
+    grader note must not arrive as one -- it was also spoken, via `model_word`."""
+    feeling = Question(
+        t_sec=200, type="pick_it", input="pick", text="How did that make you feel?",
+        expected="whichever one they tapped",
+        options=[Option(icon_id="icon_happy", label="happy"),
+                 Option(icon_id="icon_sleepy", label="sleepy"),
+                 Option(icon_id="icon_star", label="amazed")],
+    )
+    e = engine(store, "4_6", [feeling])
+    e.ask(0)
+    reply = e.answer(ClientAnswer(t="answer", q=0, input="pick", option=0))
+    assert reply.result == "correct"
+    assert reply.model_word is None
+    assert "whichever" not in (reply.text or "")
+
+
+def test_a_real_pick_still_names_the_answer() -> None:
+    """The fix must not silence ordinary picks: one marked correct still gets
+    the word said back."""
+    from heygilli_agents.buddy import prereader_reply
+    assert not PICK.is_opinion
+    said, _ = prereader_reply(PICK, "correct", "red", "en")
+    assert "red" in said.lower()
