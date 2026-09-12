@@ -137,6 +137,7 @@ class FakeGateway implements Gateway {
         type: 'pick_it',
         input: QuestionInput.pick,
         text: 'Show me the duck!',
+        hint: 'It says quack quack!',
         textUr: 'مجھے بطخ دکھاؤ',
         options: const [
           PickOption(iconId: 'icon_fish', label: 'fish'),
@@ -151,6 +152,7 @@ class FakeGateway implements Gateway {
         type: 'name_it',
         input: QuestionInput.voice,
         text: 'What animal is that?',
+        hint: 'It swims on the pond and goes quack.',
         textUr: 'یہ کون سا جانور ہے؟',
         expected: const ['duck', 'ducks', 'duckling'],
         modelWord: 'duck',
@@ -162,6 +164,7 @@ class FakeGateway implements Gateway {
         type: 'name_it',
         input: QuestionInput.voice,
         text: 'What is shining in the sky?',
+        hint: 'Look up. It twinkles at night.',
         textUr: 'آسمان میں کیا چمک رہا ہے؟',
         expected: const ['star', 'stars', 'twinkle'],
         modelWord: 'star',
@@ -171,6 +174,7 @@ class FakeGateway implements Gateway {
         type: 'pick_it',
         input: QuestionInput.pick,
         text: 'Show me the star!',
+        hint: 'It is the pointy twinkly one.',
         textUr: 'مجھے ستارہ دکھاؤ',
         options: const [
           PickOption(iconId: 'icon_star', label: 'star'),
@@ -187,6 +191,7 @@ class FakeGateway implements Gateway {
         type: 'recall',
         input: QuestionInput.voice,
         text: 'What comes out of a volcano when it erupts?',
+        hint: 'Think about the hot orange stuff pouring down the side.',
         textUr: 'جب آتش فشاں پھٹتا ہے تو اس سے کیا نکلتا ہے؟',
         expected: const ['lava', 'ash', 'magma', 'rock', 'gas'],
       ),
@@ -195,6 +200,7 @@ class FakeGateway implements Gateway {
         type: 'why',
         input: QuestionInput.voice,
         text: 'Why did the lava come out?',
+        hint: 'What was building up underneath before it blew?',
         textUr: 'لاوا باہر کیوں نکلا؟',
         expected: const ['pressure', 'push', 'hot', 'gas', 'build'],
         // One word, on the second question, for a concept this child has
@@ -213,6 +219,7 @@ class FakeGateway implements Gateway {
         type: 'recall',
         input: QuestionInput.voice,
         text: 'What part of the ear catches the sound first?',
+        hint: 'It is the part on the outside that you can see.',
         textUr: 'کان کا کون سا حصہ آواز کو سب سے پہلے پکڑتا ہے؟',
         expected: const ['outer', 'outside', 'flap', 'pinna', 'ear'],
       ),
@@ -221,6 +228,7 @@ class FakeGateway implements Gateway {
         type: 'why',
         input: QuestionInput.voice,
         text: 'Why do we have two ears and not one?',
+        hint: 'Think about telling which side a sound is coming from.',
         textUr: 'ہمارے دو کان کیوں ہیں، ایک کیوں نہیں؟',
         expected: const ['where', 'direction', 'side', 'find', 'both'],
       ),
@@ -2218,6 +2226,7 @@ class PlannedAsk {
     this.expected = const [],
     this.modelWord,
     this.seed,
+    this.hint,
   });
 
   final int atS;
@@ -2233,6 +2242,10 @@ class PlannedAsk {
   /// The Urdu word this question offers, if any. At most one per plan, and
   /// only for a kid whose languages include it (PROTOCOL).
   final SeededWord? seed;
+
+  /// What Gilli says if the child has gone quiet: a nudge back to the moment
+  /// in the video, never the answer. Null for a copy-it, which has none.
+  final String? hint;
 }
 
 /// Scripted server side of one session. Watches `position` messages and runs
@@ -2246,6 +2259,7 @@ class FakeSession implements SessionSocket {
     this.breakAtS,
     this.onBreakDue,
     this.answerWindow,
+    this.hintAfter,
   }) {
     _out = StreamController<ServerMessage>.broadcast();
   }
@@ -2268,6 +2282,7 @@ class FakeSession implements SessionSocket {
   bool _breakSent = false;
   Completer<ClientMessage?>? _awaitingAnswer;
   Timer? _answerTimeout;
+  Timer? _hintTimer;
 
   /// The language Gilli speaks in this session. Demo rule: Urdu if the kid's
   /// profile lists it, else English.
@@ -2329,6 +2344,9 @@ class FakeSession implements SessionSocket {
   /// through twenty-five seconds of it. Nothing in the app passes it.
   final Duration? answerWindow;
 
+  /// How long the child is quiet before the hint, when a test wants it soon.
+  final Duration? hintAfter;
+
   void _armAnswerTimeout() {
     _answerTimeout?.cancel();
     _answerTimeout = Timer(
@@ -2346,7 +2364,37 @@ class FakeSession implements SessionSocket {
     if (live == null || live.q != q || _repeats >= 1) return;
     _repeats++;
     _armAnswerTimeout();
+    if (_hintTimer != null) _armHint(q);
     _emit(live);
+  }
+
+  /// Same contract as the gateway: part-way through the window with nothing
+  /// said, Gilli gives the hint once and the window starts over. The demo
+  /// waits a little longer than the gateway would because the device is
+  /// reading the question aloud inside the same window.
+  void _armHint(int q) {
+    _hintTimer?.cancel();
+    final ask = plan[q];
+    if (ask.hint == null || ask.input == QuestionInput.copy) return;
+    _hintTimer = Timer(
+      hintAfter ?? Duration(milliseconds: kid.band.hintAfterMs + 4000),
+      () {
+        _hintTimer = null;
+        final live = _live;
+        if (live == null || live.q != q || _awaitingAnswer == null) return;
+        _emit(
+          HintMessage(
+            q: q,
+            text: kid.band == AgeBand.b4to6 ? null : ask.hint,
+            speak: ask.hint,
+            ttsUrl: '',
+            listenMs: kid.band.defaultListenMs,
+            gesture: Gesture.think,
+          ),
+        );
+        _armAnswerTimeout();
+      },
+    );
   }
 
   Future<void> _runQuestion(int index) async {
@@ -2386,8 +2434,11 @@ class FakeSession implements SessionSocket {
     // The demo allows extra time for the question TTS to finish first.
     _awaitingAnswer = Completer<ClientMessage?>();
     _armAnswerTimeout();
+    _armHint(index);
     final answer = await _awaitingAnswer!.future;
     _answerTimeout?.cancel();
+    _hintTimer?.cancel();
+    _hintTimer = null;
     if (_closed) return;
 
     final reply = _score(ask, answer is AnswerMessage ? answer : null);

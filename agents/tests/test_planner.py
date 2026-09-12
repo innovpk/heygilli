@@ -294,3 +294,78 @@ def test_a_cached_plan_already_within_the_target_is_untouched(store: LocalStore)
     store.put_plan(QuestionPlan(video_id=video.id, age_band="7_8", language="en", questions=two))
     plan = planner.ensure_plan(video, "7_8", "en", store)
     assert [q.text for q in plan.questions] == ["a", "b"]
+
+
+# --- a plan written without a transcript is not for ever --------------------------------------
+
+
+def test_a_stale_fallback_plan_is_replaced_once_the_words_can_be_read(
+    store: LocalStore, monkeypatch
+) -> None:
+    """Every video on the deployed gateway was planned while no transcript
+    source could answer, and those bank-question plans were cached for ever:
+    adding a Gemini key changed nothing a child could hear. A fallback plan
+    old enough is tried again, and a transcript now turns it into questions
+    about the video."""
+    from datetime import UTC, datetime, timedelta
+
+    video = Video(id="vidstale1", title="Why Do Giraffes Have Long Necks?", duration_s=600)
+    stale = planner.fallback_plan(video, "7_8", "en")
+    assert stale.source == "none"
+    stale.created_at = (datetime.now(UTC) - timedelta(days=2)).isoformat(timespec="seconds")
+    store.put_plan(stale)
+    video.transcript_source = "none"
+    store.put_video(video)
+
+    monkeypatch.setattr(planner, "fetch_transcript", lambda vid: {
+        "video_id": vid, "source": "gemini", "segments": SEGMENTS})
+    plan = planner.ensure_plan(video, "7_8", "en", store, make_agent("planner", "s", model=FakeModel()))
+    assert plan.source == "gemini"
+    assert "What did the giraffe eat?" in [q.text for q in plan.questions]
+    assert store.get_plan(video.id, "7_8", "en").source == "gemini"
+    assert store.get_video(video.id).transcript_source == "gemini"
+
+
+def test_a_fallback_plan_from_before_source_existed_counts_as_one(store: LocalStore, monkeypatch) -> None:
+    """Plans cached before `source` was written carry "". The video's own record
+    says whether it was ever read, and "none" there means the same thing."""
+    from datetime import UTC, datetime, timedelta
+
+    from heygilli_agents.schemas import Question, QuestionPlan
+
+    video = Video(id="vidstale2", title="Volcanoes", duration_s=600, transcript_source="none")
+    old = QuestionPlan(video_id=video.id, age_band="7_8", language="en", questions=[
+        Question(t_sec=100, type="recall", input="voice", text="bank q", expected="x")])
+    old.created_at = (datetime.now(UTC) - timedelta(hours=3)).isoformat(timespec="seconds")
+    assert planner.is_stale_fallback(old, video)
+    assert not planner.is_stale_fallback(old, Video(id="v", transcript_source="captions:en:auto"))
+    fresh = planner.fallback_plan(video, "7_8", "en")
+    assert not planner.is_stale_fallback(fresh, video), "just written; not tried again on every session"
+
+
+def test_a_fallback_that_still_has_no_transcript_costs_no_model_call(store: LocalStore, monkeypatch) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    video = Video(id="vidstale3", title="Volcanoes", duration_s=600, transcript_source="none")
+    stale = planner.fallback_plan(video, "7_8", "en")
+    stale.created_at = (datetime.now(UTC) - timedelta(hours=3)).isoformat(timespec="seconds")
+    store.put_plan(stale)
+    store.put_video(video)
+    monkeypatch.setattr(planner, "fetch_transcript", lambda vid: {"video_id": vid, "source": "none", "segments": []})
+    monkeypatch.setattr(planner, "structured", lambda *a, **k: (_ for _ in ()).throw(AssertionError("model called")))
+    plan = planner.ensure_plan(video, "7_8", "en", store)
+    assert plan.source == "none" and plan.questions
+    assert store.get_plan(video.id, "7_8", "en").created_at > stale.created_at, "stamped afresh"
+
+
+def test_the_prompt_asks_for_hints_and_video_specific_questions() -> None:
+    assert "hint" in planner.PLANNER_SYSTEM_PROMPT
+    assert "never says the answer" in planner.PLANNER_SYSTEM_PROMPT
+    assert "about THIS video" in planner.PLANNER_SYSTEM_PROMPT
+
+
+def test_hints_survive_the_rules() -> None:
+    plan = planner.build_plan(VIDEO, SEGMENTS, "7_8", "en",
+                              agent=make_agent("planner", "s", model=FakeModel()))
+    hints = {q.text: q.hint for q in plan.questions}
+    assert hints.get("Why did the ice melt?") == "Think about where the ice was sitting."

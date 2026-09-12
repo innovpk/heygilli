@@ -90,6 +90,42 @@ def listen_ms(band: AgeBand) -> int:
     return TIMING[band].listen_ms
 
 
+#: How long a child sits on a question, saying nothing, before Gilli offers a
+#: hint. Absolute rather than a share of the window: the window is what a
+#: child gets to think in, and the hint is for the child who has stopped
+#: thinking and started waiting. About half of it for every band — long enough
+#: that a child who is working it out is not interrupted, short enough that
+#: one who is lost is not left in silence until the video simply starts again.
+#: After the hint the window starts over, so a hinted question is at most
+#: hint + listen long.
+HINT_AFTER_MS: dict[str, int] = {"4_6": 7000, "7_8": 9000, "9_11": 9000}
+
+
+def hint_after_ms(band: AgeBand) -> int:
+    return HINT_AFTER_MS[band]
+
+
+#: What Gilli says when a question has no hint of its own — one from the bank,
+#: or a plan written before hints existed. Never the answer, because there is
+#: no way to know it here; a nudge back towards the video and a bit more time.
+GENERIC_HINT: dict[str, dict[str, str]] = {
+    "en": {
+        "4_6": "Take your time. What did you just see?",
+        "7_8": "No rush. Think about what just happened in the video.",
+        "9_11": "Take a second. What did the video just show you?",
+    },
+    "ur": {
+        "4_6": "آرام سے۔ ابھی تم نے کیا دیکھا؟",
+        "7_8": "جلدی نہیں۔ سوچو ویڈیو میں ابھی کیا ہوا۔",
+        "9_11": "ایک لمحہ لو۔ ویڈیو نے ابھی کیا دکھایا؟",
+    },
+}
+
+
+def generic_hint(band: AgeBand, language: str) -> str:
+    return GENERIC_HINT.get(language, GENERIC_HINT["en"])[band]
+
+
 #: What a video should actually come back with, as against the ceiling below.
 #:
 #: `max_questions` was the only number the Planner was given, so a model that

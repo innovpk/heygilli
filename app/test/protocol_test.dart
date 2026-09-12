@@ -124,9 +124,9 @@ void main() {
     });
 
     test('unknown type does not throw', () {
-      final u = ServerMessage.decode('{"t":"hint","x":1}');
+      final u = ServerMessage.decode('{"t":"confetti","x":1}');
       expect(u, isA<UnknownMessage>());
-      expect((u as UnknownMessage).type, 'hint');
+      expect((u as UnknownMessage).type, 'confetti');
     });
 
     test('unknown gesture and result fall back safely', () {

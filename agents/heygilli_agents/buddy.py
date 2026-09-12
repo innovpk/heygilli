@@ -29,6 +29,7 @@ from .schemas import (
     ScoredReply,
     ServerAsk,
     ServerEnd,
+    ServerHint,
     ServerReady,
     ServerReply,
     Session,
@@ -202,6 +203,7 @@ class SessionEngine:
         self._agent: Agent | None = None
         self._agent_factory = agent_factory or buddy_agent
         self._ask_started: dict[int, float] = {}
+        self.hinted: set[int] = set()
 
     # -- lifecycle
     @property
@@ -244,6 +246,29 @@ class SessionEngine:
             listen_ms=rules.listen_ms(self.band),
             options=q.options if q.input == "pick" else None,
             gesture=q.gesture,
+        )
+
+    def hint(self, idx: int) -> ServerHint | None:
+        """What Gilli says when the child has gone quiet on question `idx`.
+
+        Once per question. None for a question that has nothing to hint at:
+        a copy-it ("can you roar?") has no answer to nudge towards, and an
+        opinion pick has no wrong card. Everything else gets the Planner's
+        hint for this moment of the video, or the band's general nudge when
+        the question came from the bank or a plan older than hints.
+        """
+        q = self.questions[idx]
+        if idx in self.hinted or q.input == "copy" or q.is_opinion:
+            return None
+        self.hinted.add(idx)
+        text = q.hint.strip() or rules.generic_hint(self.band, self.language)
+        slow = self.band == "4_6"
+        return ServerHint(
+            q=idx,
+            text=None if slow else text,
+            speak=text,
+            tts_url=synthesize(text, self.language, slow),
+            listen_ms=rules.listen_ms(self.band),
         )
 
     def answer(self, msg: ClientAnswer) -> ServerReply:
@@ -393,6 +418,7 @@ class SessionEngine:
                 paraphrase=score.paraphrase,
                 word_said=word_said,
                 latency_ms=latency_ms,
+                hinted=msg.q in self.hinted,
             ),
         )
 

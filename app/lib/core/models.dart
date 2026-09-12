@@ -87,6 +87,11 @@ enum AgeBand {
   /// thinking.
   int get defaultListenMs => this == AgeBand.b4to6 ? 15000 : 20000;
 
+  /// How long a child is quiet before Gilli offers a hint, matching the
+  /// gateway's `rules.HINT_AFTER_MS`. Used only by the demo socket; the live
+  /// server decides for itself.
+  int get hintAfterMs => this == AgeBand.b4to6 ? 7000 : 9000;
+
   String get label => switch (this) {
     AgeBand.b4to6 => '5 to 6',
     AgeBand.b7to8 => '7 to 8',

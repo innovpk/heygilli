@@ -502,6 +502,12 @@ class Question(BaseModel):
     variants: list[str] = Field(default_factory=list)
     model_line: str = ""
     followup: str = ""
+    #: What Gilli says when the child has sat on this question for a while:
+    #: a nudge towards the answer that is not the answer. Written by the
+    #: Planner from the transcript ("think about what the giraffe was
+    #: reaching for"), so it is about this video; empty means the buddy
+    #: falls back to a general "take your time" for the band.
+    hint: str = ""
     gesture: Gesture = "idle"
     options: list[Option] = Field(default_factory=list)
     revisit: RevisitTag | None = None  # null on all but at most one question per plan
@@ -621,6 +627,13 @@ class QuestionPlan(BaseModel):
     language: Language
     questions: list[Question] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso)
+    #: Where the words these questions were written from came from: a
+    #: transcript source name, or "none" for a plan made of bank questions
+    #: because no transcript could be read. Cached plans are shared by every
+    #: household for ever, and a plan written without the video was being
+    #: served for ever too — this is what lets `ensure_plan` tell the two
+    #: apart and try again for the second kind.
+    source: str = ""
 
     @staticmethod
     def key(video_id: str, age_band: str, language: str) -> str:
@@ -683,6 +696,8 @@ class Answer(BaseModel):
     paraphrase: str = ""
     word_said: str | None = None
     latency_ms: int = 0
+    #: Whether Gilli gave a hint before this answer arrived.
+    hinted: bool = False
     created_at: str = Field(default_factory=now_iso)
 
     @field_validator("paraphrase", mode="before")
@@ -1054,6 +1069,24 @@ class ServerAsk(BaseModel):
     listen_ms: int
     options: list[Option] | None = None
     gesture: Gesture = "idle"
+
+
+class ServerHint(BaseModel):
+    """Gilli nudging a child who has gone quiet on the question in flight.
+
+    Sent once per question, part-way through the listening window, and only
+    when no answer has arrived. It does not end the question: the same
+    `answer` is still expected, and the window is started again from the
+    moment the hint is sent so the child has time to use it.
+    """
+
+    t: Literal["hint"] = "hint"
+    q: int
+    text: str | None = None  # omitted for band 4_6, like `ask`
+    speak: str | None = None  # on-device TTS when tts_url is empty
+    tts_url: str = ""
+    listen_ms: int
+    gesture: Gesture = "think"
 
 
 class ServerReply(BaseModel):

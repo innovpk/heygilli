@@ -70,7 +70,8 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
             qs = [
                 {"t_sec": 130, "type": "name_it", "input": "voice", "text": "What animal is that?",
                  "expected": "giraffe", "variants": ["raffe", "giraf"],
-                 "model_line": "A giraffe! Gi-raffe.", "gesture": "stretch"},
+                 "model_line": "A giraffe! Gi-raffe.", "gesture": "stretch",
+                 "hint": "It has a looong neck!"},
                 {"t_sec": 520, "type": "pick_it", "input": "pick", "text": "Show me the red one.",
                  "expected": "red",
                  "options": [{"icon_id": "icon_red", "label": "red", "correct": True},
@@ -84,14 +85,16 @@ def default_canned(model_name: str, text: str) -> dict[str, Any]:
                 {"t_sec": 100, "type": "recall", "input": "voice",
                  "text": "What did the giraffe eat?", "expected": "leaves", "variants": ["tree leaves"]},
                 {"t_sec": 400, "type": "why", "input": "voice", "text": "Why did the ice melt?",
-                 "expected": "the sun warmed it", "variants": ["it got hot", "heat"]},
+                 "expected": "the sun warmed it", "variants": ["it got hot", "heat"],
+                 "hint": "Think about where the ice was sitting."},
                 {"t_sec": 700, "type": "predict", "input": "voice",
                  "text": "What do you think happens next?", "expected": "the ball rolls away"},
             ]
         else:
             qs = [
                 {"t_sec": 100, "type": "explain", "input": "voice",
-                 "text": "How does a volcano erupt?", "expected": "pressure pushes magma up"},
+                 "text": "How does a volcano erupt?", "expected": "pressure pushes magma up",
+                 "hint": "What was building up underneath before it blew?"},
                 {"t_sec": 400, "type": "compare", "input": "voice",
                  "text": "How is a volcano like a fizzy drink?", "expected": "gas builds pressure"},
                 {"t_sec": 700, "type": "opinion", "input": "voice",

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from strands import Agent
 
@@ -91,6 +92,18 @@ Propose more questions than the maximum you are given, spread across these kinds
 video. Which ones are used is decided after you answer, and a plan made only of spoken questions
 cannot be mixed afterwards — the variety has to be in what you propose.
 
+Every question is about THIS video: a thing that was said, shown, or happened in it, at or before
+`t_sec`. Never a question that could be asked of any video ("did you like it?", "what was your
+favourite bit?"). Make the child think: the answer should take a moment of remembering or
+reasoning, not be in the question itself, and for pick_it the wrong options must not be
+ruled out by the question's own words.
+
+Write a `hint` for every question: one short sentence Gilli says if the child has gone quiet.
+A hint points back to the moment in the video ("think about what the giraffe was reaching
+for", "it happened right after the egg cracked") or narrows it ("it's the one with the long
+neck") — it never says the answer, never says "wrong", and never adds a new fact. For pick_it,
+the hint may rule out one card. For copy_it, leave `hint` empty.
+
 {SAFETY_RULES}
 """.strip()
 
@@ -143,8 +156,14 @@ def build_plan(
     freq: QuestionFreq | None = None,
     agent: Agent | None = None,
     disabled_prompts: Sequence[str] = (),
+    source: str = "transcript",
 ) -> QuestionPlan:
-    """Ask the model, then enforce the band contract in code."""
+    """Ask the model, then enforce the band contract in code.
+
+    `source` names where `segments` came from and is written onto the plan;
+    a plan that ends up made of bank questions is marked "none" whatever was
+    passed, because that is what it is.
+    """
     if not segments:
         return fallback_plan(video, band, language, disabled_prompts)
     agent = agent or planner_agent()
@@ -159,7 +178,9 @@ def build_plan(
         log.info("no question survived the rules for %s/%s; using fallback", video.id, band)
         return fallback_plan(video, band, language, disabled_prompts)
     kept = top_up(kept, video, band, language, freq, disabled_prompts)
-    return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=kept)
+    return QuestionPlan(
+        video_id=video.id, age_band=band, language=language, questions=kept, source=source
+    )
 
 
 def top_up(
@@ -285,7 +306,9 @@ def fallback_plan(
         question_bank.as_question(prompt, at, language)
         for prompt, at in zip(prompts, [*slots, t_sec], strict=False)
     ]
-    return QuestionPlan(video_id=video.id, age_band=band, language=language, questions=questions)
+    return QuestionPlan(
+        video_id=video.id, age_band=band, language=language, questions=questions, source="none"
+    )
 
 
 def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -> QuestionPlan:
@@ -317,6 +340,36 @@ def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -
     return trimmed
 
 
+#: How long a plan written without a transcript is served before the
+#: transcript is looked for again. Not on every session: a video Gemini
+#: cannot read would otherwise cost a model call, and a child's wait, every
+#: time it was watched.
+REPLAN_FALLBACK_AFTER_S = 60 * 60
+
+
+def is_stale_fallback(plan: QuestionPlan, video: Video) -> bool:
+    """A cached plan made of bank questions that is old enough to try again.
+
+    Plans are cached per video and shared by every household, and one written
+    while no transcript source could answer — every video, on the deployed
+    gateway, for as long as it had no Gemini key — stayed the plan for that
+    video for ever. Fixing the key fixed nothing a child could see.
+
+    Plans from before `source` existed carry "": for those the video's own
+    record says whether it was ever read.
+    """
+    source = plan.source or (video.transcript_source or "")
+    if source != "none":
+        return False
+    try:
+        written = datetime.fromisoformat(plan.created_at)
+    except ValueError:
+        return True
+    if written.tzinfo is None:
+        written = written.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - written).total_seconds() >= REPLAN_FALLBACK_AFTER_S
+
+
 def ensure_plan(
     video: Video,
     band: AgeBand,
@@ -326,11 +379,21 @@ def ensure_plan(
     freq: QuestionFreq | None = None,
     disabled_prompts: Sequence[str] = (),
 ) -> QuestionPlan:
-    """Cached plan or a fresh one (fetching the transcript if needed)."""
+    """Cached plan or a fresh one (fetching the transcript if needed).
+
+    A cached plan that was written without a transcript is tried again once
+    it is old enough (`is_stale_fallback`): if the words can be read now, the
+    bank questions are replaced with questions about the video. If they still
+    cannot, the fallback is rewritten with a fresh timestamp and served for
+    another while.
+    """
     store = store or get_store()
     cached = store.get_plan(video.id, band, language)
-    if cached:
+    if cached and not is_stale_fallback(cached, store.get_video(video.id) or video):
         return trim_cached(cached, video, band, store)
+    if cached:
+        log.info("plan for %s/%s/%s was written without a transcript; trying again",
+                 video.id, band, language)
     try:
         tr = fetch_transcript(video.id)
     except TranscriptsBlocked as e:
@@ -341,7 +404,9 @@ def ensure_plan(
         # "none" so the app still says it was read on its title alone.
         log.info("no transcript for %s, planning from the title: %s", video.id, e)
         tr = {"source": "none", "segments": []}
-    plan = build_plan(video, tr["segments"], band, language, freq, agent, disabled_prompts)
+    plan = build_plan(
+        video, tr["segments"], band, language, freq, agent, disabled_prompts, source=tr["source"]
+    )
     store.put_plan(plan)
     stored = store.get_video(video.id) or video
     stored.transcript_source = tr["source"]

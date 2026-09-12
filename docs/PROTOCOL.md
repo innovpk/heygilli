@@ -563,6 +563,8 @@ Server → client
            tts_url: string, listen_ms: number, options?: [{icon_id, label}], gesture}
            text omitted for band 4_6; speak = what on-device TTS says when tts_url is empty
            (needed for 4_6 where text is absent); text_ur = Urdu line shown beside text for 7+
+{t: "hint", q: number, text?: string, speak?: string, tts_url: string, listen_ms: number, gesture}
+           Gilli's nudge for a child who has gone quiet; text omitted for band 4_6 like `ask`
 {t: "reply", text?: string, tts_url: string, result, gesture, model_word?: string}
 {t: "resume"}                                                  resume playback
 {t: "end", summary_tts_url: string, summary_text?: string, words_said[]}   summary_text = on-device TTS fallback
@@ -587,6 +589,15 @@ question pause, at the end of the video, or on its own three minutes after the l
 break periods" above.)
 
 Ordering per question: `pause` → `ask` → (client `answer`) → `reply` → `resume`. If no `answer` arrives within `listen_ms` + 1500 ms, the server treats it as `input: "none"`.
+
+A child who has said nothing for about half the window (`rules.HINT_AFTER_MS`: 7 s for 4_6, 9 s for
+7+) is sent a `hint` for the question in flight: one sentence the Planner wrote for that moment of
+the video — a pointer back to what was just shown, never the answer — or the band's general "take
+your time" when the question came from the bank. The question stays open, the same `answer` is
+still expected, and the window starts over from the hint (`listen_ms` + 1500 ms again). Once per
+question; a copy-it and an opinion pick get none. The client speaks it, stops any recogniser first
+so Gilli is not heard as the child, and re-arms its own window the way it does on an `ask`. The
+answer record carries `hinted: true` when a hint was given before it.
 
 A `repeat` for the question in flight is answered with the same `ask` again and restarts that window from the moment it arrives — a child asks because they are stuck, which is to say late, so topping up what was left would read them the question and then cut them off anyway. One per question (SPEC 7.4 "never repeat a question more than once"); past that, and for any `q` that is not the live one, it is ignored. The client must not replay the question on its own: the deadline lives on the server, and a device replaying it would be talking over a `reply` and a `resume` already in flight.
 

@@ -104,6 +104,15 @@ sealed class ServerMessage {
           revisit: QuestionRevisit.fromJson(j['revisit']),
           word: SeededWord.fromJson(j['word']),
         );
+      case 'hint':
+        return HintMessage(
+          q: (j['q'] as num?)?.toInt() ?? 0,
+          text: j['text'] as String?,
+          speak: j['speak'] as String?,
+          ttsUrl: j['tts_url'] as String? ?? '',
+          listenMs: (j['listen_ms'] as num?)?.toInt() ?? 5000,
+          gesture: Gesture.fromWire(j['gesture'] as String?),
+        );
       case 'reply':
         return ReplyMessage(
           text: j['text'] as String?,
@@ -299,6 +308,35 @@ class AskMessage extends ServerMessage {
   /// At most one new word per session, and null on every other question: a
   /// child who hears six new words remembers none.
   final SeededWord? word;
+}
+
+/// `{t: "hint"}`: Gilli nudging a child who has gone quiet on the question
+/// in flight. The question is still open — the same `answer` is expected —
+/// and the listening window starts over from here, so the client re-arms its
+/// own window the way it does on an `ask`. Once per question; the server
+/// decides when, never this device.
+class HintMessage extends ServerMessage {
+  const HintMessage({
+    required this.q,
+    required this.text,
+    required this.speak,
+    required this.ttsUrl,
+    required this.listenMs,
+    required this.gesture,
+  });
+
+  final int q;
+
+  /// Shown to a child who can read; omitted for band 4_6 like `ask.text`.
+  final String? text;
+
+  /// What on-device TTS says when [ttsUrl] is empty.
+  final String? speak;
+  final String ttsUrl;
+  final int listenMs;
+  final Gesture gesture;
+
+  String? get fallbackSpeech => speak ?? text;
 }
 
 class ReplyMessage extends ServerMessage {

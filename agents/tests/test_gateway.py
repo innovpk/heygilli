@@ -1027,3 +1027,87 @@ def test_a_parent_decision_keeps_the_reason_the_screening_wrote(
     assert entry["status"] == "approve"
     assert entry["reason"] == screened, "the screening's words survive the decision"
     assert entry["decided_by"] == "parent", "and it is still recorded who decided"
+
+
+# --- a hint for a child who has gone quiet ------------------------------------------------
+
+
+def _shorten_window(monkeypatch, listen_ms: int, hint_after_ms: int) -> None:
+    from heygilli_agents import gateway as gw
+    from heygilli_agents import rules
+
+    monkeypatch.setattr(gw, "ANSWER_GRACE_MS", 100)
+    monkeypatch.setitem(
+        rules.TIMING, "7_8", rules.TIMING["7_8"].__class__(90, 180, 300, 6, listen_ms, "normal")
+    )
+    monkeypatch.setitem(rules.HINT_AFTER_MS, "7_8", hint_after_ms)
+
+
+def test_a_quiet_child_is_given_a_hint_and_the_window_again(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """Part-way through the window with nothing said, Gilli offers the hint the
+    Planner wrote for this moment of the video, and the clock starts over: a
+    hint followed by the video starting again would be worse than no hint.
+    The answer that then arrives — after the original deadline — is scored
+    like any other, and the record says a hint was given.
+    """
+    _shorten_window(monkeypatch, listen_ms=900, hint_after_ms=300)
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        ask = ws.receive_json()
+        assert ask["t"] == "ask"
+
+        hint = ws.receive_json()
+        assert hint["t"] == "hint" and hint["q"] == ask["q"]
+        assert hint["text"] and hint["speak"] == hint["text"]
+        assert hint["listen_ms"] == 900
+
+        time.sleep(0.9)  # past where the original deadline was, inside the restarted one
+        ws.send_json({"t": "answer", "q": 0, "input": "voice",
+                      "transcript": "because the sun warmed it up"})
+        reply = ws.receive_json()
+        assert reply["t"] == "reply", f"the hint ended the question: {reply}"
+        assert reply["result"] == "correct", "the window was not restarted after the hint"
+
+    assert [a.hinted for a in store.list_answers(auth["_hid"], sid)] == [True]
+
+
+def test_a_hint_is_given_once_and_the_window_then_runs_out(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    """One hint per question. After it the window runs out as normal and the
+    silence is treated as input "none" — no second hint, no third."""
+    _shorten_window(monkeypatch, listen_ms=400, hint_after_ms=150)
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        ws.receive_json()  # ask
+        assert ws.receive_json()["t"] == "hint"
+        after = ws.receive_json()
+        assert after["t"] == "reply" and after["result"] == "silence", after
+
+
+def test_an_answer_before_the_hint_is_due_gets_no_hint(
+    client: TestClient, auth: dict, store: LocalStore, monkeypatch
+) -> None:
+    _shorten_window(monkeypatch, listen_ms=2000, hint_after_ms=1500)
+    sid, token = _start_session(client, auth, store)
+
+    with client.websocket_connect(f"/sessions/{sid}/ws?token={token}") as ws:
+        ws.send_json({"t": "hello"})
+        ws.receive_json()
+        ws.send_json({"t": "position", "seconds": 100.2})
+        ws.receive_json()  # pause
+        ws.receive_json()  # ask
+        ws.send_json({"t": "answer", "q": 0, "input": "voice", "transcript": "the sun"})
+        assert ws.receive_json()["t"] == "reply"

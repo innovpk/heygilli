@@ -268,6 +268,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// voice for it: in both cases the screen shows nothing extra.
   SeededWord? _seed;
   ReplyMessage? _reply;
+  HintMessage? _hint;
   bool _answered = false;
   Gesture _gesture = Gesture.idle;
   int _gestureTick = 0;
@@ -525,6 +526,8 @@ class _SessionScreenState extends State<SessionScreen> {
         setState(() => _phase = _Phase.paused);
       case AskMessage():
         _handleAsk(m);
+      case HintMessage():
+        _handleHint(m);
       case ReplyMessage():
         _handleReply(m);
       case ResumeMessage():
@@ -555,6 +558,7 @@ class _SessionScreenState extends State<SessionScreen> {
       _ask = ask;
       _seed = null;
       _reply = null;
+      _hint = null;
       _answered = false;
       _errorText = null;
       _gesture = ask.gesture;
@@ -582,6 +586,41 @@ class _SessionScreenState extends State<SessionScreen> {
     });
     if (ask.input != QuestionInput.pick && _band.autoListens) {
       // SPEC 9.2: pre-readers do not have to press anything.
+      _startListening();
+    }
+  }
+
+  /// `{t: "hint"}`: the child has gone quiet, so Gilli nudges. The question
+  /// stays open and the window starts over, exactly as after a repeat: a hint
+  /// followed by the video starting again would be worse than none.
+  Future<void> _handleHint(HintMessage hint) async {
+    final ask = _ask;
+    if (ask == null || ask.q != hint.q || _answered || _reply != null) return;
+    _listenWindow?.cancel();
+    // Stop the mic first, or the recogniser hears Gilli give the hint and
+    // hands that back as the child's answer.
+    await _ears.stopListening();
+    if (!mounted || _ask != ask || _answered) return;
+    setState(() {
+      _hint = hint;
+      _gesture = hint.gesture;
+      _gestureTick++;
+      _phase = _Phase.asking;
+    });
+    _speaking = _voice.say(
+      url: hint.ttsUrl,
+      fallbackText: hint.fallbackSpeech,
+      language: _ttsLanguage(hint.fallbackSpeech ?? ask.fallbackSpeech),
+      slow: _preReader,
+    );
+    await _speaking;
+    if (!mounted || _ask != ask || _answered) return;
+    setState(() => _phase = _Phase.listening);
+    _listenWindow = Timer(Duration(milliseconds: hint.listenMs + 1000), () {
+      if (_ears.listening) return;
+      _sendAnswer(ask, null);
+    });
+    if (ask.input != QuestionInput.pick && _band.autoListens) {
       _startListening();
     }
   }
@@ -1260,6 +1299,23 @@ class _SessionScreenState extends State<SessionScreen> {
           ),
         );
       }
+    }
+    // Gilli's nudge, under the question, for a child who can read it. It is
+    // not the answer, so it can stay up while they think.
+    final hint = _hint;
+    if (showText && reply == null && hint?.text != null) {
+      children.add(
+        Text(
+          hint!.text!,
+          textAlign: TextAlign.center,
+          textDirection: isUrduScript(hint.text!)
+              ? TextDirection.rtl
+              : TextDirection.ltr,
+          style: isUrduScript(hint.text!)
+              ? HgText.urdu(size: _band.questionTextSize * 0.7)
+              : HgText.body(size: 20, color: _palette.quiet),
+        ),
+      );
     }
     // The word Gilli just said, for a child who can read it. A pre-reader is
     // covered by showText being false: they heard it, and that is the whole

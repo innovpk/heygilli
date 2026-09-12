@@ -39,17 +39,18 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from . import (
     admin,
     agent_audit,
-    feedback,
     ask,
     breaks,
     coach,
     drift,
+    feedback,
     history,
     known,
     parent_questions,
     playmate,
     question_bank,
     revisit,
+    rules,
     tracing,
     words,
 )
@@ -2321,7 +2322,7 @@ async def _loop(
             revisit.record_asked(engine.kid, engine.store, tag, engine.session.id)
         await ws.send_json(wire(ask))
 
-        answer = await _await_answer(ws, idx, ask.listen_ms + ANSWER_GRACE_MS, ask)
+        answer = await _await_answer(ws, idx, ask.listen_ms + ANSWER_GRACE_MS, ask, engine)
         if answer is None:  # client went away
             return
         reply = await asyncio.to_thread(engine.answer, answer)
@@ -2341,7 +2342,11 @@ async def _send_break(ws: WebSocket, guard: BreakGuard) -> None:
 
 
 async def _await_answer(
-    ws: WebSocket, idx: int, timeout_ms: int, ask: ServerAsk | None = None
+    ws: WebSocket,
+    idx: int,
+    timeout_ms: int,
+    ask: ServerAsk | None = None,
+    engine: SessionEngine | None = None,
 ) -> ClientAnswer | None:
     """Wait for the answer to question `idx`; a timeout becomes input "none".
 
@@ -2353,17 +2358,37 @@ async def _await_answer(
     Capped at `MAX_REPEATS`, which SPEC §7.4 puts at once — and the cap is what
     stops a child leaning on the button from holding a session open for ever.
     After it, the request is ignored and the window runs out as normal.
+
+    A child who has said nothing for `rules.hint_after_ms` is given the
+    question's hint, once, and the whole window again from that moment: the
+    hint is for a child who has stopped thinking and started waiting, and a
+    hint followed by the video starting again would be worse than none. The
+    clock for the hint starts over on a repeat, since hearing the question
+    again is its own help.
     """
-    deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + timeout_ms / 1000
     repeats = 0
+    hint_at: float | None = None
+    if engine is not None and ask is not None:
+        hint_at = loop.time() + rules.hint_after_ms(engine.band) / 1000
     while True:
-        remaining = deadline - asyncio.get_event_loop().time()
+        now = loop.time()
+        remaining = deadline - now
         if remaining <= 0:
             return ClientAnswer(t="answer", q=idx, input="none")
+        if hint_at is not None and now >= hint_at:
+            hint_at = None
+            hint = await asyncio.to_thread(engine.hint, idx)  # type: ignore[union-attr]
+            if hint is not None:
+                await ws.send_json(wire(hint))
+                deadline = loop.time() + (hint.listen_ms + ANSWER_GRACE_MS) / 1000
+            continue
+        wait_s = remaining if hint_at is None else min(remaining, hint_at - now)
         try:
-            raw = await asyncio.wait_for(ws.receive_json(), timeout=remaining)
+            raw = await asyncio.wait_for(ws.receive_json(), timeout=max(wait_s, 0))
         except TimeoutError:
-            return ClientAnswer(t="answer", q=idx, input="none")
+            continue  # either the hint is due or the window is out; the top of the loop knows which
         except WebSocketDisconnect:
             return None
         try:
@@ -2380,7 +2405,9 @@ async def _await_answer(
             # The clock starts again from now rather than being topped up: a
             # child who asked late was left with whatever was on it, which is
             # the position they asked for help from in the first place.
-            deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
+            deadline = loop.time() + timeout_ms / 1000
+            if hint_at is not None:
+                hint_at = loop.time() + rules.hint_after_ms(engine.band) / 1000  # type: ignore[union-attr]
             await ws.send_json(wire(ask))
             continue
         if msg.t == "bye":

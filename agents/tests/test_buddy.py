@@ -261,3 +261,63 @@ def test_older_pick_reply_names_the_card_not_expected(store: LocalStore) -> None
     reply = e.answer(ClientAnswer(t="answer", q=0, input="pick", option=0))
     assert reply.text and "reason, however small" not in reply.text
     assert "fish" in reply.text.lower()
+
+
+# --- hints ------------------------------------------------------------------------------
+
+
+def test_hint_is_the_planners_or_the_bands_and_only_once(store: LocalStore) -> None:
+    from heygilli_agents import rules
+    from heygilli_agents.schemas import Question, QuestionPlan
+
+    plan = QuestionPlan(video_id="v", age_band="7_8", language="en", questions=[
+        Question(t_sec=100, type="recall", input="voice", text="What did it eat?",
+                 expected="leaves", hint="Think about what was up in the tree."),
+        Question(t_sec=400, type="why", input="voice", text="Why?", expected="sun"),
+    ])
+    eng = engine(store, "7_8", plan.questions)
+    first = eng.hint(0)
+    assert first is not None and first.text == "Think about what was up in the tree."
+    assert first.speak == first.text and first.listen_ms == rules.listen_ms("7_8")
+    assert eng.hint(0) is None, "a second hint for the same question"
+    second = eng.hint(1)
+    assert second is not None and second.text == rules.generic_hint("7_8", "en")
+
+
+def test_no_hint_for_copy_it_or_an_opinion(store: LocalStore) -> None:
+    from heygilli_agents.schemas import Option, Question, QuestionPlan
+
+    plan = QuestionPlan(video_id="v", age_band="4_6", language="en", questions=[
+        Question(t_sec=130, type="copy_it", input="copy", text="Roar!", expected="roar"),
+        Question(t_sec=520, type="pick_it", input="pick", text="How did that feel?",
+                 expected="whichever", options=[
+                     Option(icon_id="icon_happy", label="happy"),
+                     Option(icon_id="icon_sleepy", label="sleepy"),
+                     Option(icon_id="icon_star", label="amazed"),
+                 ]),
+        Question(t_sec=900, type="name_it", input="voice", text="What is that?",
+                 expected="giraffe", hint="It has a looong neck."),
+    ])
+    eng = engine(store, "4_6", plan.questions)
+    assert eng.hint(0) is None
+    assert eng.hint(1) is None
+    hint = eng.hint(2)
+    assert hint is not None
+    assert hint.text is None and hint.speak == "It has a looong neck.", "pre-readers get no text"
+
+
+def test_the_answer_records_whether_a_hint_was_given(store: LocalStore) -> None:
+    from heygilli_agents.schemas import ClientAnswer, Question, QuestionPlan
+
+    plan = QuestionPlan(video_id="v", age_band="7_8", language="en", questions=[
+        Question(t_sec=100, type="recall", input="voice", text="a", expected="x"),
+        Question(t_sec=400, type="recall", input="voice", text="b", expected="y"),
+    ])
+    eng = engine(store, "7_8", plan.questions)
+    eng.ask(0)
+    eng.hint(0)
+    eng.answer(ClientAnswer(t="answer", q=0, input="none"))
+    eng.ask(1)
+    eng.answer(ClientAnswer(t="answer", q=1, input="none"))
+    answers = sorted(store.list_answers("hh", eng.session.id), key=lambda a: a.question_idx)
+    assert [a.hinted for a in answers] == [True, False]
