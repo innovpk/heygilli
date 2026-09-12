@@ -134,15 +134,28 @@ def generic_hint(band: AgeBand, language: str) -> str:
 #: Two or three is the shape of the thing: enough that Gilli is watching along,
 #: few enough that it is not a comprehension test.
 TARGET_QUESTIONS = 3
-TARGET_SHORT_S = 8 * 60  # under this, two is plenty
+#: From here up, three; between the short-video line and this, two. Five
+#: minutes is where most of what a child watches sits, and a five-minute video
+#: with one question at 1:45 and nothing after it was Gilli wandering off.
+TARGET_FULL_S = 5 * 60
 
 
 def target_questions(band: AgeBand, duration_s: int) -> int:
     """How many to aim for, never more than the band's ceiling allows."""
     if 0 < duration_s < SHORT_VIDEO_S:
         return 1
-    want = 2 if 0 < duration_s <= TARGET_SHORT_S else TARGET_QUESTIONS
+    want = TARGET_QUESTIONS if duration_s <= 0 or duration_s >= TARGET_FULL_S else 2
     return min(want, max_questions(band, duration_s))
+
+
+#: The least the gap between questions may shrink to so that a short video
+#: still gets its target. The band's gap in `TIMING` is written for a long
+#: video; held to it, a five-minute video for a reader had room for two
+#: questions and a pre-reader's for one, whatever the target said. Ninety
+#: seconds for a reader is a question every minute and a half, which on a
+#: five-minute video is 1:30, 3:15 and 4:57 — company, not a test. Pre-readers
+#: keep nearly three minutes; two on a five-minute video is the most they get.
+GAP_FLOOR_S: dict[str, int] = {"4_6": 170, "7_8": 90, "9_11": 90}
 
 
 def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -> list[int]:
@@ -155,7 +168,7 @@ def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -
     if duration_s <= 0:
         return []
     t = TIMING[band]
-    gap = min_gap_s(band, freq)
+    gap = min_gap_s(band, freq, duration_s)
     last = duration_s - END_MARGIN_S
     slots: list[int] = []
     at = t.first_question_s
@@ -173,12 +186,27 @@ def max_questions(band: AgeBand, duration_s: int) -> int:
     return TIMING[band].max_questions
 
 
-def min_gap_s(band: AgeBand, freq: QuestionFreq | None = None) -> int:
+def min_gap_s(band: AgeBand, freq: QuestionFreq | None = None, duration_s: int = 0) -> int:
+    """Seconds between questions: the band's gap, shrunk to fit the target
+    into a video this long, never below `GAP_FLOOR_S`.
+
+    Without a length (0) the band's gap stands. A household that asked for
+    "gentle" gets the gentle gap unshrunk — fewer questions is what they
+    asked for — except for pre-readers, whose gentle is the only setting and
+    is the one the floor was written for.
+    """
     t = TIMING[band]
     freq = freq or t.default_freq
     if band == "4_6":
         freq = "gentle"  # cannot be raised
-    return t.min_gap_gentle_s if freq == "gentle" else t.min_gap_normal_s
+    base = t.min_gap_gentle_s if freq == "gentle" else t.min_gap_normal_s
+    if duration_s <= 0 or (freq == "gentle" and band != "4_6"):
+        return base
+    want = target_questions(band, duration_s)
+    if want < 2:
+        return base
+    fit = (duration_s - END_MARGIN_S - t.first_question_s) // (want - 1)
+    return max(GAP_FLOOR_S[band], min(base, fit))
 
 
 def type_allowed(band: AgeBand, qtype: QuestionType) -> bool:
@@ -269,7 +297,7 @@ def enforce(
     if duration_s > 0:
         kept = [q for q in kept if q.t_sec <= duration_s - END_MARGIN_S]
 
-    gap = min_gap_s(band, freq)
+    gap = min_gap_s(band, freq, duration_s)
 
     # The target, not the ceiling. `max_questions` is the most SPEC 7.3 permits
     # (3 to 6 for a reader) and the Planner was happily filling it: six

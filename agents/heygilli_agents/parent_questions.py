@@ -87,7 +87,7 @@ def place(taken: list[int], duration_s: int, band: AgeBand, wanted: int | None) 
     question already in it cannot take another without breaking the spacing
     that stops a child being interrogated.
     """
-    gap = rules.min_gap_s(band)
+    gap = rules.min_gap_s(band, duration_s=duration_s)
     first = rules.TIMING[band].first_question_s
     last = (duration_s - rules.END_MARGIN_S) if duration_s > 0 else first
     if last < first:
@@ -137,7 +137,7 @@ def seed(
             # chose the second ourselves, evicting a planner question to make
             # room for the one we just placed would be the tail wagging the dog
             # — `place` already found a gap, or returned None and we skipped.
-            gap = rules.min_gap_s(band)
+            gap = rules.min_gap_s(band, duration_s=video.duration_s)
             questions = [q for q in questions if abs(q.t_sec - at) >= gap]
         questions.append(as_question(pq, band, at, language))
     questions.sort(key=lambda q: q.t_sec)

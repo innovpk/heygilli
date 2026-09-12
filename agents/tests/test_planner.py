@@ -228,7 +228,9 @@ def test_topping_up_never_crowds_the_band_spacing() -> None:
             )
             times = [q.t_sec for q in plan.questions]
             gaps = [b - a for a, b in itertools.pairwise(times)]
-            assert all(g >= rules.min_gap_s(band) for g in gaps), f"{band}/{duration}: {times}"
+            assert all(g >= rules.min_gap_s(band, duration_s=duration) for g in gaps), (
+                f"{band}/{duration}: {times}"
+            )
             assert len(times) <= rules.max_questions(band, duration), f"{band}/{duration}"
             assert all(t <= duration for t in times), f"{band}/{duration}: {times}"
 
@@ -260,7 +262,7 @@ def test_a_plan_cached_under_the_old_count_is_brought_down(
     """
     from heygilli_agents.schemas import Question, QuestionPlan
 
-    video = Video(id="vidcached1", title="Volcanoes", duration_s=348)  # 5m48s -> target 2
+    video = Video(id="vidcached1", title="Volcanoes", duration_s=348)  # 5m48s -> target 3
     six = [
         Question(t_sec=90 + i * 200, type="recall", input="voice", text=f"q{i}", expected="x")
         for i in range(6)
@@ -274,11 +276,11 @@ def test_a_plan_cached_under_the_old_count_is_brought_down(
     plan = planner.ensure_plan(video, "7_8", "en", store)
 
     want = rules.target_questions("7_8", 348)
-    assert want == 2
+    assert want == 3
     assert len(plan.questions) == want
     # The ones kept are the first, which are already in order and already
     # spaced — the front of a correct plan.
-    assert [q.text for q in plan.questions] == ["q0", "q1"]
+    assert [q.text for q in plan.questions] == ["q0", "q1", "q2"]
     # And it is written back, so the next child does not pay for it again.
     assert len(store.get_plan(video.id, "7_8", "en").questions) == want
 

@@ -1,6 +1,8 @@
 """SPEC 7.2 / 7.3 as enforced by rules.py, independent of any model."""
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from heygilli_agents import rules
@@ -106,14 +108,14 @@ def test_a_video_gets_two_or_three_questions_not_as_many_as_will_fit() -> None:
     assert len(kept) == 3
     assert len(kept) <= rules.max_questions("7_8", 3600), "outside what SPEC 7.3 allows"
 
-    # A shorter one gets fewer still: two is plenty inside eight minutes. Eight
-    # minutes exactly, because that is where three would otherwise fit — at 400s
-    # the spacing already limits it to two and the target is doing no work.
-    # Three that genuinely fit inside 480s and obey the gap, so the count that
+    # A shorter one gets fewer still: two under five minutes. Three that
+    # genuinely fit inside 4m50s and obey the shrunk gap, so the count that
     # comes back is the target's doing and not the spacing's.
-    fits = [q(90, "recall"), q(280, "why"), q(470, "predict")]
-    assert len(rules.enforce(fits, "7_8", 600)) == 3, "the fixture stopped biting"
-    assert len(rules.enforce(fits, "7_8", 480)) == 2
+    fits = [q(90, "recall"), q(193, "why"), q(296, "predict")]
+    assert len(rules.enforce(fits, "7_8", 300)) == 3, "the fixture stopped biting"
+    # Ten seconds shorter and the target is two; the spacing has room for
+    # three, so the count is the target's doing.
+    assert len(rules.enforce([q(90, "recall"), q(193, "why"), q(285, "predict")], "7_8", 290)) == 2
 
     pre = [q(120 + i * 400, "name_it") for i in range(5)]
     assert len(rules.enforce(pre, "4_6", 3600)) == 2
@@ -152,3 +154,61 @@ def test_syllabify() -> None:
 def test_copy_it_without_expected_gets_a_word_to_praise() -> None:
     kept = rules.enforce([Question(t_sec=130, type="copy_it", input="copy", text="Boom!", expected="")], "4_6", 900)
     assert kept[0].expected == "sound" and kept[0].model_line
+
+
+# --- two or three questions on a five-minute video ------------------------------------------
+
+
+def test_a_five_minute_video_gets_three_questions_for_a_reader() -> None:
+    """Held to the long-video gap, a five-minute video had room for two
+    questions for a reader and one for a pre-reader, whatever the target said.
+    The gap shrinks to fit the target, never below the band's floor."""
+    assert rules.target_questions("7_8", 300) == 3
+    assert rules.min_gap_s("7_8", duration_s=300) == max(rules.GAP_FLOOR_S["7_8"], (297 - 90) // 2)
+    assert rules.room_for("7_8", 300) == [90, 193, 296]
+    assert rules.room_for("9_11", 325) == [90, 206, 322]
+
+
+def test_a_four_minute_video_gets_two() -> None:
+    assert rules.target_questions("7_8", 240) == 2
+    assert rules.room_for("7_8", 240) == [90, 237]
+
+
+def test_a_five_minute_video_gets_two_for_a_pre_reader() -> None:
+    assert rules.target_questions("4_6", 300) == 2
+    assert rules.min_gap_s("4_6", duration_s=300) == 177
+    assert rules.room_for("4_6", 300) == [120, 297]
+    # Under five minutes a pre-reader still gets one: the ceiling, not the gap.
+    assert rules.target_questions("4_6", 290) == 1
+    assert rules.room_for("4_6", 290) == [120]
+
+
+def test_the_gap_never_shrinks_below_the_floor() -> None:
+    for band in ("4_6", "7_8", "9_11"):
+        for duration in range(0, 3600, 7):
+            gap = rules.min_gap_s(band, duration_s=duration)
+            assert rules.GAP_FLOOR_S[band] <= gap <= rules.min_gap_s(band), f"{band}/{duration}"
+            slots = rules.room_for(band, duration)
+            assert len(slots) <= rules.max_questions(band, duration) or duration <= 0, f"{band}/{duration}"
+            assert all(b - a >= gap for a, b in itertools.pairwise(slots)), f"{band}/{duration}"
+    # Just over three minutes: two questions, a minute and a half apart.
+    assert rules.target_questions("7_8", 190) == 2
+    assert rules.room_for("7_8", 190) == [90, 187]
+
+
+def test_a_long_video_keeps_the_bands_own_gap_and_an_unknown_length_too() -> None:
+    assert rules.min_gap_s("7_8", duration_s=1200) == 180
+    assert rules.min_gap_s("7_8", duration_s=0) == 180
+    assert rules.min_gap_s("4_6", duration_s=1200) == 360
+
+
+def test_gentle_is_what_the_parent_asked_for_and_is_not_shrunk() -> None:
+    assert rules.min_gap_s("7_8", "gentle", 300) == 300
+    assert rules.room_for("7_8", 300, "gentle") == [90]
+
+
+def test_enforce_fits_three_into_five_minutes() -> None:
+    kept = rules.enforce(
+        [q(90, "recall"), q(193, "why"), q(296, "predict"), q(150, "recall")], "7_8", 300
+    )
+    assert [x.t_sec for x in kept] == [90, 193, 296]

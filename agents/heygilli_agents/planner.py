@@ -138,7 +138,7 @@ def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Lan
         f"title: {video.title}\n"
         f"types allowed: {', '.join(TYPES_FOR_BAND[band])}\n"
         f"first question no earlier than: {t.first_question_s}s\n"
-        f"minimum gap between questions: {rules.min_gap_s(band, freq)}s\n"
+        f"minimum gap between questions: {rules.min_gap_s(band, freq, video.duration_s)}s\n"
         f"questions that will be asked: {rules.target_questions(band, video.duration_s)}\n"
         f"propose at least this many candidates: "
         f"{2 * rules.target_questions(band, video.duration_s) + 2}\n"
@@ -206,7 +206,7 @@ def top_up(
     want = rules.target_questions(band, video.duration_s)
     if len(kept) >= want:
         return kept
-    gap = rules.min_gap_s(band, freq)
+    gap = rules.min_gap_s(band, freq, video.duration_s)
     free = [
         slot
         for slot in rules.room_for(band, video.duration_s, freq)
@@ -297,7 +297,7 @@ def fallback_plan(
     # A full gap clear of the end-of-video question, not merely before it: a
     # four-year-old was getting one at 2:00 and another at 6:37 of a 6:40 video,
     # 277 seconds apart where that band's own spacing asks for 360.
-    gap = rules.min_gap_s(band)
+    gap = rules.min_gap_s(band, duration_s=video.duration_s)
     slots = [
         slot for slot in rules.room_for(band, video.duration_s) if slot <= t_sec - gap
     ][: want - 1]
@@ -330,7 +330,7 @@ def trim_cached(plan: QuestionPlan, video: Video, band: AgeBand, store: Store) -
     # model happened to write first, and what it writes first is nearly always
     # a spoken question. A cached plan trimmed that way is exactly the
     # all-talking plan the mix exists to prevent.
-    kept = rules.select(plan.questions, rules.min_gap_s(band), want)
+    kept = rules.select(plan.questions, rules.min_gap_s(band, duration_s=video.duration_s), want)
     trimmed = plan.model_copy(update={"questions": kept})
     store.put_plan(trimmed)
     log.info(
