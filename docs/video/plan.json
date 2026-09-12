@@ -1,0 +1,435 @@
+[
+ {
+  "id": "01-problem",
+  "audio": "audio/01-problem.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s01a.png",
+    "share": 0.55
+   },
+   {
+    "slide": "slides/s01b.png",
+    "share": 0.45
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "02-setup",
+  "audio": "audio/02-setup.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part1.webm",
+    "start": 12.35,
+    "share": 0.3
+   },
+   {
+    "clip": "takes/part1.webm",
+    "start": 20.45,
+    "share": 0.45
+   },
+   {
+    "clip": "takes/part1.webm",
+    "start": 47.77,
+    "share": 0.25
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "03-curator",
+  "audio": "audio/03-curator.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part1.webm",
+    "start": 175.8,
+    "share": 0.3
+   },
+   {
+    "clip": "takes/part1b.webm",
+    "start": 39.46,
+    "share": 0.35
+   },
+   {
+    "clip": "takes/part1b.webm",
+    "start": 44.59,
+    "share": 0.35
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "04-waiting",
+  "audio": "audio/04-waiting.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part1b.webm",
+    "start": 38.46,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part1b.webm",
+    "start": 43.59,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "25-hidden",
+  "audio": "audio/25-hidden.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part1b.webm",
+    "start": 41.96,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part1b.webm",
+    "start": 46.59,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "17-channels",
+  "audio": "audio/17-channels.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part5.webm",
+    "start": 16.22,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part5.webm",
+    "start": 17.9,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "05-check",
+  "audio": "audio/05-check.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part12b.webm",
+    "start": 16.08,
+    "share": 0.55
+   },
+   {
+    "clip": "takes/part12b.webm",
+    "start": 22.24,
+    "share": 0.45
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "19-ask",
+  "audio": "audio/19-ask.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part10.webm",
+    "start": 35.17,
+    "share": 0.3
+   },
+   {
+    "clip": "takes/part10.webm",
+    "start": 37.32,
+    "share": 0.25
+   },
+   {
+    "clip": "takes/part10.webm",
+    "start": 118.47,
+    "share": 0.45
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "22-import",
+  "audio": "audio/22-import.mp3",
+  "visuals": [
+   {
+    "slide": "takes/part10-shots/add-sheet.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "06-shelf",
+  "audio": "audio/06-shelf.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part7.webm",
+    "start": 22.71,
+    "share": 0.45
+   },
+   {
+    "clip": "takes/part7.webm",
+    "start": 24.15,
+    "share": 0.55
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "24-voice-search",
+  "audio": "audio/24-voice-search.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part7.webm",
+    "start": 26.15,
+    "share": 0.55
+   },
+   {
+    "clip": "takes/part7.webm",
+    "start": 29.270000000000003,
+    "share": 0.45
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "07-session",
+  "audio": "audio/07-session.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part17.mp4",
+    "start": 141.72,
+    "share": 0.35
+   },
+   {
+    "clip": "takes/part17.mp4",
+    "start": 151.12,
+    "share": 0.65
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "28-hint",
+  "audio": "audio/28-hint.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part17.mp4",
+    "start": 161.36,
+    "share": 0.65
+   },
+   {
+    "clip": "takes/part17.mp4",
+    "start": 174.88,
+    "share": 0.35
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "29-cards",
+  "audio": "audio/29-cards.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part17.mp4",
+    "start": 555.79,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part17.mp4",
+    "start": 558.9300000000001,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "08-younger",
+  "audio": "audio/08-younger.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part16.mp4",
+    "start": 24.09,
+    "share": 0.3
+   },
+   {
+    "clip": "takes/part16.mp4",
+    "start": 152.99,
+    "share": 0.45
+   },
+   {
+    "clip": "takes/part16.mp4",
+    "start": 158.99,
+    "share": 0.25
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "20-own-question",
+  "audio": "audio/20-own-question.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part10.webm",
+    "start": 146.93,
+    "share": 0.45
+   },
+   {
+    "clip": "takes/part11.webm",
+    "start": 27.4,
+    "share": 0.55
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "10-games",
+  "audio": "audio/10-games.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part15.mp4",
+    "start": 287.01,
+    "share": 0.22
+   },
+   {
+    "clip": "takes/part15.mp4",
+    "start": 292.44,
+    "share": 0.2
+   },
+   {
+    "clip": "takes/part15.mp4",
+    "start": 303.41,
+    "share": 0.2
+   },
+   {
+    "clip": "takes/part15.mp4",
+    "start": 314.27000000000004,
+    "share": 0.19
+   },
+   {
+    "clip": "takes/part15.mp4",
+    "start": 324.57000000000005,
+    "share": 0.19
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "09-limits",
+  "audio": "audio/09-limits.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part12.webm",
+    "start": 17.6,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part12.webm",
+    "start": 22.47,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "21-break",
+  "audio": "audio/21-break.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part8.webm",
+    "start": 29.18,
+    "share": 0.55
+   },
+   {
+    "clip": "takes/part8.webm",
+    "start": 50.2,
+    "share": 0.45
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "18-progress",
+  "audio": "audio/18-progress.mp3",
+  "visuals": [
+   {
+    "clip": "takes/part5.webm",
+    "start": 25.5,
+    "share": 0.5
+   },
+   {
+    "clip": "takes/part5.webm",
+    "start": 28.09,
+    "share": 0.5
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "11-note",
+  "audio": "audio/11-note.mp3",
+  "visuals": [
+   {
+    "slide": "slides/note.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "12-model",
+  "audio": "audio/12-model.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s12.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "13-architecture",
+  "audio": "audio/13-architecture.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s13.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "27-sdk",
+  "audio": "audio/27-sdk.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s16.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "14-honesty",
+  "audio": "audio/14-honesty.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s14.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 1.0
+ },
+ {
+  "id": "15-close",
+  "audio": "audio/15-close.mp3",
+  "visuals": [
+   {
+    "slide": "slides/s15.png",
+    "share": 1.0
+   }
+  ],
+  "pad": 2.5
+ }
+]

@@ -1,0 +1,36 @@
+[
+ {
+  "id": "19-ask",
+  "lines": [
+   "A parent who wants to know more about a video can just ask, in their own words.",
+   "The Explainer agent answers from what it actually read, and says so when the answer is only the title."
+  ]
+ },
+ {
+  "id": "20-own-question",
+  "lines": [
+   "A parent can add a question of their own to any video.",
+   "Gilli asks it in their words, where it fits in the video. No model rewrites a parent's question."
+  ]
+ },
+ {
+  "id": "21-break",
+  "lines": [
+   "When the day's minutes run out, Gilli stops the video and says the parent's own line.",
+   "Getting back out of kid mode needs the parent's PIN, so the child cannot simply leave."
+  ]
+ },
+ {
+  "id": "22-import",
+  "lines": [
+   "A family already on YouTube does not start from an empty shelf.",
+   "Bring your own subscriptions in, and every channel is read against your answers before a single video is offered."
+  ]
+ },
+ {
+  "id": "23-repeat",
+  "lines": [
+   "If the question was missed, the child can ask for it again, and the listening window opens once more."
+  ]
+ }
+]

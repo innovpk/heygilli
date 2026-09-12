@@ -1,16 +1,17 @@
 # HeyGilli demo video script
 
-Target length: 4:50. Hard limit: 5:00. The beats below add to 4:50, which leaves ten seconds of
-slack for a title card and one overrun. If the edit runs long, cut in this order: beat 5, then beat
-12, then beat 10. Never cut from beats 1, 3, 4 or 7. Upload to YouTube, public, before the Devpost
-form is submitted.
+Length of the current cut: 4:52. Hard limit: 5:00. Every beat below is what is in the rendered
+video, in order, with the second it starts at. The voice-over is Amazon Polly (Matthew,
+generative), one mp3 per beat; the picture is a screen recording of the live app at
+heygilli.com or a rendered slide; the cut is assembled beat by beat with ffmpeg from
+`docs/video/plan.json`. See "How the video is built" at the end.
 
-Revised 12 September 2026 to match what is live at heygilli.com. Every claim below is something the
-live app or the code does; the few numbers only the recording can confirm are marked **check**.
+Revised 12 September 2026 for the second cut. Every claim is something the live app or the
+code does on that date.
 
-Judging reminder: the video must show a working project and cover the problem, the audience, and why
-it matters. The agent does something on its own before 1:35, so a judge who stops early has still
-seen it.
+Judging reminder: the video must show a working project and cover the problem, the audience, and
+why it matters. The agent does something on its own before 0:40, so a judge who stops early has
+still seen it.
 
 **Positioning, and the one mistake to avoid.** Do not open with the quiz. Pausing a video to ask a
 question already exists in QuizStop, Edpuzzle, PlayPosit and others, and a judge who knows any of
@@ -18,285 +19,266 @@ them will file this as a copy in the first fifteen seconds. Open with the number
 channels one child follows that a parent has never seen. The questions are a feature of a product
 that screens for the parent, and the video has to say that in the order it shows things.
 
-Voice-over lines are written to be spoken. Short sentences, normal pace; each beat's lines fit its
-slot with a second or two to spare.
+---
 
-Legend for "Record": CAM = phone camera on a tripod. SCR = screen capture (`scrcpy` for Android,
-QuickTime or OBS for the Mac and the browser). SLIDE = exported PNG shown in the edit.
+## What changed from the first cut
+
+The first cut (4:55, unlisted at https://youtu.be/7pqNpfnOi2c) had these faults, found by
+stepping through it frame by frame:
+
+- **Screens small on the canvas.** Kid-mode takes were recorded at 1920x1080 on a desktop layout,
+  so the session sat in the top-left third of the frame with empty canvas around it. The new
+  kid-mode takes are recorded at a tablet viewport (1280x720 at 1.5x), which fills the frame.
+- **Dialogs read as pasted-on images.** The "Ask about this video", "Add channels" and "Ask
+  something of your own" sheets are real in-app sheets, but at desktop width they sat as tall
+  panels over a wide page. Kept where the beat needs them; the kid-mode overlaps are gone.
+- **The same screen under unrelated narration.** The "What Rayan will see" list played under
+  five different beats, including the limits beat. Each beat now has its own footage.
+- **A generic question.** The session beat showed "How was this different from the last one you
+  watched?", a bank question, under narration about a question written for this video. The new
+  take shows a question written from the video's transcript, with its hint.
+- **No pictures in the pre-reader beat.** The younger-child beat showed a portrait video with
+  black bars and no cards. Re-recorded.
+- **Two games, now six.** The games beat showed only Find Gilli. It now shows the picker and the
+  four new card games.
+- **Features missing.** Hints after silence, written answer cards for readers, two or three
+  questions sized to the video's length, and the six games were not in the first cut.
+- **Trailing black.** The last second was black; the close slide now holds to the end.
+
+To make room, three beats were cut: the empty inbox (0:59 in the old cut), "judged on the
+transcript or the title" (1:30), and "say it again" (2:40, folded into the hint beat).
 
 ---
 
 ## Beats
 
-### 1. The number. 0:00 to 0:25
+### 1. The number. 0:00
 
-On screen: the real subscription list scrolling, row after row, past the bottom of the screen. Hold
-on the scroll a beat longer than feels comfortable: the length is the point. Then the count, large:
-**148**. Then a second, smaller: **19**. Then the title card "HeyGilli".
+Slides: "148 channels. I had seen ten." then the title card.
 
-Record: SCR, SLIDE.
+> My daughter is subscribed to a hundred and forty-eight YouTube channels. I had seen about ten of
+> them. Her brother follows nineteen.
+> No parent can check a hundred and forty-eight channels, so nobody does. Parental controls decide
+> what a child may see, and then do nothing.
+> HeyGilli is the agent that does that job for you.
 
-Voice-over:
+### 2. Setup. 0:18
 
-> My daughter is subscribed to a hundred and forty-eight YouTube channels.
-> I had seen about ten of them. Her brother follows nineteen.
-> No parent can check a hundred and forty-eight channels. So nobody does.
-> HeyGilli is the agent that does it for you.
+Live: adding a kid, the household questions, the interests page.
 
-**Check:** 148 and 19 are your real counts from the export. Use whatever the file says on the day.
+> A parent answers a few questions about what is fine in their house, and picks what the child
+> likes. That is all the setup there is.
 
-### 2. Where that list comes from. 0:25 to 0:42
+### 3. The Curator. 0:25
 
-On screen: the parent app, the YouTube Kids import. The export zip is picked, the preview shows both
-child profiles with their counts, each is matched to a child, Import.
+Live: the review screen, Shown and Hidden, the reason under a hidden video.
 
-Record: SCR.
+> Then the Curator agent reads each new upload from the family's channels, against those answers.
+> Clear cases it decides alone, and it shows its reasons as tags a parent can skim.
+> Anything it kept back says why.
 
-Voice-over:
+### 4. Borderline waits for the parent. 0:38
 
-> No API can read a YouTube Kids profile. Google's own export is the only way in.
-> One file, and Gilli has both children's real lists.
-> Their watch history is in that file too. It never leaves the phone.
+Live: the hidden list with its reasons.
 
-Editing note: show the privacy line on screen as it is said. The code enforces it.
+> Borderline videos wait for the parent, with the reason in two sentences.
+> That is the whole relationship. The agent does the work. The parent answers only the questions
+> that are really theirs.
 
-### 3. What those channels actually are. 0:42 to 1:10
+### 5. Hidden, with a sentence each. 0:49
 
-**The most important beat.** On screen: the channel review list, "Reviewed 148 of 148", the filter
-chips, the few that need a look sorted to the top. Tap one: the summary, the specific concerns, and
-the sample titles the review was drawn from. Then remove it.
+> Everything Gilli kept back sits in one place, each with the sentence it wrote for keeping it.
+> The parent can overrule any of them. The agent is never the last word.
 
-Record: SCR.
+### 6. Only these channels. 0:58
 
-Voice-over:
+Live: the Channels tab.
 
-> Gilli read every one of those channels and what they have been publishing.
-> Most are fine. A few are worth a look.
-> This one is prank and challenge videos. It says why, and shows the titles it read.
-> One tap and it is gone from her list.
+> Only these channels reach Rayan.
+> Gilli read each one before anything from it was offered, and it never removes a channel on its
+> own: that stays the parent's decision.
 
-**Check:** the counts on the chips, and pick a real flagged channel with its real reason.
+### 7. Check before you allow. 1:08
 
-### 4. It keeps screening, on its own. 1:10 to 1:35
+Live: a pasted link, the verdict.
 
-On screen: the Mac terminal, large dark font. Run the Curator (`POST /curator/run`). The trace
-scrolls: the Curator agent calls its one tool, `screen_video`, returns a `CuratorDecision`, and the
-approved video goes on to the Planner agent, which calls `icon_lookup` and writes the questions.
-Hold about three seconds. Cut to the parent app: the "Waiting for you" card for a borderline upload,
-its reason in two sentences, **Show it** and **Not this one**. Parent taps Show it.
+> Found a video yourself? Paste the link, and Gilli reads it against your answers before your child
+> ever sees it.
 
-Record: SCR (terminal), SCR (parent app).
+### 8. Ask about a video. 1:15
 
-Voice-over:
+Live: the ask sheet, a question picked, the Explainer's answer.
 
-> While nobody is watching, the Curator agent checks every approved channel for new uploads.
-> It reads each one against this family's own answers, and hands the good ones to the Planner, which writes the questions.
-> Clear cases it decides alone. This one is borderline, so it waits for the parent, with its reason.
-> That is the whole relationship. The agent works. The parent answers one question.
+> A parent who wants to know more about a video can just ask, in their own words.
+> The Explainer agent answers from what it actually read, and says so when the answer is only the
+> title.
 
-### 5. Check before you allow. 1:35 to 1:47
+### 9. Import. 1:25
 
-On screen: the parent pastes a YouTube link a friend sent. A few seconds later: the verdict, its
-tags, and the reason, read against this child's answers. Allow.
+Still: the Add channels sheet with "Import from YouTube Kids".
 
-Record: SCR.
+> A family already on YouTube does not start from an empty shelf.
+> Bring your own subscriptions in, and every channel is read against your answers before a single
+> video is offered.
 
-Voice-over:
+### 10. The shelf. 1:35
 
-> Found something yourself? Paste the link. Gilli reads it against your answers before your child ever sees it.
-
-### 6. The shelf. 1:47 to 2:02
-
-On screen: tablet, kid mode, Rayan's shelf: a section per channel, big tiles, titles and lengths.
-Tap the mic in the search box and say "volcano". The shelf narrows to the volcano videos.
-
-Record: SCR (tablet), CAM for the child's voice if you have consent.
-
-Voice-over:
+Live: Rayan's shelf, a typed search.
 
 > The child's shelf looks like YouTube Kids, with only what the parent allowed.
-> They can search by typing or by voice, but only among those videos. Search never reaches YouTube.
+> They can search, by typing or by voice, but only among those videos. Search never reaches
+> YouTube.
 
-### 7. The younger child, and a right answer. 2:02 to 2:25
+### 11. Voice search. 1:46
 
-On screen: tablet, Lisa's shelf: one grid of big pictures. She taps a video. At a natural break it
-pauses. Gilli asks by voice: "What animal is that?" The mic pulses. She answers. Gilli says the word
-back, stretched: "A giraffe! Gi-raffe." Stars burst around Gilli with a short cheer. The video
-resumes.
+> A child who cannot spell yet holds the microphone and says it instead.
+> The words never leave the device, and the search still only reaches videos the parent allowed.
 
-Record: CAM (hands and tablet; face only with consent), SCR in parallel as backup.
+### 12. The question. 1:56
 
-Voice-over:
+Live, tablet: the yawn video playing, then it pauses and Gilli asks "Can you recall what
+scientists think might be one of the reasons we yawn?", the text on screen, the mic ring below.
 
-> Lisa is five. Gilli pauses at a natural break and asks, out loud, about what is on the screen.
-> The question needs no reading. Whatever she says, Gilli says the word back once, clearly.
-> A right answer gets a cheer. A wrong one gets curiosity. Silence is fine too.
+> At a natural break the video pauses, and Gilli asks about what just happened, out loud.
+> The Planner agent wrote it from this video's own words, for this child's age: two or three
+> questions a video, sized to its length.
+> The child answers by talking or by tapping, the Buddy agent replies, and the video carries on.
 
-### 8. Tap instead of talk. 2:25 to 2:40
+### 13. The hint. 2:14
 
-On screen: same session. Three big pictures. Gilli: "Show me the blue one." Lisa taps the fish.
-Gilli: "Yes! Blue." Then two seconds of Rayan's session with a yes-or-no tap.
+Live: the same question with "Think about the part where it talked about why we yawn." under it,
+then "No worries, let's keep watching." when the window runs out.
 
-Record: CAM, SCR backup.
+> A child who goes quiet is not left in silence.
+> After a few seconds Gilli gives a hint: a nudge back to the moment in the video, never the
+> answer, and the clock starts again.
+> They can also ask to hear the question again.
 
-Voice-over:
+### 14. Written cards. 2:27
 
-> Not every question needs speech. Three pictures from a kid-safe icon set. One tap.
-> If a younger child's mic hears nothing twice, the Buddy agent turns the rest of the session into pictures on its own.
-> Older kids can tap too. A shy child or a tired one still has a way in.
+Live: "Which animal uses its tail to maintain balance?" with three cards, monkey as a picture and
+Kangaroo and Horse as words. The tap lands on Horse; Gilli says "Horse? The video showed
+Kangaroo."
 
-### 9. The older child. 2:40 to 2:55
+> For a child who reads, the answers can be written cards taken from the video: one right, and two
+> a child who half-watched might believe.
+> A younger child only ever gets pictures.
 
-On screen: Rayan's volcano video. Pause. The question is spoken and shown as text: "What comes out
-of a volcano when it erupts?" He answers in a sentence. Gilli builds on the answer. The video
-resumes.
+### 15. The younger child. 2:38
 
-Record: CAM, SCR backup. If no child of that age is available, SCR with an adult voice, and say so in
-the caption.
+Live, tablet: Lisa, five, three picture cards, a tap, the reply.
 
-Voice-over:
+> A younger child gets big pictures, and questions that need no reading: one word, a tap, or a yes
+> or no.
+> A right answer gets a cheer. A wrong one gets curiosity. Nobody is ever told they are wrong.
 
-> Rayan is nine. Same agents, different age band.
-> Now the questions are why and what next, with the words on screen as well.
-> Gilli talks to him like an older cousin who finds the topic interesting. No baby talk.
+### 16. A parent's own question. 2:52
 
-### 10. Urdu. 2:55 to 3:07
+Live: "Ask something of your own" on a video, and the question typed.
 
-On screen: same child, Urdu selected. Question in Urdu, answer in Urdu, reply in Urdu. English
-subtitles burned into the edit.
+> A parent can add a question of their own to any video.
+> Gilli asks it in their words, where it fits in the video. No model rewrites a parent's question.
 
-Record: CAM or SCR.
+### 17. Six games. 3:01
 
-Voice-over:
+Live, tablet: the picker with six tiles, then Letters ("Find the small letter g"), Numbers
+("5 + 3 = ?"), Who am I ("I have fins and scales and I breathe under water"), Spot the animal
+("Find the duck!").
 
-> Bilingual families get little from English-first apps.
-> Gilli asks in Urdu and listens in Urdu.
+> Between videos there are six short games: find Gilli, catch him, letters, numbers, who am I, and
+> spot the animal.
+> The questions are written on the device for the child's age. The Playmate agent sets how hard
+> the next round is, and nobody loses a round.
 
-### 11. The limits are yours, and so are the words. 3:07 to 3:30
+### 18. The limits. 3:16
 
-On screen: the parent's time limits. Then kid mode: the break arrives, Gilli says the parent's own
-line, with the activity the parent chose. Then the parent screen where that line was written. Then,
-on a video, **Add a question**, one typed sentence, and that exact sentence asked in the session.
+Live: the Rules tab, the limits, then the question kinds.
 
-Record: SCR.
+> The parent sets the day's minutes, where the breaks fall, and when the day ends.
+> None of that is the model's to decide. The limits are the parent's, and the code is what enforces
+> them.
 
-Voice-over:
+### 19. The break, and the PIN. 3:27
 
-> You set the limits. After twenty-five minutes Gilli stops the video.
-> What he says then is your sentence, not his. Nothing Gilli says at a break was written by a model.
-> And you can add a question of your own to any video. It is asked exactly as you typed it.
+Live: the break messages the parent wrote, then the PIN pad.
 
-Editing note: land the break line clearly. There is no model call anywhere in the break path, and
-that is the answer to the obvious question about letting an AI talk to a child.
+> When the day's minutes run out, Gilli stops the video and says the parent's own line.
+> Getting back out of kid mode needs the parent's PIN, so the child cannot simply leave.
 
-### 12. Games with Gilli. 3:30 to 3:40
+### 20. Progress. 3:36
 
-On screen: from the shelf, the games button. Find Gilli: he hides behind one of the trees, the child
-taps, he pops out. A round star lights up.
+> Progress is the longer view: the minutes, whether the questions are being answered, and what is
+> worth another look.
 
-Record: SCR.
+### 21. Tonight's note. 3:43
 
-Voice-over:
+Slide: the note as the parent sees it.
 
-> Between videos, two short games. The Playmate agent picks how hard the next round is. Where Gilli hides is picked in code, never by a model.
+> Each night the Digest agent reads the day and writes a short note for the parent:
+> what was said, what was only heard, and one question to ask at dinner.
 
-### 13. Tonight's note. 3:40 to 3:58
+### 22. The model is a setting. 3:52
 
-On screen: the parent's phone, the child's page, Tonight's note. For Lisa: said today, heard but not
-said yet, and a question for dinner. Swipe to Rayan's: understood, shaky, and a question for dinner.
-
-Record: SCR, CAM of the phone in hand for the first second.
-
-Voice-over:
-
-> Each night the Digest agent reads the day's sessions and writes a short note per child.
-> For Lisa: the words she said, the words she heard but did not say yet, and a question for dinner.
-> For Rayan: what he understood, what was shaky, and one question for dinner.
-
-### 14. The model is a setting. 3:58 to 4:10
-
-On screen: terminal, `grep HEYGILLI_MODEL .env`. One line reads
-`HEYGILLI_MODEL_BUDDY=bedrock:us.amazon.nova-pro-v1:0`. Change it to
-`bedrock:us.amazon.nova-lite-v1:0`, restart the gateway, and the same question turn runs again on
-the tablet.
-
-Record: SCR (terminal), SCR (tablet).
-
-Voice-over:
+Slide: `grep HEYGILLI_MODEL .env`.
 
 > Every agent's model is one line of configuration.
-> Today that is Amazon Nova Pro on Bedrock, the one our eval picked. Change the line, restart, same agents, same session.
+> Today that is Amazon Nova Pro on Amazon Bedrock, the one our eval picked. Change the line, and the
+> same agents run on another model.
 
-### 15. How it is built. 4:10 to 4:27
+### 23. How it is built. 4:03
 
-On screen: `docs/architecture.png`, then zoom on the agents panel.
+Slide: `docs/architecture.png`.
 
-Record: SLIDE.
+> Eight Strands agents sit behind one gateway: Curator, Planner, Buddy, Digest, Reviewer, Coach,
+> Explainer and Playmate.
+> The agents decide. The code fetches and enforces, because the guarantees a parent trusts belong
+> in code, not in a prompt.
 
-Voice-over:
+### 24. Tools in, typed objects out. 4:20
 
-> Eight Strands agents behind one gateway. Curator screens, Planner writes the questions, Buddy runs the session, Digest writes the note, Reviewer reads a channel, Coach drafts for the parent, Explainer answers the parent, and Playmate runs the games.
-> The agents decide. The code fetches and enforces, because the guarantees a parent is trusting belong in code, not in a prompt.
-> Bedrock, Polly for Gilli's voice, and DynamoDB. One Flutter app for phone, tablet and web.
+Slide: repo source.
 
-### 16. Impact and honesty. 4:27 to 4:42
+> Each agent gets its own tools and its own output type.
+> A tool is a plain Python function, the answer comes back as a validated Pydantic object rather
+> than text, and every call is one traced span.
 
-On screen: a SLIDE with four lines: "Ads still play. Creators still get paid." / "The official
-YouTube player. Nothing drawn over it, nothing downloaded." / "Nothing a child says is stored." /
-"Leaving kid mode needs the parent's PIN." Then a second SLIDE: "Not built yet: the TV layout,
-AgentCore deployment."
+### 25. Built to play fair. 4:32
 
-Record: SLIDE.
-
-Voice-over:
+Slide.
 
 > Ads still play, and creators still get paid.
-> Nothing a child says is stored. Only a score and a ten-word paraphrase.
+> Nothing a child says is stored. Only a score and a short paraphrase.
 > Not built yet: the TV layout, and moving the agents to AgentCore.
 
-### 17. Close. 4:42 to 4:50
+### 26. Close. 4:44
 
-On screen: a SLIDE with heygilli.com, the repo URL, the three builder.aws post titles, and "Built on
-Strands Agents SDK and Amazon Bedrock for Agents for Humans".
+Slide: heygilli.com, the repo, the write-up.
 
-Record: SLIDE.
-
-Voice-over:
-
-> HeyGilli. Try it at heygilli.com. The code and a three-part write-up are in the description.
+> HeyGilli. Try it at heygilli dot com. The code and a three-part write-up are in the description.
 
 ---
 
-## Recording checklist
+## How the video is built
 
-Before the child sessions
+Everything is in `docs/video/`, scripts only; the recordings, narration audio and rendered
+slides are large and stay out of the repo.
 
-- [ ] Pre-screen the demo videos so their plans are cached and no turn waits on a model call.
-- [ ] Charge tablet, phone and camera. Do Not Disturb on both devices.
-- [ ] Tablet in screen pinning. Volume at 70 percent so Gilli is audible on the camera mic.
-- [ ] Screen recording running for every child take, as backup for every turn.
-- [ ] Quiet room. TV and fans off. Child speech is hard enough for the recogniser.
-- [ ] The parent's consent for the child's voice; decide whether faces are in frame. Hands and tablet only is fine.
-- [ ] Two or three takes, on different days if possible. Do not push a tired child for another.
+1. **Narration.** `narration*.json` holds the lines per beat. `speak.py` sends each beat to
+   Amazon Polly (Matthew, generative) and writes `audio/<beat>.mp3`. Only re-run it for a beat
+   whose lines changed; the voice is the same across runs.
+2. **Takes.** `record_part*.py` drive the live site headless with Playwright (Chrome channel) and
+   record a `.webm`, marking the second each screen appeared in `takes/<take>-marks.json`. The
+   kid-mode takes (15 to 17) use a 1280x720 viewport at 1.5x; the parent takes are 1920x1080.
+   Take 15 sets up a fresh household with two kids and allows the videos through the API so the
+   plans are warm before anything is filmed.
+3. **Slides.** `slides.html` has one `<section>` per slide; `render_slides.py` screenshots each
+   to `slides/<id>.png` at 1920x1080.
+4. **Plan.** `make_plan.py` lists the beats in order, each naming its footage as a take plus a
+   mark plus an offset, or a slide, with a share of the beat's length. It writes `plan.json`.
+5. **Cut.** `assemble.py` builds one segment per beat (narration length plus one second of air),
+   scales everything to 1920x1080 on the cream ground, and concatenates. `make_srt.py` derives
+   the subtitles from the same plan, so they never drift.
 
-Before the terminal beats
-
-- [ ] Terminal font 18 pt or larger, dark theme, window 1280 x 720.
-- [ ] Trace output trimmed to agent and tool names and a one-line result each. No JSON longer than the screen.
-- [ ] Scripted commands in a file so nothing is typed live: run the Curator, show the model line, edit it, restart.
-- [ ] No keys on screen. Show the model line with `grep HEYGILLI_MODEL .env`, never the whole file.
-
-Before the edit
-
-- [ ] Check every child clip against the order: pause, ask, answer, reply, resume. Cut any take where it broke.
-- [ ] English subtitles on the Urdu beat. Captions on all the voice-over.
-- [ ] Total under 5:00 including the title card. Aim for 4:45.
-- [ ] Export 1080p, 30 fps. Upload to YouTube as public, not unlisted. Title: "HeyGilli: an AI co-watching buddy for kids' YouTube (Agents for Humans hackathon)".
-- [ ] Description: heygilli.com, the repo, the three builder.aws links, and one line on what is not built yet.
-- [ ] Watch it once on a phone with the sound low. If Gilli cannot be heard in beat 7, re-record from the screen recording's audio.
-
-Fallbacks
-
-- [ ] No nine-year-old available: record beats 9 and 10 with screen capture and an adult voice, and caption it honestly.
-- [ ] The model swap fails on camera: use a recording of a working swap from earlier, and say "recorded earlier".
-- [ ] No borderline upload turns up in the run: show one already waiting in the parent's "Waiting for you" card.
+Upload: 1080p, 30 fps, to YouTube as Public. Title: "HeyGilli: an AI co-watching buddy for kids'
+YouTube (Agents for Humans hackathon)". Description: heygilli.com, the repo, the three builder.aws
+links, and one line on what is not built yet. Upload the `.srt` as captions.

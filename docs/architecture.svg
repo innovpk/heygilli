@@ -147,7 +147,7 @@
 
   <rect x="786" y="732" width="234" height="80" rx="10" class="agent"/>
   <text x="801" y="756" class="bt">Playmate</text>
-  <text x="801" y="778" class="tm">runs Gilli's two games:</text>
+  <text x="801" y="778" class="tm">runs Gilli's six games:</text>
   <text x="801" y="798" class="tm">how hard the next round is</text>
 
   <text x="60" y="838" class="tm">Every agent: frozen prompt, Pydantic output, safe fallback, own model via HEYGILLI_MODEL_&lt;ROLE&gt;=&lt;provider&gt;:&lt;model id&gt;.</text>

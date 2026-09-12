@@ -99,7 +99,7 @@ Do these in order.
 | README with setup instructions | `README.md` | [ ] |
 | Architecture diagram | `docs/architecture.svg`, `docs/architecture.png` | [x] drawn, [x] matches what shipped (6 Sep) |
 | Text description | `docs/devpost-submission.md` | [x] drafted, [ ] finalised |
-| Demo video, 5:00 max, public on YouTube | https://youtu.be/7pqNpfnOi2c (4:56) | [ ] uploaded, still Unlisted; make Public |
+| Demo video, 5:00 max, public on YouTube | second cut 4:52 at ~/Desktop/heygilli-demo-v2.mp4 (+ .srt captions); first cut https://youtu.be/7pqNpfnOi2c is stale | [ ] upload v2, set Public, replace the link in devpost-submission.md |
 | Testing access: test build or live link | https://heygilli.com/app/ and https://heygilli.com/try (APK optional) | [x] |
 | AWS Builder ID | in Devpost form: @innovpk | [x] |
 | Third-party disclosure | in Devpost form | [ ] |

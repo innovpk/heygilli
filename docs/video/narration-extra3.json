@@ -1,0 +1,23 @@
+[
+ {
+  "id": "24-voice-search",
+  "lines": [
+   "A child who cannot spell yet holds the microphone and says it instead.",
+   "The words never leave the device, and the search still only reaches videos the parent allowed."
+  ]
+ },
+ {
+  "id": "25-hidden",
+  "lines": [
+   "Everything Gilli kept back sits in one place, each with the sentence it wrote for keeping it.",
+   "The parent can overrule any of them. The agent is never the last word."
+  ]
+ },
+ {
+  "id": "26-read",
+  "lines": [
+   "And every verdict says what it was judged on: the whole transcript, or only the title.",
+   "A video read on its title alone is a weaker opinion, and the parent deciding is the person who should be told which one they have."
+  ]
+ }
+]

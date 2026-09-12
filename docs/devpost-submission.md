@@ -2,7 +2,7 @@
 
 Copy each block into the matching Devpost field. Hackathon: Agents for Humans (AWS x Devpost). Track: Everyday Agents. Deadline: Monday 14 September 2026, 5:00 PM PT.
 
-Rewritten 10 September to match what shipped. Items only the author can supply are listed under "Still needed" at the end.
+Rewritten 12 September to match what shipped. Items only the author can supply are listed under "Still needed" at the end.
 
 ---
 
@@ -50,11 +50,12 @@ HeyGilli is a kid-safe YouTube front end with a co-watching buddy, Gilli the squ
 
 - Only videos the parent's rules allowed, and no recommendations. A child can search, by typing or by voice, but only among those videos; search never reaches YouTube. Videos play in the official YouTube embed, so ads still play and creators still get paid.
 - The shelf is laid out like YouTube Kids: a section per channel for a child who reads, and one big grid of pictures, each with its title, for a child who does not yet.
-- At a natural break the video pauses and Gilli asks one question by voice about what just happened. Two or three a video, sized to its length.
+- At a natural break the video pauses and Gilli asks one question by voice about what just happened, written by the Planner from the video's own transcript. Two or three a video, sized to its length, which Gemini reports alongside the transcript.
+- A child who goes quiet gets a hint after a few seconds: a nudge back to the moment in the video, never the answer, and the listening window starts again. They can also ask to hear the question again.
 - A 5-year-old answers with one word, by tapping one of three pictures, or yes or no. The questions need no reading: Gilli asks aloud, and always says the answer word back.
-- A 10-year-old answers in a sentence. Gilli builds on the answer and the video resumes. English or Urdu.
+- A 10-year-old answers in a sentence, or taps a written card: three short answers taken from the video, one right and two a child who half-watched might believe. Gilli builds on the answer and the video resumes. English or Urdu.
 - Three age bands (5 to 6, 7 to 8, 9 to 12) set the question types, the listening window and Gilli's tone.
-- Between videos Gilli naps on the shelf. A pinch wakes him: a tap, a click, or two fingers squeezed together. The games have their own button: find Gilli hiding behind one of the trees, or catch him as he pops up. The Playmate agent makes each round a little harder or easier from how the last one went, and the games follow the same limits as videos.
+- Between videos Gilli naps on the shelf. A pinch wakes him: a tap, a click, or two fingers squeezed together. The games have their own button, six of them: find Gilli hiding behind one of the trees, catch him as he pops up, letters (find the big letter, then small letters, then which letter comes after M, then which word starts with it), numbers (count the ducks, then adding and taking away, then times tables and sharing), who am I (an animal from a clue: its sound, what it looks like, then a fact) and spot the animal (find the named one in a crowd of four, six, nine or twelve). The card games are written on the device for the child's age band; the Playmate agent makes each round a little harder or easier from how the last one went; nobody loses a round; and the games follow the same limits as videos.
 
 Nothing a child says is stored. Only a score and a ten-word paraphrase are kept.
 
@@ -63,13 +64,13 @@ Nothing a child says is stored. Only a score and a ten-word paraphrase are kept.
 All agent logic is Python on the **Strands Agents SDK**. There are eight agents, each a Strands `Agent` with a frozen system prompt, its own model setting, its own `@tool` list, and a Pydantic output schema it must fill in. The repo has twelve `@tool` functions; five are handed to agents, and the rest are called directly by the gateway as the plain functions they still are. No agent returns free text: every call goes through `structured()`, which asks Strands for `structured_output` and validates the object before anything uses it.
 
 - **Curator**: screens each new upload against the household's answers and the safety rules. `@tool`: `screen_video`. Structured output `CuratorDecision`: approve, hide or ask the parent, with short topic and concern tags.
-- **Planner**: writes the questions for each approved video, per age band and language, as a Pydantic `QuestionPlan`. `@tool`: `icon_lookup`, `list_icons`, so a picture question can only name an icon that exists. Band and timing rules are enforced in code afterwards.
+- **Planner**: writes the questions for each approved video, per age band and language, as a Pydantic `QuestionPlan`, each with a hint that points back to the moment without giving the answer. `@tool`: `icon_lookup`, `list_icons`, so a pre-reader's picture question can only name an icon that exists; a reader's cards may be words. Band and timing rules are enforced in code afterwards, and a plan written while no transcript could be read is re-planned once one can.
 - **Buddy**: runs live, one per session over a WebSocket; scores the answer, writes Gilli's reply, and adapts mid-session.
 - **Digest**: writes the nightly parent digest and decides whether anything deserves a notification.
 - **Reviewer**: describes what a channel actually publishes, from its feed; also notices when an approved channel drifts. `@tool`: `screen_video`.
 - **Coach**: drafts household questions and break lines **for the parent**. Nothing it writes reaches a child until the parent saves it.
 - **Explainer**: answers a parent's question about one video from its transcript. `@tool`: `search_transcript`, `channel_reputation`, `screen_video` — the agent chooses what evidence it needs, and `search_transcript` returns `searched_whole_video` so it knows when "not found" can be trusted.
-- **Playmate**: runs Gilli's two games. After each round it decides how hard the next one should be for this child and what Gilli says; the code clamps the numbers per age band, picks where Gilli hides, checks the line, and caps a game at five rounds.
+- **Playmate**: runs Gilli's six games. After each round it decides how hard the next one should be for this child and what Gilli says; the code clamps the numbers per age band, picks where Gilli hides, writes the letter, sum or animal question on the device, checks the line, and caps a game at five rounds.
 
 The agents decide; plain code fetches and enforces. An agent gets a tool where a judgement needs evidence it should go and fetch — the Explainer deciding to search a transcript, the Planner checking an icon exists. Fetching uploads, Polly speech and the length and safety rules stay ordinary functions the gateway calls, because nothing about them is the model's to decide. A `@tool` is still a plain function, so `screen_video` has two callers: the agent that may reason about it, and the pipeline that always runs it. The Curator-to-Planner hand-off is a typed Python pipeline rather than a Strands Graph, so the Planner never re-parses the Curator's prose and every plan passes the same rule check.
 
@@ -85,7 +86,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 ### Challenges we ran into
 
-**Reading a video we do not own.** YouTube's caption download works only for your own videos, and from a datacenter address the public captions are often refused. Everything goes through one function with a proxy for captions and a video-understanding model as the second path. When neither works, the video is read on its title and description and the parent is told so ("title only") rather than shown a verdict that pretends otherwise.
+**Reading a video we do not own.** YouTube's caption download works only for your own videos, and from a datacenter address the public captions are often refused. Everything goes through one function with a proxy for captions and a video-understanding model as the second path, which also reports the video's length, the one fact a datacenter cannot otherwise get. When neither works, the video is read on its title and description and the parent is told so ("title only") rather than shown a verdict that pretends otherwise, and the plan is written again as soon as a transcript turns up.
 
 **A preference is not a safety rule.** A channel's topics are the channel's, not each video's: a science channel posts a birthday message, an educational one posts quote compilations. The Curator checks each upload against what the family said they like, but it hides only for the safety rules; a video that merely misses the family's topics goes to the parent as a question, never hidden for that alone.
 
@@ -101,7 +102,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 - The agent pings the parent only when a decision is genuinely theirs; everything else it settles alone and shows its reasons.
 - A question path for pre-readers that needs no reading: Gilli asks aloud, and they tap a picture or say one word.
 - Playing by YouTube's rules throughout: official embed, ads untouched, no overlays during playback, no downloads.
-- 685 backend tests and 622 client tests, offline.
+- 716 backend tests and 638 client tests, offline.
 
 ### What we learned
 
@@ -132,7 +133,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Try the screening, no login | https://heygilli.com/try |
 | Web app | https://heygilli.com/app/ |
 | Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
-| Demo video | https://youtu.be/7pqNpfnOi2c (4:56; set to Public before submitting, currently Unlisted) |
+| Demo video | second cut, 4:52, at ~/Desktop/heygilli-demo-v2.mp4 with .srt captions; upload as Public and put the new link here (the first cut at https://youtu.be/7pqNpfnOi2c is stale) |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
 | builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |
 | builder.aws post 3 | still needed |
@@ -160,7 +161,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 | Item | Owner |
 |---|---|
-| Demo video: uploaded, 4:56, https://youtu.be/7pqNpfnOi2c. Still Unlisted; switch to Public before submitting | author |
+| Demo video: second cut rendered 12 September, 4:52, ~/Desktop/heygilli-demo-v2.mp4 and .srt. Upload to YouTube as Public with the captions, replace the link above and in the checklist | author |
 | AWS Builder ID: @innovpk | done |
 | Teammates: Unzila Zafar (@unzila15) and Aida Valiyeva (@aidavaliyeva) are on the submission, checked 11 September | done |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |

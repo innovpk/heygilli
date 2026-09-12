@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Itim&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --teal:#1E3A34; --cream:#DCEEEA; --ground:#F3F8F6; --rust:#B8452A; --tint:#F0A48C; --muted:#607974; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #000; }
+  section { width: 1920px; height: 1080px; position: relative; overflow: hidden; font-family: Nunito, "Helvetica Neue", sans-serif; }
+  .dark { background: var(--teal); color: var(--cream); }
+  .light { background: var(--ground); color: var(--teal); }
+  .display { font-family: Itim, "Comic Sans MS", cursive; }
+  .pad { position: absolute; inset: 120px 160px; display: flex; flex-direction: column; justify-content: center; }
+  .kicker { font-size: 34px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--tint); margin-bottom: 36px; }
+  .light .kicker { color: var(--rust); }
+  .big { font-size: 112px; line-height: 1.08; }
+  .mid { font-size: 44px; line-height: 1.4; font-weight: 600; color: var(--muted); margin-top: 48px; max-width: 1400px; }
+  .dark .mid { color: #9CC9BE; }
+  .term { background: #102420; border-radius: 28px; padding: 56px 64px; font-family: Menlo, Monaco, monospace; font-size: 38px; line-height: 1.75; color: #DCEEEA; margin-top: 40px; }
+  .term .prompt { color: #9CC9BE; }
+  .term .hl { color: var(--tint); }
+  .term .dim { color: #607974; }
+  ul.checks { list-style: none; padding: 0; margin-top: 20px; }
+  ul.checks li { font-size: 54px; line-height: 1.35; padding: 14px 0 14px 84px; position: relative; font-weight: 700; }
+  ul.checks li::before { content: ""; position: absolute; left: 0; top: 30px; width: 46px; height: 46px; border-radius: 50%; background: #2F7D5B; }
+  ul.checks li::after { content: ""; position: absolute; left: 15px; top: 38px; width: 12px; height: 22px; border: solid #fff; border-width: 0 6px 6px 0; transform: rotate(45deg); }
+  .notyet { margin-top: 56px; font-size: 40px; color: var(--muted); font-weight: 600; }
+  .notyet b { color: var(--rust); }
+</style>
+</head>
+<body>
+
+<!-- 01a: the problem -->
+<section id="s01a" class="dark">
+  <div class="pad">
+    <div class="kicker">The problem</div>
+    <div class="big display">148 channels.<br>I had seen ten.</div>
+    <div class="mid">Parental controls decide what a child may see, and then do nothing. Nobody asks the child anything.</div>
+  </div>
+</section>
+
+<!-- 01b: title card -->
+<section id="s01b" class="light">
+  <img src="file:///Users/mmasood/innovpk/heygilli/app/assets/gilli.svg" style="position:absolute; left:170px; top:250px; width:520px; height:520px;">
+  <div style="position:absolute; left:780px; top:300px; right:140px;">
+    <div class="display" style="font-size:180px; line-height:1;">HeyGilli</div>
+    <div style="font-size:50px; line-height:1.35; font-weight:700; margin-top:36px;">The agent that reads every new video for the parent, and asks the child about it.</div>
+    <div style="font-size:32px; color:var(--muted); font-weight:600; margin-top:40px;">Agents for Humans · Strands Agents SDK · Amazon Bedrock</div>
+    <div style="font-size:32px; color:var(--muted); font-weight:600; margin-top:18px;">Mujahid Masood · Unzila Zafar · Aida Valiyeva</div>
+  </div>
+</section>
+
+<!-- 12: the model is a setting -->
+<section id="s12" class="light">
+  <div class="pad">
+    <div class="kicker">The model is a setting</div>
+    <div class="display" style="font-size:84px; line-height:1.1;">One line per agent.</div>
+    <div class="term">
+      <div><span class="prompt">$</span> grep HEYGILLI_MODEL .env</div>
+      <div>HEYGILLI_MODEL_CURATOR=<span class="hl">bedrock:us.amazon.nova-pro-v1:0</span></div>
+      <div>HEYGILLI_MODEL_PLANNER=<span class="hl">bedrock:us.amazon.nova-pro-v1:0</span></div>
+      <div>HEYGILLI_MODEL_BUDDY=<span class="hl">bedrock:us.amazon.nova-pro-v1:0</span></div>
+      <div class="dim"># change the line, restart: same agents, another model</div>
+    </div>
+  </div>
+</section>
+
+<!-- 13: architecture -->
+<section id="s13" class="light">
+  <img src="file:///Users/mmasood/innovpk/heygilli/docs/architecture.png" style="position:absolute; left:50%; top:40px; height:1000px; transform:translateX(-50%);">
+</section>
+
+<!-- 16: what the SDK actually does here. Verbatim from the repo, because a
+     judge scoring "skillful use of Strands" should see the calls, not a claim. -->
+<section id="s16" class="light">
+  <div class="pad">
+    <div class="kicker">Skillful use of Strands</div>
+    <div class="display" style="font-size:84px; line-height:1.1;">Tools in. Typed objects out.</div>
+    <div class="term" style="font-size:34px; line-height:1.6;">
+      <div><span class="dim">@tool</span></div>
+      <div>def <span class="hl">search_transcript</span>(video_id: str, phrase: str) -&gt; dict:</div>
+      <div class="dim">&nbsp;&nbsp;&nbsp;&nbsp;"""...returns searched_whole_video, so the agent knows"""</div>
+      <div>&nbsp;</div>
+      <div>agent = make_agent("explainer", PROMPT,</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;tools=[<span class="hl">search_transcript, channel_reputation, screen_video</span>])</div>
+      <div>&nbsp;</div>
+      <div>result = agent(prompt, <span class="hl">structured_output_model</span>=CuratorDecision)</div>
+    </div>
+    <div class="notyet" style="color:var(--muted);">12 <b>@tool</b> functions · a Pydantic schema per agent · a guardrail check on every answer · one OpenTelemetry span per call</div>
+  </div>
+</section>
+
+<!-- 14: honesty -->
+<section id="s14" class="light">
+  <div class="pad">
+    <div class="kicker">Built to play fair</div>
+    <ul class="checks">
+      <li>Ads still play. Creators still get paid.</li>
+      <li>The official YouTube player. Nothing drawn over it, nothing downloaded.</li>
+      <li>Nothing a child says is stored.</li>
+      <li>Leaving kid mode needs the parent's PIN.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 15: close -->
+<section id="s15" class="dark">
+  <img src="file:///Users/mmasood/innovpk/heygilli/app/assets/gilli.svg" style="position:absolute; right:170px; top:300px; width:420px; height:420px;">
+  <div class="pad" style="right:700px;">
+    <div class="display" style="font-size:150px; line-height:1;">heygilli.com</div>
+    <div style="font-size:44px; font-weight:700; margin-top:44px;">github.com/mujahidmasood/heygilli</div>
+    <div style="font-size:36px; color:#9CC9BE; font-weight:600; margin-top:28px; line-height:1.5;">A three-part write-up on builder.aws:<br>“Agents for Humans: building HeyGilli”</div>
+    <div style="font-size:32px; color:#9CC9BE; margin-top:56px;">Built on the Strands Agents SDK and Amazon Bedrock</div>
+  </div>
+</section>
+
+</body>
+</html>

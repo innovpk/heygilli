@@ -1,0 +1,211 @@
+1
+00:00:00,300 --> 00:00:07,388
+My daughter is subscribed to a hundred and forty-eight YouTube channels. I had seen about ten of them. Her brother follows nineteen.
+
+2
+00:00:07,388 --> 00:00:14,853
+No parent can check a hundred and forty-eight channels, so nobody does. Parental controls decide what a child may see, and then do nothing.
+
+3
+00:00:14,853 --> 00:00:17,484
+HeyGilli is the agent that does that job for you.
+
+4
+00:00:18,484 --> 00:00:23,437
+A parent answers a few questions about what is fine in their house, and picks what the child likes.
+
+5
+00:00:23,437 --> 00:00:24,988
+That is all the setup there is.
+
+6
+00:00:25,988 --> 00:00:31,352
+Then the Curator agent reads each new upload from the family's channels, against those answers.
+
+7
+00:00:31,352 --> 00:00:35,926
+Clear cases it decides alone, and it shows its reasons as tags a parent can skim.
+
+8
+00:00:35,926 --> 00:00:37,676
+Anything it kept back says why.
+
+9
+00:00:38,676 --> 00:00:42,332
+Borderline videos wait for the parent, with the reason in two sentences.
+
+10
+00:00:42,332 --> 00:00:48,324
+That is the whole relationship. The agent does the work. The parent answers only the questions that are really theirs.
+
+11
+00:00:49,324 --> 00:00:54,267
+Everything Gilli kept back sits in one place, each with the sentence it wrote for keeping it.
+
+12
+00:00:54,267 --> 00:00:57,988
+The parent can overrule any of them. The agent is never the last word.
+
+13
+00:00:58,988 --> 00:01:00,719
+Only these channels reach Rayan.
+
+14
+00:01:00,719 --> 00:01:07,916
+Gilli read each one before anything from it was offered, and it never removes a channel on its own: that stays the parent's decision.
+
+15
+00:01:08,916 --> 00:01:14,772
+Found a video yourself? Paste the link, and Gilli reads it against your answers before your child ever sees it.
+
+16
+00:01:15,772 --> 00:01:19,857
+A parent who wants to know more about a video can just ask, in their own words.
+
+17
+00:01:19,857 --> 00:01:25,132
+The Explainer agent answers from what it actually read, and says so when the answer is only the title.
+
+18
+00:01:26,132 --> 00:01:29,362
+A family already on YouTube does not start from an empty shelf.
+
+19
+00:01:29,362 --> 00:01:35,156
+Bring your own subscriptions in, and every channel is read against your answers before a single video is offered.
+
+20
+00:01:36,156 --> 00:01:40,422
+The child's shelf looks like YouTube Kids, with only what the parent allowed.
+
+21
+00:01:40,422 --> 00:01:45,852
+They can search, by typing or by voice, but only among those videos. Search never reaches YouTube.
+
+22
+00:01:46,852 --> 00:01:50,478
+A child who cannot spell yet holds the microphone and says it instead.
+
+23
+00:01:50,478 --> 00:01:55,348
+The words never leave the device, and the search still only reaches videos the parent allowed.
+
+24
+00:01:56,348 --> 00:02:01,162
+At a natural break the video pauses, and Gilli asks about what just happened, out loud.
+
+25
+00:02:01,162 --> 00:02:08,355
+The Planner agent wrote it from this video's own words, for this child's age: two or three questions a video, sized to its length.
+
+26
+00:02:08,355 --> 00:02:13,556
+The child answers by talking or by tapping, the Buddy agent replies, and the video carries on.
+
+27
+00:02:14,556 --> 00:02:17,064
+A child who goes quiet is not left in silence.
+
+28
+00:02:17,064 --> 00:02:23,934
+After a few seconds Gilli gives a hint: a nudge back to the moment in the video, never the answer, and the clock starts again.
+
+29
+00:02:23,934 --> 00:02:26,388
+They can also ask to hear the question again.
+
+30
+00:02:27,388 --> 00:02:35,270
+For a child who reads, the answers can be written cards taken from the video: one right, and two a child who half-watched might believe.
+
+31
+00:02:35,270 --> 00:02:37,588
+A younger child only ever gets pictures.
+
+32
+00:02:38,588 --> 00:02:45,307
+A younger child gets big pictures, and questions that need no reading: one word, a tap, or a yes or no.
+
+33
+00:02:45,307 --> 00:02:51,308
+A right answer gets a cheer. A wrong one gets curiosity. Nobody is ever told they are wrong.
+
+34
+00:02:52,308 --> 00:02:55,246
+A parent can add a question of their own to any video.
+
+35
+00:02:55,246 --> 00:03:00,468
+Gilli asks it in their words, where it fits in the video. No model rewrites a parent's question.
+
+36
+00:03:01,468 --> 00:03:07,962
+Between videos there are six short games: find Gilli, catch him, letters, numbers, who am I, and spot the animal.
+
+37
+00:03:07,962 --> 00:03:15,892
+The questions are written on the device for the child's age. The Playmate agent sets how hard the next round is, and nobody loses a round.
+
+38
+00:03:16,892 --> 00:03:21,015
+The parent sets the day's minutes, where the breaks fall, and when the day ends.
+
+39
+00:03:21,015 --> 00:03:26,324
+None of that is the model's to decide. The limits are the parent's, and the code is what enforces them.
+
+40
+00:03:27,324 --> 00:03:31,655
+When the day's minutes run out, Gilli stops the video and says the parent's own line.
+
+41
+00:03:31,655 --> 00:03:36,036
+Getting back out of kid mode needs the parent's PIN, so the child cannot simply leave.
+
+42
+00:03:37,036 --> 00:03:42,676
+Progress is the longer view: the minutes, whether the questions are being answered, and what is worth another look.
+
+43
+00:03:43,676 --> 00:03:47,899
+Each night the Digest agent reads the day and writes a short note for the parent:
+
+44
+00:03:47,899 --> 00:03:51,548
+what was said, what was only heard, and one question to ask at dinner.
+
+45
+00:03:52,548 --> 00:03:55,426
+Every agent's model is one line of configuration.
+
+46
+00:03:55,426 --> 00:04:03,180
+Today that is Amazon Nova Pro on Amazon Bedrock, the one our eval picked. Change the line, and the same agents run on another model.
+
+47
+00:04:04,180 --> 00:04:11,894
+Eight Strands agents sit behind one gateway: Curator, Planner, Buddy, Digest, Reviewer, Coach, Explainer and Playmate.
+
+48
+00:04:11,894 --> 00:04:19,804
+The agents decide. The code fetches and enforces, because the guarantees a parent trusts belong in code, not in a prompt.
+
+49
+00:04:20,804 --> 00:04:23,857
+Each agent gets its own tools and its own output type.
+
+50
+00:04:23,857 --> 00:04:31,772
+A tool is a plain Python function, the answer comes back as a validated Pydantic object rather than text, and every call is one traced span.
+
+51
+00:04:32,772 --> 00:04:37,147
+Ads still play, and creators still get paid.
+
+52
+00:04:37,147 --> 00:04:43,908
+Nothing a child says is stored. Only a score and a short paraphrase.
+
+53
+00:04:44,908 --> 00:04:50,284
+HeyGilli. Try it at heygilli dot com. The code and a three-part write-up are in the description.

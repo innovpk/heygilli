@@ -1,0 +1,9 @@
+[
+ {
+  "id": "27-sdk",
+  "lines": [
+   "Each agent gets its own tools and its own output type.",
+   "A tool is a plain Python function, the answer comes back as a validated Pydantic object rather than text, and every call is one traced span."
+  ]
+ }
+]

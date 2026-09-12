@@ -1,0 +1,122 @@
+[
+ {
+  "id": "01-problem",
+  "visual": "slide",
+  "lines": [
+   "My daughter is subscribed to a hundred and forty-eight YouTube channels. I had seen about ten of them. Her brother follows nineteen.",
+   "No parent can check a hundred and forty-eight channels, so nobody does. Parental controls decide what a child may see, and then do nothing.",
+   "HeyGilli is the agent that does that job for you."
+  ]
+ },
+ {
+  "id": "02-setup",
+  "visual": "live:setup",
+  "lines": [
+   "A parent answers a few questions about what is fine in their house, and picks what the child likes.",
+   "That is all the setup there is."
+  ]
+ },
+ {
+  "id": "03-curator",
+  "visual": "live:review",
+  "lines": [
+   "Then the Curator agent reads each new upload from the family's channels, against those answers.",
+   "Clear cases it decides alone, and it shows its reasons as tags a parent can skim.",
+   "Anything it kept back says why."
+  ]
+ },
+ {
+  "id": "04-waiting",
+  "visual": "live:waiting",
+  "lines": [
+   "Borderline videos wait for the parent, with the reason in two sentences.",
+   "That is the whole relationship. The agent does the work. The parent answers only the questions that are really theirs."
+  ]
+ },
+ {
+  "id": "05-check",
+  "visual": "live:check",
+  "lines": [
+   "Found a video yourself? Paste the link, and Gilli reads it against your answers before your child ever sees it."
+  ]
+ },
+ {
+  "id": "06-shelf",
+  "visual": "live:shelf",
+  "lines": [
+   "The child's shelf looks like YouTube Kids, with only what the parent allowed.",
+   "They can search, by typing or by voice, but only among those videos. Search never reaches YouTube."
+  ]
+ },
+ {
+  "id": "07-session",
+  "visual": "live:session",
+  "lines": [
+   "At a natural break the video pauses, and Gilli asks one question about what just happened, out loud.",
+   "The Planner agent wrote it for this video and this child's age.",
+   "The child answers by talking or by tapping, and the Buddy agent replies, then the video carries on."
+  ]
+ },
+ {
+  "id": "08-younger",
+  "visual": "live:younger",
+  "lines": [
+   "A younger child gets big pictures, and questions that need no reading: one word, a tap, or a yes or no.",
+   "A right answer gets a cheer. A wrong one gets curiosity. Nobody is ever told they are wrong."
+  ]
+ },
+ {
+  "id": "09-limits",
+  "visual": "live:limits",
+  "lines": [
+   "The parent sets the day's minutes, where the breaks fall, and when the day ends.",
+   "None of that is the model's to decide. The limits are the parent's, and the code is what enforces them."
+  ]
+ },
+ {
+  "id": "10-games",
+  "visual": "live:games",
+  "lines": [
+   "Between videos there are two short games. The Playmate agent picks how hard the next round is. Where Gilli hides is picked in code."
+  ]
+ },
+ {
+  "id": "11-note",
+  "visual": "live:note",
+  "lines": [
+   "Each night the Digest agent reads the day and writes a short note for the parent:",
+   "what was said, what was only heard, and one question to ask at dinner."
+  ]
+ },
+ {
+  "id": "12-model",
+  "visual": "slide",
+  "lines": [
+   "Every agent's model is one line of configuration.",
+   "Today that is Amazon Nova Pro on Amazon Bedrock, the one our eval picked. Change the line, and the same agents run on another model."
+  ]
+ },
+ {
+  "id": "13-architecture",
+  "visual": "slide",
+  "lines": [
+   "Eight Strands agents sit behind one gateway: Curator, Planner, Buddy, Digest, Reviewer, Coach, Explainer and Playmate.",
+   "The agents decide. The code fetches and enforces, because the guarantees a parent trusts belong in code, not in a prompt."
+  ]
+ },
+ {
+  "id": "14-honesty",
+  "visual": "slide",
+  "lines": [
+   "Ads still play, and creators still get paid.",
+   "Nothing a child says is stored. Only a score and a short paraphrase."
+  ]
+ },
+ {
+  "id": "15-close",
+  "visual": "slide",
+  "lines": [
+   "HeyGilli. Try it at heygilli dot com. The code and a three-part write-up are in the description."
+  ]
+ }
+]

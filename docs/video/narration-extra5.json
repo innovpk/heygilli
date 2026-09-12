@@ -1,0 +1,32 @@
+[
+ {
+  "id": "07-session",
+  "lines": [
+   "At a natural break the video pauses, and Gilli asks about what just happened, out loud.",
+   "The Planner agent wrote it from this video's own words, for this child's age: two or three questions a video, sized to its length.",
+   "The child answers by talking or by tapping, the Buddy agent replies, and the video carries on."
+  ]
+ },
+ {
+  "id": "28-hint",
+  "lines": [
+   "A child who goes quiet is not left in silence.",
+   "After a few seconds Gilli gives a hint: a nudge back to the moment in the video, never the answer, and the clock starts again.",
+   "They can also ask to hear the question again."
+  ]
+ },
+ {
+  "id": "29-cards",
+  "lines": [
+   "For a child who reads, the answers can be written cards taken from the video: one right, and two a child who half-watched might believe.",
+   "A younger child only ever gets pictures."
+  ]
+ },
+ {
+  "id": "10-games",
+  "lines": [
+   "Between videos there are six short games: find Gilli, catch him, letters, numbers, who am I, and spot the animal.",
+   "The questions are written on the device for the child's age. The Playmate agent sets how hard the next round is, and nobody loses a round."
+  ]
+ }
+]
