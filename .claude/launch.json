@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gateway",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd agents && AWS_REGION=us-east-1 HEYGILLI_MODEL_DEFAULT=bedrock:us.amazon.nova-pro-v1:0 HEYGILLI_POLLY_VOICE=Ivy .venv/bin/python -m uvicorn heygilli_agents.gateway:app --host 0.0.0.0 --port 8080"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5601", "--directory", "app/build/web"],
+      "port": 5601
+    },
+    {
+      "name": "web-demo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5602", "--directory", "app/build/web-demo"],
+      "port": 5602
+    }
+  ]
+}
