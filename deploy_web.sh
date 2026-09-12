@@ -14,6 +14,9 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+# If a custom CLOUDFLARE_API_TOKEN is set in the parent shell with insufficient
+# scopes, unsetting it allows wrangler to use the valid OAuth credentials in default.toml.
+unset CLOUDFLARE_API_TOKEN 2>/dev/null || true
 CID="$(sed -n 's/^GOOGLE_CLIENT_ID=//p' agents/.env | tail -1 | tr -d '"'"'"' \r')"
 [ -n "$CID" ] || { echo "no GOOGLE_CLIENT_ID in agents/.env"; exit 1; }
 
