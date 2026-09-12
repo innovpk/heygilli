@@ -755,3 +755,35 @@ def test_a_failed_lookup_does_not_sink_the_run(monkeypatch) -> None:
 
     monkeypatch.setattr(youtube.httpx, "Client", _Client)
     assert youtube.fetch_durations(["a"]) == {}
+
+
+# --- the video's length rides along with its words -------------------------------------
+
+
+def test_gemini_answer_carries_the_length_and_the_old_shape_still_parses() -> None:
+    segs, length = transcript.parse_gemini(
+        '```json\n{"duration_s": 254, "segments": [{"start_s": 0, "text": "hi"}, {"start_s": 9, "text": "there"}]}\n```'
+    )
+    assert segs == [{"start_s": 0, "text": "hi"}, {"start_s": 9, "text": "there"}]
+    assert length == 254
+    segs, length = transcript.parse_gemini('[{"start_s": 3, "text": "bare array"}]')
+    assert segs == [{"start_s": 3, "text": "bare array"}] and length == 0
+    _, length = transcript.parse_gemini('{"duration_s": "not a number", "segments": []}')
+    assert length == 0
+
+
+def test_fetch_transcript_reports_the_length_from_whichever_source_answered(monkeypatch) -> None:
+    monkeypatch.setattr(transcript, "_from_captions",
+                        lambda vid, proxy=None: ([{"start_s": 0, "text": "hi"}], "captions:en:auto", 301))
+    out = transcript.fetch_transcript("vid_len_caps")
+    assert out["duration_s"] == 301
+
+    monkeypatch.setattr(transcript, "_from_captions", _blocked)
+    monkeypatch.setattr(transcript, "_captions_blocked", False)
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: ([{"start_s": 0, "text": "g"}], 187))
+    out = transcript.fetch_transcript("vid_len_gemini")
+    assert out["source"] == "gemini" and out["duration_s"] == 187
+
+    # A source that says nothing about length leaves it unknown, not wrong.
+    monkeypatch.setattr(transcript, "_from_gemini", lambda vid: [{"start_s": 0, "text": "g"}])
+    assert transcript.fetch_transcript("vid_len_none")["duration_s"] == 0

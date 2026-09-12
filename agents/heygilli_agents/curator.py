@@ -377,6 +377,10 @@ def run_curator(
             else:
                 try:
                     tr = fetch_transcript(video.id)
+                    # The one length source that answers from a datacenter
+                    # without a Google grant: whoever read the words saw
+                    # how long they went on for.
+                    video.duration_s = video.duration_s or int(tr.get("duration_s") or 0)
                 except TranscriptsBlocked as e:
                     # This used to end the run. The reasoning was that a
                     # screening done on titles must not pass for one done on
@@ -490,6 +494,7 @@ def check_videos(
         video.duration_s = video.duration_s or lengths.get(video.id, 0)
         try:
             tr = fetch_transcript(video.id)
+            video.duration_s = video.duration_s or int(tr.get("duration_s") or 0)
         except TranscriptsBlocked as e:
             # Read on the title and description, and said so: the item goes
             # back marked "title only", as it does on the scheduled run.

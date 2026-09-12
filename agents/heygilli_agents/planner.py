@@ -404,11 +404,20 @@ def ensure_plan(
         # "none" so the app still says it was read on its title alone.
         log.info("no transcript for %s, planning from the title: %s", video.id, e)
         tr = {"source": "none", "segments": []}
+    stored = store.get_video(video.id) or video
+    # The length, when nothing else could find one. Every video the deployed
+    # gateway ever met had 0 here — the watch page is refused to it — so the
+    # questions sat at the band's default seconds whatever the video's actual
+    # length, and a third question at 8:00 of a five-minute video never came.
+    # The transcript source has just read the whole thing; it knows.
+    length = int(tr.get("duration_s") or 0)
+    if not video.duration_s and length:
+        video = video.model_copy(update={"duration_s": length})
+        stored.duration_s = stored.duration_s or length
     plan = build_plan(
         video, tr["segments"], band, language, freq, agent, disabled_prompts, source=tr["source"]
     )
     store.put_plan(plan)
-    stored = store.get_video(video.id) or video
     stored.transcript_source = tr["source"]
     stored.plan_ready = True
     store.put_video(stored)

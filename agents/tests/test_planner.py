@@ -369,3 +369,30 @@ def test_hints_survive_the_rules() -> None:
                               agent=make_agent("planner", "s", model=FakeModel()))
     hints = {q.text: q.hint for q in plan.questions}
     assert hints.get("Why did the ice melt?") == "Think about where the ice was sitting."
+
+
+def test_a_video_of_unknown_length_takes_the_transcripts(store: LocalStore, monkeypatch) -> None:
+    """Every video the deployed gateway met had duration 0 — the watch page is
+    refused to it — so the questions sat at the band's default seconds and an
+    end-of-video question had no end to aim at. The transcript source has just
+    read the whole video and knows how long it is."""
+    video = Video(id="vidlen1", title="Why do cats purr?", duration_s=0)
+    store.put_video(video)
+    monkeypatch.setattr(planner, "fetch_transcript", lambda vid: {
+        "video_id": vid, "source": "gemini", "segments": SEGMENTS, "duration_s": 250})
+    plan = planner.ensure_plan(video, "7_8", "en", store, make_agent("planner", "s", model=FakeModel()))
+    assert store.get_video("vidlen1").duration_s == 250
+    # The canned draft proposes questions at 100, 400 and 700 s. With the
+    # length unknown all three were kept; against 250 s only the first fits,
+    # which is the proof the plan was built with the length.
+    assert [q.t_sec for q in plan.questions] == [100]
+    assert all(q.t_sec <= 250 - rules.END_MARGIN_S for q in plan.questions)
+
+
+def test_a_known_length_is_not_overwritten_by_the_transcripts(store: LocalStore, monkeypatch) -> None:
+    video = Video(id="vidlen2", title="Volcanoes", duration_s=900)
+    store.put_video(video)
+    monkeypatch.setattr(planner, "fetch_transcript", lambda vid: {
+        "video_id": vid, "source": "gemini", "segments": SEGMENTS, "duration_s": 250})
+    planner.ensure_plan(video, "7_8", "en", store, make_agent("planner", "s", model=FakeModel()))
+    assert store.get_video("vidlen2").duration_s == 900

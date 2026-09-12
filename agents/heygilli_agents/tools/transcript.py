@@ -249,10 +249,11 @@ def _from_gemini(video_id: str) -> list[dict] | None:
         return None
     client = genai.Client(api_key=api_key)
     prompt = (
-        "Transcribe this video with timestamps. Return ONLY a JSON array of objects "
-        '{"start_s": <int seconds>, "text": <spoken words>}. Start a new object at each '
-        "sentence or scene change. Include a short [scene: ...] note in text when the "
-        "picture changes."
+        "Transcribe this video with timestamps. Return ONLY a JSON object "
+        '{"duration_s": <int, the total length of the video in seconds>, '
+        '"segments": [{"start_s": <int seconds>, "text": <spoken words>}, ...]}. '
+        "Start a new segment at each sentence or scene change. Include a short "
+        "[scene: ...] note in text when the picture changes."
     )
     def call():
         return client.models.generate_content(
@@ -276,9 +277,33 @@ def _from_gemini(video_id: str) -> list[dict] | None:
         )
 
     resp = _with_retries(call, video_id)
-    text = re.sub(r"^```(?:json)?|```$", "", resp.text.strip(), flags=re.MULTILINE).strip()
-    rows = json.loads(text)
-    return [{"start_s": int(r["start_s"]), "text": str(r["text"])} for r in rows]
+    return parse_gemini(resp.text)
+
+
+def parse_gemini(raw: str) -> tuple[list[dict], int]:
+    """Segments and the video's length from Gemini's answer.
+
+    The length is asked for because it is the one fact about a video the
+    deployed gateway had no other way to get: the watch page is refused to
+    datacenter addresses, and `videos.list` needs a Google grant the household
+    may not have. Gemini has just watched the whole thing, so it knows.
+
+    Two shapes are accepted — the object asked for, and the bare array the
+    prompt used to ask for — so a model that ignores the new instruction still
+    yields a transcript, with the length left at 0 for "unknown".
+    """
+    text = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
+    data = json.loads(text)
+    duration = 0
+    rows = data
+    if isinstance(data, dict):
+        rows = data.get("segments") or []
+        try:
+            duration = max(int(data.get("duration_s") or 0), 0)
+        except (TypeError, ValueError):
+            duration = 0
+    segments = [{"start_s": int(r["start_s"]), "text": str(r["text"])} for r in rows]
+    return segments, duration
 
 
 def _from_captions(video_id: str, proxy=None) -> tuple[list[dict], str] | None:
@@ -336,11 +361,22 @@ def _from_captions(video_id: str, proxy=None) -> tuple[list[dict], str] | None:
         return None
     kind = "auto" if chosen.is_generated else "manual"
     rows = [{"start_s": int(s.start), "text": s.text.replace("\n", " ").strip()} for s in fetched]
-    return rows, f"captions:{chosen.language_code}:{kind}"
+    # The last cue's end is very nearly the video's length — captions stop at
+    # the last spoken word, so it is a floor, never an overestimate, and a
+    # question scheduled against it still lands inside the video.
+    snippets = list(fetched)
+    duration = (
+        int(snippets[-1].start + (getattr(snippets[-1], "duration", 0) or 0)) if snippets else 0
+    )
+    return rows, f"captions:{chosen.language_code}:{kind}", duration
 
 
 def fetch_transcript(video_id: str) -> dict:
-    """{"video_id", "source", "segments": [{"start_s", "text"}]} — cached forever.
+    """{"video_id", "source", "segments": [{"start_s", "text"}], "duration_s"} — cached forever.
+
+    `duration_s` is the video's length as the transcript source saw it, 0 for
+    unknown. It rides along because the sources that read the words are the
+    only ones that answer from a datacenter (see `parse_gemini`).
 
     Three places the words can come from, cheapest first, because they cost
     very different things and only the first is free everywhere:
@@ -368,6 +404,7 @@ def fetch_transcript(video_id: str) -> dict:
 
     segments: list[dict] = []
     source = "none"
+    duration = 0
     blocked: TranscriptsBlocked | None = None
 
     if _captions_blocked:
@@ -385,7 +422,7 @@ def fetch_transcript(video_id: str) -> dict:
             blocked = e
         else:
             if cap:
-                segments, source = cap
+                segments, source, duration = _unpack_captions(cap)
 
     if source == "none" and _gemini_ready():
         try:
@@ -394,7 +431,8 @@ def fetch_transcript(video_id: str) -> dict:
             _note_gemini_failure(video_id, e)
             gem = None
         if gem:
-            segments, source = gem, "gemini"
+            segments, duration = gem if isinstance(gem, tuple) else (gem, 0)
+            source = "gemini"
 
     if source == "none":
         proxy = _proxy_config()
@@ -407,15 +445,23 @@ def fetch_transcript(video_id: str) -> dict:
                 blocked = e
             else:
                 if cap:
-                    segments, source = cap
+                    segments, source, duration = _unpack_captions(cap)
                     blocked = None
 
     if source == "none" and blocked is not None:
         raise TranscriptsBlocked(_why_blocked(blocked))
 
-    out = {"video_id": video_id, "source": source, "segments": segments}
+    out = {"video_id": video_id, "source": source, "segments": segments, "duration_s": duration}
     store.cache_put("transcript", video_id, out)
     return out
+
+
+def _unpack_captions(cap: tuple) -> tuple[list[dict], str, int]:
+    """`(rows, source)` or `(rows, source, duration_s)`; the two-tuple is the
+    older shape, still produced by tests and fakes, and means length unknown."""
+    rows, source = cap[0], cap[1]
+    duration = int(cap[2]) if len(cap) > 2 else 0
+    return rows, source, duration
 
 
 def transcript_text(segments: list[dict], max_chars: int = 12000) -> str:

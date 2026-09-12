@@ -2449,6 +2449,7 @@ def debug_transcript(
     try:
         got = transcript_sources.fetch_transcript(video_id)
         out["source"] = got.get("source")
+        out["duration_s"] = got.get("duration_s", 0)
         segments = got.get("segments") or []
         out["segments"] = len(segments)
         out["first"] = segments[0] if segments else None
