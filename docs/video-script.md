@@ -1,6 +1,6 @@
 # HeyGilli demo video script
 
-Length of the current cut: 4:52. Hard limit: 5:00. Every beat below is what is in the rendered
+Length of the current cut: 4:52, at https://youtu.be/ab9HNgQXS6A. Hard limit: 5:00. Every beat below is what is in the rendered
 video, in order, with the second it starts at. The voice-over is Amazon Polly (Matthew,
 generative), one mp3 per beat; the picture is a screen recording of the live app at
 heygilli.com or a rendered slide; the cut is assembled beat by beat with ffmpeg from

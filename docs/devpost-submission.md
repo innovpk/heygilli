@@ -133,7 +133,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Try the screening, no login | https://heygilli.com/try |
 | Web app | https://heygilli.com/app/ |
 | Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
-| Demo video | second cut, 4:52, at ~/Desktop/heygilli-demo-v2.mp4 with .srt captions; upload as Public and put the new link here (the first cut at https://youtu.be/7pqNpfnOi2c is stale) |
+| Demo video | https://youtu.be/ab9HNgQXS6A (4:52, Public, English captions uploaded 12 September). The first cut at https://youtu.be/7pqNpfnOi2c is stale; unlist or delete it |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
 | builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |
 | builder.aws post 3 | still needed |
@@ -161,7 +161,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 
 | Item | Owner |
 |---|---|
-| Demo video: second cut rendered 12 September, 4:52, ~/Desktop/heygilli-demo-v2.mp4 and .srt. Upload to YouTube as Public with the captions, replace the link above and in the checklist | author |
+| Demo video: https://youtu.be/ab9HNgQXS6A, Public, captions on. Put this link in the Devpost form; unlist the stale first cut | done |
 | AWS Builder ID: @innovpk | done |
 | Teammates: Unzila Zafar (@unzila15) and Aida Valiyeva (@aidavaliyeva) are on the submission, checked 11 September | done |
 | Repo public. The ad clip is out of the code and off heygilli.com; it remains only in the history of two early commits | author |
