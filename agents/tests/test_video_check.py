@@ -52,7 +52,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         "channel_id": "UCvolcano", "title": "Volcano Kids", "thumb_url": "c",
     })
     monkeypatch.setattr(gateway, "fetch_uploads", lambda cid, limit: [
-        {"id": f"up{n:09d}", "channel_id": cid, "title": f"Upload {n}", "thumb_url": "t"} for n in range(5)
+        {"id": f"up{n:09d}", "channel_id": cid, "title": f"Upload {n}", "thumb_url": "t"} for n in range(gateway.CHECKS_PER_DAY + 2)
     ][:limit])
     monkeypatch.setattr(gateway, "ensure_plan", lambda *a, **k: None)
     return read

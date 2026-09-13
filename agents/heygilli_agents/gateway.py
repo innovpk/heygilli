@@ -1664,7 +1664,7 @@ def review_queue(kid_id: str, hid: str = Depends(household)) -> dict:
 #: transcript fetch and a model call on an allowance every household shares,
 #: so it is small on purpose. A video already read for this child costs
 #: nothing to look at again.
-CHECKS_PER_DAY = 3
+CHECKS_PER_DAY = int(os.getenv("HEYGILLI_CHECKS_PER_DAY", "15"))
 
 
 class CheckIn(BaseModel):
