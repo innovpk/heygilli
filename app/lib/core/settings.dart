@@ -63,6 +63,7 @@ class LocalSettings {
   static const _parentNameKey = 'parent_name';
   static const _kidDeviceKey = 'kid_device_kid_id';
   static const _daylightKey = 'kid_daylight_';
+  static const _kidBackgroundKey = 'kid_background_';
   static const _trialKey = 'trial_household';
 
   String? get pin => _prefs.getString(_pinKey);
@@ -120,6 +121,15 @@ class LocalSettings {
   Future<void> setKidLikesDaylight(String kidId, bool daylight) => daylight
       ? _prefs.setBool('$_daylightKey$kidId', true)
       : _prefs.remove('$_daylightKey$kidId');
+
+  /// Which background wallpaper theme this child picked for the shelf.
+  ///
+  /// Per child and per device. Absent means the default space/cosmic theme.
+  String? kidBackground(String kidId) =>
+      _prefs.getString('$_kidBackgroundKey$kidId');
+
+  Future<void> setKidBackground(String kidId, String themeId) =>
+      _prefs.setString('$_kidBackgroundKey$kidId', themeId);
 
   /// The household name used by the without-Google path, kept so that closing
   /// the app and coming back lands in the same household rather than a new

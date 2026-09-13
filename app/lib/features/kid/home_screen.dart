@@ -10,6 +10,7 @@ import '../../core/protocol.dart';
 import '../../core/sounds.dart';
 import '../../core/speech.dart';
 import '../../core/theme.dart';
+import 'kid_background.dart';
 import 'kid_palette.dart';
 import '../../main.dart';
 import '../gate/lock_mode.dart';
@@ -193,6 +194,20 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     if (mounted) _reload();
   }
 
+  void _openBackgroundPicker(Kid kid) {
+    context.read<GilliVoice>().stop();
+    final app = context.read<AppState>();
+    final current = KidBackgroundTheme.fromId(app.kidBackground(kid.id));
+    showKidBackgroundPicker(
+      context: context,
+      currentTheme: current,
+      onSelected: (theme) async {
+        await app.setKidBackground(kid.id, theme.id);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final kid = context.select<AppState, Kid?>((s) => s.activeKid);
@@ -225,6 +240,11 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
     bool showTitles,
     KidPalette palette,
   ) {
+    final themeId = context.select<AppState, String>(
+      (s) => s.kidBackground(kid.id),
+    );
+    final theme = KidBackgroundTheme.fromId(themeId);
+
     return PopScope(
       // Back never leaves kid mode; it opens the PIN gate instead. During a
       // break it does nothing at all: the break screen has its own PIN way
@@ -234,95 +254,99 @@ class _KidHomeScreenState extends State<KidHomeScreen> {
         if (!didPop && !_onBreak) _tryExit();
       },
       child: Scaffold(
-        backgroundColor: palette.ground,
-        body: SafeArea(
-          child: FutureBuilder<_Home>(
-            future: _home,
-            builder: (context, snap) {
-              final home = snap.data;
-              _onBreak = home?.state.isOnBreak ?? false;
-              // A running break replaces the whole screen, header and
-              // all: there is nothing to start, so there is nothing to
-              // show around it.
-              if (home != null && home.state.isOnBreak) {
-                return BreakScreen(
-                  kid: kid,
-                  breakPeriod: home.state.activeBreak!,
-                  onFinished: _reload,
+        backgroundColor: theme.primaryGround,
+        body: KidBackground(
+          theme: theme,
+          child: SafeArea(
+            child: FutureBuilder<_Home>(
+              future: _home,
+              builder: (context, snap) {
+                final home = snap.data;
+                _onBreak = home?.state.isOnBreak ?? false;
+                // A running break replaces the whole screen, header and
+                // all: there is nothing to start, so there is nothing to
+                // show around it.
+                if (home != null && home.state.isOnBreak) {
+                  return BreakScreen(
+                    kid: kid,
+                    breakPeriod: home.state.activeBreak!,
+                    onFinished: _reload,
+                  );
+                }
+                return Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (_) => _gilli.currentState?.stir(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Header(
+                        kid: kid,
+                        gilliKey: _gilli,
+                        onExit: _tryExit,
+                        onPlay: home != null && home.state.watchingAllowed
+                            ? () => _openGames(kid, palette)
+                            : null,
+                        onPickBackground: () => _openBackgroundPicker(kid),
+                        // Readers only: a pre-reader cannot read it.
+                        state: showTitles ? home?.state : null,
+                      ),
+                      // On unless the parent turned it off, for every child: a
+                      // pre-reader who cannot type can use the mic.
+                      if (kid.searchEnabled)
+                        _SearchBox(
+                          controller: _searchText,
+                          onChanged: _search,
+                          onMic: _searchByVoice,
+                          listening: _listening,
+                        ),
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            if (snap.hasError) {
+                              return Center(
+                                child: FilledButton(
+                                  onPressed: _reload,
+                                  child: const Text('Try again'),
+                                ),
+                              );
+                            }
+                            if (home == null) {
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  color: palette.accent,
+                                ),
+                              );
+                            }
+                            // Out of minutes: a calm end to the day, not an
+                            // empty shelf a child keeps tapping at.
+                            if (!home.state.watchingAllowed) {
+                              return DayDoneScreen(kid: kid);
+                            }
+                            // Nothing approved yet — every new profile starts
+                            // here, and the Curator may still be working. An
+                            // empty ListView renders literally nothing, which
+                            // a child cannot tell apart from a broken app.
+                            if (home.rows.every((r) => r.videos.isEmpty)) {
+                              // A search that found nothing is not an empty
+                              // shelf: there is something to change, and the
+                              // box has to stay on screen to change it.
+                              return _query.isEmpty
+                                  ? NothingYetScreen(kid: kid)
+                                  : _NoMatches(kid: kid);
+                            }
+                            return _Shelf(
+                              rows: home.rows,
+                              showTitles: showTitles,
+                              onOpen: _open,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 );
-              }
-              return Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (_) => _gilli.currentState?.stir(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(
-                      kid: kid,
-                      gilliKey: _gilli,
-                      onExit: _tryExit,
-                      onPlay: home != null && home.state.watchingAllowed
-                          ? () => _openGames(kid, palette)
-                          : null,
-                      // Readers only: a pre-reader cannot read it.
-                      state: showTitles ? home?.state : null,
-                    ),
-                    // On unless the parent turned it off, for every child: a
-                    // pre-reader who cannot type can use the mic.
-                    if (kid.searchEnabled)
-                      _SearchBox(
-                        controller: _searchText,
-                        onChanged: _search,
-                        onMic: _searchByVoice,
-                        listening: _listening,
-                      ),
-                    Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          if (snap.hasError) {
-                            return Center(
-                              child: FilledButton(
-                                onPressed: _reload,
-                                child: const Text('Try again'),
-                              ),
-                            );
-                          }
-                          if (home == null) {
-                            return Center(
-                              child: CircularProgressIndicator(
-                                color: palette.accent,
-                              ),
-                            );
-                          }
-                          // Out of minutes: a calm end to the day, not an
-                          // empty shelf a child keeps tapping at.
-                          if (!home.state.watchingAllowed) {
-                            return DayDoneScreen(kid: kid);
-                          }
-                          // Nothing approved yet — every new profile starts
-                          // here, and the Curator may still be working. An
-                          // empty ListView renders literally nothing, which
-                          // a child cannot tell apart from a broken app.
-                          if (home.rows.every((r) => r.videos.isEmpty)) {
-                            // A search that found nothing is not an empty
-                            // shelf: there is something to change, and the
-                            // box has to stay on screen to change it.
-                            return _query.isEmpty
-                                ? NothingYetScreen(kid: kid)
-                                : _NoMatches(kid: kid);
-                          }
-                          return _Shelf(
-                            rows: home.rows,
-                            showTitles: showTitles,
-                            onOpen: _open,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+              },
+            ),
           ),
         ),
       ),
@@ -342,6 +366,7 @@ class _Header extends StatelessWidget {
     required this.gilliKey,
     required this.onExit,
     required this.onPlay,
+    required this.onPickBackground,
     this.state,
   });
   final Kid kid;
@@ -351,6 +376,9 @@ class _Header extends StatelessWidget {
   /// The games button. Null when there is nothing to play, and then there is
   /// no button: games follow the same gate as videos.
   final VoidCallback? onPlay;
+
+  /// Opens the kid's background wallpaper chooser.
+  final VoidCallback onPickBackground;
 
   /// Today's minutes and the next break, for a reader. Null hides the line.
   final WatchState? state;
@@ -421,6 +449,33 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
+          const SizedBox(width: 8),
+          // Theme/Background picker for the kid.
+          Tooltip(
+            message: 'Background',
+            child: Semantics(
+              button: true,
+              label: 'Change background',
+              child: Material(
+                key: const Key('pick-background'),
+                color: palette.chip,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: withTap(onPickBackground),
+                  customBorder: const CircleBorder(),
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: Icon(
+                      Icons.palette_outlined,
+                      size: 26,
+                      color: palette.onGround,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(width: 8),
           // The way back to the parent. It was cream at 55% on teal and
           // nothing else — findable on a phone, invisible in the corner of a

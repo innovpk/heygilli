@@ -297,6 +297,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Which background wallpaper theme this child picked for the shelf.
+  String kidBackground(String kidId) =>
+      settings.kidBackground(kidId) ?? 'cosmic';
+
+  /// Saves the child's chosen wallpaper theme and updates listeners immediately.
+  Future<void> setKidBackground(String kidId, String themeId) async {
+    await settings.setKidBackground(kidId, themeId);
+    notifyListeners();
+  }
+
   /// Ends the session on this device: the household token, the parent's name,
   /// and Google's own local session.
   ///

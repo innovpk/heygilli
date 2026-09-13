@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heygilli/core/app_state.dart';
@@ -118,10 +116,13 @@ void main() {
 
 class _SilentVoice extends GilliVoice {
   @override
-  Future<void> speak(
-    String text, {
-    String? audioUrl,
+  Future<void> say({
+    required String url,
+    String? fallbackText,
+    String language = 'en',
     bool slow = false,
-    String? voice,
   }) async {}
+
+  @override
+  Future<void> stop() async {}
 }
