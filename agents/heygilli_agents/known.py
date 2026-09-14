@@ -52,15 +52,19 @@ WINDOW_DAYS = 30
 def known_concepts(
     kid: Kid, store: Store, days: int = WINDOW_DAYS, today: date | None = None
 ) -> set[str]:
-    """Concept keys this child has answered correctly, lowercased.
+    """Concept keys this child has answered correctly, lowercased."""
+    concepts, _ = known_questions_and_concepts(kid, store, days, today)
+    return concepts
 
-    Read the same way `revisit.candidates` reads them, from the same window, so
-    the two cannot disagree about what a concept is or about what counts as
-    getting it right.
-    """
+
+def known_questions_and_concepts(
+    kid: Kid, store: Store, days: int = WINDOW_DAYS, today: date | None = None
+) -> tuple[set[str], set[str]]:
+    """Concept keys and question texts this child has answered correctly."""
     sessions, answers, plans, videos, _ = analytics.load_window(kid, days, store, today)
     by_session = {s.id: s for s in sessions}
-    out: set[str] = set()
+    concepts: set[str] = set()
+    texts: set[str] = set()
     for a in answers:
         if a.result not in analytics.UNDERSTOOD:
             continue
@@ -72,13 +76,16 @@ def known_concepts(
         )
         if plan is None or not (0 <= a.question_idx < len(plan.questions)):
             continue
+        q = plan.questions[a.question_idx]
+        if q.text:
+            texts.add(q.text.strip().lower())
         video = videos.get(session.video_id)
         label = analytics.concept_label(
-            plan.questions[a.question_idx], video.title if video else ""
+            q, video.title if video else ""
         )
         if label:
-            out.add(label.lower())
-    return out
+            concepts.add(label.lower())
+    return concepts, texts
 
 
 def swap_known(
@@ -94,43 +101,41 @@ def swap_known(
     Returns the plan unchanged when there is nothing to do, which is the common
     case: a first viewing has no history to read.
     """
-    band: AgeBand = kid.age_band or "7_8"
-    if band == "4_6":
-        return plan
     if not plan.questions:
         return plan
 
-    known = known_concepts(kid, store, days, today)
-    if not known:
+    band: AgeBand = kid.age_band or "7_8"
+    concepts, texts = known_questions_and_concepts(kid, store, days, today)
+    if not concepts and not texts:
         return plan
 
     title = video.title if video else ""
-    stale = [
-        i
-        for i, q in enumerate(plan.questions)
-        if analytics.concept_label(q, title).lower() in known
-    ]
+    stale = []
+    for i, q in enumerate(plan.questions):
+        label = analytics.concept_label(q, title).lower()
+        text = q.text.strip().lower()
+        if (label and label in concepts) or (text and text in texts):
+            stale.append(i)
+
     if not stale:
         return plan
 
     # Prompts this plan is not already using, so a swap cannot hand a child the
-    # same question under a different index.
-    in_plan = {q.text for q in plan.questions}
+    # same question under a different index or a question they already got right.
+    in_plan = {q.text.strip().lower() for q in plan.questions}
     spares = [
         p
         for p in question_bank.pick_many(
-            band, video.id, len(stale) + len(plan.questions), kid.disabled_prompts
+            band, video.id, len(stale) + len(plan.questions) + 10, kid.disabled_prompts
         )
-        if p.text.get(plan.language, p.text["en"]) not in in_plan
+        if p.text.get(plan.language, p.text["en"]).strip().lower() not in in_plan
+        and p.text.get(plan.language, p.text["en"]).strip().lower() not in texts
     ]
 
     questions = list(plan.questions)
     swapped = 0
     for i in stale:
         if not spares:
-            # The parent has turned off everything else this band could ask.
-            # A question they already know beats no question and beats a
-            # shifted index, so it stays.
             break
         prompt = spares.pop(0)
         questions[i] = question_bank.as_question(

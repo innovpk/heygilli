@@ -152,16 +152,16 @@ class TestSwapping:
         plan = plan_for(VIDEO, CONCEPT, "something else")
         assert known.swap_known(plan, k, store, VIDEO) is plan
 
-    def test_a_pre_reader_is_left_alone(self, store: LocalStore) -> None:
-        # Repetition is the method at 4_6, not a failure of it: a word moves
-        # from "heard" to "said" by being said more than once.
+    def test_a_pre_reader_swaps_known(self, store: LocalStore) -> None:
+        # A child who already answered correctly gets a different question on rewatch.
         k = Kid(id="kid_2", household_id=HH, nickname="Zara", age=4)
         store.put_kid(k)
         store.put_video(VIDEO)
         plan = plan_for(VIDEO, CONCEPT)
         store.put_plan(plan)
         watched(store, k, day(3), ["correct"])
-        assert known.swap_known(plan, k, store, VIDEO) is plan
+        swapped = known.swap_known(plan, k, store, VIDEO)
+        assert swapped.questions[0].text != plan.questions[0].text
 
     def test_an_empty_plan_survives(
         self, store: LocalStore, answered_right: Kid
