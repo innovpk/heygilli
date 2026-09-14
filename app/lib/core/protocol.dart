@@ -405,22 +405,32 @@ sealed class ClientMessage {
 }
 
 class HelloMessage extends ClientMessage {
-  const HelloMessage({this.canListen = true});
+  const HelloMessage({this.canListen = true, this.durationS = 0});
 
   /// Whether this device can hear an answer at all. False when the recogniser
   /// refused to start — permission denied, no microphone, a browser without
   /// one — and the server then asks nothing by voice for the whole session.
   final bool canListen;
+  final int durationS;
 
   @override
-  Map<String, dynamic> toJson() => {'t': 'hello', 'can_listen': canListen};
+  Map<String, dynamic> toJson() => {
+    't': 'hello',
+    'can_listen': canListen,
+    if (durationS > 0) 'duration_s': durationS,
+  };
 }
 
 class PositionMessage extends ClientMessage {
-  const PositionMessage(this.seconds);
+  const PositionMessage(this.seconds, {this.durationS = 0});
   final double seconds;
+  final int durationS;
   @override
-  Map<String, dynamic> toJson() => {'t': 'position', 'seconds': seconds};
+  Map<String, dynamic> toJson() => {
+    't': 'position',
+    'seconds': seconds,
+    if (durationS > 0) 'duration_s': durationS,
+  };
 }
 
 /// One class for all four answer shapes; only the fields for [input] are sent.

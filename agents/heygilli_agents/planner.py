@@ -186,13 +186,13 @@ def build_plan(
     a plan that ends up made of bank questions is marked "none" whatever was
     passed, because that is what it is.
     """
-    if not segments:
+    if not segments and not video.title:
         return fallback_plan(video, band, language, disabled_prompts)
     agent = agent or planner_agent()
     plan_source = source if segments else "metadata"
     try:
         draft = structured(agent, plan_prompt(video, segments, band, language, freq), PlanDraft)
-    except LLMError as e:
+    except (LLMError, Exception) as e:
         log.warning("planner failed for %s/%s/%s: %s", video.id, band, language, e)
         return fallback_plan(video, band, language, disabled_prompts)
     questions = [repair_pick(q, language, band) for q in draft.questions]

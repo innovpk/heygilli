@@ -68,7 +68,7 @@ def test_repair_pick_maps_labels_to_icons_and_fills_distractors() -> None:
 def test_fallback_when_nothing_survives_or_no_transcript() -> None:
     from heygilli_agents.schemas import TYPES_FOR_BAND
 
-    plan = planner.build_plan(VIDEO, [], "9_11", "en")
+    plan = planner.build_plan(Video(id="vid1", title="", duration_s=1200), [], "9_11", "en")
     # Two or three, not one. A single end-of-video question was the whole of a
     # transcript-less plan, and with no transcripts reachable from the deployed
     # gateway that was every video a child ever saw: twenty minutes of watching
@@ -85,6 +85,13 @@ def test_fallback_when_nothing_survives_or_no_transcript() -> None:
     only_why = [{"t_sec": 130, "type": "why", "input": "voice", "text": "Why?", "expected": "x"}]
     plan = planner.build_plan(VIDEO, SEGMENTS, "4_6", "ur", agent=agent_with(only_why))
     assert plan.questions[0].type in TYPES_FOR_BAND["4_6"] and plan.language == "ur"
+
+
+def test_metadata_plan_when_no_transcript_but_title_present() -> None:
+    agent = make_agent("planner", "sys", model=FakeModel())
+    plan = planner.build_plan(VIDEO, [], "9_11", "en", agent=agent)
+    assert plan.source == "metadata"
+    assert len(plan.questions) >= 2
 
 
 def test_ensure_plan_caches_and_marks_video(store: LocalStore, monkeypatch) -> None:

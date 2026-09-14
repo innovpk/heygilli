@@ -2236,9 +2236,18 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
 
     kid = store.get_kid(session.household_id, session.kid_id)
     video = store.get_video(session.video_id) or Video(id=session.video_id)
-    plan = store.get_plan(video.id, session.age_band, session.language) or fallback_plan(
-        video, session.age_band, session.language
-    )
+    plan = store.get_plan(video.id, session.age_band, session.language)
+    if plan is None or planner.needs_replan(plan, video, store):
+        try:
+            plan = await asyncio.wait_for(
+                asyncio.to_thread(
+                    planner.ensure_plan, video, session.age_band, session.language, store
+                ),
+                timeout=4.0,
+            )
+        except Exception as e:
+            log.warning("session_ws on-demand plan failed for %s: %s", video.id, e)
+            plan = plan or fallback_plan(video, session.age_band, session.language)
     if kid is not None:
         # First, because the two that follow both act on indices: a question the
         # child already got right is replaced here, and revisit then has the
@@ -2264,12 +2273,26 @@ async def session_ws(ws: WebSocket, session_id: str, token: str | None = None) -
         first = _client_msg.validate_python(await ws.receive_json())
         if first.t != "hello":
             await ws.send_json(wire(ServerError(message="expected hello")))
-        elif not first.can_listen:
-            # Before `ready`, so the plan the client is told about is already
-            # the one it can actually answer.
-            engine.no_microphone()
-        await ws.send_json(wire(engine.ready()))
-        await _loop(ws, engine, guard, length)
+        else:
+            if not first.can_listen:
+                # Before `ready`, so the plan the client is told about is already
+                # the one it can actually answer.
+                engine.no_microphone()
+            if first.duration_s > 0:
+                if video.duration_s <= 0 or abs(video.duration_s - first.duration_s) > 10:
+                    video.duration_s = first.duration_s
+                    store.put_video(video)
+                margin = rules.END_MARGIN_S
+                needs_reschedule = any(q.t_sec > first.duration_s - margin for q in engine.questions)
+                if needs_reschedule or (first.duration_s < rules.SHORT_VIDEO_S and len(engine.questions) > 1):
+                    enforced = rules.enforce(engine.questions, session.age_band, first.duration_s, session.language)
+                    if enforced:
+                        engine.questions = enforced
+                    elif engine.questions:
+                        mid_t = max(8, min(first.duration_s - margin, first.duration_s // 2))
+                        engine.questions = [engine.questions[0].model_copy(update={"t_sec": mid_t})]
+            await ws.send_json(wire(engine.ready()))
+            await _loop(ws, engine, guard, length)
     except (WebSocketDisconnect, ValidationError) as e:
         log.info("session %s closed: %s", session_id, type(e).__name__)
     finally:
@@ -2315,6 +2338,22 @@ async def _loop(
             return
         if msg.t != "position":
             continue
+        if msg.duration_s > 0:
+            store = engine.store
+            video = store.get_video(engine.session.video_id)
+            if video and (video.duration_s <= 0 or abs(video.duration_s - msg.duration_s) > 10):
+                video.duration_s = msg.duration_s
+                store.put_video(video)
+                margin = rules.END_MARGIN_S
+                if any(q.t_sec > msg.duration_s - margin for q in engine.questions):
+                    enforced = rules.enforce(engine.questions, engine.band, msg.duration_s, engine.language)
+                    if enforced:
+                        engine.questions = enforced
+                        await ws.send_json(wire(engine.ready()))
+                    elif engine.questions:
+                        mid_t = max(8, min(msg.duration_s - margin, msg.duration_s // 2))
+                        engine.questions = [engine.questions[0].model_copy(update={"t_sec": mid_t})]
+                        await ws.send_json(wire(engine.ready()))
         idx = engine.due_question(msg.seconds)
         # A question pause is a natural moment; a plain tick is not, so on a tick
         # only the three-minute hard interrupt fires.

@@ -344,7 +344,12 @@ class _SessionScreenState extends State<SessionScreen> {
       // above 4_6, for as long as the session lasted.
       final canListen = await _ears.init();
       if (!mounted) return;
-      socket.send(HelloMessage(canListen: canListen));
+      socket.send(HelloMessage(
+        canListen: canListen,
+        durationS: widget.video.durationS > 0
+            ? widget.video.durationS
+            : _liveDurationS,
+      ));
       // Ready is what makes it "watching"; until then we still play.
       _positionTimer = Timer.periodic(
         const Duration(milliseconds: 500),
@@ -406,10 +411,14 @@ class _SessionScreenState extends State<SessionScreen> {
       // QuestionTrack strip stays hidden for the whole session.
       if (_liveDurationS == 0 && widget.video.durationS <= 0) {
         final secs = v.metaData.duration.inSeconds;
-        if (secs > 0) setState(() => _liveDurationS = secs);
+        if (secs > 0) {
+          setState(() => _liveDurationS = secs);
+          _socket?.send(PositionMessage(_positionS, durationS: secs));
+        }
       }
     }
     if (v.playerState == PlayerState.ended && !_ended) {
+      _socket?.send(const ByeMessage());
       // The gateway normally sends `end` itself; this covers a missed frame.
       Future<void>.delayed(const Duration(seconds: 2), () {
         if (mounted && !_ended) {
@@ -539,7 +548,8 @@ class _SessionScreenState extends State<SessionScreen> {
 
   void _tickPosition() {
     if (_serverPaused || _playerState != PlayerState.playing) return;
-    _socket?.send(PositionMessage(_positionS));
+    final dur = widget.video.durationS > 0 ? widget.video.durationS : _liveDurationS;
+    _socket?.send(PositionMessage(_positionS, durationS: dur));
   }
 
   // ---------------------------------------------------------------- protocol

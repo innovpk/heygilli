@@ -1000,11 +1000,13 @@ class ClientHello(BaseModel):
     #: one. Defaults true so that a client which does not know to say anything
     #: is treated exactly as before.
     can_listen: bool = True
+    duration_s: int = 0
 
 
 class ClientPosition(BaseModel):
     t: Literal["position"]
     seconds: float
+    duration_s: int = 0
 
 
 class ClientAnswer(BaseModel):
