@@ -171,9 +171,28 @@ def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -
     The gap is the binding constraint, not the count: a five-minute video for a
     pre-reader has room for one question and no amount of asking will fit two
     without breaking the spacing the band exists to protect.
+
+    When duration_s is unknown (0) the band's default timing is used so that
+    top_up() and fallback_plan() can still place multiple bank questions rather
+    than being silently left with one. enforce() will trim any that fall too
+    late once a real duration is known.
     """
     if duration_s <= 0:
-        return []
+        # Duration unknown: generate up to target_questions slots using the
+        # band's own first_question_s and properly-gapped spacing. No
+        # upper-bound check since there is no known end; the caller
+        # (fallback_plan / top_up) anchors its own end-of-video question
+        # separately. min_gap_s is called here (not the raw field) so that
+        # 4_6's forced-gentle gap and other band overrides are honoured.
+        t = TIMING[band]
+        gap = min_gap_s(band, freq, 0)
+        want = TARGET_QUESTIONS
+        slots: list[int] = []
+        at = t.first_question_s
+        while len(slots) < want:
+            slots.append(at)
+            at += gap
+        return slots
     if 0 < duration_s < SHORT_VIDEO_S:
         min_t = max(10, min(30, duration_s // 3))
         max_t = max(min_t, duration_s - 12)

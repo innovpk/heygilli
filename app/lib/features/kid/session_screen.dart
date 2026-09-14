@@ -196,6 +196,13 @@ class _SessionScreenState extends State<SessionScreen> {
   _Phase _phase = _Phase.connecting;
   String _language = 'en';
   double _positionS = 0;
+
+  /// Duration from the YouTube player itself — populated on the first
+  /// `playing` event and used when [Video.durationS] is zero (i.e. the server
+  /// did not store it yet). Without a duration the QuestionTrack strip is
+  /// invisible, so this keeps the progress bar alive even for new videos.
+  int _liveDurationS = 0;
+
   PlayerState _playerState = PlayerState.unknown;
   bool _serverPaused = false;
   bool _ended = false;
@@ -392,6 +399,13 @@ class _SessionScreenState extends State<SessionScreen> {
     if (v.playerState == PlayerState.playing) {
       hideCaptions(_yt);
       unawaited(_unmuteOnce());
+      // The player knows the real duration once metadata is loaded. Use it as
+      // a fallback when the server's Video.durationS is zero — without it the
+      // QuestionTrack strip stays hidden for the whole session.
+      if (_liveDurationS == 0 && widget.video.durationS <= 0) {
+        final secs = v.metaData.duration.inSeconds;
+        if (secs > 0) setState(() => _liveDurationS = secs);
+      }
     }
     if (v.playerState == PlayerState.ended && !_ended) {
       // The gateway normally sends `end` itself; this covers a missed frame.
@@ -448,7 +462,9 @@ class _SessionScreenState extends State<SessionScreen> {
   /// Where a drag would land, given the rules and where the video is.
   double _scrubTarget(double wanted) => seekTargetFor(
     wanted: wanted,
-    durationS: widget.video.durationS,
+    durationS: widget.video.durationS > 0
+        ? widget.video.durationS
+        : _liveDurationS,
     positionS: _positionS,
     questionTimes: _questionTimes,
     asked: _asked,
@@ -940,7 +956,9 @@ class _SessionScreenState extends State<SessionScreen> {
         valueListenable: _position,
         builder: (context, seconds, _) => QuestionTrack(
           positionS: seconds,
-          durationS: widget.video.durationS,
+          durationS: widget.video.durationS > 0
+                ? widget.video.durationS
+                : _liveDurationS,
           questionTimes: _questionTimes,
           askedCount: _asked,
           scrubbing: scrubbing,

@@ -42,12 +42,7 @@ class GilliVoice extends ChangeNotifier {
     final made = AudioPlayer();
     made.onPlayerComplete.listen((_) => _finish());
     made.onPlayerStateChanged.listen((state) {
-      if (state == PlayerState.completed || state == PlayerState.stopped) _finish();
-    });
-    made.onLog.listen((log) {
-      if (log.toLowerCase().contains('error') || log.toLowerCase().contains('failed')) {
-        _finish();
-      }
+      if (state == PlayerState.completed) _finish();
     });
     return _playerOrNull = made;
   }
@@ -90,9 +85,9 @@ class GilliVoice extends ChangeNotifier {
       try {
         await _player.play(UrlSource(targetUrl));
         // Gilli sentences are 1-2 short sentences (~6 seconds max, SPEC 7.4).
-        // If the URL playback does not finish cleanly within 6 seconds,
+        // If the URL playback does not finish cleanly within 8 seconds,
         // treat as stalled/failed and fall through to on-device TTS.
-        await _done!.future.timeout(const Duration(seconds: 6));
+        await _done!.future.timeout(const Duration(seconds: 8));
         playedUrl = true;
       } catch (e) {
         debugPrint('[voice] URL playback failed or timed out: $e');

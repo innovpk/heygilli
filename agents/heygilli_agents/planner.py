@@ -332,19 +332,28 @@ def fallback_plan(
     # transcripts reachable from the deployed gateway that was every video a
     # child ever saw: one question, at the very end, and nothing else the whole
     # way through. The bank has more than one thing to ask.
-    want = rules.target_questions(band, video.duration_s)
-    # A full gap clear of the end-of-video question, not merely before it: a
-    # four-year-old was getting one at 2:00 and another at 6:37 of a 6:40 video,
-    # 277 seconds apart where that band's own spacing asks for 360.
-    gap = rules.min_gap_s(band, duration_s=video.duration_s)
-    slots = [
-        slot for slot in rules.room_for(band, video.duration_s) if slot <= t_sec - gap
-    ][: want - 1]
-    prompts = question_bank.pick_many(band, video.id, len(slots) + 1, disabled_prompts)
-    questions = [
-        question_bank.as_question(prompt, at, language)
-        for prompt, at in zip(prompts, [*slots, t_sec], strict=False)
-    ]
+    if video.duration_s <= 0:
+        want = rules.target_questions(band, 0)
+        slots = rules.room_for(band, 0)[:want]
+        prompts = question_bank.pick_many(band, video.id, len(slots), disabled_prompts)
+        questions = [
+            question_bank.as_question(prompt, at, language)
+            for prompt, at in zip(prompts, slots, strict=False)
+        ]
+    else:
+        want = rules.target_questions(band, video.duration_s)
+        # A full gap clear of the end-of-video question, not merely before it: a
+        # four-year-old was getting one at 2:00 and another at 6:37 of a 6:40 video,
+        # 277 seconds apart where that band's own spacing asks for 360.
+        gap = rules.min_gap_s(band, duration_s=video.duration_s)
+        slots = [
+            slot for slot in rules.room_for(band, video.duration_s) if slot <= t_sec - gap
+        ][: want - 1]
+        prompts = question_bank.pick_many(band, video.id, len(slots) + 1, disabled_prompts)
+        questions = [
+            question_bank.as_question(prompt, at, language)
+            for prompt, at in zip(prompts, [*slots, t_sec], strict=False)
+        ]
     return QuestionPlan(
         video_id=video.id, age_band=band, language=language, questions=questions, source="none"
     )
