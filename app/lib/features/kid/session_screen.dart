@@ -566,10 +566,18 @@ class _SessionScreenState extends State<SessionScreen> {
       _gestureTick++;
       _phase = _Phase.asking;
     });
+    final text = ask.fallbackSpeech;
+    var ttsUrl = ask.ttsUrl;
+    if (ttsUrl.isEmpty && text != null && text.isNotEmpty) {
+      try {
+        final gateway = context.read<AppState>().gateway;
+        ttsUrl = await gateway.speechUrl(text, slow: _preReader);
+      } catch (_) {}
+    }
     _speaking = _voice.say(
-      url: ask.ttsUrl,
-      fallbackText: ask.fallbackSpeech,
-      language: _ttsLanguage(ask.fallbackSpeech),
+      url: ttsUrl,
+      fallbackText: text,
+      language: _ttsLanguage(text),
       slow: _preReader,
     );
     await _speaking;
@@ -608,10 +616,18 @@ class _SessionScreenState extends State<SessionScreen> {
       _gestureTick++;
       _phase = _Phase.asking;
     });
+    final hintText = hint.fallbackSpeech ?? ask.fallbackSpeech;
+    var hintUrl = hint.ttsUrl;
+    if (hintUrl.isEmpty && hintText != null && hintText.isNotEmpty) {
+      try {
+        final gateway = context.read<AppState>().gateway;
+        hintUrl = await gateway.speechUrl(hintText, slow: _preReader);
+      } catch (_) {}
+    }
     _speaking = _voice.say(
-      url: hint.ttsUrl,
-      fallbackText: hint.fallbackSpeech,
-      language: _ttsLanguage(hint.fallbackSpeech ?? ask.fallbackSpeech),
+      url: hintUrl,
+      fallbackText: hintText,
+      language: _ttsLanguage(hintText),
       slow: _preReader,
     );
     await _speaking;
@@ -749,8 +765,15 @@ class _SessionScreenState extends State<SessionScreen> {
       _phase = _Phase.replying;
     });
     final line = reply.text ?? reply.modelWord;
+    var ttsUrl = reply.ttsUrl;
+    if (ttsUrl.isEmpty && line != null && line.isNotEmpty) {
+      try {
+        final gateway = context.read<AppState>().gateway;
+        ttsUrl = await gateway.speechUrl(line, slow: _preReader);
+      } catch (_) {}
+    }
     _speaking = _voice.say(
-      url: reply.ttsUrl,
+      url: ttsUrl,
       fallbackText: line,
       language: _ttsLanguage(line),
       slow: _preReader,

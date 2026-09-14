@@ -41,6 +41,9 @@ class GilliVoice extends ChangeNotifier {
     if (player != null) return player;
     final made = AudioPlayer();
     made.onPlayerComplete.listen((_) => _finish());
+    made.onPlayerStateChanged.listen((state) {
+      if (state == PlayerState.completed) _finish();
+    });
     return _playerOrNull = made;
   }
 
@@ -159,11 +162,15 @@ class GilliVoice extends ChangeNotifier {
 
   Future<void> _speakLocal(String text, String language, bool slow) async {
     try {
-      await _tts.setLanguage(_tag(language));
+      final tts = _tts;
+      try {
+        await tts.stop();
+      } catch (_) {}
+      await tts.setLanguage(_tag(language));
       // SPEC 9.2: slower rate for pre-readers so key words land.
-      await _tts.setSpeechRate(slow ? 0.42 : 0.5);
-      await _tts.setPitch(1.1);
-      await _tts.speak(text);
+      await tts.setSpeechRate(slow ? 0.42 : 0.5);
+      await tts.setPitch(1.1);
+      await tts.speak(text);
     } catch (_) {
       _finish();
     }
