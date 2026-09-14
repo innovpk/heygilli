@@ -67,19 +67,19 @@ cp -R app/build/web/.   "$DIST/app/"
 # filenames every build, so without this a browser can sit on a stale bundle.
 cat > "$DIST/_headers" << 'HDR'
 /index.html
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/index.html
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/main.dart.js
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/flutter.js
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/flutter_bootstrap.js
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/flutter_service_worker.js
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 /app/version.json
-  Cache-Control: no-cache
+  Cache-Control: no-cache, no-store, must-revalidate
 HDR
 rm -f "$DIST/app/_headers"
 

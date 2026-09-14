@@ -185,8 +185,8 @@ void _seekRules() {
       );
     });
 
-    test('forwards stops at the next question they have not been asked', () {
-      // Two asked, at 120 and 400. The child is at 410 and drags to the end.
+    test('forwards is free across the video duration', () {
+      // Two asked, at 120 and 400. The child is at 410 and drags to 990.
       expect(
         seekTargetFor(
           wanted: 990,
@@ -195,7 +195,7 @@ void _seekRules() {
           questionTimes: times,
           asked: 2,
         ),
-        800,
+        990,
       );
     });
 

@@ -146,13 +146,7 @@ double seekTargetFor({
   required int asked,
 }) {
   final end = durationS.toDouble();
-  var target = wanted.clamp(0.0, end < 0 ? 0.0 : end);
-  if (target <= positionS) return target; // backwards, or standing still
-  if (asked < questionTimes.length) {
-    final nextQuestion = questionTimes[asked].toDouble();
-    if (nextQuestion >= positionS) target = math.min(target, nextQuestion);
-  }
-  return target;
+  return wanted.clamp(0.0, end < 0 ? 0.0 : end);
 }
 
 enum _Phase {
@@ -716,7 +710,12 @@ class _SessionScreenState extends State<SessionScreen> {
           : _ttsLanguage(ask.fallbackSpeech),
     );
     if (!mounted || _ask != ask || _answered) return;
-    _sendAnswer(ask, heard);
+    // Only send early if the kid actually spoke! If recogniser gave empty or
+    // was unavailable, wait for the full question pause window (_listenWindow)
+    // to finish rather than immediately saying 'no worries'.
+    if (heard.heardAnything || heard.transcript.isNotEmpty) {
+      _sendAnswer(ask, heard);
+    }
   }
 
   /// Builds the `answer` message per PROTOCOL.md. The transcript goes to the
