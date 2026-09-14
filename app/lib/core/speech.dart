@@ -9,12 +9,26 @@ import 'gateway.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import 'protocol.dart';
+import 'settings.dart';
 
 /// Gilli's voice. Plays the gateway's cached `tts_url` (consistent character
 /// voice, Urdu support) and falls back to on-device TTS when the URL is empty
 /// or fails, per PROTOCOL.md "TTS".
 class GilliVoice extends ChangeNotifier {
-  GilliVoice();
+  GilliVoice({String? baseUrl}) : _baseUrl = baseUrl;
+
+  final String? _baseUrl;
+
+  /// Resolves relative tts URLs (e.g. `/tts/<hash>.mp3`) against the gateway's
+  /// API base URL so the audio player receives a valid absolute URL.
+  String resolveUrl(String url) {
+    if (url.isEmpty || url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    final base = (_baseUrl ?? BuildConfig.apiUrl).replaceAll(RegExp(r'/+$'), '');
+    final path = url.startsWith('/') ? url : '/$url';
+    return '$base$path';
+  }
 
   // Built on first use, not in the constructor: creating one of these reaches
   // for a platform channel, and the object itself is constructed in places
@@ -57,29 +71,43 @@ class GilliVoice extends ChangeNotifier {
     await stop();
     if (url.isEmpty && (fallbackText == null || fallbackText.isEmpty)) return;
 
+    final targetUrl = resolveUrl(url);
+
     _done = Completer<void>();
     _speaking = true;
     notifyListeners();
 
-    if (url.isNotEmpty) {
+    bool playedUrl = false;
+    if (targetUrl.isNotEmpty) {
       try {
-        await _player.play(UrlSource(url));
+        await _player.play(UrlSource(targetUrl));
+        // Gilli sentences are 1-2 short sentences (~6 seconds max, SPEC 7.4).
+        // If the URL playback does not finish cleanly within 8 seconds,
+        // treat as stalled/failed and fall through to on-device TTS.
+        await _done!.future.timeout(const Duration(seconds: 8));
+        playedUrl = true;
       } catch (_) {
-        // Network or codec trouble: fall through to on-device TTS.
-        if (fallbackText != null && fallbackText.isNotEmpty) {
-          await _speakLocal(fallbackText, language, slow);
-        } else {
-          _finish();
-        }
+        // Network, codec trouble, 404, or playback timeout: fall through to on-device TTS.
+        try {
+          await _playerOrNull?.stop();
+        } catch (_) {}
       }
-    } else {
-      await _speakLocal(fallbackText!, language, slow);
     }
-    // Safety net: never let a stuck completion block the session loop.
-    return _done!.future.timeout(
-      const Duration(seconds: 20),
-      onTimeout: _finish,
-    );
+
+    if (!playedUrl) {
+      if (fallbackText != null && fallbackText.isNotEmpty) {
+        _done = Completer<void>();
+        _speaking = true;
+        notifyListeners();
+        await _speakLocal(fallbackText, language, slow);
+        return _done!.future.timeout(
+          const Duration(seconds: 8),
+          onTimeout: _finish,
+        );
+      } else {
+        _finish();
+      }
+    }
   }
 
   /// Offers a seeded word out loud, if this device can say it.

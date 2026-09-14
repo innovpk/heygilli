@@ -276,6 +276,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// Bumped on every answer Gilli celebrates; see [GilliWidget.celebrateTick].
   int _celebrateTick = 0;
   Future<void> _speaking = Future.value();
+  Future<void>? _replyJob;
   String _endLine = '';
 
   @override
@@ -529,7 +530,7 @@ class _SessionScreenState extends State<SessionScreen> {
       case HintMessage():
         _handleHint(m);
       case ReplyMessage():
-        _handleReply(m);
+        _replyJob = _handleReply(m);
       case ResumeMessage():
         _handleResume();
       case BreakStartedMessage(:final movementBreak):
@@ -738,7 +739,7 @@ class _SessionScreenState extends State<SessionScreen> {
   Future<void> _handleReply(ReplyMessage reply) async {
     _listenWindow?.cancel();
     await _ears.stopListening();
-    if (!mounted) return;
+    if (!mounted || _phase == _Phase.watching) return;
     if (reply.result.celebrates) KidSounds.instance.cheer();
     setState(() {
       _reply = reply;
@@ -758,9 +759,17 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   Future<void> _handleResume() async {
-    // Let Gilli finish the sentence before the video comes back, but never
-    // hold the video hostage to a TTS engine that forgets to say "done".
+    // If a reply is currently in flight or being spoken, wait for it to finish
+    // so the video does not resume and play while Gilli is still talking.
+    final replyJob = _replyJob;
+    if (replyJob != null) {
+      await replyJob.timeout(const Duration(seconds: 10), onTimeout: () {});
+      _replyJob = null;
+    }
+    // Also wait for any active voice speaking to finish before resuming.
     await _speaking.timeout(const Duration(seconds: 8), onTimeout: () {});
+    // Gilli must never speak in the background over playing video.
+    await _voice.stop();
     if (!mounted) return;
     setState(() {
       _serverPaused = false;

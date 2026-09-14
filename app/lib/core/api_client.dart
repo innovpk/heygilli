@@ -650,6 +650,7 @@ class ApiClient implements Gateway {
   }) async => ParentQuestion.fromJson(
     await _post('/kids/$kidId/videos/$videoId/questions', {
           'text': text,
+          // ignore: use_null_aware_elements
           if (tSec != null) 't_sec': tSec,
           'yes_no': yesNo,
         })
