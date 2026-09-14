@@ -132,7 +132,7 @@ Around the agents: a **FastAPI** gateway on Render (REST plus one WebSocket per 
 | Live demo | https://heygilli.com |
 | Try the screening, no login | https://heygilli.com/try |
 | Web app | https://heygilli.com/app/ |
-| Repo | https://github.com/mujahidmasood/heygilli (must be public before submitting) |
+| Repo | https://github.com/innovpk/heygilli (must be public before submitting) |
 | Demo video | https://youtu.be/ab9HNgQXS6A (4:52, Public, English captions uploaded 12 September) |
 | builder.aws post 1 | https://builder.aws.com/content/3J9lT0BiJ7M7ZwYqX6EbldIShrC/agents-for-humans-building-heygilli-part-1-the-concept-and-the-requirements |
 | builder.aws post 2 | https://builder.aws.com/content/3J9lmlk9RcHyUqdhf08wPp8ZsGZ/agents-for-humans-building-heygilli-part-2-designing-eight-agents-with-strands |

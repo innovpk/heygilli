@@ -1,3 +1,3 @@
-# peeku
+# HeyGilli Flutter App
 
-A new Flutter project.
+The client interface for HeyGilli, an AI co-watching buddy for kids' YouTube.
