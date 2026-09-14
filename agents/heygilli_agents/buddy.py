@@ -305,10 +305,16 @@ class SessionEngine:
         """The goodbye. `line` overrides it when the session is ending for a
         reason of its own — a video stopped for its length says so rather than
         signing off as though it had simply finished."""
+        unasked = [
+            q.text
+            for i, q in enumerate(self.questions)
+            if i not in self.asked and q.text
+        ]
         if line is not None:
             return ServerEnd(summary_tts_url=synthesize(line, self.language, self.band == "4_6"),
                              summary_text=line,
-                             words_said=list(dict.fromkeys(self.words_said)))
+                             words_said=list(dict.fromkeys(self.words_said)),
+                             unasked_questions=unasked)
         if self.language == "ur":
             line = "بہت اچھا! پھر ملیں گے۔"
         elif self.band == "4_6":
@@ -317,7 +323,8 @@ class SessionEngine:
             line = "Great watching with you. See you next time!"
         return ServerEnd(summary_tts_url=synthesize(line, self.language, self.band == "4_6"),
                          summary_text=line,
-                         words_said=list(dict.fromkeys(self.words_said)))
+                         words_said=list(dict.fromkeys(self.words_said)),
+                         unasked_questions=unasked)
 
     # -- internals
     def _score_voice(self, q: Question, said: str) -> Score:

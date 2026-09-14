@@ -67,7 +67,7 @@ class QuestionTrack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (durationS <= 0 || questionTimes.isEmpty) return const SizedBox.shrink();
+    if (durationS <= 0) return const SizedBox.shrink();
     final progress = (positionS / durationS).clamp(0.0, 1.0);
 
     return Semantics(

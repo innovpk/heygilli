@@ -194,8 +194,8 @@ def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -
             at += gap
         return slots
     if 0 < duration_s < SHORT_VIDEO_S:
-        min_t = max(10, min(30, duration_s // 3))
-        max_t = max(min_t, duration_s - 12)
+        min_t = max(8, min(25, duration_s // 3))
+        max_t = max(min_t, duration_s - END_MARGIN_S)
         mid_t = max(min_t, min(max_t, duration_s // 2))
         return [mid_t]
     t = TIMING[band]
@@ -321,8 +321,8 @@ def enforce(
     if 0 < duration_s < SHORT_VIDEO_S:
         if not kept:
             return []
-        min_t = max(10, min(30, duration_s // 3))
-        max_t = max(min_t, duration_s - 12)
+        min_t = max(8, min(25, duration_s // 3))
+        max_t = max(min_t, duration_s - END_MARGIN_S)
         mid_t = max(min_t, min(max_t, duration_s // 2))
         valid = [q for q in kept if min_t <= q.t_sec <= max_t]
         if valid:

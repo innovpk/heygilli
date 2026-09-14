@@ -139,6 +139,9 @@ sealed class ServerMessage {
           // Not in v1 of the protocol; read if present so the fallback TTS
           // has something to say when summary_tts_url is empty.
           summaryText: j['summary_text'] as String?,
+          unaskedQuestions: (j['unasked_questions'] as List? ?? const [])
+              .map((e) => '$e')
+              .toList(),
         );
       case 'error':
         return ErrorMessage(j['message'] as String? ?? 'unknown error');
@@ -367,10 +370,12 @@ class EndMessage extends ServerMessage {
     required this.summaryTtsUrl,
     required this.wordsSaid,
     this.summaryText,
+    this.unaskedQuestions = const [],
   });
   final String summaryTtsUrl;
   final List<String> wordsSaid;
   final String? summaryText;
+  final List<String> unaskedQuestions;
 }
 
 /// `{t: "break", break: BreakPeriod}`. The video stops here and does not

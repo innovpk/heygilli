@@ -116,12 +116,14 @@ class TestSwapping:
         out = known.swap_known(plan, answered_right, store, VIDEO)
         assert out.questions[0].text != plan.questions[0].text
 
-    def test_the_one_they_got_wrong_is_left_alone(
+    def test_an_unasked_question_is_left_alone(
         self, store: LocalStore, answered_right: Kid
     ) -> None:
-        plan = plan_for(VIDEO, CONCEPT, "something else")
+        plan = plan_for(VIDEO, CONCEPT, "something else", "unseen third")
         out = known.swap_known(plan, answered_right, store, VIDEO)
-        assert out.questions[1].text == plan.questions[1].text
+        assert out.questions[0].text != plan.questions[0].text
+        assert out.questions[1].text != plan.questions[1].text
+        assert out.questions[2].text == plan.questions[2].text
 
     def test_the_count_and_the_timings_are_untouched(
         self, store: LocalStore, answered_right: Kid

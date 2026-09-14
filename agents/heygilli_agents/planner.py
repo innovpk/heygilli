@@ -321,8 +321,8 @@ def fallback_plan(
     # shorter than that ends with nothing asked, which is a question missed
     # rather than a question asked at the wrong moment.
     if 0 < video.duration_s < rules.SHORT_VIDEO_S:
-        min_t = max(10, min(30, video.duration_s // 3))
-        max_t = max(min_t, video.duration_s - 12)
+        min_t = max(8, min(25, video.duration_s // 3))
+        max_t = max(min_t, video.duration_s - rules.END_MARGIN_S)
         t_sec = max(min_t, min(max_t, video.duration_s // 2))
     elif video.duration_s:
         t_sec = max(video.duration_s - rules.END_MARGIN_S, 0)
@@ -333,12 +333,10 @@ def fallback_plan(
     # child ever saw: one question, at the very end, and nothing else the whole
     # way through. The bank has more than one thing to ask.
     if video.duration_s <= 0:
-        want = rules.target_questions(band, 0)
-        slots = rules.room_for(band, 0)[:want]
-        prompts = question_bank.pick_many(band, video.id, len(slots), disabled_prompts)
+        prompts = question_bank.pick_many(band, video.id, 1, disabled_prompts)
         questions = [
-            question_bank.as_question(prompt, at, language)
-            for prompt, at in zip(prompts, slots, strict=False)
+            question_bank.as_question(prompt, t_sec, language)
+            for prompt in prompts
         ]
     else:
         want = rules.target_questions(band, video.duration_s)

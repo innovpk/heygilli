@@ -1114,6 +1114,7 @@ class ServerEnd(BaseModel):
     summary_tts_url: str = ""
     summary_text: str | None = None  # on-device TTS fallback when summary_tts_url is empty
     words_said: list[str] = Field(default_factory=list)
+    unasked_questions: list[str] = Field(default_factory=list)
 
 
 class ServerBreak(BaseModel):

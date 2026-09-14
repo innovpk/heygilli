@@ -279,12 +279,20 @@ class _SessionScreenState extends State<SessionScreen> {
   Future<void> _speaking = Future.value();
   Future<void>? _replyJob;
   String _endLine = '';
+  DateTime? _seekingUntil;
+  List<String> _unaskedQuestions = const [];
 
   @override
   void initState() {
     super.initState();
     _ytSub = _yt.stream.listen(_onPlayerValue);
     _posSub = _yt.videoStateStream.listen((s) {
+      final now = DateTime.now();
+      if (_seekingUntil != null && now.isBefore(_seekingUntil!)) {
+        // While a seek settles, don't let older player position ticks yank the thumb back.
+        return;
+      }
+      _seekingUntil = null;
       _positionS = s.position.inMilliseconds / 1000;
       // Not while a finger is on the strip. The player reports every 100ms and
       // a seek takes longer than that to land, so following both at once is
@@ -486,7 +494,22 @@ class _SessionScreenState extends State<SessionScreen> {
     // a legal place to be.
     final target = _position.value;
     _positionS = target;
-    await _yt.seekTo(seconds: target, allowSeekAhead: true);
+    _seekingUntil = DateTime.now().add(const Duration(milliseconds: 1500));
+    _socket?.send(PositionMessage(target));
+    try {
+      // `_yt.seekTo` passes 2 args: `player.seekTo($seconds, $allowSeekAhead)`.
+      // In youtube_player_iframe's `assets/player.html`, `JSON.parse` is called on the
+      // arguments string, which throws SyntaxError for comma-separated arguments.
+      // Calling `player.seekTo($target);` directly with one argument succeeds across all platforms.
+      await _yt.webViewController.runJavaScript('player.seekTo($target);');
+    } catch (e) {
+      debugPrint('[yt] JS seekTo failed: $e');
+    }
+    try {
+      await _yt.seekTo(seconds: target, allowSeekAhead: true);
+    } catch (e) {
+      debugPrint('[yt] controller seekTo error: $e');
+    }
   }
 
   /// Turn the sound on, once, and find out whether it worked.
@@ -876,6 +899,7 @@ class _SessionScreenState extends State<SessionScreen> {
       _endLine = '';
       _gesture = Gesture.cheer;
       _gestureTick++;
+      _unaskedQuestions = end.unaskedQuestions;
       _phase = _Phase.ended;
     });
     // SPEC update: No spoken completion sign-off voice prompt at the end of the video.
@@ -1290,11 +1314,74 @@ class _SessionScreenState extends State<SessionScreen> {
           mainAxisSize: MainAxisSize.min,
           spacing: 14,
           children: [
-            if (showText)
+            if (showText && _endLine.isNotEmpty)
               Text(
                 _endLine,
                 textAlign: TextAlign.center,
                 style: HgText.display(size: _band.questionTextSize),
+              ),
+            if (_unaskedQuestions.isNotEmpty)
+              Container(
+                constraints: const BoxConstraints(maxWidth: 540),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: HgColors.tealDeep.withAlpha(90),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: HgColors.sky.withAlpha(70)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Questions from this video:',
+                          style: HgText.body(
+                            size: 15,
+                            color: Colors.white,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    for (final q in _unaskedQuestions)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '• ',
+                              style: TextStyle(
+                                color: HgColors.sky,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                q,
+                                style: HgText.body(
+                                  size: 14,
+                                  color: Colors.white.withAlpha(230),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
             // Gilli just asked whether they want another one. These are the
             // answer, in pictures, because the child being asked may not read.

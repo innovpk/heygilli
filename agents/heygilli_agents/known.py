@@ -58,18 +58,30 @@ def known_concepts(
 
 
 def known_questions_and_concepts(
-    kid: Kid, store: Store, days: int = WINDOW_DAYS, today: date | None = None
+    kid: Kid,
+    store: Store,
+    days: int = WINDOW_DAYS,
+    today: date | None = None,
+    current_video_id: str | None = None,
 ) -> tuple[set[str], set[str]]:
-    """Concept keys and question texts this child has answered correctly."""
+    """Concept keys and question texts this child has answered / been evaluated on.
+
+    Across different videos: only concepts answered correctly (UNDERSTOOD) are considered known.
+    On the same video being rewatched (current_video_id): any question that was evaluated/answered
+    (including partial, silence, unclear) is considered stale so rewatching offers fresh questions.
+    """
     sessions, answers, plans, videos, _ = analytics.load_window(kid, days, store, today)
     by_session = {s.id: s for s in sessions}
     concepts: set[str] = set()
     texts: set[str] = set()
     for a in answers:
-        if a.result not in analytics.UNDERSTOOD:
-            continue
         session = by_session.get(a.session_id)
         if session is None:
+            continue
+        is_same_video = current_video_id is not None and session.video_id == current_video_id
+        if not is_same_video and a.result not in analytics.UNDERSTOOD:
+            continue
+        if not a.result:
             continue
         plan = plans.get(
             QuestionPlan.key(session.video_id, session.age_band, session.language)
@@ -83,7 +95,7 @@ def known_questions_and_concepts(
         label = analytics.concept_label(
             q, video.title if video else ""
         )
-        if label:
+        if label and (is_same_video or a.result in analytics.UNDERSTOOD):
             concepts.add(label.lower())
     return concepts, texts
 
@@ -96,7 +108,7 @@ def swap_known(
     days: int = WINDOW_DAYS,
     today: date | None = None,
 ) -> QuestionPlan:
-    """This session's plan, with what the child already knows swapped out.
+    """This session's plan, with what the child already met/knows swapped out.
 
     Returns the plan unchanged when there is nothing to do, which is the common
     case: a first viewing has no history to read.
@@ -105,7 +117,9 @@ def swap_known(
         return plan
 
     band: AgeBand = kid.age_band or "7_8"
-    concepts, texts = known_questions_and_concepts(kid, store, days, today)
+    concepts, texts = known_questions_and_concepts(
+        kid, store, days, today, current_video_id=video.id if video else None
+    )
     if not concepts and not texts:
         return plan
 
@@ -121,16 +135,26 @@ def swap_known(
         return plan
 
     # Prompts this plan is not already using, so a swap cannot hand a child the
-    # same question under a different index or a question they already got right.
+    # same question under a different index or a question they already met.
     in_plan = {q.text.strip().lower() for q in plan.questions}
+    all_allowed = question_bank.allowed(band, kid.disabled_prompts)
     spares = [
         p
         for p in question_bank.pick_many(
-            band, video.id, len(stale) + len(plan.questions) + 10, kid.disabled_prompts
+            band, video.id, len(all_allowed), kid.disabled_prompts
         )
         if p.text.get(plan.language, p.text["en"]).strip().lower() not in in_plan
         and p.text.get(plan.language, p.text["en"]).strip().lower() not in texts
     ]
+    if not spares and all_allowed:
+        # If every bank question has been seen, fall back to any prompt not currently in this plan
+        spares = [
+            p
+            for p in question_bank.pick_many(
+                band, video.id, len(all_allowed), kid.disabled_prompts
+            )
+            if p.text.get(plan.language, p.text["en"]).strip().lower() not in in_plan
+        ]
 
     questions = list(plan.questions)
     swapped = 0
