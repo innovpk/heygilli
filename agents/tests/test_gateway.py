@@ -332,8 +332,10 @@ def test_a_wall_of_text_is_refused_before_it_reaches_polly(
     assert called == [], "a 5000-character request reached Polly"
 
 
-def test_speech_needs_a_household(client: TestClient) -> None:
-    assert client.post("/tts", json={"text": "hello"}).status_code == 401
+def test_speech_synthesizes_voice_for_clients(client: TestClient) -> None:
+    r = client.post("/tts", json={"text": "hello"})
+    assert r.status_code == 200
+    assert "url" in r.json()
 
 
 def test_healthz_reports_which_transcript_sources_exist(client, monkeypatch) -> None:

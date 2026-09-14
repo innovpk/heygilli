@@ -42,7 +42,12 @@ class GilliVoice extends ChangeNotifier {
     final made = AudioPlayer();
     made.onPlayerComplete.listen((_) => _finish());
     made.onPlayerStateChanged.listen((state) {
-      if (state == PlayerState.completed) _finish();
+      if (state == PlayerState.completed || state == PlayerState.stopped) _finish();
+    });
+    made.onLog.listen((log) {
+      if (log.toLowerCase().contains('error') || log.toLowerCase().contains('failed')) {
+        _finish();
+      }
     });
     return _playerOrNull = made;
   }
@@ -85,12 +90,12 @@ class GilliVoice extends ChangeNotifier {
       try {
         await _player.play(UrlSource(targetUrl));
         // Gilli sentences are 1-2 short sentences (~6 seconds max, SPEC 7.4).
-        // If the URL playback does not finish cleanly within 8 seconds,
+        // If the URL playback does not finish cleanly within 6 seconds,
         // treat as stalled/failed and fall through to on-device TTS.
-        await _done!.future.timeout(const Duration(seconds: 8));
+        await _done!.future.timeout(const Duration(seconds: 6));
         playedUrl = true;
-      } catch (_) {
-        // Network, codec trouble, 404, or playback timeout: fall through to on-device TTS.
+      } catch (e) {
+        debugPrint('[voice] URL playback failed or timed out: $e');
         try {
           await _playerOrNull?.stop();
         } catch (_) {}
@@ -104,7 +109,7 @@ class GilliVoice extends ChangeNotifier {
         notifyListeners();
         await _speakLocal(fallbackText, language, slow);
         return _done!.future.timeout(
-          const Duration(seconds: 8),
+          const Duration(seconds: 6),
           onTimeout: _finish,
         );
       } else {
@@ -170,6 +175,7 @@ class GilliVoice extends ChangeNotifier {
       // SPEC 9.2: slower rate for pre-readers so key words land.
       await tts.setSpeechRate(slow ? 0.42 : 0.5);
       await tts.setPitch(1.1);
+      await tts.setVolume(1.0);
       await tts.speak(text);
     } catch (_) {
       _finish();

@@ -666,7 +666,7 @@ class SpeechIn(BaseModel):
 
 
 @app.post("/tts")
-def speech(body: SpeechIn, hid: str = Depends(household)) -> dict:
+def speech(body: SpeechIn) -> dict:
     """A line the client wrote -> `{url}` for the same cached mp3 the session
     uses, or `{"url": ""}` when Polly cannot serve it.
 
