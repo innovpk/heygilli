@@ -91,7 +91,6 @@ class QuestionTrack extends StatelessWidget {
                   ? (d) => onScrub!(secondsAt(d.localPosition.dx))
                   : null,
               onTapUp: enabled ? (_) => onScrubEnd!() : null,
-              onTapCancel: enabled ? onScrubEnd : null,
               onHorizontalDragStart: enabled
                   ? (d) => onScrub!(secondsAt(d.localPosition.dx))
                   : null,

@@ -405,7 +405,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   void _syncPlayGlyph() {
     _showPlay.value = showsPlayGlyph(
-      gilliHasVideo: _isPaused,
+      gilliHasVideo: _gilliHasVideo,
       onBreak: _onBreak,
       ended: _ended,
       childPaused: _childPaused,
@@ -421,7 +421,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// else: pause what is playing, and start what never started.
   Future<void> _onPlayerTap() async {
     final tap = playerTapFor(
-      gilliHasVideo: _isPaused,
+      gilliHasVideo: _gilliHasVideo,
       onBreak: _onBreak,
       ended: _ended,
       state: _playerState,
@@ -462,7 +462,7 @@ class _SessionScreenState extends State<SessionScreen> {
   /// back. Gated like the tap: while Gilli has the video the strip shows the
   /// position and does not move.
   void _onScrub(double wanted) {
-    if (_isPaused || _onBreak || _ended) return;
+    if (_gilliHasVideo || _onBreak || _ended) return;
     _scrubbing.value = true;
     _position.value = _scrubTarget(wanted);
   }
@@ -471,7 +471,7 @@ class _SessionScreenState extends State<SessionScreen> {
   Future<void> _onScrubEnd() async {
     if (!_scrubbing.value) return;
     _scrubbing.value = false;
-    if (_isPaused || _onBreak || _ended) return;
+    if (_gilliHasVideo || _onBreak || _ended) return;
     // `_position` was clamped on the way in by `_onScrub`, so this is already
     // a legal place to be.
     final target = _position.value;
@@ -736,6 +736,7 @@ class _SessionScreenState extends State<SessionScreen> {
       _repeatPending = true;
       _repeatsLeft--;
     });
+    await _voice.stop();
     // Stop the mic first, or the recogniser hears Gilli read the question and
     // hands that back as the child's answer.
     await _ears.stopListening();
@@ -912,17 +913,22 @@ class _SessionScreenState extends State<SessionScreen> {
   /// never recreated (that would restart the video mid-session).
   final _playerKey = GlobalKey();
 
-  /// True whenever the video is stopped for a question. Layout keys off this:
-  /// playing = video as large as possible, Gilli small; paused = video
-  /// shrinks, Gilli and the answer area grow (SPEC 6.2, 6.3).
-  bool get _isPaused => switch (_phase) {
-    _Phase.paused ||
-    _Phase.asking ||
-    _Phase.listening ||
-    _Phase.answered ||
-    _Phase.replying => true,
-    _ => false,
-  };
+  /// True whenever Gilli has stopped the video for a question or session end.
+  /// Playback controls and scrubbing are disabled; stage area is active.
+  bool get _gilliHasVideo =>
+      _serverPaused ||
+      switch (_phase) {
+        _Phase.paused ||
+        _Phase.asking ||
+        _Phase.listening ||
+        _Phase.answered ||
+        _Phase.replying ||
+        _Phase.ended ||
+        _Phase.error => true,
+        _ => false,
+      };
+
+  bool get _isPaused => _gilliHasVideo;
 
   /// The question strip, under the player and never on it: HeyGilli plays by
   /// YouTube's rules and those forbid overlays during playback.
@@ -938,8 +944,8 @@ class _SessionScreenState extends State<SessionScreen> {
           questionTimes: _questionTimes,
           askedCount: _asked,
           scrubbing: scrubbing,
-          onScrub: (_isPaused || _onBreak || _ended) ? null : _onScrub,
-          onScrubEnd: (_isPaused || _onBreak || _ended) ? null : _onScrubEnd,
+          onScrub: (_gilliHasVideo || _onBreak || _ended) ? null : _onScrub,
+          onScrubEnd: (_gilliHasVideo || _onBreak || _ended) ? null : _onScrubEnd,
         ),
       ),
     ),
@@ -1151,7 +1157,13 @@ class _SessionScreenState extends State<SessionScreen> {
         return ListenableBuilder(
           listenable: _ears,
           builder: (context, _) {
-            final gilli = GilliWidget(
+            final canRepeatGilli =
+                (_phase == _Phase.asking || _phase == _Phase.listening) &&
+                !_answered &&
+                !_repeatPending &&
+                _repeatsLeft > 0 &&
+                _ask != null;
+            final gilliWidget = GilliWidget(
               size: _stage.gilli,
               gesture: _gesture,
               gestureTick: _gestureTick,
@@ -1159,6 +1171,17 @@ class _SessionScreenState extends State<SessionScreen> {
               talking: voice.speaking,
               listening: _ears.listening,
             );
+            final gilli = canRepeatGilli
+                ? GestureDetector(
+                    key: const Key('gilli-repeat-tap'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: withTap(_onRepeat),
+                    child: Tooltip(
+                      message: 'Say it again',
+                      child: gilliWidget,
+                    ),
+                  )
+                : gilliWidget;
             final answer = _buildAnswerArea(wide);
             final mic = _needsMic ? _buildMic(_stage.mic) : null;
 
@@ -1415,7 +1438,9 @@ class _SessionScreenState extends State<SessionScreen> {
     // to a child as being told their answer did not matter. Offered for as long
     // as they may still answer, and it goes away once they have used their one
     // (SPEC 7.4) — a button that does nothing is worse than no button.
-    if (reply == null && _phase == _Phase.listening && _repeatsLeft > 0) {
+    if (reply == null &&
+        (_phase == _Phase.asking || _phase == _Phase.listening) &&
+        _repeatsLeft > 0) {
       children.add(
         _SayItAgainButton(
           showText: showText,
