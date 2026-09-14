@@ -831,25 +831,16 @@ class _SessionScreenState extends State<SessionScreen> {
     _listenWindow?.cancel();
     await _ears.stopListening();
     if (!mounted) return;
-    final line =
-        end.summaryText ??
-        (_preReader
-            ? 'All done! Shall we watch one more?'
-            : 'You watched a whole video! Want another?');
     setState(() {
       _ask = null;
       _reply = null;
-      _endLine = line;
+      _endLine = '';
       _gesture = Gesture.cheer;
       _gestureTick++;
       _phase = _Phase.ended;
     });
-    await _voice.say(
-      url: end.summaryTtsUrl,
-      fallbackText: line,
-      language: _ttsLanguage(line),
-      slow: _preReader,
-    );
+    // SPEC update: No spoken completion sign-off voice prompt at the end of the video.
+    // Transition straight to showing Next Up recommendations.
     if (!mounted) return;
     await _loadNextUp();
     if (!mounted) return;

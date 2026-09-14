@@ -220,10 +220,10 @@ PROMPTS: tuple[Prompt, ...] = (
     ),
     Prompt(
         id="p46_watch_again",
-        band="4_6", type="yes_no", input="pick", gesture="cheer",
-        label="Watch one more like it?",
-        text={"en": "Would you like another one like that?",
-              "ur": "کیا تم ایسی ایک اور دیکھنا چاہو گے؟"},
+        band="4_6", type="yes_no", input="pick", gesture="think",
+        label="Did you see cool things?",
+        text={"en": "Did you see cool things in that video?",
+              "ur": "کیا تم نے اس ویڈیو میں زبردست چیزیں دیکھیں؟"},
         expected="whichever one they tapped",
         options=(
             Option(icon_id="icon_yes", label="yes"),

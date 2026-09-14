@@ -46,11 +46,11 @@ def test_post_validation_drops_violations() -> None:
     assert plan.questions[0].model_line  # filled in by rules._fill
 
 
-def test_short_video_question_is_shifted_to_the_end() -> None:
+def test_short_video_question_placed_mid_video() -> None:
     short = Video(id="s", title="Short", duration_s=150)
     draft = [{"t_sec": 30, "type": "recall", "input": "voice", "text": "What?", "expected": "x"}]
     plan = planner.build_plan(short, SEGMENTS[:5], "7_8", "en", agent=agent_with(draft))
-    assert [q.t_sec for q in plan.questions] == [147]
+    assert [q.t_sec for q in plan.questions] == [30]
 
 
 def test_repair_pick_maps_labels_to_icons_and_fills_distractors() -> None:
@@ -185,6 +185,9 @@ def test_the_question_never_lands_before_the_band_would_allow_one() -> None:
             )
             if duration == 0:
                 assert first == rules.TIMING[band].first_question_s
+            elif duration < rules.SHORT_VIDEO_S:
+                assert plan.questions[-1].t_sec < duration
+                assert all(q.t_sec <= duration for q in plan.questions)
             else:
                 # However many there are, the last is the end-of-video one and
                 # none of them lands after the video has finished.

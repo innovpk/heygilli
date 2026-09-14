@@ -136,19 +136,36 @@ def planner_agent(model=None) -> Agent:
 PLAN_TRANSCRIPT_CHARS = 12000
 
 
-def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Language, freq) -> str:
-    t = rules.TIMING[band]
+def plan_prompt(video: Video, segments: list[dict], band: AgeBand, language: Language, freq: QuestionFreq | None = None) -> str:
+    first_q = rules.first_question_s(band, video.duration_s)
+    gap = rules.min_gap_s(band, freq, video.duration_s)
+    target_q = rules.target_questions(band, video.duration_s)
+    num_candidates = 2 * target_q + 2
+
+    transcript = transcript_text(segments, max_chars=PLAN_TRANSCRIPT_CHARS) if segments else ""
+    if not transcript:
+        meta_desc = f"Title: {video.title}\nDescription: {video.description[:1000]}" if video.description else f"Title: {video.title}"
+        content_section = (
+            f"Video Information (no transcript captions available):\n{meta_desc}\n\n"
+            f"Analyze the educational concepts, subject matter, and themes of this video from its title and description. "
+            f"Propose knowledge-enhancing questions about the subject matter (e.g. facts about the animals, science, story, or concepts). "
+            f"Do NOT ask generic sign-off questions like 'did you like it' or 'what was your favourite part'. "
+            f"Schedule questions at engaging pause points across the video duration ({video.duration_s}s). "
+            f"For short videos under 3 minutes, schedule a question mid-video around {max(15, video.duration_s // 2)}s."
+        )
+    else:
+        content_section = f"Transcript:\n{transcript}"
+
     return (
         f"age_band: {band}\nlanguage: {language}\nduration_s: {video.duration_s}\n"
         f"title: {video.title}\n"
         f"types allowed: {', '.join(TYPES_FOR_BAND[band])}\n"
-        f"first question no earlier than: {t.first_question_s}s\n"
-        f"minimum gap between questions: {rules.min_gap_s(band, freq, video.duration_s)}s\n"
-        f"questions that will be asked: {rules.target_questions(band, video.duration_s)}\n"
-        f"propose at least this many candidates: "
-        f"{2 * rules.target_questions(band, video.duration_s) + 2}\n"
+        f"first question no earlier than: {first_q}s\n"
+        f"minimum gap between questions: {gap}s\n"
+        f"questions that will be asked: {target_q}\n"
+        f"propose at least this many candidates: {num_candidates}\n"
         f"{BAND_GUIDE[band].strip()}\n\n"
-        f"Transcript:\n{transcript_text(segments, max_chars=PLAN_TRANSCRIPT_CHARS)}\n\n"
+        f"{content_section}\n\n"
         f"Return the PlanDraft."
     )
 
@@ -172,6 +189,7 @@ def build_plan(
     if not segments:
         return fallback_plan(video, band, language, disabled_prompts)
     agent = agent or planner_agent()
+    plan_source = source if segments else "metadata"
     try:
         draft = structured(agent, plan_prompt(video, segments, band, language, freq), PlanDraft)
     except LLMError as e:
@@ -184,7 +202,7 @@ def build_plan(
         return fallback_plan(video, band, language, disabled_prompts)
     kept = top_up(kept, video, band, language, freq, disabled_prompts)
     return QuestionPlan(
-        video_id=video.id, age_band=band, language=language, questions=kept, source=source
+        video_id=video.id, age_band=band, language=language, questions=kept, source=plan_source
     )
 
 
@@ -302,11 +320,14 @@ def fallback_plan(
     # something, and the same threshold every other question obeys. A video
     # shorter than that ends with nothing asked, which is a question missed
     # rather than a question asked at the wrong moment.
-    t_sec = (
-        max(video.duration_s - rules.END_MARGIN_S, 0)
-        if video.duration_s
-        else rules.TIMING[band].first_question_s
-    )
+    if 0 < video.duration_s < rules.SHORT_VIDEO_S:
+        min_t = max(10, min(30, video.duration_s // 3))
+        max_t = max(min_t, video.duration_s - 12)
+        t_sec = max(min_t, min(max_t, video.duration_s // 2))
+    elif video.duration_s:
+        t_sec = max(video.duration_s - rules.END_MARGIN_S, 0)
+    else:
+        t_sec = rules.TIMING[band].first_question_s
     # One question used to be the whole of a transcript-less plan, and with no
     # transcripts reachable from the deployed gateway that was every video a
     # child ever saw: one question, at the very end, and nothing else the whole

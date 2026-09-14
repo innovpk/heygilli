@@ -122,10 +122,10 @@ def test_a_video_gets_two_or_three_questions_not_as_many_as_will_fit() -> None:
     assert len(rules.enforce(pre, "4_6", 290)) == 1
 
 
-def test_short_video_gets_one_question_at_the_end() -> None:
+def test_short_video_gets_one_mid_video_question() -> None:
     kept = rules.enforce([q(20, "recall"), q(60, "why")], "7_8", 150)
     assert len(kept) == 1
-    assert kept[0].t_sec == 150 - rules.END_MARGIN_S
+    assert kept[0].t_sec == 60
     assert kept[0].type == "why"
 
 

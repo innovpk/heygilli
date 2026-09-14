@@ -90,6 +90,13 @@ def listen_ms(band: AgeBand) -> int:
     return TIMING[band].listen_ms
 
 
+def first_question_s(band: AgeBand, duration_s: int = 0) -> int:
+    """Earliest allowed timestamp for a question. Short videos start earlier mid-clip."""
+    if 0 < duration_s < SHORT_VIDEO_S:
+        return max(10, min(30, duration_s // 3))
+    return TIMING[band].first_question_s
+
+
 #: How long a child sits on a question, saying nothing, before Gilli offers a
 #: hint. Absolute rather than a share of the window: the window is what a
 #: child gets to think in, and the hint is for the child who has stopped
@@ -167,6 +174,11 @@ def room_for(band: AgeBand, duration_s: int, freq: QuestionFreq | None = None) -
     """
     if duration_s <= 0:
         return []
+    if 0 < duration_s < SHORT_VIDEO_S:
+        min_t = max(10, min(30, duration_s // 3))
+        max_t = max(min_t, duration_s - 12)
+        mid_t = max(min_t, min(max_t, duration_s // 2))
+        return [mid_t]
     t = TIMING[band]
     gap = min_gap_s(band, freq, duration_s)
     last = duration_s - END_MARGIN_S
@@ -290,8 +302,15 @@ def enforce(
     if 0 < duration_s < SHORT_VIDEO_S:
         if not kept:
             return []
-        last = kept[-1].model_copy(update={"t_sec": max(duration_s - END_MARGIN_S, 0)})
-        return [_fill(last, band, language)]
+        min_t = max(10, min(30, duration_s // 3))
+        max_t = max(min_t, duration_s - 12)
+        mid_t = max(min_t, min(max_t, duration_s // 2))
+        valid = [q for q in kept if min_t <= q.t_sec <= max_t]
+        if valid:
+            chosen = min(valid, key=lambda q: abs(q.t_sec - mid_t))
+        else:
+            chosen = kept[0].model_copy(update={"t_sec": mid_t})
+        return [_fill(chosen, band, language)]
 
     kept = [q for q in kept if q.t_sec >= t.first_question_s]
     if duration_s > 0:
